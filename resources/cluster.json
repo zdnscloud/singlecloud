@@ -1,7 +1,24 @@
 {
-    "_comment": "this is cluster field spec, field version, creationTimestamp is return value and only for get/list, support method: POST(import cluster to singlecloud) and GET (get a cluster or list clusters)",
-    "name": "chengdu",
-    "nodesCount": 3,
-    "version": "v1.13.1",
-    "creationTimestamp": "2019-02-13T05:46:29Z"
+    "resourceFields": {
+        "name": {"type": "string", "create": true},
+        "nodesCount": {"type": "uint32", "create": true},
+        "version": {"type": "string"},
+        "creationTimestamp": {"type": "string"}
+    },
+    "resourceMethods": [
+        {
+            "method": "GET",
+            "url": "http://127.0.0.1:1234/zdns.cloud.cn/v1/cluster/chengdu"
+        }
+    ],
+    "collectionMethods": [
+        {
+            "method": "POST",
+            "url": "http://127.0.0.1:1234/zdns.cloud.cn/v1/cluster"
+        },
+        {
+            "method": "GET",
+            "url": "http://127.0.0.1:1234/zdns.cloud.cn/v1/cluster"
+        }
+    ]
 }

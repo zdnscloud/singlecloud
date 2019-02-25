@@ -1,24 +1,31 @@
 {
-    "_comment": "this is node field spec, field role is array and only support controlplane, etcd, worker, support Method: GET(get a node or list nodes)",
-    "name": "master",
-    "address": "10.0.0.31",
-    "role": [
-        "controlplane",
-        "etcd"
+    "resourceFields": {
+        "name": {"type": "string"},
+        "address": {"type": "string"} ,
+        "role": {"type": "array"},
+        "labels": { "type": "map"},
+        "annotations": { "type": "map" },
+        "status": {"type": "bool"},
+        "operatingSystem": {"type": "string"},
+        "operatingSystemImage": {"type": "string"},
+        "dockerVersion": {"type": "string"},
+        "cpu": {"type": "uint32"},
+        "cpuUsedRatio": {"type": "string"},
+        "memory": { "type": "string"},
+        "memoryUsedRatio": {"type": "string"},
+        "creationTimestamp": {"type": "string"}
+    },
+
+    "resourceMethods": [
+        {
+            "method": "GET",
+            "url": "http://127.0.0.1:1234/zdns.cloud.cn/v1/cluster/chengdu/nodes/master"
+        }
     ],
-    "labels": {
-        "kubernetes.io/hostname": "master"
-    },
-    "annotations": {
-        "volumes.kubernetes.io/controller-managed-attach-detach": "true"
-    },
-    "status": "true",
-    "operatingSystem": "linux",
-    "operatingSystemImage": "Ubuntu 16.04.4 LTS",
-    "dockerVersion": "17.3.2",
-    "cpu": 32,
-    "cpuUsedRatio": "1.6%",
-    "memory": "126Gi",
-    "memoryUsedRatio": "6%",
-    "creationTimestamp": "2019-02-13T05:46:29Z"
+    "collectionMethods": [
+        {
+            "method": "GET",
+            "url": "http://127.0.0.1:1234/zdns.cloud.cn/v1/cluster/chengdu/nodes"
+        }
+    ]
 }
