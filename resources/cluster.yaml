@@ -1,0 +1,11 @@
+# cluster field spec
+# fieldName: # type example
+# field version, creationTimestamp is return value and only for get/list
+# support method: 
+#   POST: import cluster to singlecloud
+#   GET: get a cluster or list clusters 
+#
+name: # string "chengdu"
+nodesCount: # int 3
+version: # string "v1.13.1"
+creationTimestamp: # string "2019-02-13T05:46:29Z" 
