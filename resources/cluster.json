@@ -1,0 +1,7 @@
+{
+    "_comment": "this is cluster field spec, field version, creationTimestamp is return value and only for get/list, support method: POST(import cluster to singlecloud) and GET (get a cluster or list clusters)",
+    "name": "chengdu",
+    "nodesCount": 3,
+    "version": "v1.13.1",
+    "creationTimestamp": "2019-02-13T05:46:29Z"
+}

@@ -1,0 +1,24 @@
+{
+    "_comment": "this is node field spec, field role is array and only support controlplane, etcd, worker, support Method: GET(get a node or list nodes)",
+    "name": "master",
+    "address": "10.0.0.31",
+    "role": [
+        "controlplane",
+        "etcd"
+    ],
+    "labels": {
+        "kubernetes.io/hostname": "master"
+    },
+    "annotations": {
+        "volumes.kubernetes.io/controller-managed-attach-detach": "true"
+    },
+    "status": "true",
+    "operatingSystem": "linux",
+    "operatingSystemImage": "Ubuntu 16.04.4 LTS",
+    "dockerVersion": "17.3.2",
+    "cpu": 32,
+    "cpuUsedRatio": "1.6%",
+    "memory": "126Gi",
+    "memoryUsedRatio": "6%",
+    "creationTimestamp": "2019-02-13T05:46:29Z"
+}
