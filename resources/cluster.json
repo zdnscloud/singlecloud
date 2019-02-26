@@ -8,17 +8,17 @@
     "resourceMethods": [
         {
             "method": "GET",
-            "url": "http://127.0.0.1:1234/zdns.cloud.cn/v1/cluster/chengdu"
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/cluster/chengdu"
         }
     ],
     "collectionMethods": [
         {
             "method": "POST",
-            "url": "http://127.0.0.1:1234/zdns.cloud.cn/v1/cluster"
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/cluster"
         },
         {
             "method": "GET",
-            "url": "http://127.0.0.1:1234/zdns.cloud.cn/v1/cluster"
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/cluster"
         }
     ]
 }
