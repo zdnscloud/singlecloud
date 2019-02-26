@@ -1,7 +1,7 @@
 {
     "resourceFields": {
         "name": {"type": "string", "create": true},
-        "nodesCount": {"type": "uint32", "create": true},
+        "nodesCount": {"type": "uint32"},
         "version": {"type": "string"},
         "creationTimestamp": {"type": "string"}
     },
