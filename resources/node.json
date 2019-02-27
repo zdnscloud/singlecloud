@@ -21,13 +21,13 @@
     "resourceMethods": [
         {
             "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/cluster/chengdu/nodes/master"
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/nodes/:node_id"
         }
     ],
     "collectionMethods": [
         {
             "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/cluster/chengdu/nodes"
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/nodes"
         }
     ]
 }
