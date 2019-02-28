@@ -26,7 +26,8 @@ func NewServer(conf *config.SingleCloudConf) (*Server, error) {
 		return nil, err
 	}
 
-	router := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
 	adaptor.RegisterHandler(router, restServer.server)
 	return &Server{
 		router: router,

@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/zdnscloud/gorest/api"
 	"github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/singlecloud/handler"
 	"github.com/zdnscloud/singlecloud/types/cluster"
 	"github.com/zdnscloud/singlecloud/types/node"
 )
@@ -22,8 +23,8 @@ type RestServer struct {
 func newRestServer() (*RestServer, error) {
 	server := api.NewAPIServer()
 	schemas := types.NewSchemas()
-	schemas.MustImportAndCustomize(&version, cluster.Cluster{}, cluster.SetSchema)
-	schemas.MustImportAndCustomize(&version, node.Node{}, node.SetSchema)
+	schemas.MustImportAndCustomize(&version, cluster.Cluster{}, &handler.Handler{}, cluster.SetSchema)
+	schemas.MustImportAndCustomize(&version, node.Node{}, &handler.Handler{}, node.SetSchema)
 	if err := server.AddSchemas(schemas); err != nil {
 		return nil, err
 	}

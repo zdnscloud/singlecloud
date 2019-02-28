@@ -1,12 +1,17 @@
 package cluster
 
+import (
+	"github.com/zdnscloud/gorest/types"
+)
+
 type Cluster struct {
-	ID                string `json:"id,omitempty"`
-	Type              string `json:"type,omitempty"`
-	Name              string `json:"name,omitempty"`
-	NodesCount        uint32 `json:"nodes_count,omitempty"`
-	Version           string `json:"version,omitempty"`
-	CreationTimestamp string `json:"create_timestamp,omitempty"`
+	ID                string       `json:"id,omitempty"`
+	Type              string       `json:"type,omitempty"`
+	Name              string       `json:"name,omitempty"`
+	NodesCount        uint32       `json:"nodes_count,omitempty"`
+	Version           string       `json:"version,omitempty"`
+	CreationTimestamp string       `json:"create_timestamp,omitempty"`
+	Parent            types.Parent `json:"-"`
 }
 
 func (c *Cluster) GetID() string {
@@ -23,4 +28,12 @@ func (c *Cluster) GetType() string {
 
 func (c *Cluster) SetType(typ string) {
 	c.Type = typ
+}
+
+func (c *Cluster) GetParent() types.Parent {
+	return c.Parent
+}
+
+func (c *Cluster) SetParent(parent types.Parent) {
+	c.Parent = parent
 }

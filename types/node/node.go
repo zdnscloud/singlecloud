@@ -1,5 +1,9 @@
 package node
 
+import (
+	"github.com/zdnscloud/gorest/types"
+)
+
 type Node struct {
 	ID                   string                 `json:"id,omitempty"`
 	Type                 string                 `json:"type,omitempty"`
@@ -17,6 +21,7 @@ type Node struct {
 	Memory               string                 `json:"memory,omitempty"`
 	MemoryUsedRatio      string                 `json:"memory_used_ratio"`
 	CreationTimestamp    string                 `json:"creation_timestamp"`
+	Parent               types.Parent           `json:"-"`
 }
 
 func (n *Node) GetID() string {
@@ -33,4 +38,12 @@ func (n *Node) GetType() string {
 
 func (n *Node) SetType(typ string) {
 	n.Type = typ
+}
+
+func (n *Node) GetParent() types.Parent {
+	return n.Parent
+}
+
+func (n *Node) SetParent(parent types.Parent) {
+	n.Parent = parent
 }

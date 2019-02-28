@@ -13,7 +13,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "c", "/etc/singlecloud.conf", "configure file path")
+	flag.StringVar(&configFile, "c", "etc/singlecloud.conf", "configure file path")
 }
 
 func main() {
