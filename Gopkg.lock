@@ -10,6 +10,14 @@
   revision = "996076df5b3348fd04ff02aa5f9abd971c2d2d28"
 
 [[projects]]
+  branch = "master"
+  digest = "1:6d50447b1b073dbf89eadaa26924be22af7af6f1587022e7197941b8adfc0745"
+  name = "github.com/gin-contrib/static"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d0344934c94f721ba850a8d2d61b11094eb3d28b"
+
+[[projects]]
   digest = "1:d5083934eb25e45d17f72ffa86cae3814f4a9d6c073c4f16b64147169b245606"
   name = "github.com/gin-gonic/gin"
   packages = [
@@ -139,6 +147,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/gin-contrib/static",
     "github.com/gin-gonic/gin",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/uuid",
