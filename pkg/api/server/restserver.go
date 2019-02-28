@@ -3,9 +3,9 @@ package server
 import (
 	"github.com/zdnscloud/gorest/api"
 	"github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/handler"
-	"github.com/zdnscloud/singlecloud/types/cluster"
-	"github.com/zdnscloud/singlecloud/types/node"
+	"github.com/zdnscloud/singlecloud/pkg/handler"
+	"github.com/zdnscloud/singlecloud/pkg/types/cluster"
+	"github.com/zdnscloud/singlecloud/pkg/types/node"
 )
 
 var (
