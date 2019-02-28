@@ -53,8 +53,11 @@ type Filter struct {
 type Logger map[string]*Filter
 
 func NewDefaultLogger(lvl level, fmt string) Logger {
+	if fmt == "" {
+		fmt = FORMAT_DEFAULT
+	}
 	return Logger{
-		"stdout": &Filter{lvl, NewConsoleLogWriter("")},
+		"stdout": &Filter{lvl, NewConsoleLogWriter(fmt)},
 	}
 }
 
