@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/zdnscloud/cement/uuid"
 	"github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/logger"
 	"github.com/zdnscloud/singlecloud/types/cluster"
 	"github.com/zdnscloud/singlecloud/types/node"
 )
@@ -16,55 +15,26 @@ func NewHandler() *Handler {
 }
 
 func (h *Handler) Create(obj types.Object) (interface{}, error) {
-	if obj.GetParent().Name != "" {
-		logger.GetLogger().Debug("create %s in %s %s",
-			obj.GetType(), obj.GetParent().Name, obj.GetParent().ID)
-	} else {
-		logger.GetLogger().Debug("create %s", obj.GetType())
-	}
-
 	return getTestCluster(), nil
 }
 
 func (h *Handler) Delete(obj types.Object) error {
-	if obj.GetParent().Name != "" {
-		logger.GetLogger().Debug("delete %s %s from %s %s",
-			obj.GetType(), obj.GetID(), obj.GetParent().Name, obj.GetParent().ID)
-	} else {
-		logger.GetLogger().Debug("delete %s %s", obj.GetType(), obj.GetID())
-	}
 	return nil
 }
 
 func (h *Handler) BatchDelete(obj types.Object) error {
-	if obj.GetParent().Name != "" {
-		logger.GetLogger().Debug("delete all %s from %s %s",
-			obj.GetType(), obj.GetParent().Name, obj.GetParent().ID)
-	} else {
-		logger.GetLogger().Debug("delete all %s", obj.GetType())
-	}
 	return nil
 }
 
 func (h *Handler) Update(objType types.ObjectType, objId types.ObjectID, obj types.Object) (interface{}, error) {
-	if obj.GetParent().Name != "" {
-		logger.GetLogger().Debug("update %s %s in %s %s",
-			objType.GetType(), objId.GetID(), obj.GetParent().Name, obj.GetParent().ID)
-	} else {
-		logger.GetLogger().Debug("update %s %s", objType.GetType(), objId.GetID())
-	}
-
 	return obj, nil
 }
 
 func (h *Handler) List(obj types.Object) interface{} {
 	var result interface{}
 	if obj.GetParent().Name != "" {
-		logger.GetLogger().Debug("get all %s in %s %s",
-			obj.GetType(), obj.GetParent().Name, obj.GetParent().ID)
 		result = []node.Node{getTestNode()}
 	} else {
-		logger.GetLogger().Debug("get all %s", obj.GetType())
 		result = []cluster.Cluster{getTestCluster()}
 	}
 	return result
@@ -73,23 +43,14 @@ func (h *Handler) List(obj types.Object) interface{} {
 func (h *Handler) Get(obj types.Object) interface{} {
 	var result interface{}
 	if obj.GetParent().Name != "" {
-		logger.GetLogger().Debug("get %s %s in %s %s",
-			obj.GetType(), obj.GetID(), obj.GetParent().Name, obj.GetParent().ID)
 		result = getTestNode()
 	} else {
-		logger.GetLogger().Debug("get %s %s", obj.GetType(), obj.GetID())
 		result = getTestCluster()
 	}
 	return result
 }
 
 func (h *Handler) Action(obj types.Object, action string, params map[string]interface{}) (interface{}, error) {
-	if obj.GetParent().Name != "" {
-		logger.GetLogger().Debug("run action %s with params %v for %s %s in %s %s",
-			action, params, obj.GetType(), obj.GetID(), obj.GetParent().Name, obj.GetParent().ID)
-	} else {
-		logger.GetLogger().Debug("run action %s with params %v for %s %s", action, params, obj.GetType(), obj.GetID())
-	}
 	return params, nil
 }
 
