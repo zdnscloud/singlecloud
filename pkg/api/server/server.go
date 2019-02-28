@@ -16,10 +16,12 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	gin.SetMode(gin.ReleaseMode)
+
 	router := gin.New()
 	adaptor.RegisterHandler(router, restServer.server)
+	router.Static("/assets", "/www")
+
 	return &Server{
 		router: router,
 	}, nil
