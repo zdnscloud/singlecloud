@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/zdnscloud/gorest/adaptor"
 )
@@ -19,8 +20,8 @@ func NewServer() (*Server, error) {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.New()
+	router.Use(static.Serve("/", static.LocalFile("/www", false)))
 	adaptor.RegisterHandler(router, restServer.server)
-	router.Static("/assets", "/www")
 
 	return &Server{
 		router: router,

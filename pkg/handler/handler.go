@@ -3,8 +3,8 @@ package handler
 import (
 	"github.com/zdnscloud/cement/uuid"
 	"github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/types/cluster"
-	"github.com/zdnscloud/singlecloud/types/node"
+	"github.com/zdnscloud/singlecloud/pkg/types/cluster"
+	"github.com/zdnscloud/singlecloud/pkg/types/node"
 )
 
 type Handler struct {

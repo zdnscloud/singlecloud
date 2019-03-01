@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 
-	"github.com/zdnscloud/singlecloud/logger"
-	"github.com/zdnscloud/singlecloud/server"
+	"github.com/zdnscloud/singlecloud/pkg/api/server"
+	"github.com/zdnscloud/singlecloud/pkg/logger"
 )
 
 func main() {
