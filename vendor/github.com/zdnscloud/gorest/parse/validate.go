@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/zdnscloud/gorest/httperror"
 	"github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/util/slice"
 )
 
 var (
@@ -17,17 +17,13 @@ var (
 	}
 )
 
-func ValidateMethod(request *types.APIContext) error {
-	if request.Action != "" && request.Method == http.MethodPost {
-		return nil
-	}
-
+func ValidateMethod(request *types.APIContext) *types.APIError {
 	if !supportedMethods[request.Method] {
-		return httperror.NewAPIError(httperror.MethodNotAllowed, fmt.Sprintf("Method %s not supported", request.Method))
+		return types.NewAPIError(types.MethodNotAllowed, fmt.Sprintf("Method %s not supported", request.Method))
 	}
 
 	if request.Type == "" || request.Schema == nil {
-		return nil
+		return types.NewAPIError(types.NotFound, "no found schema")
 	}
 
 	allowed := request.Schema.ResourceMethods
@@ -35,11 +31,9 @@ func ValidateMethod(request *types.APIContext) error {
 		allowed = request.Schema.CollectionMethods
 	}
 
-	for _, method := range allowed {
-		if method == request.Method {
-			return nil
-		}
+	if slice.ContainsString(allowed, request.Method) {
+		return nil
 	}
 
-	return httperror.NewAPIError(httperror.MethodNotAllowed, fmt.Sprintf("Method %s not supported", request.Method))
+	return types.NewAPIError(types.MethodNotAllowed, fmt.Sprintf("Method %s not supported", request.Method))
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/zdnscloud/gorest/httperror"
 	"github.com/zdnscloud/gorest/parse"
 	"github.com/zdnscloud/gorest/types"
 )
@@ -16,7 +15,7 @@ const (
 	csrfHeader = "X-API-CSRF"
 )
 
-func ValidateAction(request *types.APIContext) (*types.Action, error) {
+func ValidateAction(request *types.APIContext) (*types.Action, *types.APIError) {
 	if request.Action == "" || request.Method != http.MethodPost {
 		return nil, nil
 	}
@@ -28,13 +27,13 @@ func ValidateAction(request *types.APIContext) (*types.Action, error) {
 
 	action, ok := actions[request.Action]
 	if !ok {
-		return nil, httperror.NewAPIError(httperror.InvalidAction, fmt.Sprintf("Invalid action: %s", request.Action))
+		return nil, types.NewAPIError(types.InvalidAction, fmt.Sprintf("Invalid action: %s", request.Action))
 	}
 
 	return &action, nil
 }
 
-func CheckCSRF(apiContext *types.APIContext) error {
+func CheckCSRF(apiContext *types.APIContext) *types.APIError {
 	if !parse.IsBrowser(apiContext.Request, false) {
 		return nil
 	}
@@ -44,7 +43,7 @@ func CheckCSRF(apiContext *types.APIContext) error {
 		bytes := make([]byte, 5)
 		_, err := rand.Read(bytes)
 		if err != nil {
-			return httperror.WrapAPIError(err, httperror.ServerError, "Failed in CSRF processing")
+			return types.NewAPIError(types.ServerError, fmt.Sprintf("Failed in CSRF processing: %s", err.Error()))
 		}
 
 		cookie = &http.Cookie{
@@ -52,7 +51,7 @@ func CheckCSRF(apiContext *types.APIContext) error {
 			Value: hex.EncodeToString(bytes),
 		}
 	} else if err != nil {
-		return httperror.NewAPIError(httperror.InvalidCSRFToken, "Failed to parse cookies")
+		return types.NewAPIError(types.InvalidCSRFToken, "Failed to parse cookies")
 	} else if apiContext.Method != http.MethodGet {
 		/*
 		 * Very important to use apiContext.Method and not apiContext.Request.Method. The client can override the HTTP method with _method
@@ -62,7 +61,7 @@ func CheckCSRF(apiContext *types.APIContext) error {
 		} else if cookie.Value == apiContext.Request.URL.Query().Get(csrfCookie) {
 			// Good
 		} else {
-			return httperror.NewAPIError(httperror.InvalidCSRFToken, "Invalid CSRF token")
+			return types.NewAPIError(types.InvalidCSRFToken, "Invalid CSRF token")
 		}
 	}
 

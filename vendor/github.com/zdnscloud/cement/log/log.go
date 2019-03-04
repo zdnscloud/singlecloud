@@ -28,6 +28,10 @@ func NewLog4jLogger(filename string, level LogLevel, maxSize, maxFileCount int) 
 func NewLog4jLoggerWithFmt(filename string, level LogLevel, maxSize, maxFileCount int, fmt string) (Logger, error) {
 	logger := make(l4g.Logger)
 
+	if fmt == "" {
+		fmt = l4g.FORMAT_SHORT
+	}
+
 	flw, err := l4g.NewFileLogWriter(filename, fmt, maxSize, maxFileCount)
 	if err != nil {
 		return nil, err
@@ -54,6 +58,10 @@ func NewLog4jConsoleLogger(level LogLevel) Logger {
 }
 
 func NewLog4jConsoleLoggerWithFmt(level LogLevel, fmt string) Logger {
+	if fmt == "" {
+		fmt = l4g.FORMAT_ABBREV
+	}
+
 	switch level {
 	case Debug:
 		return l4g.NewDefaultLogger(l4g.DEBUG, fmt)
@@ -66,4 +74,8 @@ func NewLog4jConsoleLoggerWithFmt(level LogLevel, fmt string) Logger {
 	default:
 		panic("unkown level" + string(level))
 	}
+}
+
+func NewBlackHole() Logger {
+	return l4g.NewBlackHole()
 }

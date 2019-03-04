@@ -21,7 +21,7 @@ func NewServer() (*Server, error) {
 
 	router := gin.New()
 	router.Use(static.Serve("/", static.LocalFile("/www", false)))
-	adaptor.RegisterHandler(router, restServer.server)
+	adaptor.RegisterHandler(router, gin.WrapH(restServer.server), restServer.server.Schemas.UrlMethods())
 
 	return &Server{
 		router: router,

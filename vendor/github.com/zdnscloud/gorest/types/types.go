@@ -4,51 +4,21 @@ import (
 	"reflect"
 )
 
-const (
-	ResourceFieldID = "id"
-)
-
 type Collection struct {
-	Type         string            `json:"type,omitempty"`
-	CreateTypes  map[string]string `json:"createTypes,omitempty"`
-	Actions      map[string]string `json:"actions"`
-	ResourceType string            `json:"resourceType"`
-}
-
-type GenericCollection struct {
-	Collection
-	Data []interface{} `json:"data"`
-}
-
-type Resource struct {
-	ID      string            `json:"id,omitempty"`
-	Type    string            `json:"type,omitempty"`
-	Actions map[string]string `json:"actions"`
+	Type         string      `json:"type,omitempty"`
+	ResourceType string      `json:"resourceType,omitempty"`
+	Data         interface{} `json:"data"`
 }
 
 type APIVersion struct {
-	Group            string `json:"group,omitempty"`
-	Version          string `json:"version,omitempty"`
-	Path             string `json:"path,omitempty"`
-	SubContext       bool   `json:"subContext,omitempty"`
-	SubContextSchema string `json:"filterField,omitempty"`
+	Group   string `json:"group,omitempty"`
+	Version string `json:"version,omitempty"`
+	Path    string `json:"path,omitempty"`
 }
-
-type Namespaced struct{}
-
-var NamespaceScope TypeScope = "namespace"
-
-type TypeScope string
 
 type Schema struct {
 	ID                string            `json:"id,omitempty"`
-	Embed             bool              `json:"embed,omitempty"`
-	EmbedType         string            `json:"embedType,omitempty"`
-	CodeName          string            `json:"-"`
-	CodeNamePlural    string            `json:"-"`
-	PkgName           string            `json:"-"`
 	Type              string            `json:"type,omitempty"`
-	BaseType          string            `json:"baseType,omitempty"`
 	Version           APIVersion        `json:"version"`
 	PluralName        string            `json:"pluralName,omitempty"`
 	ResourceMethods   []string          `json:"resourceMethods,omitempty"`
@@ -57,20 +27,10 @@ type Schema struct {
 	CollectionMethods []string          `json:"collectionMethods,omitempty"`
 	CollectionFields  map[string]Field  `json:"collectionFields,omitempty"`
 	CollectionActions map[string]Action `json:"collectionActions,omitempty"`
-	Scope             TypeScope         `json:"-"`
 
-	InternalSchema      *Schema             `json:"-"`
-	Mapper              Mapper              `json:"-"`
-	ActionHandler       ActionHandler       `json:"-"`
-	ListHandler         RequestHandler      `json:"-"`
-	CreateHandler       RequestHandler      `json:"-"`
-	DeleteHandler       RequestHandler      `json:"-"`
-	UpdateHandler       RequestHandler      `json:"-"`
-	CollectionFormatter CollectionFormatter `json:"-"`
-	ErrorHandler        ErrorHandler        `json:"-"`
-	StructVal           reflect.Value       `json:"-"`
-	Handler             Handler             `json:"-"`
-	Parent              Parent              `json:"-"`
+	StructVal reflect.Value `json:"-"`
+	Handler   Handler       `json:"-"`
+	Parent    string        `json:"-"`
 }
 
 type Parent struct {
@@ -103,37 +63,36 @@ type Action struct {
 	Output string `json:"output,omitempty"`
 }
 
-func (c *Collection) AddAction(apiContext *APIContext, name string) {
-	c.Actions[name] = apiContext.URLBuilder.CollectionAction(apiContext.Schema, nil, name)
+type ActionHandler func(request *APIContext, action *Action) *APIError
+
+type RequestHandler func(request *APIContext) *APIError
+
+type Resource struct {
+	ID     string `json:"id,omitempty"`
+	Type   string `json:"type,omitempty"`
+	Parent Parent `json:"-"`
 }
 
-type Object interface {
-	ObjectID
-	ObjectType
-	ObjectParent
+func (r *Resource) GetID() string {
+	return r.ID
 }
 
-type ObjectParent interface {
-	GetParent() Parent
-	SetParent(Parent)
+func (r *Resource) SetID(id string) {
+	r.ID = id
 }
 
-type ObjectID interface {
-	GetID() string
-	SetID(string)
+func (r *Resource) GetType() string {
+	return r.Type
 }
 
-type ObjectType interface {
-	GetType() string
-	SetType(string)
+func (r *Resource) SetType(typ string) {
+	r.Type = typ
 }
 
-type Handler interface {
-	Create(Object) (interface{}, error)
-	Delete(Object) error
-	BatchDelete(Object) error
-	Update(ObjectType, ObjectID, Object) (interface{}, error)
-	List(Object) interface{}
-	Get(Object) interface{}
-	Action(Object, string, map[string]interface{}) (interface{}, error)
+func (r *Resource) GetParent() Parent {
+	return r.Parent
+}
+
+func (r *Resource) SetParent(parent Parent) {
+	r.Parent = parent
 }
