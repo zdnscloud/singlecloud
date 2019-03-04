@@ -21,6 +21,10 @@ func NewServer() (*Server, error) {
 
 	router := gin.New()
 	router.Use(static.Serve("/", static.LocalFile("/www", false)))
+	router.NoRoute(func(c *gin.Context) {
+		c.File("/www/index.html")
+	})
+
 	adaptor.RegisterHandler(router, gin.WrapH(restServer.server), restServer.server.Schemas.UrlMethods())
 
 	return &Server{
