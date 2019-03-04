@@ -4,7 +4,7 @@
         "type": {"type": "string"},
         "name": {"type": "string"},
         "address": {"type": "string"} ,
-        "role": {"type": "array"},
+        "role": {"type": "string"},
         "labels": { "type": "map"},
         "annotations": { "type": "map" },
         "status": {"type": "bool"},
@@ -15,6 +15,10 @@
         "cpuUsedRatio": {"type": "string"},
         "memory": { "type": "string"},
         "memoryUsedRatio": {"type": "string"},
+        "storage": { "type": "string"},
+        "storageUsedRatio": {"type": "string"},
+        "podCount": { "type": "uint32"},
+        "podUsedRatio": {"type": "string"},
         "creationTimestamp": {"type": "string"}
     },
 

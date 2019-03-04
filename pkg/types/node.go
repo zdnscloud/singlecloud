@@ -19,16 +19,16 @@ type Node struct {
 	Labels               map[string]string `json:"labels,omitempty"`
 	Annotations          map[string]string `json:"annotations,omitempty"`
 	Status               bool              `json:"status,omitempty"`
-	OperatingSystem      string            `json:"operating_system,omitempty"`
-	OperatingSystemImage string            `json:"operating_system_image,omitempty"`
-	DockerVersion        string            `json:"docker_version,omitempty"`
+	OperatingSystem      string            `json:"operatingSystem,omitempty"`
+	OperatingSystemImage string            `json:"operatingSystemImage,omitempty"`
+	DockerVersion        string            `json:"dockerVersion,omitempty"`
 	Cpu                  string            `json:"cpu,omitempty"`
-	CpuUsedRatio         string            `json:"cpu_used_ratio,omitempty"`
-	Memory               string            `json:"memory,omitempty, omitempty"`
-	MemoryUsedRatio      string            `json:"memory_used_ratio"`
+	CpuUsedRatio         string            `json:"cpuUsedRatio,omitempty"`
+	Memory               string            `json:"memory,omitempty"`
+	MemoryUsedRatio      string            `json:"memoryUsedRatio,omitempty"`
 	Storage              string            `json:"storage,omitempty"`
-	StorageUserdRatio    string            `json:"storage_used_ratio, omitempty"`
-	CreationTimestamp    string            `json:"creation_timestamp"`
-	PodCount             int               `json:"pod_count"`
-	PodUsedRatio         int               `json:"pod_used_ratio"`
+	StorageUserdRatio    string            `json:"storageUsedRatio,omitempty"`
+	CreationTimestamp    string            `json:"creationTimestamp"`
+	PodCount             int               `json:"podCount"`
+	PodUsedRatio         int               `json:"podUsedRatio,omitempty"`
 }
