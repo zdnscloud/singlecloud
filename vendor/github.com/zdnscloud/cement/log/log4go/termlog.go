@@ -28,6 +28,7 @@ func (w *ConsoleLogWriter) run(out io.Writer) {
 		if !ok {
 			return
 		}
+
 		fmt.Fprint(out, FormatLogRecord(w.format, rec))
 	}
 }

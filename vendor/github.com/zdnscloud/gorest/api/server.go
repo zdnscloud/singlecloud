@@ -4,87 +4,25 @@ import (
 	"net/http"
 
 	"github.com/zdnscloud/gorest/api/handler"
-	"github.com/zdnscloud/gorest/api/writer"
-	"github.com/zdnscloud/gorest/authorization"
-	"github.com/zdnscloud/gorest/httperror"
-	ehandler "github.com/zdnscloud/gorest/httperror/handler"
 	"github.com/zdnscloud/gorest/parse"
 	"github.com/zdnscloud/gorest/types"
 )
 
-type Parser func(rw http.ResponseWriter, req *http.Request) (*types.APIContext, error)
-
 type Server struct {
-	Parser          Parser
-	Resolver        parse.ResolverFunc
-	ResponseWriters map[string]ResponseWriter
-	Schemas         *types.Schemas
-	URLParser       parse.URLParser
-	Defaults        Defaults
-	AccessControl   types.AccessControl
-}
-
-type Defaults struct {
-	ActionHandler types.ActionHandler
-	ListHandler   types.RequestHandler
-	CreateHandler types.RequestHandler
-	DeleteHandler types.RequestHandler
-	UpdateHandler types.RequestHandler
-	ErrorHandler  types.ErrorHandler
+	Schemas *types.Schemas
 }
 
 func NewAPIServer() *Server {
 	s := &Server{
 		Schemas: types.NewSchemas(),
-		ResponseWriters: map[string]ResponseWriter{
-			"json": &writer.EncodingResponseWriter{
-				ContentType: "application/json",
-				Encoder:     types.JSONEncoder,
-			},
-			"html": &writer.HTMLResponseWriter{
-				EncodingResponseWriter: writer.EncodingResponseWriter{
-					Encoder:     types.JSONEncoder,
-					ContentType: "application/json",
-				},
-			},
-			"yaml": &writer.EncodingResponseWriter{
-				ContentType: "application/yaml",
-				Encoder:     types.YAMLEncoder,
-			},
-		},
-		Resolver:      parse.DefaultResolver,
-		AccessControl: &authorization.AllAccess{},
-		Defaults: Defaults{
-			CreateHandler: handler.CreateHandler,
-			DeleteHandler: handler.DeleteHandler,
-			UpdateHandler: handler.UpdateHandler,
-			ListHandler:   handler.ListHandler,
-			ErrorHandler:  ehandler.ErrorHandler,
-			ActionHandler: handler.ActionHandler,
-		},
-		URLParser: parse.DefaultURLParser,
 	}
 
-	s.Schemas.AddHook = s.setupDefaults
-	s.Parser = s.parser
 	return s
 }
 
-func (s *Server) parser(rw http.ResponseWriter, req *http.Request) (*types.APIContext, error) {
-	ctx, err := parse.Parse(rw, req, s.Schemas, s.URLParser, s.Resolver)
-	ctx.ResponseWriter = s.ResponseWriters[ctx.ResponseFormat]
-	if ctx.ResponseWriter == nil {
-		ctx.ResponseWriter = s.ResponseWriters["json"]
-	}
-
-	ctx.AccessControl = s.AccessControl
-
-	return ctx, err
-}
-
 func (s *Server) AddSchemas(schemas *types.Schemas) error {
-	if schemas.Err() != nil {
-		return schemas.Err()
+	if err := schemas.Err(); err != nil {
+		return err
 	}
 
 	for _, schema := range schemas.Schemas() {
@@ -94,40 +32,14 @@ func (s *Server) AddSchemas(schemas *types.Schemas) error {
 	return s.Schemas.Err()
 }
 
-func (s *Server) setupDefaults(schema *types.Schema) {
-	if schema.ActionHandler == nil {
-		schema.ActionHandler = s.Defaults.ActionHandler
-	}
-
-	if schema.ListHandler == nil {
-		schema.ListHandler = s.Defaults.ListHandler
-	}
-
-	if schema.CreateHandler == nil {
-		schema.CreateHandler = s.Defaults.CreateHandler
-	}
-
-	if schema.UpdateHandler == nil {
-		schema.UpdateHandler = s.Defaults.UpdateHandler
-	}
-
-	if schema.DeleteHandler == nil {
-		schema.DeleteHandler = s.Defaults.DeleteHandler
-	}
-
-	if schema.ErrorHandler == nil {
-		schema.ErrorHandler = s.Defaults.ErrorHandler
-	}
-}
-
 func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if apiResponse, err := s.handle(rw, req); err != nil {
-		s.handleError(apiResponse, err)
+		handler.WriteResponse(apiResponse, err.Status, err)
 	}
 }
 
-func (s *Server) handle(rw http.ResponseWriter, req *http.Request) (*types.APIContext, error) {
-	apiRequest, err := s.Parser(rw, req)
+func (s *Server) handle(rw http.ResponseWriter, req *http.Request) (*types.APIContext, *types.APIError) {
+	apiRequest, err := parse.Parse(rw, req, s.Schemas)
 	if err != nil {
 		return apiRequest, err
 	}
@@ -142,61 +54,30 @@ func (s *Server) handle(rw http.ResponseWriter, req *http.Request) (*types.APICo
 	}
 
 	if apiRequest.Schema == nil {
-		return apiRequest, nil
+		return apiRequest, types.NewAPIError(types.NotFound, "no found schema")
 	}
 
 	if action == nil && apiRequest.Type != "" {
-		var handler types.RequestHandler
-		var nextHandler types.RequestHandler
+		var reqHandler types.RequestHandler
 		switch apiRequest.Method {
 		case http.MethodGet:
-			if apiRequest.ID == "" {
-				if err := apiRequest.AccessControl.CanList(apiRequest, apiRequest.Schema); err != nil {
-					return apiRequest, err
-				}
-			} else {
-				if err := apiRequest.AccessControl.CanGet(apiRequest, apiRequest.Schema); err != nil {
-					return apiRequest, err
-				}
-			}
-			handler = apiRequest.Schema.ListHandler
-			nextHandler = s.Defaults.ListHandler
+			reqHandler = handler.ListHandler
 		case http.MethodPost:
-			if err := apiRequest.AccessControl.CanCreate(apiRequest, apiRequest.Schema); err != nil {
-				return apiRequest, err
-			}
-			handler = apiRequest.Schema.CreateHandler
-			nextHandler = s.Defaults.CreateHandler
+			reqHandler = handler.CreateHandler
 		case http.MethodPut:
-			if err := apiRequest.AccessControl.CanUpdate(apiRequest, apiRequest.Schema); err != nil {
-				return apiRequest, err
-			}
-			handler = apiRequest.Schema.UpdateHandler
-			nextHandler = s.Defaults.UpdateHandler
+			reqHandler = handler.UpdateHandler
 		case http.MethodDelete:
-			if err := apiRequest.AccessControl.CanDelete(apiRequest, apiRequest.Schema); err != nil {
-				return apiRequest, err
-			}
-			handler = apiRequest.Schema.DeleteHandler
-			nextHandler = s.Defaults.DeleteHandler
+			reqHandler = handler.DeleteHandler
 		}
 
-		if handler == nil {
-			return apiRequest, httperror.NewAPIError(httperror.NotFound, "")
+		if reqHandler == nil {
+			return apiRequest, types.NewAPIError(types.NotFound, "no found request handler")
 		}
 
-		return apiRequest, handler(apiRequest, nextHandler)
+		return apiRequest, reqHandler(apiRequest)
 	} else if action != nil {
-		return apiRequest, apiRequest.Schema.ActionHandler(apiRequest.Action, action, apiRequest)
+		return apiRequest, handler.ActionHandler(apiRequest, action)
 	}
 
 	return apiRequest, nil
-}
-
-func (s *Server) handleError(apiRequest *types.APIContext, err error) {
-	if apiRequest.Schema == nil {
-		s.Defaults.ErrorHandler(apiRequest, err)
-	} else if apiRequest.Schema.ErrorHandler != nil {
-		apiRequest.Schema.ErrorHandler(apiRequest, err)
-	}
 }

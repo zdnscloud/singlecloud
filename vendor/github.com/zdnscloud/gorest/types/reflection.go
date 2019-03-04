@@ -6,40 +6,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zdnscloud/gorest/types/convert"
+	"github.com/zdnscloud/gorest/util/convert"
 )
 
 var (
-	namespacedType = reflect.TypeOf(Namespaced{})
-	resourceType   = reflect.TypeOf(Resource{})
 	blacklistNames = map[string]bool{
 		"actions": true,
 	}
 )
-
-func (s *Schemas) TypeName(name string, obj interface{}) *Schemas {
-	s.typeNames[reflect.TypeOf(obj)] = name
-	return s
-}
 
 func (s *Schemas) getTypeName(t reflect.Type) string {
 	if name, ok := s.typeNames[t]; ok {
 		return name
 	}
 	return convert.LowerTitle(t.Name())
-}
-
-func (s *Schemas) AddMapperForType(version *APIVersion, obj interface{}, mapper ...Mapper) *Schemas {
-	if len(mapper) == 0 {
-		return s
-	}
-
-	t := reflect.TypeOf(obj)
-	typeName := s.getTypeName(t)
-	if len(mapper) == 1 {
-		return s.AddMapper(version, typeName, mapper[0])
-	}
-	return s.AddMapper(version, typeName, Mappers(mapper))
 }
 
 func (s *Schemas) MustImport(version *APIVersion, obj interface{}, externalOverrides ...interface{}) *Schemas {
@@ -71,8 +51,6 @@ func (s *Schemas) newSchemaFromType(version *APIVersion, t reflect.Type, typeNam
 	schema := &Schema{
 		ID:                typeName,
 		Version:           *version,
-		CodeName:          t.Name(),
-		PkgName:           t.PkgPath(),
 		ResourceFields:    map[string]Field{},
 		ResourceActions:   map[string]Action{},
 		CollectionActions: map[string]Action{},
@@ -110,40 +88,12 @@ func (s *Schemas) importType(version *APIVersion, t reflect.Type, overrides ...r
 		return nil, err
 	}
 
-	mappers := s.mapper(&schema.Version, schema.ID)
-	if s.DefaultMappers != nil {
-		if schema.CanList(nil) == nil {
-			mappers = append(s.DefaultMappers(), mappers...)
-		}
-	}
-	if s.DefaultPostMappers != nil {
-		mappers = append(mappers, s.DefaultPostMappers()...)
-	}
-
-	if len(mappers) > 0 {
-		copy, err := s.newSchemaFromType(version, t, typeName)
-		if err != nil {
-			return nil, err
-		}
-		schema.InternalSchema = copy
-	}
-
 	for _, override := range overrides {
 		if err := s.readFields(schema, override); err != nil {
 			return nil, err
 		}
 	}
 
-	mapper := &typeMapper{
-		Mappers: mappers,
-		root:    schema.CanList(nil) == nil,
-	}
-
-	if err := mapper.ModifySchema(schema, s); err != nil {
-		return nil, err
-	}
-
-	schema.Mapper = mapper
 	s.AddSchema(*schema)
 
 	return s.Schema(&schema.Version, schema.ID), s.Err()
@@ -173,9 +123,6 @@ func (s *Schemas) readFields(schema *Schema, t reflect.Type) error {
 				t = t.Elem()
 			}
 			if t.Kind() == reflect.Struct {
-				if t == namespacedType {
-					schema.Scope = NamespaceScope
-				}
 				if err := s.readFields(schema, t); err != nil {
 					return err
 				}

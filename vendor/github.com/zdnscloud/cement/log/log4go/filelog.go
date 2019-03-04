@@ -60,10 +60,6 @@ func NewFileLogWriter(fname, format string, maxsize, maxfilecount int) (*FileLog
 		maxsize = DefaultMaxFileSize
 	}
 
-	if format == "" {
-		format = FORMAT_DEFAULT
-	}
-
 	w := &FileLogWriter{
 		rec:          make(chan *LogRecord, LogBufferLength),
 		filename:     fname,
