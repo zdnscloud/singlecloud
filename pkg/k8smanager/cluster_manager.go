@@ -100,7 +100,7 @@ func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.Response
 		logger.Error("Failed to set websocket upgrade: %+v", err)
 		return
 	}
-	conn := newConnAdaptor(conn_)
+	conn := NewConnAdaptor(conn_)
 	cmd := exec.Cmd{
 		Path:   "/bin/sh",
 		Stdin:  conn,
@@ -110,14 +110,15 @@ func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.Response
 
 	pod := exec.Pod{
 		Namespace:          ZCloudNamespace,
-		Name:               fmt.Sprintf("kubectl-console-%s", time.Now().String()),
-		Image:              "lachlanevenson/k8s-kubectl:v1.13.3",
+		Name:               fmt.Sprintf("kubectl-console-%v", time.Now().Unix()),
+		Image:              "rancher/rancher-agent:v2.1.6",
 		ServiceAccountName: ZCloudReadonly,
 	}
 
 	if err := cluster.Executor.RunCmd(pod, cmd, 30*time.Second); err != nil {
 		logger.Error("open console failed:%s", err.Error())
 	}
+	logger.Info("---> done execute cmd")
 }
 
 func (m *ClusterManager) List() []*types.Cluster {

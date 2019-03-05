@@ -19,9 +19,9 @@ type Cluster struct {
 	Version           string `json:"version,omitempty"`
 	CreationTimestamp string `json:"creationTimestamp,omitempty"`
 
-	Parent     types.Parent  `json:"-"`
-	KubeClient client.Client `json:"-"`
-	Executor   *exec.Executor
+	Parent     types.Parent   `json:"-"`
+	KubeClient client.Client  `json:"-"`
+	Executor   *exec.Executor `json:"-"`
 }
 
 var ClusterType = types.GetResourceType(Cluster{})

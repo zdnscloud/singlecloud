@@ -14,7 +14,7 @@ type connAaptor struct {
 	reader io.Reader
 }
 
-func newConnAdaptor(conn *websocket.Conn) *connAaptor {
+func NewConnAdaptor(conn *websocket.Conn) *connAaptor {
 	return &connAaptor{
 		conn: conn,
 	}
@@ -38,11 +38,17 @@ func (c *connAaptor) Read(b []byte) (int, error) {
 		c.reader = reader
 	}
 
-	return c.reader.Read(b)
+	n, err := c.reader.Read(b)
+	if n == 0 && err == io.EOF {
+		c.reader = nil
+		return c.Read(b)
+	}
+	return n, err
 }
 
 func (c *connAaptor) Write(b []byte) (int, error) {
-	return len(b), c.conn.WriteMessage(websocket.TextMessage, b)
+	err := c.conn.WriteMessage(websocket.TextMessage, b)
+	return len(b), err
 }
 
 func (c *connAaptor) LocalAddr() net.Addr {
