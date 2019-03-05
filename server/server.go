@@ -8,8 +8,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/k8smanager"
 )
 
-const ListenAddr = "0.0.0.0:80"
-
 type Server struct {
 	router *gin.Engine
 }
@@ -34,9 +32,6 @@ func NewServer() (*Server, error) {
 	}, nil
 }
 
-func (s *Server) Run() {
-	err := s.router.Run(ListenAddr)
-	if err != nil {
-		panic("listen " + ListenAddr + " fatal:" + err.Error())
-	}
+func (s *Server) Run(addr string) error {
+	return s.router.Run(addr)
 }

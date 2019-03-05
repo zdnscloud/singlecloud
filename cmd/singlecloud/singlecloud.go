@@ -8,7 +8,10 @@ import (
 )
 
 func main() {
+	var addr string
+	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.Parse()
+
 	if err := logger.InitLogger(); err != nil {
 		panic("init logger failed:" + err.Error())
 	}
@@ -18,5 +21,7 @@ func main() {
 		panic("create server failed:" + err.Error())
 	}
 
-	server.Run()
+	if err := server.Run(addr); err != nil {
+		panic("server run failed:" + err.Error())
+	}
 }
