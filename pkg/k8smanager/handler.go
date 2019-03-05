@@ -1,4 +1,4 @@
-package handler
+package k8smanager
 
 import (
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -33,9 +33,9 @@ func (h *Handler) Update(obj resttypes.Object) (interface{}, *resttypes.APIError
 
 func (h *Handler) List(obj resttypes.Object) interface{} {
 	switch obj.GetType() {
-	case "cluster":
+	case types.ClusterType:
 		return h.clusterManager.List()
-	case "node":
+	case types.NodeType:
 		id := obj.GetParent().ID
 		cluster, found := h.clusterManager.Get(id)
 		if found == false {

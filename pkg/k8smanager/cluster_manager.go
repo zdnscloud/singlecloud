@@ -1,4 +1,4 @@
-package handler
+package k8smanager
 
 import (
 	"fmt"

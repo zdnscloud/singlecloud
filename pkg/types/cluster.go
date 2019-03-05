@@ -21,3 +21,5 @@ type Cluster struct {
 	Parent     types.Parent  `json:"-"`
 	KubeClient client.Client `json:"-"`
 }
+
+var ClusterType = types.GetResourceType(&Cluster{})

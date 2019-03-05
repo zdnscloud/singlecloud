@@ -1,10 +1,10 @@
 package types
 
 import (
-	"github.com/zdnscloud/gorest/types"
+	resttypes "github.com/zdnscloud/gorest/types"
 )
 
-func SetNodeSchema(schema *types.Schema, handler types.Handler) {
+func SetNodeSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET"}
 	schema.ResourceMethods = []string{"GET"}
@@ -12,7 +12,7 @@ func SetNodeSchema(schema *types.Schema, handler types.Handler) {
 }
 
 type Node struct {
-	types.Resource       `json:",inline"`
+	resttypes.Resource   `json:",inline"`
 	Name                 string            `json:"name,omitempty"`
 	Address              string            `json:"address,omitempty"`
 	Role                 string            `json:"role,omitempty"`
@@ -32,3 +32,5 @@ type Node struct {
 	PodCount             int               `json:"podCount"`
 	PodUsedRatio         int               `json:"podUsedRatio,omitempty"`
 }
+
+var NodeType = resttypes.GetResourceType(&Node{})

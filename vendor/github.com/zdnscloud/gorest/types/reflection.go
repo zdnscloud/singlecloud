@@ -15,11 +15,18 @@ var (
 	}
 )
 
+func GetResourceType(obj interface{}) string {
+	return convert.LowerTitle(reflect.TypeOf(obj).Name())
+}
+
 func (s *Schemas) getTypeName(t reflect.Type) string {
 	if name, ok := s.typeNames[t]; ok {
 		return name
 	}
-	return convert.LowerTitle(t.Name())
+
+	name := convert.LowerTitle(t.Name())
+	s.typeNames[t] = name
+	return name
 }
 
 func (s *Schemas) MustImport(version *APIVersion, obj interface{}, externalOverrides ...interface{}) *Schemas {

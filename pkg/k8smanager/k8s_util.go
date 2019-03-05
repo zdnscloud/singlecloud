@@ -1,4 +1,4 @@
-package handler
+package k8smanager
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/zdnscloud/gok8s/client"
+	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -82,6 +83,6 @@ func k8sNodeToSCNode(k8sNode *corev1.Node) *types.Node {
 		CreationTimestamp:    k8sNode.CreationTimestamp.String(),
 	}
 	node.SetID(node.Name)
-	node.SetType("node")
+	node.SetType(resttypes.GetResourceType(node))
 	return node
 }
