@@ -22,4 +22,4 @@ type Cluster struct {
 	KubeClient client.Client `json:"-"`
 }
 
-var ClusterType = types.GetResourceType(&Cluster{})
+var ClusterType = types.GetResourceType(Cluster{})

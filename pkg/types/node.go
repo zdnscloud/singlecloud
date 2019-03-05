@@ -33,4 +33,4 @@ type Node struct {
 	PodUsedRatio         int               `json:"podUsedRatio,omitempty"`
 }
 
-var NodeType = resttypes.GetResourceType(&Node{})
+var NodeType = resttypes.GetResourceType(Node{})
