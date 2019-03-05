@@ -13,7 +13,7 @@ type Server struct {
 }
 
 func NewServer() (*Server, error) {
-	restHandler, err := k8smanager.NewRestHandler()
+	restHandler, wsHandler, err := k8smanager.NewRestHandler()
 	if err != nil {
 		return nil, err
 	}
@@ -25,6 +25,9 @@ func NewServer() (*Server, error) {
 		c.File("/www/index.html")
 	})
 
+	router.GET("/zcloud/ws/cluster/:id", func(c *gin.Context) {
+		wsHandler.OpenConsole(c.Param("id"), c.Request, c.Writer)
+	})
 	adaptor.RegisterHandler(router, gin.WrapH(restHandler), restHandler.Schemas.UrlMethods())
 
 	return &Server{

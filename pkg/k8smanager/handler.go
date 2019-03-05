@@ -1,6 +1,8 @@
 package k8smanager
 
 import (
+	"net/http"
+
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -71,4 +73,8 @@ func (h *Handler) Get(obj resttypes.Object) interface{} {
 
 func (h *Handler) Action(obj resttypes.Object, action string, params map[string]interface{}) (interface{}, *resttypes.APIError) {
 	return params, nil
+}
+
+func (h *Handler) OpenConsole(id string, r *http.Request, w http.ResponseWriter) {
+	h.clusterManager.OpenConsole(id, r, w)
 }

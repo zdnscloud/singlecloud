@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gok8s/exec"
 	"github.com/zdnscloud/gorest/types"
 )
 
@@ -20,6 +21,7 @@ type Cluster struct {
 
 	Parent     types.Parent  `json:"-"`
 	KubeClient client.Client `json:"-"`
+	Executor   *exec.Executor
 }
 
 var ClusterType = types.GetResourceType(Cluster{})

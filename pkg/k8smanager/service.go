@@ -14,14 +14,14 @@ var (
 	}
 )
 
-func NewRestHandler() (*api.Server, error) {
+func NewRestHandler() (*api.Server, *Handler, error) {
 	server := api.NewAPIServer()
 	restAPIHandler := NewHandler()
 	schemas := resttypes.NewSchemas()
 	schemas.MustImportAndCustomize(&version, types.Cluster{}, restAPIHandler, types.SetClusterSchema)
 	schemas.MustImportAndCustomize(&version, types.Node{}, restAPIHandler, types.SetNodeSchema)
 	if err := server.AddSchemas(schemas); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return server, nil
+	return server, restAPIHandler, nil
 }
