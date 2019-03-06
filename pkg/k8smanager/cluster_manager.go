@@ -116,7 +116,7 @@ func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.Response
 		}
 	}
 
-	sockjs.NewHandler(r.URL.String(), sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+	sockjs.NewHandler("/zcloud/ws/clusters/"+id, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }
 
 func (m *ClusterManager) List() []*types.Cluster {
