@@ -2,7 +2,9 @@ package k8smanager
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -10,6 +12,7 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type NodeManager struct {
@@ -54,20 +57,36 @@ func k8sNodeToSCNode(k8sNode *corev1.Node) *types.Node {
 		}
 	}
 
-	var cpu, memory, storage string
-	var podCount int
+	var cpuCap, memoryCap, storageCap, podCountCap resource.Quantity
 	for typ, c := range status.Capacity {
 		if typ == corev1.ResourceCPU {
-			cpu = c.String()
+			cpuCap = c
 		} else if typ == corev1.ResourceMemory {
-			memory = c.String()
+			memoryCap = c
 		} else if typ == corev1.ResourceEphemeralStorage {
-			storage = c.String()
+			storageCap = c
 		} else if typ == corev1.ResourcePods {
-			v, _ := c.AsInt64()
-			podCount = int(v)
+			podCountCap = c
 		}
 	}
+
+	var cpuAva, memoryAva, storageAva, podCountAva resource.Quantity
+	for typ, c := range status.Allocatable {
+		if typ == corev1.ResourceCPU {
+			cpuAva = c
+		} else if typ == corev1.ResourceMemory {
+			memoryAva = c
+		} else if typ == corev1.ResourceEphemeralStorage {
+			storageAva = c
+		} else if typ == corev1.ResourcePods {
+			podCountAva = c
+		}
+	}
+
+	cpuRatio := fmt.Sprintf("%.2f", calculateUsedRatio(&cpuCap, &cpuAva))
+	memoryRatio := fmt.Sprintf("%.2f", calculateUsedRatio(&memoryCap, &memoryAva))
+	storageRatio := fmt.Sprintf("%.2f", calculateUsedRatio(&storageCap, &storageAva))
+	podCountRatio := fmt.Sprintf("%.2f", calculateUsedRatio(&podCountCap, &podCountAva))
 
 	nodeInfo := &status.NodeInfo
 	os := nodeInfo.OperatingSystem + " " + nodeInfo.KernelVersion
@@ -99,13 +118,24 @@ func k8sNodeToSCNode(k8sNode *corev1.Node) *types.Node {
 		OperatingSystem:      os,
 		OperatingSystemImage: osImage,
 		DockerVersion:        dockderVersion,
-		Cpu:                  cpu,
-		Memory:               memory,
-		Storage:              storage,
-		PodCount:             podCount,
-		CreationTimestamp:    k8sNode.CreationTimestamp.String(),
+		Cpu:                  cpuCap.String(),
+		CpuUsedRatio:         cpuRatio,
+		Memory:               memoryCap.String(),
+		MemoryUsedRatio:      memoryRatio,
+		Storage:              storageCap.String(),
+		StorageUserdRatio:    storageRatio,
+		PodCount:             int(podCountCap.Value()),
+		PodUsedRatio:         podCountRatio,
+		CreationTimestamp:    k8sNode.CreationTimestamp.Format(time.RFC3339),
 	}
 	node.SetID(node.Name)
 	node.SetType(resttypes.GetResourceType(node))
 	return node
+}
+
+func calculateUsedRatio(capacity, avail *resource.Quantity) float64 {
+	used := capacity.Copy()
+	used.Sub(*avail)
+
+	return float64(used.Value()*100) / float64(capacity.Value())
 }

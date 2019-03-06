@@ -30,7 +30,7 @@ type Node struct {
 	StorageUserdRatio    string            `json:"storageUsedRatio,omitempty"`
 	CreationTimestamp    string            `json:"creationTimestamp"`
 	PodCount             int               `json:"podCount"`
-	PodUsedRatio         int               `json:"podUsedRatio,omitempty"`
+	PodUsedRatio         string            `json:"podUsedRatio,omitempty"`
 }
 
 var NodeType = resttypes.GetResourceType(Node{})
