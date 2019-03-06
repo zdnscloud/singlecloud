@@ -3,7 +3,6 @@ package exec
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -83,19 +82,15 @@ type Cmd struct {
 }
 
 func (e *Executor) RunCmd(p Pod, c Cmd, rw ResizeableStream, timeout time.Duration) error {
-	_, err := e.createPod(p, c)
-	if err != nil {
+	if _, err := e.createPod(p, c); err != nil {
 		return err
 	}
 
-	err = e.waitPodReady(p, timeout)
-	fmt.Printf("----> pod is ready\n")
-	return nil
-
-	if err == nil {
-		err = e.execCmd(p, c, rw)
+	if err := e.waitPodReady(p, timeout); err != nil {
+		return err
 	}
-	return err
+
+	return e.execCmd(p, c, rw)
 }
 
 func (e *Executor) waitPodReady(p Pod, timeout time.Duration) error {

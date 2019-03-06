@@ -11,17 +11,17 @@ type TerminalSockjs struct {
 	sizeChan chan *remotecommand.TerminalSize
 }
 
-func (self TerminalSockjs) Read(p []byte) (int, error) {
+func (t *TerminalSockjs) Read(p []byte) (int, error) {
 	var reply string
 	var msg map[string]uint16
-	reply, err := self.conn.Recv()
+	reply, err := t.conn.Recv()
 	if err != nil {
 		return 0, err
 	}
 	if err := json.Unmarshal([]byte(reply), &msg); err != nil {
 		return copy(p, reply), nil
 	} else {
-		self.sizeChan <- &remotecommand.TerminalSize{
+		t.sizeChan <- &remotecommand.TerminalSize{
 			msg["cols"],
 			msg["rows"],
 		}
@@ -29,12 +29,10 @@ func (self TerminalSockjs) Read(p []byte) (int, error) {
 	}
 }
 
-func (self TerminalSockjs) Write(p []byte) (int, error) {
-	err := self.conn.Send(string(p))
-	return len(p), err
+func (t *TerminalSockjs) Write(p []byte) (int, error) {
+	return len(p), t.conn.Send(string(p))
 }
 
-func (self *TerminalSockjs) Next() *remotecommand.TerminalSize {
-	size := <-self.sizeChan
-	return size
+func (t *TerminalSockjs) Next() *remotecommand.TerminalSize {
+	return <-t.sizeChan
 }
