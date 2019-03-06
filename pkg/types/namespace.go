@@ -8,6 +8,7 @@ func SetNamespaceSchema(schema *types.Schema, handler types.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
 	schema.ResourceMethods = []string{"GET"}
+	schema.Parent = ClusterType
 }
 
 type Namespace struct {

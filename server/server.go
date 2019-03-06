@@ -25,7 +25,7 @@ func NewServer() (*Server, error) {
 		c.File("/www/index.html")
 	})
 
-	router.GET("/zcloud/ws/clusters/:id/*actions", func(c *gin.Context) {
+	router.GET("/"+k8smanager.Version.Group+"/v1beta/clusters/:id/*actions", func(c *gin.Context) {
 		wsHandler.OpenConsole(c.Param("id"), c.Request, c.Writer)
 	})
 	adaptor.RegisterHandler(router, gin.WrapH(restHandler), restHandler.Schemas.UrlMethods())

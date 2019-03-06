@@ -3,6 +3,7 @@ package k8smanager
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -77,5 +78,11 @@ func hasNamespace(cli client.Client, name string) (bool, error) {
 }
 
 func k8sNamespaceToSCNamespace(k8sNamespace *corev1.Namespace) *types.Namespace {
-	return nil
+	ns := &types.Namespace{
+		Name:              k8sNamespace.Name,
+		CreationTimestamp: k8sNamespace.CreationTimestamp.Format(time.RFC3339),
+	}
+	ns.SetID(k8sNamespace.Name)
+	ns.SetType(types.NamespaceType)
+	return ns
 }
