@@ -1,6 +1,7 @@
 package k8smanager
 
 import (
+	"fmt"
 	"net/http"
 
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -19,10 +20,23 @@ func NewHandler() *Handler {
 }
 
 func (h *Handler) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	if cluster, ok := obj.(*types.Cluster); ok {
-		return h.clusterManager.Create(cluster, yamlConf)
+	typ := obj.GetType()
+	if typ == types.ClusterType {
+		return h.clusterManager.Create(obj.(*types.Cluster), yamlConf)
 	}
-	return nil, nil
+
+	id := obj.GetParent().ID
+	cluster, found := h.clusterManager.Get(id)
+	if found == false {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
+	}
+
+	switch typ {
+	case types.NamespaceType:
+		return newNamespaceManager(cluster).Create(obj.(*types.Namespace), yamlConf)
+	default:
+		return nil, nil
+	}
 }
 
 func (h *Handler) Delete(obj resttypes.Object) *resttypes.APIError {
@@ -34,30 +48,25 @@ func (h *Handler) Update(obj resttypes.Object) (interface{}, *resttypes.APIError
 }
 
 func (h *Handler) List(obj resttypes.Object) interface{} {
-	switch obj.GetType() {
-	case types.ClusterType:
+	typ := obj.GetType()
+	if typ == types.ClusterType {
 		return h.clusterManager.List()
+	}
+
+	id := obj.GetParent().ID
+	cluster, found := h.clusterManager.Get(id)
+	if found == false {
+		logger.Warn("search for unknown cluster %s", id)
+		return nil
+	}
+
+	switch typ {
 	case types.NodeType:
-		id := obj.GetParent().ID
-		cluster, found := h.clusterManager.Get(id)
-		if found == false {
-			logger.Warn("search for unknown cluster %s", id)
-			return nil
-		}
-
-		k8sNodes, err := getNodes(cluster.KubeClient)
-		if err != nil {
-			logger.Error("get nodes failed %s", err.Error())
-			return nil
-		}
-
-		var nodes []*types.Node
-		for _, k8sNode := range k8sNodes.Items {
-			nodes = append(nodes, k8sNodeToSCNode(&k8sNode))
-		}
-		return nodes
-
+		return newNodeManager(cluster).List()
+	case types.NamespaceType:
+		return newNamespaceManager(cluster).List()
 	default:
+		logger.Warn("search for unknown type", obj.GetType())
 		return nil
 	}
 }

@@ -2,11 +2,6 @@ package k8smanager
 
 import (
 	"fmt"
-	"net/http"
-	"time"
-
-	"gopkg.in/igm/sockjs-go.v2/sockjs"
-	"k8s.io/client-go/tools/remotecommand"
 
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
@@ -21,7 +16,6 @@ const (
 	ZCloudAdmin     = "zcloud-cluster-admin"
 	ZCloudReadonly  = "zcloud-cluster-readonly"
 
-	OpenConsole   = "console"
 	ShellPodName  = "zcloud-shell"
 	ShellPodImage = "rancher/rancher-agent:v2.1.6"
 )
@@ -87,36 +81,6 @@ func (m *ClusterManager) Get(id string) (*types.Cluster, bool) {
 		}
 	}
 	return nil, false
-}
-
-func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.ResponseWriter) {
-	cluster, found := m.Get(id)
-	if found == false {
-		logger.Warn("cluster %s isn't found to open console", id)
-		return
-	}
-
-	Sockjshandler := func(session sockjs.Session) {
-		stream := &TerminalSockjs{session, make(chan *remotecommand.TerminalSize)}
-
-		cmd := exec.Cmd{
-			Path: "/bin/bash",
-		}
-
-		pod := exec.Pod{
-			Namespace:          ZCloudNamespace,
-			Name:               ShellPodName,
-			Image:              ShellPodImage,
-			ServiceAccountName: ZCloudReadonly,
-		}
-
-		err := cluster.Executor.RunCmd(pod, cmd, stream, 30*time.Second)
-		if err != nil {
-			logger.Error("execute cmd failed %s", err.Error())
-		}
-	}
-
-	sockjs.NewHandler("/zcloud/ws/clusters/"+id, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }
 
 func (m *ClusterManager) List() []*types.Cluster {

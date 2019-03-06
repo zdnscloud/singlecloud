@@ -1,0 +1,34 @@
+{
+    "resourceFields": {
+        "id": {"type": "string"},
+        "type": {"type": "string"},
+        "name": {"type": "string"},
+        "replicas": {"type": "uint32"},
+        "containers": [
+            {
+             "name": {"type": "string"},
+             "image": {"type": "string"},
+             "command": {"type": "array"},
+             "args": {"type": "array"}
+            }
+        ]
+    },
+
+    "resourceMethods": [
+        {
+            "method": "GET",
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id/deployments/:deployment_id"
+        }
+    ],
+    "collectionMethods": [
+        {
+            "method": "POST",
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id/deployments"
+        },
+ 
+        {
+            "method": "GET",
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id/deployments"
+        }
+    ]
+}

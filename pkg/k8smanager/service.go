@@ -20,6 +20,8 @@ func NewRestHandler() (*api.Server, *Handler, error) {
 	schemas := resttypes.NewSchemas()
 	schemas.MustImportAndCustomize(&version, types.Cluster{}, restAPIHandler, types.SetClusterSchema)
 	schemas.MustImportAndCustomize(&version, types.Node{}, restAPIHandler, types.SetNodeSchema)
+	schemas.MustImportAndCustomize(&version, types.Namespace{}, restAPIHandler, types.SetNamespaceSchema)
+	schemas.MustImportAndCustomize(&version, types.Deployment{}, restAPIHandler, types.SetDeploymentSchema)
 	if err := server.AddSchemas(schemas); err != nil {
 		return nil, nil, err
 	}
