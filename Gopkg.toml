@@ -49,3 +49,7 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "gopkg.in/igm/sockjs-go.v2"
+  version = "2.0.0"

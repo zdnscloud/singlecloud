@@ -24,6 +24,10 @@ func init() {
 			"Only required if out-of-cluster.")
 }
 
+func GetConfigFromFile(kubeconfig string) (*rest.Config, error) {
+	return clientcmd.BuildConfigFromFlags("", kubeconfig)
+}
+
 func GetConfig() (*rest.Config, error) {
 	if len(kubeconfig) > 0 {
 		return clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)

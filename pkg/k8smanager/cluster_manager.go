@@ -5,14 +5,15 @@ import (
 	"net/http"
 	"time"
 
+	"gopkg.in/igm/sockjs-go.v2/sockjs"
+	"k8s.io/client-go/tools/remotecommand"
+
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/exec"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-
-	"github.com/gorilla/websocket"
 )
 
 const (
@@ -20,7 +21,9 @@ const (
 	ZCloudAdmin     = "zcloud-cluster-admin"
 	ZCloudReadonly  = "zcloud-cluster-readonly"
 
-	OpenConsole = "console"
+	OpenConsole   = "console"
+	ShellPodName  = "zcloud-shell"
+	ShellPodImage = "rancher/rancher-agent:v2.1.6"
 )
 
 type ClusterManager struct {
@@ -68,9 +71,12 @@ func (m *ClusterManager) Create(cluster *types.Cluster, yamlConf []byte) (*types
 	}
 	cluster.KubeClient = cli
 	cluster.Executor = executor
-	m.clusters = append(m.clusters, cluster)
 
-	initCluster(cluster)
+	if err := initCluster(cluster); err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
+	}
+
+	m.clusters = append(m.clusters, cluster)
 	return cluster, nil
 }
 
@@ -83,11 +89,6 @@ func (m *ClusterManager) Get(id string) (*types.Cluster, bool) {
 	return nil, false
 }
 
-var wsupgrader = websocket.Upgrader{
-	ReadBufferSize:  512,
-	WriteBufferSize: 512,
-}
-
 func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.ResponseWriter) {
 	cluster, found := m.Get(id)
 	if found == false {
@@ -95,30 +96,27 @@ func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.Response
 		return
 	}
 
-	conn_, err := wsupgrader.Upgrade(w, r, nil)
-	if err != nil {
-		logger.Error("Failed to set websocket upgrade: %+v", err)
-		return
-	}
-	conn := NewConnAdaptor(conn_)
-	cmd := exec.Cmd{
-		Path:   "/bin/sh",
-		Stdin:  conn,
-		Stdout: conn,
-		Stderr: conn,
+	Sockjshandler := func(session sockjs.Session) {
+		stream := &TerminalSockjs{session, make(chan *remotecommand.TerminalSize)}
+
+		cmd := exec.Cmd{
+			Path: "/bin/bash",
+		}
+
+		pod := exec.Pod{
+			Namespace:          ZCloudNamespace,
+			Name:               ShellPodName,
+			Image:              ShellPodImage,
+			ServiceAccountName: ZCloudReadonly,
+		}
+
+		err := cluster.Executor.RunCmd(pod, cmd, stream, 30*time.Second)
+		if err != nil {
+			logger.Error("execute cmd failed %s", err.Error())
+		}
 	}
 
-	pod := exec.Pod{
-		Namespace:          ZCloudNamespace,
-		Name:               fmt.Sprintf("kubectl-console-%v", time.Now().Unix()),
-		Image:              "rancher/rancher-agent:v2.1.6",
-		ServiceAccountName: ZCloudReadonly,
-	}
-
-	if err := cluster.Executor.RunCmd(pod, cmd, 30*time.Second); err != nil {
-		logger.Error("open console failed:%s", err.Error())
-	}
-	logger.Info("---> done execute cmd")
+	sockjs.NewHandler(r.URL.String(), sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }
 
 func (m *ClusterManager) List() []*types.Cluster {
@@ -126,9 +124,17 @@ func (m *ClusterManager) List() []*types.Cluster {
 }
 
 func initCluster(cluster *types.Cluster) error {
+	imported, err := isClusterImportBefore(cluster)
+	if err != nil {
+		return err
+	}
+	if imported {
+		logger.Info("cluster %s has been imported before", cluster.Name)
+		return nil
+	}
+
 	cli := cluster.KubeClient
 	if err := createNamespace(cli, ZCloudNamespace); err != nil {
-		logger.Error("create namespace %s failed: %s", ZCloudNamespace, err.Error())
 		return err
 	}
 
@@ -139,6 +145,10 @@ func initCluster(cluster *types.Cluster) error {
 		return err
 	}
 	return nil
+}
+
+func isClusterImportBefore(cluster *types.Cluster) (bool, error) {
+	return hasNamespace(cluster.KubeClient, ZCloudNamespace)
 }
 
 func createRole(cluster *types.Cluster, roleName string, role ClusterRole) error {

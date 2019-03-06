@@ -217,7 +217,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:77e787ddfc70bd01056256af769fec2f68cd72f92a4f33457e22d5458f3a1175"
+  digest = "1:7555d954145143a8b544d334816578c6b83f50aeb4ac0afe0bd859b651998091"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -234,7 +234,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "5d255d5c591fdace454aba84f15cae8a141511d1"
+  revision = "0ac1b0c36fa674fe6655446851f3562699ed9cbc"
 
 [[projects]]
   branch = "master"
@@ -352,6 +352,14 @@
   pruneopts = "UT"
   revision = "5f1438d3fca68893a817e4a66806cea46a9e4ebf"
   version = "v8.18.2"
+
+[[projects]]
+  digest = "1:7a23929a5a0d4266c8f5444dae1e7594dbb0cae1c3091834119b162f81e229ff"
+  name = "gopkg.in/igm/sockjs-go.v2"
+  packages = ["sockjs"]
+  pruneopts = "UT"
+  revision = "d276e9ffe5cc5c271b81198cc77a2adf6c4482d2"
+  version = "v2.0.0"
 
 [[projects]]
   digest = "1:2d1fbdc6777e5408cabeb02bf336305e724b925ff4546ded0fa8715a7267922a"
@@ -566,9 +574,13 @@
     "github.com/zdnscloud/gorest/adaptor",
     "github.com/zdnscloud/gorest/api",
     "github.com/zdnscloud/gorest/types",
+    "gopkg.in/igm/sockjs-go.v2/sockjs",
     "k8s.io/api/core/v1",
     "k8s.io/api/rbac/v1",
+    "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/types",
+    "k8s.io/client-go/tools/remotecommand",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

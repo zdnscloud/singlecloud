@@ -6,7 +6,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/gok8s/client"
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -94,6 +96,18 @@ func createNamespace(cli client.Client, name string) error {
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 	}
 	return cli.Create(context.TODO(), ns)
+}
+
+func hasNamespace(cli client.Client, name string) (bool, error) {
+	ns := corev1.Namespace{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &ns)
+	if err == nil {
+		return true, nil
+	} else if apierrors.IsNotFound(err) {
+		return false, nil
+	} else {
+		return false, err
+	}
 }
 
 func createServiceAccount(cli client.Client, name, namespace string) error {

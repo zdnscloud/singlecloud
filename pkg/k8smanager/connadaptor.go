@@ -2,6 +2,7 @@ package k8smanager
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"time"
@@ -43,10 +44,13 @@ func (c *connAaptor) Read(b []byte) (int, error) {
 		c.reader = nil
 		return c.Read(b)
 	}
+
+	fmt.Printf("--> read %v from client\n", b[:n])
 	return n, err
 }
 
 func (c *connAaptor) Write(b []byte) (int, error) {
+	fmt.Printf("--> write %v to client\n", b)
 	err := c.conn.WriteMessage(websocket.TextMessage, b)
 	return len(b), err
 }

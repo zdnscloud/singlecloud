@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -26,6 +28,11 @@ var (
 var (
 	executorLanchedPodMark = "zcloud-executor"
 )
+
+type ResizeableStream interface {
+	io.ReadWriter
+	remotecommand.TerminalSizeQueue
+}
 
 type Executor struct {
 	k8sCfg     *rest.Config
@@ -70,24 +77,20 @@ type Pod struct {
 }
 
 type Cmd struct {
-	Path   string
-	Args   []string
-	Stdin  io.Reader
-	Stdout io.Writer
-	Stderr io.Writer
+	Path string
+	Args []string
 }
 
-func (e *Executor) RunCmd(p Pod, c Cmd, timeout time.Duration) error {
-	kp, err := e.createPod(p, c)
+func (e *Executor) RunCmd(p Pod, c Cmd, rw ResizeableStream, timeout time.Duration) error {
+	_, err := e.createPod(p, c)
 	if err != nil {
 		return err
 	}
 
 	err = e.waitPodReady(p, timeout)
 	if err == nil {
-		err = e.attachPod(p, c)
+		err = e.execCmd(p, c, rw)
 	}
-	e.client.Delete(context.TODO(), kp)
 	return err
 }
 
@@ -116,12 +119,11 @@ func (e *Executor) createPod(p Pod, c Cmd) (*corev1.Pod, error) {
 			RestartPolicy:                 corev1.RestartPolicyNever,
 			Containers: []corev1.Container{
 				{
-					TTY:     false,
-					Stdin:   true,
-					Name:    p.Name,
-					Image:   p.Image,
-					Command: []string{c.Path},
-					Args:    c.Args,
+					TTY:   false,
+					Stdin: false,
+					Name:  p.Name,
+					Image: p.Image,
+					Args:  c.Args,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &privileged,
 					},
@@ -130,34 +132,54 @@ func (e *Executor) createPod(p Pod, c Cmd) (*corev1.Pod, error) {
 			},
 		},
 	}
-	return kp, e.client.Create(context.TODO(), kp)
+
+	err := e.client.Create(context.TODO(), kp)
+	if apierrors.IsAlreadyExists(err) {
+		err = nil
+	}
+	return kp, err
 }
 
-func (e *Executor) attachPod(p Pod, c Cmd) error {
+func (e *Executor) execCmd(p Pod, c Cmd, rw ResizeableStream) error {
 	clientset, err := kubernetes.NewForConfig(e.k8sCfg)
 	if err != nil {
 		return err
 	}
+
 	req := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(p.Name).
 		Namespace(p.Namespace).
-		SubResource("attach")
-	opts := &corev1.PodAttachOptions{
-		Stdin:     c.Stdin != nil,
-		Stdout:    c.Stdout != nil,
-		Stderr:    c.Stderr != nil,
-		TTY:       false,
-		Container: p.Name,
-	}
-	req.VersionedParams(opts, scheme.ParameterCodec)
-	exec, err := remotecommand.NewSPDYExecutor(e.k8sCfg, "POST", req.URL())
+		SubResource("exec").
+		Param("container", p.Name).
+		Param("stdin", "true").
+		Param("stdout", "true").
+		Param("stderr", "true").
+		Param("command", c.Path).
+		Param("tty", "true")
+
+	req.VersionedParams(
+		&corev1.PodExecOptions{
+			Container: p.Name,
+			Command:   []string{},
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		},
+		scheme.ParameterCodec,
+	)
+	executor, err := remotecommand.NewSPDYExecutor(
+		e.k8sCfg, http.MethodPost, req.URL(),
+	)
 	if err != nil {
 		return err
 	}
-	return exec.Stream(remotecommand.StreamOptions{
-		Stdin:  c.Stdin,
-		Stdout: c.Stdout,
-		Stderr: c.Stderr,
+	return executor.Stream(remotecommand.StreamOptions{
+		Stdin:             rw,
+		Stdout:            rw,
+		Stderr:            rw,
+		Tty:               true,
+		TerminalSizeQueue: rw,
 	})
 }
