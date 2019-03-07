@@ -7,7 +7,7 @@ import (
 func SetNamespaceSchema(schema *types.Schema, handler types.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET"}
+	schema.ResourceMethods = []string{"GET", "DELETE"}
 	schema.Parent = ClusterType
 }
 

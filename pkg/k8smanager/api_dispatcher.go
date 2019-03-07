@@ -1,7 +1,6 @@
 package k8smanager
 
 import (
-	"fmt"
 	"net/http"
 
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -25,24 +24,44 @@ func (h *Handler) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *r
 		return h.clusterManager.Create(obj.(*types.Cluster), yamlConf)
 	}
 
-	ancestors := resttypes.GetAncestors(obj)
-	clusterID := ancestors[0].GetID()
-	cluster, found := h.clusterManager.Get(clusterID)
-	if found == false {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
+	cluster := h.getClusterForSubResource(obj)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
 	switch typ {
 	case types.NamespaceType:
 		return newNamespaceManager(cluster).Create(obj.(*types.Namespace), yamlConf)
 	case types.DeploymentType:
-		return newDeploymentManager(cluster).Create(ancestors[1].GetID(), obj.(*types.Deployment), yamlConf)
+		return newDeploymentManager(cluster).Create(obj.GetParent().GetID(), obj.(*types.Deployment), yamlConf)
 	default:
 		return nil, nil
 	}
 }
 
 func (h *Handler) Delete(obj resttypes.Object) *resttypes.APIError {
+	typ := obj.GetType()
+	if typ == types.ClusterType {
+		return resttypes.NewAPIError(resttypes.MethodNotAllowed, "delete cluster isn't allowed")
+	}
+
+	cluster := h.getClusterForSubResource(obj)
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+
+	switch typ {
+	case types.NodeType:
+		return resttypes.NewAPIError(resttypes.MethodNotAllowed, "delete node isn't allowed")
+	case types.NamespaceType:
+		return newNamespaceManager(cluster).Delete(obj.(*types.Namespace))
+	case types.DeploymentType:
+		return newDeploymentManager(cluster).Delete(obj.GetParent().GetID(), obj.(*types.Deployment))
+	default:
+		logger.Warn("search for unknown type", obj.GetType())
+		return nil
+	}
+
 	return nil
 }
 
@@ -56,11 +75,8 @@ func (h *Handler) List(obj resttypes.Object) interface{} {
 		return h.clusterManager.List()
 	}
 
-	ancestors := resttypes.GetAncestors(obj)
-	clusterID := ancestors[0].GetID()
-	cluster, found := h.clusterManager.Get(clusterID)
-	if found == false {
-		logger.Warn("search for unknown cluster %s", clusterID)
+	cluster := h.getClusterForSubResource(obj)
+	if cluster == nil {
 		return nil
 	}
 
@@ -70,7 +86,7 @@ func (h *Handler) List(obj resttypes.Object) interface{} {
 	case types.NamespaceType:
 		return newNamespaceManager(cluster).List()
 	case types.DeploymentType:
-		return newDeploymentManager(cluster).List(ancestors[1].GetID())
+		return newDeploymentManager(cluster).List(obj.GetParent().GetID())
 	default:
 		logger.Warn("search for unknown type", obj.GetType())
 		return nil
@@ -78,10 +94,25 @@ func (h *Handler) List(obj resttypes.Object) interface{} {
 }
 
 func (h *Handler) Get(obj resttypes.Object) interface{} {
-	if _, ok := obj.(*types.Cluster); ok {
-		c, _ := h.clusterManager.Get(obj.GetID())
-		return c
-	} else {
+	typ := obj.GetType()
+	if typ == types.ClusterType {
+		return h.clusterManager.Get(obj.GetID())
+	}
+
+	cluster := h.getClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	switch typ {
+	case types.NodeType:
+		return newNodeManager(cluster).Get(obj.(*types.Node))
+	case types.NamespaceType:
+		return newNamespaceManager(cluster).Get(obj.(*types.Namespace))
+	case types.DeploymentType:
+		return newDeploymentManager(cluster).Get(obj.GetParent().GetID(), obj.(*types.Deployment))
+	default:
+		logger.Warn("search for unknown type", obj.GetType())
 		return nil
 	}
 }
@@ -92,4 +123,14 @@ func (h *Handler) Action(obj resttypes.Object, action string, params map[string]
 
 func (h *Handler) OpenConsole(id string, r *http.Request, w http.ResponseWriter) {
 	h.clusterManager.OpenConsole(id, r, w)
+}
+
+func (h *Handler) getClusterForSubResource(obj resttypes.Object) *types.Cluster {
+	ancestors := resttypes.GetAncestors(obj)
+	clusterID := ancestors[0].GetID()
+	cluster := h.clusterManager.Get(clusterID)
+	if cluster == nil {
+		logger.Warn("search for unknown cluster %s", clusterID)
+	}
+	return cluster
 }

@@ -51,6 +51,30 @@ func (m NamespaceManager) List() interface{} {
 	return namespaces
 }
 
+func (m NamespaceManager) Get(namespace *types.Namespace) interface{} {
+	k8sNamespace, err := getNamespace(m.cluster.KubeClient, namespace.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			logger.Warn("get namespace info failed:%s", err.Error())
+		}
+		return nil
+	}
+
+	return k8sNamespaceToSCNamespace(k8sNamespace)
+}
+
+func (m NamespaceManager) Delete(namespace *types.Namespace) *resttypes.APIError {
+	err := deleteNamespace(m.cluster.KubeClient, namespace.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
+		}
+	}
+	return nil
+}
+
 func getNamespaces(cli client.Client) (*corev1.NamespaceList, error) {
 	namespaces := corev1.NamespaceList{}
 	err := cli.List(context.TODO(), nil, &namespaces)
@@ -64,9 +88,21 @@ func createNamespace(cli client.Client, name string) error {
 	return cli.Create(context.TODO(), ns)
 }
 
-func hasNamespace(cli client.Client, name string) (bool, error) {
+func deleteNamespace(cli client.Client, name string) error {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+	}
+	return cli.Delete(context.TODO(), ns)
+}
+
+func getNamespace(cli client.Client, name string) (*corev1.Namespace, error) {
 	ns := corev1.Namespace{}
 	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &ns)
+	return &ns, err
+}
+
+func hasNamespace(cli client.Client, name string) (bool, error) {
+	_, err := getNamespace(cli, name)
 	if err == nil {
 		return true, nil
 	} else if apierrors.IsNotFound(err) {

@@ -76,13 +76,13 @@ func (m *ClusterManager) Create(cluster *types.Cluster, yamlConf []byte) (*types
 	return cluster, nil
 }
 
-func (m *ClusterManager) Get(id string) (*types.Cluster, bool) {
+func (m *ClusterManager) Get(id string) *types.Cluster {
 	for _, c := range m.clusters {
 		if c.GetID() == id {
-			return c, true
+			return c
 		}
 	}
-	return nil, false
+	return nil
 }
 
 func (m *ClusterManager) List() []*types.Cluster {

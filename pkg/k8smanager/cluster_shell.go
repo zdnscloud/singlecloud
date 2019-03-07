@@ -54,8 +54,8 @@ func (t *ShellConn) Next() *remotecommand.TerminalSize {
 }
 
 func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.ResponseWriter) {
-	cluster, found := m.Get(id)
-	if found == false {
+	cluster := m.Get(id)
+	if cluster == nil {
 		logger.Warn("cluster %s isn't found to open console", id)
 		return
 	}

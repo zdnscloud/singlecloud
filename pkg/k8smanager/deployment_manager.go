@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/gok8s/client"
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -37,10 +38,12 @@ func (m DeploymentManager) Create(namespace string, deploy *types.Deployment, ya
 	}
 }
 
-func (m DeploymentManager) List(namespaces string) interface{} {
-	k8sDeploys, err := getDeployments(m.cluster.KubeClient)
+func (m DeploymentManager) List(namespace string) interface{} {
+	k8sDeploys, err := getDeployments(m.cluster.KubeClient, namespace)
 	if err != nil {
-		logger.Warn("get node info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) == false {
+			logger.Warn("list deployment info failed:%s", err.Error())
+		}
 		return nil
 	}
 
@@ -51,9 +54,39 @@ func (m DeploymentManager) List(namespaces string) interface{} {
 	return deploys
 }
 
-func getDeployments(cli client.Client) (*appsv1.DeploymentList, error) {
+func (m DeploymentManager) Get(namespace string, deploy *types.Deployment) interface{} {
+	k8sDeploy, err := getDeployment(m.cluster.KubeClient, namespace, deploy.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			logger.Warn("get deployment info failed:%s", err.Error())
+		}
+		return nil
+	}
+
+	return k8sDeployToSCDeploy(k8sDeploy)
+}
+
+func (m DeploymentManager) Delete(namespace string, deploy *types.Deployment) *resttypes.APIError {
+	err := deleteDeployment(m.cluster.KubeClient, namespace, deploy.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
+		}
+	}
+	return nil
+}
+
+func getDeployment(cli client.Client, namespace, name string) (*appsv1.Deployment, error) {
+	deploy := appsv1.Deployment{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &deploy)
+	return &deploy, err
+}
+
+func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList, error) {
 	deploys := appsv1.DeploymentList{}
-	err := cli.List(context.TODO(), nil, &deploys)
+	err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace}, &deploys)
 	return &deploys, err
 }
 
@@ -82,6 +115,13 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 		},
 	}
 	return cli.Create(context.TODO(), k8sDeploy)
+}
+
+func deleteDeployment(cli client.Client, namespace, name string) error {
+	deploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+	}
+	return cli.Delete(context.TODO(), deploy)
 }
 
 func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {

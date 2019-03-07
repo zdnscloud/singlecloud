@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/gok8s/client"
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -22,10 +24,24 @@ func newNodeManager(cluster *types.Cluster) NodeManager {
 	return NodeManager{cluster: cluster}
 }
 
+func (m NodeManager) Get(node *types.Node) interface{} {
+	k8sNode, err := getNode(m.cluster.KubeClient, node.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Warn("get node info failed:%s", err.Error())
+		}
+		return nil
+	}
+
+	return k8sNodeToSCNode(k8sNode)
+}
+
 func (m NodeManager) List() interface{} {
 	k8sNodes, err := getNodes(m.cluster.KubeClient)
 	if err != nil {
-		logger.Warn("get node info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			logger.Warn("get node info failed:%s", err.Error())
+		}
 		return nil
 	}
 
@@ -34,6 +50,12 @@ func (m NodeManager) List() interface{} {
 		nodes = append(nodes, k8sNodeToSCNode(&k8sNode))
 	}
 	return nodes
+}
+
+func getNode(cli client.Client, name string) (*corev1.Node, error) {
+	node := corev1.Node{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &node)
+	return &node, err
 }
 
 func getNodes(cli client.Client) (*corev1.NodeList, error) {
