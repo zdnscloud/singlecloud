@@ -6,6 +6,8 @@
         "creationTimestamp": {"type": "string"}
     },
 
+    "parentResource": "cluster",
+
     "resourceMethods": [
         {
             "method": "GET",

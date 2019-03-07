@@ -14,6 +14,8 @@
         ]
     },
 
+    "parentResource": "namespace",
+
     "resourceMethods": [
         {
             "method": "GET",
