@@ -25,8 +25,9 @@ func (h *Handler) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *r
 		return h.clusterManager.Create(obj.(*types.Cluster), yamlConf)
 	}
 
-	id := obj.GetParent().ID
-	cluster, found := h.clusterManager.Get(id)
+	ancestors := resttypes.GetAncestors(obj)
+	clusterID := ancestors[0].GetID()
+	cluster, found := h.clusterManager.Get(clusterID)
 	if found == false {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
 	}
@@ -34,6 +35,8 @@ func (h *Handler) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *r
 	switch typ {
 	case types.NamespaceType:
 		return newNamespaceManager(cluster).Create(obj.(*types.Namespace), yamlConf)
+	case types.DeploymentType:
+		return newDeploymentManager(cluster).Create(ancestors[1].GetID(), obj.(*types.Deployment), yamlConf)
 	default:
 		return nil, nil
 	}
@@ -53,10 +56,11 @@ func (h *Handler) List(obj resttypes.Object) interface{} {
 		return h.clusterManager.List()
 	}
 
-	id := obj.GetParent().ID
-	cluster, found := h.clusterManager.Get(id)
+	ancestors := resttypes.GetAncestors(obj)
+	clusterID := ancestors[0].GetID()
+	cluster, found := h.clusterManager.Get(clusterID)
 	if found == false {
-		logger.Warn("search for unknown cluster %s", id)
+		logger.Warn("search for unknown cluster %s", clusterID)
 		return nil
 	}
 
@@ -65,6 +69,8 @@ func (h *Handler) List(obj resttypes.Object) interface{} {
 		return newNodeManager(cluster).List()
 	case types.NamespaceType:
 		return newNamespaceManager(cluster).List()
+	case types.DeploymentType:
+		return newDeploymentManager(cluster).List(ancestors[1].GetID())
 	default:
 		logger.Warn("search for unknown type", obj.GetType())
 		return nil

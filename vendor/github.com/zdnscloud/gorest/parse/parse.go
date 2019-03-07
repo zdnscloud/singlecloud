@@ -1,6 +1,7 @@
 package parse
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -8,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/gorest/util/name"
 )
 
 var (
@@ -19,62 +19,25 @@ var (
 	}
 )
 
-type ParsedURL struct {
-	Version *types.APIVersion
-	Type    string
-	ID      string
-	Action  string
-	Parent  types.Parent
-	Query   url.Values
-}
-
-func defaultURLParser(schemas *types.Schemas, url *url.URL) (ParsedURL, *types.APIError) {
-	result := ParsedURL{}
-
-	path := url.EscapedPath()
-	path = multiSlashRegexp.ReplaceAllString(path, "/")
-	version, parent, parts := parseVersionAndParent(schemas, path)
-
-	if version == nil {
-		return result, types.NewAPIError(types.NotFound, "no found version with url "+path)
-	}
-
-	result.Version = version
-	result.Action = parseAction(url)
-	result.Query = url.Query()
-	result.Parent = parent
-
-	result.Type = safeIndex(parts, 0)
-	result.ID = safeIndex(parts, 1)
-
-	return result, nil
-}
-
 func Parse(rw http.ResponseWriter, req *http.Request, schemas *types.Schemas) (*types.APIContext, *types.APIError) {
 	result := types.NewAPIContext(req, rw, schemas)
 	result.Method = parseMethod(req)
 	result.ResponseFormat = parseResponseFormat(req)
-
-	// The response format is guarenteed to be set even in the event of an error
-	parsedURL, err := defaultURLParser(schemas, req.URL)
-	// wait to check error, want to set as much as possible
-
-	result.Type = parsedURL.Type
-	result.ID = parsedURL.ID
-	result.Action = parsedURL.Action
-	result.Query = parsedURL.Query
-	result.Version = parsedURL.Version
-	result.Parent = parsedURL.Parent
-
+	path := req.URL.EscapedPath()
+	path = multiSlashRegexp.ReplaceAllString(path, "/")
+	version, obj, schema, err := parseVersionAndResource(schemas, path)
 	if err != nil {
 		return result, err
 	}
 
-	if err := defaultResolver(result.Type, result); err != nil {
-		return result, err
-	}
+	result.Type = obj.GetType()
+	result.ID = obj.GetID()
+	result.Action = parseAction(req.URL)
+	result.Query = req.URL.Query()
+	result.Version = version
+	result.Parent = obj.GetParent()
+	result.Schema = schema
 
-	result.Type = result.Schema.ID
 	if err := ValidateMethod(result); err != nil {
 		return result, err
 	}
@@ -91,11 +54,10 @@ func versionsForPath(schemas *types.Schemas, escapedPath string) *types.APIVersi
 	return nil
 }
 
-func parseVersionAndParent(schemas *types.Schemas, escapedPath string) (*types.APIVersion, types.Parent, []string) {
-	parent := types.Parent{}
+func parseVersionAndResource(schemas *types.Schemas, escapedPath string) (*types.APIVersion, types.Object, *types.Schema, *types.APIError) {
 	version := versionsForPath(schemas, escapedPath)
 	if version == nil {
-		return nil, parent, nil
+		return nil, nil, nil, types.NewAPIError(types.NotFound, "no found version with "+escapedPath)
 	}
 
 	if strings.HasSuffix(escapedPath, "/") {
@@ -117,30 +79,35 @@ func parseVersionAndParent(schemas *types.Schemas, escapedPath string) (*types.A
 
 	paths := pathParts[len(versionParts)+len(versionGroups):]
 
-	if len(paths) <= 2 {
-		return version, parent, paths
-	} else {
-		schema := schemas.Schema(version, paths[2])
-		if schema != nil && name.GuessPluralName(schema.Parent) == paths[0] {
-			return version, types.Parent{ID: paths[1], Name: paths[0]}, paths[2:]
+	var obj *types.Resource
+	var schema *types.Schema
+	for i := 0; i < len(paths); i += 2 {
+		schema = schemas.Schema(version, paths[i])
+		if schema == nil {
+			return version, nil, nil, types.NewAPIError(types.NotFound, "no found schema for "+paths[i])
 		}
 
-		return version, parent, nil
-	}
-}
+		if i == 0 {
+			obj = &types.Resource{
+				ID:   safeIndex(paths, i+1),
+				Type: schema.ID,
+			}
+			continue
+		}
 
-func defaultResolver(typeName string, apiContext *types.APIContext) *types.APIError {
-	if typeName == "" {
-		return types.NewAPIError(types.NotFound, "no found schema name from url")
+		if schema.Parent != obj.Type {
+			return version, nil, nil, types.NewAPIError(types.InvalidType,
+				fmt.Sprintf("schema %v parent should not be %s", schema.ID, obj.Type))
+		}
+
+		obj = &types.Resource{
+			ID:     safeIndex(paths, i+1),
+			Type:   schema.ID,
+			Parent: obj,
+		}
 	}
 
-	schema := apiContext.Schemas.Schema(apiContext.Version, typeName)
-	if schema == nil {
-		return types.NewAPIError(types.NotFound, "no found schema "+typeName)
-	}
-
-	apiContext.Schema = schema
-	return nil
+	return version, obj, schema, nil
 }
 
 func safeIndex(slice []string, index int) string {

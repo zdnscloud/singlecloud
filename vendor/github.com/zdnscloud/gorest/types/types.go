@@ -1,13 +1,16 @@
 package types
 
 import (
+	"fmt"
 	"reflect"
+	"time"
 )
 
 type Collection struct {
-	Type         string      `json:"type,omitempty"`
-	ResourceType string      `json:"resourceType,omitempty"`
-	Data         interface{} `json:"data"`
+	Type         string            `json:"type,omitempty"`
+	ResourceType string            `json:"resourceType,omitempty"`
+	Links        map[string]string `json:"links,omitempty"`
+	Data         interface{}       `json:"data"`
 }
 
 type APIVersion struct {
@@ -31,11 +34,6 @@ type Schema struct {
 	StructVal reflect.Value `json:"-"`
 	Handler   Handler       `json:"-"`
 	Parent    string        `json:"-"`
-}
-
-type Parent struct {
-	ID   string `json:"-"`
-	Name string `json:"-"`
 }
 
 type Field struct {
@@ -68,9 +66,11 @@ type ActionHandler func(request *APIContext, action *Action) *APIError
 type RequestHandler func(request *APIContext) *APIError
 
 type Resource struct {
-	ID     string `json:"id,omitempty"`
-	Type   string `json:"type,omitempty"`
-	Parent Parent `json:"-"`
+	ID                string            `json:"id,omitempty"`
+	Type              string            `json:"type,omitempty"`
+	Links             map[string]string `json:"links,omitempty"`
+	CreationTimestamp ISOTime           `json:"creationTimestamp,omitempty"`
+	Parent            Object            `json:"-"`
 }
 
 func (r *Resource) GetID() string {
@@ -89,10 +89,46 @@ func (r *Resource) SetType(typ string) {
 	r.Type = typ
 }
 
-func (r *Resource) GetParent() Parent {
+func (r *Resource) GetLinks() map[string]string {
+	return r.Links
+}
+
+func (r *Resource) SetLinks(links map[string]string) {
+	r.Links = links
+}
+
+func (r *Resource) GetCreationTimestamp() time.Time {
+	return time.Time(r.CreationTimestamp)
+}
+
+func (r *Resource) SetCreationTimestamp(timestamp time.Time) {
+	r.CreationTimestamp = ISOTime(timestamp)
+}
+
+func (r *Resource) GetParent() Object {
 	return r.Parent
 }
 
-func (r *Resource) SetParent(parent Parent) {
+func (r *Resource) SetParent(parent Object) {
 	r.Parent = parent
+}
+
+func GetAncestors(parent ObjectParent) []Object {
+	var antiAncestors []Object
+	for obj := parent.GetParent(); obj != nil; obj = obj.GetParent() {
+		antiAncestors = append(antiAncestors, obj)
+	}
+
+	var ancestors []Object
+	for i := len(antiAncestors) - 1; i >= 0; i-- {
+		ancestors = append(ancestors, antiAncestors[i])
+	}
+
+	return ancestors
+}
+
+type ISOTime time.Time
+
+func (t ISOTime) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", time.Time(t).Format(time.RFC3339))), nil
 }

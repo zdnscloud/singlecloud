@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -126,9 +125,9 @@ func k8sNodeToSCNode(k8sNode *corev1.Node) *types.Node {
 		StorageUserdRatio:    storageRatio,
 		PodCount:             int(podCountCap.Value()),
 		PodUsedRatio:         podCountRatio,
-		CreationTimestamp:    k8sNode.CreationTimestamp.Format(time.RFC3339),
 	}
 	node.SetID(node.Name)
+	node.SetCreationTimestamp(k8sNode.CreationTimestamp.Time)
 	node.SetType(resttypes.GetResourceType(node))
 	return node
 }

@@ -13,13 +13,11 @@ func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 }
 
 type Cluster struct {
-	types.Resource    `json:",inline"`
-	Name              string `json:"name,omitempty"`
-	NodesCount        uint32 `json:"nodeCount,omitempty"`
-	Version           string `json:"version,omitempty"`
-	CreationTimestamp string `json:"creationTimestamp,omitempty"`
+	types.Resource `json:",inline"`
+	Name           string `json:"name,omitempty"`
+	NodesCount     uint32 `json:"nodeCount,omitempty"`
+	Version        string `json:"version,omitempty"`
 
-	Parent     types.Parent   `json:"-"`
 	KubeClient client.Client  `json:"-"`
 	Executor   *exec.Executor `json:"-"`
 }

@@ -238,7 +238,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:450c9cadd9d1994210f4402438c5a00d2b95c56ae27cd976650c540ab6e041d4"
+  digest = "1:76e1c325047ff4c00ffbd124597242e7740ae74cd00110a13b75f8896cc9db43"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -251,7 +251,7 @@
     "util/slice",
   ]
   pruneopts = "UT"
-  revision = "8e0062e3d1e91c9c7d64e71416b0846897380a8a"
+  revision = "17bd5073aa7719cbc1bf374866a6d52e6f7b69b2"
 
 [[projects]]
   branch = "master"
@@ -566,7 +566,6 @@
   input-imports = [
     "github.com/gin-contrib/static",
     "github.com/gin-gonic/gin",
-    "github.com/gorilla/websocket",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/gok8s/client",
     "github.com/zdnscloud/gok8s/client/config",
@@ -578,6 +577,7 @@
     "k8s.io/api/core/v1",
     "k8s.io/api/rbac/v1",
     "k8s.io/apimachinery/pkg/api/errors",
+    "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/client-go/tools/remotecommand",

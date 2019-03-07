@@ -18,7 +18,7 @@ type APIContext struct {
 	ResponseFormat string
 	Request        *http.Request
 	Response       http.ResponseWriter
-	Parent         Parent
+	Parent         Object
 }
 
 type apiContextKey struct{}

@@ -12,11 +12,8 @@ func SetNamespaceSchema(schema *types.Schema, handler types.Handler) {
 }
 
 type Namespace struct {
-	types.Resource    `json:",inline"`
-	Name              string `json:"name,omitempty"`
-	CreationTimestamp string `json:"creationTimestamp,omitempty"`
-
-	Parent types.Parent `json:"-"`
+	types.Resource `json:",inline"`
+	Name           string `json:"name,omitempty"`
 }
 
 var NamespaceType = types.GetResourceType(Namespace{})

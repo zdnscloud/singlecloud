@@ -71,7 +71,7 @@ func (m *ClusterManager) Create(cluster *types.Cluster, yamlConf []byte) (*types
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
 	}
 
-	cluster.CreationTimestamp = time.Now().Format(time.RFC3339)
+	cluster.SetCreationTimestamp(time.Now())
 	m.clusters = append(m.clusters, cluster)
 	return cluster, nil
 }
