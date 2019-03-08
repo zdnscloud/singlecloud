@@ -7,7 +7,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
+	metricsapi "k8s.io/metrics/pkg/apis/metrics"
 
 	"github.com/zdnscloud/gok8s/client"
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -25,7 +27,8 @@ func newNodeManager(cluster *types.Cluster) NodeManager {
 }
 
 func (m NodeManager) Get(node *types.Node) interface{} {
-	k8sNode, err := getNode(m.cluster.KubeClient, node.GetID())
+	cli := m.cluster.KubeClient
+	k8sNode, err := getNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Warn("get node info failed:%s", err.Error())
@@ -33,11 +36,13 @@ func (m NodeManager) Get(node *types.Node) interface{} {
 		return nil
 	}
 
-	return k8sNodeToSCNode(k8sNode)
+	name := node.GetID()
+	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name))
 }
 
 func (m NodeManager) List() interface{} {
-	k8sNodes, err := getNodes(m.cluster.KubeClient)
+	cli := m.cluster.KubeClient
+	k8sNodes, err := getNodes(cli)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Warn("get node info failed:%s", err.Error())
@@ -45,9 +50,11 @@ func (m NodeManager) List() interface{} {
 		return nil
 	}
 
+	podCountOnNode := getPodCountOnNode(cli, "")
+	nodeMetrics := getNodeMetrics(cli, "")
 	var nodes []*types.Node
 	for _, k8sNode := range k8sNodes.Items {
-		nodes = append(nodes, k8sNodeToSCNode(&k8sNode))
+		nodes = append(nodes, k8sNodeToSCNode(&k8sNode, nodeMetrics, podCountOnNode))
 	}
 	return nodes
 }
@@ -64,7 +71,7 @@ func getNodes(cli client.Client) (*corev1.NodeList, error) {
 	return &nodes, err
 }
 
-func k8sNodeToSCNode(k8sNode *corev1.Node) *types.Node {
+func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.NodeMetrics, podCountOnNode map[string]int) *types.Node {
 	status := &k8sNode.Status
 
 	var address, host string
@@ -78,36 +85,18 @@ func k8sNodeToSCNode(k8sNode *corev1.Node) *types.Node {
 		}
 	}
 
-	var cpuCap, memoryCap, storageCap, podCountCap resource.Quantity
-	for typ, c := range status.Capacity {
-		if typ == corev1.ResourceCPU {
-			cpuCap = c
-		} else if typ == corev1.ResourceMemory {
-			memoryCap = c
-		} else if typ == corev1.ResourceEphemeralStorage {
-			storageCap = c
-		} else if typ == corev1.ResourcePods {
-			podCountCap = c
-		}
-	}
+	cpuAva := status.Allocatable.Cpu()
+	memoryAva := status.Allocatable.Memory()
+	podAva := status.Allocatable.Pods()
 
-	var cpuAva, memoryAva, storageAva, podCountAva resource.Quantity
-	for typ, c := range status.Allocatable {
-		if typ == corev1.ResourceCPU {
-			cpuAva = c
-		} else if typ == corev1.ResourceMemory {
-			memoryAva = c
-		} else if typ == corev1.ResourceEphemeralStorage {
-			storageAva = c
-		} else if typ == corev1.ResourcePods {
-			podCountAva = c
-		}
-	}
+	usageMetrics := nodeMetrics[k8sNode.Name]
+	cpuUsed := float64(usageMetrics.Usage.Cpu().MilliValue()) / 1000
+	memoryUsed := float64(usageMetrics.Usage.Memory().MilliValue()) / 1000
+	podUsed := float64(podCountOnNode[k8sNode.Name])
 
-	cpuRatio := fmt.Sprintf("%.2f", calculateUsedRatio(&cpuCap, &cpuAva))
-	memoryRatio := fmt.Sprintf("%.2f", calculateUsedRatio(&memoryCap, &memoryAva))
-	storageRatio := fmt.Sprintf("%.2f", calculateUsedRatio(&storageCap, &storageAva))
-	podCountRatio := fmt.Sprintf("%.2f", calculateUsedRatio(&podCountCap, &podCountAva))
+	cpuRatio := fmt.Sprintf("%.2f", cpuUsed/float64(cpuAva.Value()))
+	memoryRatio := fmt.Sprintf("%.2f", memoryUsed/(float64(memoryAva.MilliValue())/1000))
+	podRatio := fmt.Sprintf("%.2f", podUsed/float64(podAva.Value()))
 
 	nodeInfo := &status.NodeInfo
 	os := nodeInfo.OperatingSystem + " " + nodeInfo.KernelVersion
@@ -139,14 +128,12 @@ func k8sNodeToSCNode(k8sNode *corev1.Node) *types.Node {
 		OperatingSystem:      os,
 		OperatingSystemImage: osImage,
 		DockerVersion:        dockderVersion,
-		Cpu:                  cpuCap.String(),
+		Cpu:                  cpuAva.String(),
 		CpuUsedRatio:         cpuRatio,
-		Memory:               memoryCap.String(),
+		Memory:               memoryAva.String(),
 		MemoryUsedRatio:      memoryRatio,
-		Storage:              storageCap.String(),
-		StorageUserdRatio:    storageRatio,
-		PodCount:             int(podCountCap.Value()),
-		PodUsedRatio:         podCountRatio,
+		Pod:                  podAva.String(),
+		PodUsedRatio:         podRatio,
 	}
 	node.SetID(node.Name)
 	node.SetCreationTimestamp(k8sNode.CreationTimestamp.Time)
@@ -159,4 +146,36 @@ func calculateUsedRatio(capacity, avail *resource.Quantity) float64 {
 	used.Sub(*avail)
 
 	return float64(used.Value()*100) / float64(capacity.Value())
+}
+
+func getPodCountOnNode(cli client.Client, name string) map[string]int {
+	podCountOnNode := make(map[string]int)
+
+	pods := corev1.PodList{}
+	err := cli.List(context.TODO(), nil, &pods)
+	if err == nil {
+		for _, p := range pods.Items {
+			if p.Status.Phase != corev1.PodRunning {
+				continue
+			}
+
+			n := p.Spec.NodeName
+			if name != "" && n != name {
+				continue
+			}
+			podCountOnNode[n] = podCountOnNode[n] + 1
+		}
+	}
+	return podCountOnNode
+}
+
+func getNodeMetrics(cli client.Client, name string) map[string]metricsapi.NodeMetrics {
+	nodeMetricsByName := make(map[string]metricsapi.NodeMetrics)
+	nodeMetricsList, err := cli.GetNodeMetrics(name, labels.Everything())
+	if err == nil {
+		for _, metrics := range nodeMetricsList.Items {
+			nodeMetricsByName[metrics.Name] = metrics
+		}
+	}
+	return nodeMetricsByName
 }

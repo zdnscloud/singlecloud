@@ -2,10 +2,13 @@ package client
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/version"
@@ -13,9 +16,16 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	metricsapi "k8s.io/metrics/pkg/apis/metrics"
+	metricsV1beta1api "k8s.io/metrics/pkg/apis/metrics/v1beta1"
+	metricsclientset "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	"github.com/zdnscloud/gok8s/client/apiutil"
 	"github.com/zdnscloud/gok8s/util"
+)
+
+var (
+	errMetricsServerIsNotValiable = errors.New("metrics server isn't available")
 )
 
 type Options struct {
@@ -49,8 +59,14 @@ func New(config *rest.Config, options Options) (Client, error) {
 		return nil, err
 	}
 
+	metricsClient, err := metricsclientset.NewForConfig(config)
+	if err != nil {
+		metricsClient = nil
+	}
+
 	return &client{
 		discoveryClient: discovery.NewDiscoveryClientForConfigOrDie(config),
+		metricsClient:   metricsClient,
 		typedClient: typedClient{
 			cache: clientCache{
 				config:         config,
@@ -75,10 +91,39 @@ type client struct {
 	typedClient        typedClient
 	unstructuredClient unstructuredClient
 	discoveryClient    *discovery.DiscoveryClient
+	metricsClient      metricsclientset.Interface
 }
 
 func (c *client) ServerVersion() (*version.Info, error) {
 	return c.discoveryClient.ServerVersion()
+}
+
+func (c *client) GetNodeMetrics(name string, selector labels.Selector) (*metricsapi.NodeMetricsList, error) {
+	if c.metricsClient == nil {
+		return nil, errMetricsServerIsNotValiable
+	}
+
+	var err error
+	versionedMetrics := &metricsV1beta1api.NodeMetricsList{}
+	nm := c.metricsClient.MetricsV1beta1().NodeMetricses()
+	if name != "" {
+		m, err := nm.Get(name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		versionedMetrics.Items = []metricsV1beta1api.NodeMetrics{*m}
+	} else {
+		versionedMetrics, err = nm.List(metav1.ListOptions{LabelSelector: selector.String()})
+		if err != nil {
+			return nil, err
+		}
+	}
+	metrics := &metricsapi.NodeMetricsList{}
+	err = metricsV1beta1api.Convert_v1beta1_NodeMetricsList_To_metrics_NodeMetricsList(versionedMetrics, metrics, nil)
+	if err != nil {
+		return nil, err
+	}
+	return metrics, nil
 }
 
 func (c *client) Create(ctx context.Context, obj runtime.Object) error {

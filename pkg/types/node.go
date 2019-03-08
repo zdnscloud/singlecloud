@@ -26,9 +26,7 @@ type Node struct {
 	CpuUsedRatio         string            `json:"cpuUsedRatio,omitempty"`
 	Memory               string            `json:"memory,omitempty"`
 	MemoryUsedRatio      string            `json:"memoryUsedRatio,omitempty"`
-	Storage              string            `json:"storage,omitempty"`
-	StorageUserdRatio    string            `json:"storageUsedRatio,omitempty"`
-	PodCount             int               `json:"podCount"`
+	Pod                  string            `json:"pod"`
 	PodUsedRatio         string            `json:"podUsedRatio,omitempty"`
 }
 

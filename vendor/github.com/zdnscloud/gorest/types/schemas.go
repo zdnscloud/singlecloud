@@ -102,9 +102,11 @@ func (s *Schemas) UrlMethods() map[string][]string {
 		url := path.Join("/"+schema.Version.Group, schema.Version.Path)
 		var parents []string
 		for parent := schema.Parent; parent != ""; {
-			parents = append(parents, parent)
 			if parentSchema := s.Schema(&schema.Version, parent); parentSchema != nil {
+				parents = append(parents, parent)
 				parent = parentSchema.Parent
+			} else {
+				panic(fmt.Sprintf("schema %v is non-exists", parent))
 			}
 		}
 
@@ -119,8 +121,13 @@ func (s *Schemas) UrlMethods() map[string][]string {
 
 		parentUrl := buffer.String()
 		url = path.Join("/"+schema.Version.Group, schema.Version.Path, parentUrl, schema.PluralName)
-		urlMethods[url] = schema.CollectionMethods
-		urlMethods[path.Join(url, ":"+schema.ID+"_id")] = schema.ResourceMethods
+		if len(schema.CollectionMethods) != 0 {
+			urlMethods[url] = schema.CollectionMethods
+		}
+
+		if len(schema.ResourceMethods) != 0 {
+			urlMethods[path.Join(url, ":"+schema.ID+"_id")] = schema.ResourceMethods
+		}
 	}
 
 	return urlMethods

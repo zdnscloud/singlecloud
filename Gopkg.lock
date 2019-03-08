@@ -217,7 +217,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e923569d0b8d998d40f3c14bdf00b30e4bfad5c12a991ab979bc13703a7c7f37"
+  digest = "1:8dddb55ba845601284c987a4f40be113baeb00f51e735076374f24723c90a0bd"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -234,11 +234,11 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "4ed198aa2a13af118abd98ae538b00d628770eb8"
+  revision = "1a609cab76b1a5ae647cc38f4e8cf27c7b82acf3"
 
 [[projects]]
   branch = "master"
-  digest = "1:76e1c325047ff4c00ffbd124597242e7740ae74cd00110a13b75f8896cc9db43"
+  digest = "1:d2786c5fcb7910c6a07010e6a4ad8ddc8dd04a1c5d00aa1beb943e1110769e74"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -251,7 +251,7 @@
     "util/slice",
   ]
   pruneopts = "UT"
-  revision = "17bd5073aa7719cbc1bf374866a6d52e6f7b69b2"
+  revision = "e6599b924c83a1f71b4dca1c3c89de83585dfa2c"
 
 [[projects]]
   branch = "master"
@@ -289,14 +289,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4331a1ccaa56cb90dba6ddd13797c221205af5ba719cbdbd701f44532dde19ea"
+  digest = "1:84634db3c6385a120c926d800106c52269a084b849c1c25e276284c9232ad641"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "c2f5717e611cf8e89a852a41081355194d80c943"
+  revision = "584f3b12f43e1e55248c90e84804777009eed0a4"
 
 [[projects]]
   digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
@@ -553,6 +553,22 @@
   version = "v0.2.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:35db9b21626e811bf6908eb69a28a328429dfd058e4c1415cfaaace3f054931c"
+  name = "k8s.io/metrics"
+  packages = [
+    "pkg/apis/metrics",
+    "pkg/apis/metrics/v1alpha1",
+    "pkg/apis/metrics/v1beta1",
+    "pkg/client/clientset/versioned",
+    "pkg/client/clientset/versioned/scheme",
+    "pkg/client/clientset/versioned/typed/metrics/v1alpha1",
+    "pkg/client/clientset/versioned/typed/metrics/v1beta1",
+  ]
+  pruneopts = "UT"
+  revision = "b36427b8d894ecfd8ed3e06e2441fac7a9e8bc45"
+
+[[projects]]
   digest = "1:7719608fe0b52a4ece56c2dde37bedd95b938677d1ab0f84b8a7852e4c59f849"
   name = "sigs.k8s.io/yaml"
   packages = ["."]
@@ -574,6 +590,7 @@
     "github.com/zdnscloud/gorest/api",
     "github.com/zdnscloud/gorest/types",
     "gopkg.in/igm/sockjs-go.v2/sockjs",
+    "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/api/rbac/v1",
     "k8s.io/apimachinery/pkg/api/errors",
