@@ -90,9 +90,14 @@ func getConfigMaps(cli client.Client, namespace string) (*corev1.ConfigMapList, 
 }
 
 func createConfigMap(cli client.Client, namespace string, cm *types.ConfigMap) error {
+	data := make(map[string]string)
+	for _, c := range cm.Configs {
+		data[c.Name] = c.Data
+	}
+
 	k8sConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: cm.Name, Namespace: namespace},
-		Data:       cm.Data,
+		Data:       data,
 	}
 	return cli.Create(context.TODO(), k8sConfigMap)
 }
@@ -105,9 +110,16 @@ func deleteConfigMap(cli client.Client, namespace, name string) error {
 }
 
 func k8sConfigMapToSCConfigMap(k8sConfigMap *corev1.ConfigMap) *types.ConfigMap {
+	var configs []types.Config
+	for n, d := range k8sConfigMap.Data {
+		configs = append(configs, types.Config{
+			Name: n,
+			Data: d,
+		})
+	}
 	cm := &types.ConfigMap{
-		Name: k8sConfigMap.Name,
-		Data: k8sConfigMap.Data,
+		Name:    k8sConfigMap.Name,
+		Configs: configs,
 	}
 	cm.SetID(k8sConfigMap.Name)
 	cm.SetType(types.ConfigMapType)

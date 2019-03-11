@@ -3,6 +3,7 @@ package k8smanager
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -93,14 +94,51 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
 	replica := int32(deploy.Replicas)
 	var containers []corev1.Container
+	usedConfigMap := make(map[string]struct{})
 	for _, c := range deploy.Containers {
+		var mounts []corev1.VolumeMount
+		var ports []corev1.ContainerPort
+		if c.ConfigName != "" {
+			mounts = append(mounts, corev1.VolumeMount{
+				Name:      c.ConfigName,
+				MountPath: c.MountPath,
+			})
+			usedConfigMap[c.ConfigName] = struct{}{}
+		}
+
+		if c.ExposedPort != 0 && c.Protocol != "" {
+			protocol, err := convertProtocol(c.Protocol)
+			if err != nil {
+				return err
+			}
+			ports = append(ports, corev1.ContainerPort{
+				ContainerPort: int32(c.ExposedPort),
+				Protocol:      protocol,
+			})
+		}
 		containers = append(containers, corev1.Container{
-			Name:    c.Name,
-			Image:   c.Image,
-			Command: c.Command,
-			Args:    c.Args,
+			Name:         c.Name,
+			Image:        c.Image,
+			Command:      c.Command,
+			Args:         c.Args,
+			VolumeMounts: mounts,
+			Ports:        ports,
 		})
 	}
+
+	var podVolumes []corev1.Volume
+	for n, _ := range usedConfigMap {
+		configMapSource := &corev1.ConfigMapVolumeSource{}
+		configMapSource.Name = n
+		source := corev1.VolumeSource{
+			ConfigMap: configMapSource,
+		}
+		podVolumes = append(podVolumes, corev1.Volume{
+			Name:         n,
+			VolumeSource: source,
+		})
+	}
+
 	k8sDeploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: deploy.Name, Namespace: namespace},
 		Spec: appsv1.DeploymentSpec{
@@ -110,11 +148,26 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": deploy.Name}},
-				Spec:       corev1.PodSpec{Containers: containers},
+				Spec: corev1.PodSpec{
+					Containers: containers,
+					Volumes:    podVolumes,
+				},
 			},
 		},
 	}
 	return cli.Create(context.TODO(), k8sDeploy)
+}
+
+func convertProtocol(protocol string) (p corev1.Protocol, err error) {
+	switch strings.ToLower(protocol) {
+	case "tcp":
+		p = corev1.ProtocolTCP
+	case "udp":
+		p = corev1.ProtocolUDP
+	default:
+		err = fmt.Errorf("protocol %s isn't supported", protocol)
+	}
+	return
 }
 
 func deleteDeployment(cli client.Client, namespace, name string) error {

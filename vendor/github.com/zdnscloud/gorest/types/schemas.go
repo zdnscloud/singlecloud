@@ -10,8 +10,7 @@ import (
 	"github.com/zdnscloud/gorest/util"
 )
 
-const Root = "/"
-const GroupPrefix = "apis"
+const GroupPrefix = "/apis"
 
 type Schemas struct {
 	typeNames     map[reflect.Type]string
@@ -122,7 +121,7 @@ func (s *Schemas) UrlMethods() map[string][]string {
 		}
 
 		parentUrl := buffer.String()
-		url := path.Join(Root, GroupPrefix, schema.Version.Group, schema.Version.Path, parentUrl, schema.PluralName)
+		url := path.Join(GroupPrefix, schema.Version.Group, schema.Version.Path, parentUrl, schema.PluralName)
 		if len(schema.CollectionMethods) != 0 {
 			urlMethods[url] = schema.CollectionMethods
 		}

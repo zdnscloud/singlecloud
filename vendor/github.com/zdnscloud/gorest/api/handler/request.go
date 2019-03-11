@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,12 +16,12 @@ func CreateHandler(apiContext *types.APIContext) *types.APIError {
 		return types.NewAPIError(types.NotFound, "no found schema handler")
 	}
 
-	yamlContent, object, err := parseCreateBody(apiContext)
+	content, object, err := parseCreateBody(apiContext)
 	if err != nil {
 		return err
 	}
 
-	result, err := handler.Create(object, yamlContent)
+	result, err := handler.Create(object, content)
 	if err != nil {
 		return err
 	}
@@ -48,7 +47,7 @@ func DeleteHandler(apiContext *types.APIContext) *types.APIError {
 		return err
 	}
 
-	WriteResponse(apiContext, http.StatusOK, nil)
+	WriteResponse(apiContext, http.StatusNoContent, nil)
 	return nil
 }
 
@@ -92,16 +91,25 @@ func ListHandler(apiContext *types.APIContext) *types.APIError {
 	}
 
 	if apiContext.ID == "" {
+		data := handler.List(obj)
+		if data == nil || reflect.ValueOf(data).IsNil() {
+			data = make([]types.Object, 0)
+		}
+
 		collection := &types.Collection{
 			Type:         "collection",
 			ResourceType: apiContext.Schema.ID,
-			Data:         handler.List(obj),
+			Data:         data,
 		}
 		addCollectionLinks(apiContext, collection)
 		result = collection
 	} else {
 		obj.SetID(apiContext.ID)
 		result = handler.Get(obj)
+		if result == nil || reflect.ValueOf(result).IsNil() {
+			return types.NewAPIError(types.NotFound,
+				fmt.Sprintf("no found %v with id %v", obj.GetType(), apiContext.ID))
+		}
 		addResourceLinks(apiContext, result)
 	}
 
@@ -131,7 +139,7 @@ func ActionHandler(apiContext *types.APIContext, action *types.Action) *types.AP
 		return err
 	}
 
-	WriteResponse(apiContext, http.StatusOK, result)
+	WriteResponse(apiContext, http.StatusAccepted, result)
 	return nil
 }
 
@@ -159,13 +167,20 @@ func decodeBody(req *http.Request, params interface{}) *types.APIError {
 	return nil
 }
 
+func getObject(apiContext *types.APIContext, val interface{}) (types.Object, *types.APIError) {
+	if obj, ok := val.(types.Object); ok {
+		obj.SetType(apiContext.Schema.ID)
+		obj.SetParent(apiContext.Parent)
+		return obj, nil
+	} else {
+		return nil, types.NewAPIError(types.NotFound, fmt.Sprintf("no found resource schema"))
+	}
+}
+
 func parseCreateBody(apiContext *types.APIContext) ([]byte, types.Object, *types.APIError) {
-	var (
-		params struct {
-			Yaml string `json:"yaml_"`
-		}
-		content []byte
-	)
+	var params struct {
+		Yaml string `json:"yaml_"`
+	}
 
 	reqBody, err := ioutil.ReadAll(apiContext.Request.Body)
 	defer apiContext.Request.Body.Close()
@@ -179,14 +194,6 @@ func parseCreateBody(apiContext *types.APIContext) ([]byte, types.Object, *types
 			fmt.Sprintf("Failed to parse request body: %v", err.Error()))
 	}
 
-	if params.Yaml != "" {
-		content, err = base64.StdEncoding.DecodeString(params.Yaml)
-		if err != nil {
-			return nil, nil, types.NewAPIError(types.InvalidBodyContent,
-				fmt.Sprintf("Failed to parse request body: %v", err.Error()))
-		}
-	}
-
 	val := getSchemaStructVal(apiContext)
 	if err := json.Unmarshal(reqBody, val); err != nil {
 		return nil, nil, types.NewAPIError(types.InvalidBodyContent,
@@ -194,15 +201,5 @@ func parseCreateBody(apiContext *types.APIContext) ([]byte, types.Object, *types
 	}
 
 	obj, apiErr := getObject(apiContext, val)
-	return content, obj, apiErr
-}
-
-func getObject(apiContext *types.APIContext, val interface{}) (types.Object, *types.APIError) {
-	if obj, ok := val.(types.Object); ok {
-		obj.SetType(apiContext.Schema.ID)
-		obj.SetParent(apiContext.Parent)
-		return obj, nil
-	} else {
-		return nil, types.NewAPIError(types.NotFound, fmt.Sprintf("no found resource schema"))
-	}
+	return []byte(params.Yaml), obj, apiErr
 }

@@ -12,10 +12,14 @@ func SetDeploymentSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 }
 
 type Container struct {
-	Name    string   `json:"name"`
-	Image   string   `json:"image"`
-	Command []string `json:"command,omitempty"`
-	Args    []string `json:"args,omitempty"`
+	Name        string   `json:"name"`
+	Image       string   `json:"image"`
+	Command     []string `json:"command,omitempty"`
+	Args        []string `json:"args,omitempty"`
+	ConfigName  string   `json:"config_name,omitempty"`
+	MountPath   string   `json:"mount_path,omitempty"`
+	ExposedPort int      `json:"exposed_port,omitempty"`
+	Protocol    string   `json:"protocol,omitempty"`
 }
 
 type Deployment struct {

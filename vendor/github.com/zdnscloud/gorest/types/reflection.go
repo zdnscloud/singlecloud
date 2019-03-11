@@ -16,7 +16,7 @@ var (
 )
 
 func GetResourceType(obj interface{}) string {
-	return util.LowerTitle(reflect.TypeOf(obj).Name())
+	return strings.ToLower(reflect.TypeOf(obj).Name())
 }
 
 func (s *Schemas) getTypeName(t reflect.Type) string {
@@ -24,7 +24,7 @@ func (s *Schemas) getTypeName(t reflect.Type) string {
 		return name
 	}
 
-	name := util.LowerTitle(t.Name())
+	name := strings.ToLower(t.Name())
 	s.typeNames[t] = name
 	return name
 }
@@ -139,7 +139,7 @@ func (s *Schemas) readFields(schema *Schema, t reflect.Type) error {
 
 		fieldName := jsonName
 		if fieldName == "" {
-			fieldName = util.LowerTitle(field.Name)
+			fieldName = strings.ToLower(field.Name)
 			if strings.HasSuffix(fieldName, "ID") {
 				fieldName = strings.TrimSuffix(fieldName, "ID") + "Id"
 			}
