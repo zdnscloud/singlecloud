@@ -25,7 +25,7 @@ func getDefaultConfigPath() string {
 
 func main() {
 	var addr, k8sconfig string
-	flag.StringVar(&addr, "listen", "127.0.0.1:80", "server listen address")
+	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
 	flag.StringVar(&k8sconfig, "k8sconfig", getDefaultConfigPath(), "k8s config file path")
 	flag.Parse()
 
