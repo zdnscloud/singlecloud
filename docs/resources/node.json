@@ -15,7 +15,7 @@
         "cpuUsedRatio": {"type": "string"},
         "memory": { "type": "string"},
         "memoryUsedRatio": {"type": "string"},
-        "podCount": { "type": "uint32"},
+        "pod": { "type": "uint32"},
         "podUsedRatio": {"type": "string"},
         "creationTimestamp": {"type": "string"}
     },
