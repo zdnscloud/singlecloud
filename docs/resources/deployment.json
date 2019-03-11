@@ -20,6 +20,10 @@
         {
             "method": "GET",
             "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id/deployments/:deployment_id"
+        },
+        {
+            "method": "DELETE",
+            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id/deployments/:deployment_id"
         }
     ],
     "collectionMethods": [

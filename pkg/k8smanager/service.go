@@ -22,6 +22,7 @@ func NewRestHandler() (*api.Server, *Handler, error) {
 	schemas.MustImportAndCustomize(&Version, types.Node{}, restAPIHandler, types.SetNodeSchema)
 	schemas.MustImportAndCustomize(&Version, types.Namespace{}, restAPIHandler, types.SetNamespaceSchema)
 	schemas.MustImportAndCustomize(&Version, types.Deployment{}, restAPIHandler, types.SetDeploymentSchema)
+	schemas.MustImportAndCustomize(&Version, types.ConfigMap{}, restAPIHandler, types.SetConfigMapSchema)
 	if err := server.AddSchemas(schemas); err != nil {
 		return nil, nil, err
 	}

@@ -34,6 +34,8 @@ func (h *Handler) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *r
 		return newNamespaceManager(cluster).Create(obj.(*types.Namespace), yamlConf)
 	case types.DeploymentType:
 		return newDeploymentManager(cluster).Create(obj.GetParent().GetID(), obj.(*types.Deployment), yamlConf)
+	case types.ConfigMapType:
+		return newConfigMapManager(cluster).Create(obj.GetParent().GetID(), obj.(*types.ConfigMap), yamlConf)
 	default:
 		return nil, nil
 	}
@@ -57,6 +59,8 @@ func (h *Handler) Delete(obj resttypes.Object) *resttypes.APIError {
 		return newNamespaceManager(cluster).Delete(obj.(*types.Namespace))
 	case types.DeploymentType:
 		return newDeploymentManager(cluster).Delete(obj.GetParent().GetID(), obj.(*types.Deployment))
+	case types.ConfigMapType:
+		return newConfigMapManager(cluster).Delete(obj.GetParent().GetID(), obj.(*types.ConfigMap))
 	default:
 		logger.Warn("search for unknown type", obj.GetType())
 		return nil
@@ -87,6 +91,8 @@ func (h *Handler) List(obj resttypes.Object) interface{} {
 		return newNamespaceManager(cluster).List()
 	case types.DeploymentType:
 		return newDeploymentManager(cluster).List(obj.GetParent().GetID())
+	case types.ConfigMapType:
+		return newConfigMapManager(cluster).List(obj.GetParent().GetID())
 	default:
 		logger.Warn("search for unknown type", obj.GetType())
 		return nil
@@ -111,6 +117,8 @@ func (h *Handler) Get(obj resttypes.Object) interface{} {
 		return newNamespaceManager(cluster).Get(obj.(*types.Namespace))
 	case types.DeploymentType:
 		return newDeploymentManager(cluster).Get(obj.GetParent().GetID(), obj.(*types.Deployment))
+	case types.ConfigMapType:
+		return newConfigMapManager(cluster).Get(obj.GetParent().GetID(), obj.(*types.ConfigMap))
 	default:
 		logger.Warn("search for unknown type", obj.GetType())
 		return nil
