@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/gorest/util/slice"
+	"github.com/zdnscloud/gorest/util"
 )
 
 func addLinks(apiContext *types.APIContext, obj types.Object) {
@@ -15,16 +15,20 @@ func addLinks(apiContext *types.APIContext, obj types.Object) {
 	self := genResourceLink(apiContext.Request, obj.GetID())
 	links["self"] = self
 
-	if slice.ContainsString(apiContext.Schema.ResourceMethods, http.MethodPut) {
+	if util.ContainsString(apiContext.Schema.ResourceMethods, http.MethodPut) {
 		links["update"] = self
 	}
 
-	if slice.ContainsString(apiContext.Schema.ResourceMethods, http.MethodDelete) {
+	if util.ContainsString(apiContext.Schema.ResourceMethods, http.MethodDelete) {
 		links["remove"] = self
 	}
 
-	if slice.ContainsString(apiContext.Schema.CollectionMethods, http.MethodGet) {
+	if util.ContainsString(apiContext.Schema.CollectionMethods, http.MethodGet) {
 		links["collection"] = genCollectionLink(apiContext.Request, obj.GetID())
+	}
+
+	for child, childPluralName := range apiContext.Schemas.GetChildren(apiContext.Schema.ID) {
+		links[child] = genChildLink(apiContext.Request, obj.GetID(), childPluralName)
 	}
 
 	obj.SetLinks(links)
@@ -64,12 +68,20 @@ func genResourceLink(req *http.Request, id string) string {
 
 func genCollectionLink(req *http.Request, id string) string {
 	requestURL := getRequestURL(req)
-	index := strings.LastIndex(requestURL, id)
-	if index == -1 {
-		return requestURL
-	} else {
+	if id != "" && strings.HasSuffix(requestURL, "/"+id) {
+		index := strings.LastIndex(requestURL, id)
 		return requestURL[:index-1]
 	}
+
+	return requestURL
+}
+
+func genChildLink(req *http.Request, id, childPluralName string) string {
+	if id == "" {
+		return ""
+	}
+
+	return genResourceLink(req, id) + "/" + childPluralName
 }
 
 func getRequestURL(req *http.Request) string {

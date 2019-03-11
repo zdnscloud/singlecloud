@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/gorest/util/slice"
+	"github.com/zdnscloud/gorest/util"
 )
 
 var (
@@ -31,7 +31,7 @@ func ValidateMethod(request *types.APIContext) *types.APIError {
 		allowed = request.Schema.CollectionMethods
 	}
 
-	if slice.ContainsString(allowed, request.Method) {
+	if util.ContainsString(allowed, request.Method) {
 		return nil
 	}
 

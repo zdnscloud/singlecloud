@@ -44,10 +44,6 @@ func (s *Server) handle(rw http.ResponseWriter, req *http.Request) (*types.APICo
 		return apiRequest, err
 	}
 
-	if err := CheckCSRF(apiRequest); err != nil {
-		return apiRequest, err
-	}
-
 	action, err := ValidateAction(apiRequest)
 	if err != nil {
 		return apiRequest, err

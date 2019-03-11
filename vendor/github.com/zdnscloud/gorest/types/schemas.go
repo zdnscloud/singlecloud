@@ -7,8 +7,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/zdnscloud/gorest/util/name"
+	"github.com/zdnscloud/gorest/util"
 )
+
+const Root = "/"
+const GroupPrefix = "apis"
 
 type Schemas struct {
 	typeNames     map[reflect.Type]string
@@ -64,7 +67,7 @@ func (s *Schemas) setupDefaults(schema *Schema) {
 		return
 	}
 	if schema.PluralName == "" {
-		schema.PluralName = name.GuessPluralName(schema.ID)
+		schema.PluralName = util.GuessPluralName(schema.ID)
 	}
 }
 
@@ -99,7 +102,6 @@ func (s *Schemas) Schema(version *APIVersion, name string) *Schema {
 func (s *Schemas) UrlMethods() map[string][]string {
 	urlMethods := make(map[string][]string)
 	for _, schema := range s.schemas {
-		url := path.Join("/"+schema.Version.Group, schema.Version.Path)
 		var parents []string
 		for parent := schema.Parent; parent != ""; {
 			if parentSchema := s.Schema(&schema.Version, parent); parentSchema != nil {
@@ -113,14 +115,14 @@ func (s *Schemas) UrlMethods() map[string][]string {
 		buffer := bytes.Buffer{}
 		for i := len(parents) - 1; i >= 0; i-- {
 			buffer.WriteString("/")
-			buffer.WriteString(name.GuessPluralName(parents[i]))
+			buffer.WriteString(util.GuessPluralName(parents[i]))
 			buffer.WriteString("/:")
 			buffer.WriteString(parents[i])
 			buffer.WriteString("_id")
 		}
 
 		parentUrl := buffer.String()
-		url = path.Join("/"+schema.Version.Group, schema.Version.Path, parentUrl, schema.PluralName)
+		url := path.Join(Root, GroupPrefix, schema.Version.Group, schema.Version.Path, parentUrl, schema.PluralName)
 		if len(schema.CollectionMethods) != 0 {
 			urlMethods[url] = schema.CollectionMethods
 		}
@@ -131,6 +133,21 @@ func (s *Schemas) UrlMethods() map[string][]string {
 	}
 
 	return urlMethods
+}
+
+func (s *Schemas) GetChildren(parent string) map[string]string {
+	if parent == "" {
+		return nil
+	}
+
+	children := map[string]string{}
+	for _, schema := range s.schemas {
+		if schema.Parent == parent {
+			children[schema.ID] = schema.PluralName
+		}
+	}
+
+	return children
 }
 
 type MultiErrors struct {

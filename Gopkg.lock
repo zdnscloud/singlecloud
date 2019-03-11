@@ -238,7 +238,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d2786c5fcb7910c6a07010e6a4ad8ddc8dd04a1c5d00aa1beb943e1110769e74"
+  digest = "1:8b991ec41e7ba9542b8e4d889eb12182b6b0f9895dd9b4c8f68a8c448eea4d41"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -246,12 +246,10 @@
     "api/handler",
     "parse",
     "types",
-    "util/convert",
-    "util/name",
-    "util/slice",
+    "util",
   ]
   pruneopts = "UT"
-  revision = "e6599b924c83a1f71b4dca1c3c89de83585dfa2c"
+  revision = "0c5d1be3a6cb77951def86964e423ec1991b3a76"
 
 [[projects]]
   branch = "master"
@@ -596,8 +594,10 @@
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/client-go/tools/remotecommand",
+    "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

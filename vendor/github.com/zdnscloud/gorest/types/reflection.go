@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zdnscloud/gorest/util/convert"
+	"github.com/zdnscloud/gorest/util"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 )
 
 func GetResourceType(obj interface{}) string {
-	return convert.LowerTitle(reflect.TypeOf(obj).Name())
+	return util.LowerTitle(reflect.TypeOf(obj).Name())
 }
 
 func (s *Schemas) getTypeName(t reflect.Type) string {
@@ -24,7 +24,7 @@ func (s *Schemas) getTypeName(t reflect.Type) string {
 		return name
 	}
 
-	name := convert.LowerTitle(t.Name())
+	name := util.LowerTitle(t.Name())
 	s.typeNames[t] = name
 	return name
 }
@@ -139,7 +139,7 @@ func (s *Schemas) readFields(schema *Schema, t reflect.Type) error {
 
 		fieldName := jsonName
 		if fieldName == "" {
-			fieldName = convert.LowerTitle(field.Name)
+			fieldName = util.LowerTitle(field.Name)
 			if strings.HasSuffix(fieldName, "ID") {
 				fieldName = strings.TrimSuffix(fieldName, "ID") + "Id"
 			}
@@ -185,13 +185,13 @@ func (s *Schemas) readFields(schema *Schema, t reflect.Type) error {
 		if schemaField.Default != nil {
 			switch schemaField.Type {
 			case "int":
-				n, err := convert.ToNumber(schemaField.Default)
+				n, err := util.ToNumber(schemaField.Default)
 				if err != nil {
 					return err
 				}
 				schemaField.Default = n
 			case "boolean":
-				schemaField.Default = convert.ToBool(schemaField.Default)
+				schemaField.Default = util.ToBool(schemaField.Default)
 			}
 		}
 

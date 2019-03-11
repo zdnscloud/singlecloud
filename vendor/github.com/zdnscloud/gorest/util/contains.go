@@ -1,4 +1,4 @@
-package slice
+package util
 
 func ContainsString(slice []string, item string) bool {
 	for _, j := range slice {
