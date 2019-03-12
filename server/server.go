@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/zdnscloud/gorest/adaptor"
 
-	"github.com/zdnscloud/singlecloud/pkg/k8smanager"
+	"github.com/zdnscloud/singlecloud/pkg/handler"
 )
 
 type Server struct {
@@ -13,7 +13,7 @@ type Server struct {
 }
 
 func NewServer() (*Server, error) {
-	restHandler, wsHandler, err := k8smanager.NewRestHandler()
+	restHandler, wsHandler, err := handler.NewRestHandler()
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func NewServer() (*Server, error) {
 		c.File("/www/index.html")
 	})
 
-	router.GET(k8smanager.GINShellPath, func(c *gin.Context) {
+	router.GET(handler.GINShellPath, func(c *gin.Context) {
 		wsHandler.OpenConsole(c.Param("id"), c.Request, c.Writer)
 	})
 	adaptor.RegisterHandler(router, gin.WrapH(restHandler), restHandler.Schemas.UrlMethods())

@@ -1,4 +1,4 @@
-package k8smanager
+package handler
 
 import (
 	"context"
@@ -18,15 +18,23 @@ import (
 )
 
 type DeploymentManager struct {
-	cluster *types.Cluster
+	DefaultHandler
+	clusters *ClusterManager
 }
 
-func newDeploymentManager(cluster *types.Cluster) DeploymentManager {
-	return DeploymentManager{cluster: cluster}
+func newDeploymentManager(clusters *ClusterManager) *DeploymentManager {
+	return &DeploymentManager{clusters: clusters}
 }
 
-func (m DeploymentManager) Create(namespace string, deploy *types.Deployment, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	err := createDeployment(m.cluster.KubeClient, namespace, deploy)
+func (m *DeploymentManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+	}
+
+	namespace := obj.GetParent().GetID()
+	deploy := obj.(*types.Deployment)
+	err := createDeployment(cluster.KubeClient, namespace, deploy)
 	if err == nil {
 		deploy.SetID(deploy.Name)
 		return deploy, nil
@@ -39,8 +47,14 @@ func (m DeploymentManager) Create(namespace string, deploy *types.Deployment, ya
 	}
 }
 
-func (m DeploymentManager) List(namespace string) interface{} {
-	k8sDeploys, err := getDeployments(m.cluster.KubeClient, namespace)
+func (m *DeploymentManager) List(obj resttypes.Object) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	namespace := obj.GetParent().GetID()
+	k8sDeploys, err := getDeployments(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			logger.Warn("list deployment info failed:%s", err.Error())
@@ -55,8 +69,15 @@ func (m DeploymentManager) List(namespace string) interface{} {
 	return deploys
 }
 
-func (m DeploymentManager) Get(namespace string, deploy *types.Deployment) interface{} {
-	k8sDeploy, err := getDeployment(m.cluster.KubeClient, namespace, deploy.GetID())
+func (m *DeploymentManager) Get(obj resttypes.Object) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	namespace := obj.GetParent().GetID()
+	deploy := obj.(*types.Deployment)
+	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			logger.Warn("get deployment info failed:%s", err.Error())
@@ -67,8 +88,15 @@ func (m DeploymentManager) Get(namespace string, deploy *types.Deployment) inter
 	return k8sDeployToSCDeploy(k8sDeploy)
 }
 
-func (m DeploymentManager) Delete(namespace string, deploy *types.Deployment) *resttypes.APIError {
-	err := deleteDeployment(m.cluster.KubeClient, namespace, deploy.GetID())
+func (m *DeploymentManager) Delete(obj resttypes.Object) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+	}
+
+	namespace := obj.GetParent().GetID()
+	deploy := obj.(*types.Deployment)
+	err := deleteDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))

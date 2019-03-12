@@ -1,4 +1,4 @@
-package k8smanager
+package handler
 
 import (
 	"context"
@@ -19,15 +19,22 @@ import (
 )
 
 type NodeManager struct {
-	cluster *types.Cluster
+	DefaultHandler
+	clusters *ClusterManager
 }
 
-func newNodeManager(cluster *types.Cluster) NodeManager {
-	return NodeManager{cluster: cluster}
+func newNodeManager(clusters *ClusterManager) *NodeManager {
+	return &NodeManager{clusters: clusters}
 }
 
-func (m NodeManager) Get(node *types.Node) interface{} {
-	cli := m.cluster.KubeClient
+func (m *NodeManager) Get(obj resttypes.Object) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	node := obj.(*types.Node)
+	cli := cluster.KubeClient
 	k8sNode, err := getNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -40,8 +47,13 @@ func (m NodeManager) Get(node *types.Node) interface{} {
 	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name))
 }
 
-func (m NodeManager) List() interface{} {
-	cli := m.cluster.KubeClient
+func (m *NodeManager) List(obj resttypes.Object) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	cli := cluster.KubeClient
 	k8sNodes, err := getNodes(cli)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
