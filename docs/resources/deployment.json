@@ -1,70 +1,52 @@
 {
     "resourceType": "deployment",
+    "collectionName": "deployments",
+    "parentResource": "namespace",
 
     "resourceFields": {
         "id": {"type": "string"},
         "type": {"type": "string"},
+        "links": {"type": "map", "keytype": "string", "valuetype": "string"},
+        "creationTimestamp": {"type": "string"},
         "name": {"type": "string"},
         "replicas": {"type": "uint32"},
-        "containers": [
-            {
-             "name": {"type": "string"},
-             "image": {"type": "string"}
-            }
-        ],
-        "labels": { "type": "map"},
-        "annotations": { "type": "map" },
-        "status": {"type": "bool"},
-        "creationTimestamp": {"type": "string"},
-        "links": {"type": "map"}
+        "containers": {"type": "array", "member": "container"},
+        "labels": {"type": "map", "keytype": "string", "valuetype": "string"},
+        "annotations": {"type": "map", "keytype": "string", "valuetype": "string"},
+        "status": {"type": "bool"}
     },
 
-    "parentResource": "namespace",
+    "container": {
+        "name": {"type": "string", "required": true},
+        "image": {"type": "string", "required": true},
+        "command": {"type": "array", "member": "string"},
+        "args": {"type": "array", "member": "string"}
+    },
 
     "resourceMethods": [
         {
             "method": "PUT",
-            "fields": {
+            "parameters": {
                 "replicas": {"type": "uint32"},
-                "containers": [
-                    {
-                        "name": {"type": "string"},
-                        "image": {"type": "string"},
-                        "command": {"type": "array"},
-                        "args": {"type": "array"}
-                    }
-                ],
-                "labels": {"type": "map"},
-                "annotations": {"type": "map"}
+                "containers":  {"type": "array", "member": "container"} ,
+                "labels": {"type": "map", "keytype": "string", "valuetype": "string"},
+                "annotations": {"type": "map", "keytype": "string", "valuetype": "string"}
             }
         },
-        {
-            "method": "GET"
-        },
-        {
-            "method": "DELETE"
-        }
+        { "method": "GET" },
+        { "method": "DELETE" }
     ],
     "collectionMethods": [
         {
             "method": "POST",
-            "fields": {
+            "parameters": {
                 "name": {"type": "string", "required": true},
                 "replicas": {"type": "uint32", "required": true},
-                "containers": [
-                    {
-                        "name": {"type": "string", "required": true},
-                        "image": {"type": "string", "required": true},
-                        "command": {"type": "array"},
-                        "args": {"type": "array"}
-                    }
-                ],
-                "labels": {"type": "map"},
-                "annotations": {"type": "map"}
+                "containers":  {"type": "array", "member": "container", "required": true} ,
+                "labels": {"type": "map", "keytype": "string", "valuetype": "string"},
+                "annotations": {"type": "map", "keytype": "string", "valuetype": "string"}
             }
         },
-        {
-            "method": "GET"
-        }
+        { "method": "GET" }
     ]
 }

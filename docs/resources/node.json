@@ -1,14 +1,18 @@
 {
     "resourceType": "node",
+    "collectionName": "nodes",
+    "parentResource": "cluster",
 
     "resourceFields": {
         "id": {"type": "string"},
         "type": {"type": "string"},
+        "links": {"type": "map", "keytype": "string", "valuetype": "string"},
+        "creationTimestamp": {"type": "string"},
         "name": {"type": "string"},
         "address": {"type": "string"} ,
         "role": {"type": "string"},
-        "labels": { "type": "map"},
-        "annotations": { "type": "map" },
+        "labels": {"type": "map", "keytype": "string", "valuetype": "string"},
+        "annotations": {"type": "map", "keytype": "string", "valuetype": "string"},
         "status": {"type": "bool"},
         "operatingSystem": {"type": "string"},
         "operatingSystemImage": {"type": "string"},
@@ -18,21 +22,9 @@
         "memory": { "type": "string"},
         "memoryUsedRatio": {"type": "string"},
         "pod": { "type": "uint32"},
-        "podUsedRatio": {"type": "string"},
-        "creationTimestamp": {"type": "string"},
-        "links": {"type": "map"}
+        "podUsedRatio": {"type": "string"}
     },
 
-    "parentResource": "cluster",
-
-    "resourceMethods": [
-        {
-            "method": "GET"
-        }
-    ],
-    "collectionMethods": [
-        {
-            "method": "GET"
-        }
-    ]
+    "resourceMethods": [ { "method": "GET" } ],
+    "collectionMethods": [ { "method": "GET" } ]
 }

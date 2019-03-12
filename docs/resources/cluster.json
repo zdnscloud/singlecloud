@@ -1,24 +1,17 @@
 {
     "resourceType": "cluster",
+    "collectionName": "clusters",
 
     "resourceFields": {
         "id": {"type": "string"},
         "type": {"type": "string"},
+        "links": {"type": "map", "keytype": "string", "valuetype": "string"},
+        "creationTimestamp": {"type": "string"},
         "name": {"type": "string"},
         "nodeCount": {"type": "uint32"},
-        "version": {"type": "string"},
-        "creationTimestamp": {"type": "string"},
-        "links": {"type": "map"}
+        "version": {"type": "string"}
     },
 
-    "resourceMethods": [
-        {
-            "method": "GET"
-        }
-    ],
-    "collectionMethods": [
-        {
-            "method": "GET"
-        }
-    ]
+    "resourceMethods": [ { "method": "GET" } ],
+    "collectionMethods": [ { "method": "GET" } ]
 }
