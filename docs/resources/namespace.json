@@ -4,26 +4,22 @@
     "parentResource": "cluster",
 
     "resourceFields": {
-        "id": {"type": "string"},
-        "type": {"type": "string"},
-        "links": {"type": "map", "keytype": "string", "valuetype": "string"},
-        "creationTimestamp": {"type": "string"},
         "name": {"type": "string"},
-        "labels": {"type": "map", "keytype": "string", "valuetype": "string"},
-        "annotations": {"type": "map", "keytype": "string", "valuetype": "string"},
+        "labels": {"type": "map", "keyType": "string", "valueType": "string"},
+        "annotations": {"type": "map", "keyType": "string", "valueType": "string"},
         "status": {"type": "bool"}
     },
 
-    "resourceMethods": [ { "method": "GET" }, { "method": "DELETE" } ],
+    "resourceMethods": [ { "name": "GET" }, { "name": "DELETE" } ],
     "collectionMethods": [
         {
-            "method": "POST",
+            "name": "POST",
             "parameters": {
                 "name": {"type": "string", "required": true},
-                "labels": {"type": "map", "keytype": "string", "valuetype": "string"},
-                "annotations": {"type": "map", "keytype": "string", "valuetype": "string"}
+                "labels": {"type": "map", "keyType": "string", "valueType": "string"},
+                "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
             }
         },
-        { "method": "GET" }
+        { "name": "GET" }
     ]
 }
