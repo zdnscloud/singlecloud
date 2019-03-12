@@ -4,7 +4,7 @@
     "resourceFields": {
         "id": {"type": "string"},
         "type": {"type": "string"},
-        "name": {"type": "string", "create": true},
+        "name": {"type": "string"},
         "nodeCount": {"type": "uint32"},
         "version": {"type": "string"},
         "creationTimestamp": {"type": "string"},
