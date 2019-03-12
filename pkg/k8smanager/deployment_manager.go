@@ -106,16 +106,17 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 			usedConfigMap[c.ConfigName] = struct{}{}
 		}
 
-		if c.ExposedPort != 0 && c.Protocol != "" {
-			protocol, err := convertProtocol(c.Protocol)
+		for _, spec := range c.ExposedPorts {
+			protocol, err := convertProtocol(spec.Protocol)
 			if err != nil {
 				return err
 			}
 			ports = append(ports, corev1.ContainerPort{
-				ContainerPort: int32(c.ExposedPort),
+				ContainerPort: int32(spec.Port),
 				Protocol:      protocol,
 			})
 		}
+
 		containers = append(containers, corev1.Container{
 			Name:         c.Name,
 			Image:        c.Image,
@@ -179,12 +180,35 @@ func deleteDeployment(cli client.Client, namespace, name string) error {
 
 func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 	var containers []types.Container
+	var volumes = k8sDeploy.Spec.Template.Spec.Volumes
 	for _, c := range k8sDeploy.Spec.Template.Spec.Containers {
+		var configName, mountPath string
+		for _, vm := range c.VolumeMounts {
+			for _, v := range volumes {
+				if v.Name == vm.Name && v.ConfigMap != nil {
+					configName = v.ConfigMap.Name
+					mountPath = vm.MountPath
+					break
+				}
+			}
+		}
+
+		var exposedPorts []types.PortSpec
+		for _, p := range c.Ports {
+			exposedPorts = append(exposedPorts, types.PortSpec{
+				Port:     int(p.ContainerPort),
+				Protocol: string(p.Protocol),
+			})
+		}
+
 		containers = append(containers, types.Container{
-			Name:    c.Name,
-			Image:   c.Image,
-			Command: c.Command,
-			Args:    c.Args,
+			Name:         c.Name,
+			Image:        c.Image,
+			Command:      c.Command,
+			Args:         c.Args,
+			ConfigName:   configName,
+			MountPath:    mountPath,
+			ExposedPorts: exposedPorts,
 		})
 	}
 	deploy := &types.Deployment{

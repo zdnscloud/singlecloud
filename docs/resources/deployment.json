@@ -12,8 +12,7 @@
              "args": {"type": "array"},
              "config_name" : {"type":"string"},
              "mount_path" : {"type":"string"},
-             "exposed_port" : {"type":"int"},
-             "protocol" : {"type":"string"}
+             "exposed_ports" : {"type":"array"}  //{"port": int, "protocol": string}
             }
         ]
     },
