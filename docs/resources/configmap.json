@@ -2,7 +2,7 @@
     "resourceFields": {
         "id": {"type": "string"},
         "name": {"type": "string"},
-        "configs": {"type": "array"} 
+        "configs": {"type": "array"}  //{"name": string, "data": string}
     },
 
     "parentResource": "namespace",
