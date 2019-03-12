@@ -15,6 +15,17 @@ import (
 	"github.com/kyokomi/emoji"
 )
 
+var (
+	green   = string([]byte{27, 91, 57, 55, 59, 52, 50, 109})
+	white   = string([]byte{27, 91, 57, 48, 59, 52, 55, 109})
+	yellow  = string([]byte{27, 91, 57, 48, 59, 52, 51, 109})
+	red     = string([]byte{27, 91, 57, 55, 59, 52, 49, 109})
+	blue    = string([]byte{27, 91, 57, 55, 59, 52, 52, 109})
+	magenta = string([]byte{27, 91, 57, 55, 59, 52, 53, 109})
+	cyan    = string([]byte{27, 91, 57, 55, 59, 52, 54, 109})
+	reset   = string([]byte{27, 91, 48, 109})
+)
+
 func getDefaultConfigPath() string {
 	usr, err := user.Current()
 	if err != nil {
@@ -57,14 +68,12 @@ func main() {
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode == 201 {
-		output := emoji.Sprint("import succeed :+1:")
-		fmt.Printf("%s\n", output)
+		fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "import succeed", reset)
 	} else {
 		errInfo := struct {
 			Message string `json:"message"`
 		}{}
-		output := emoji.Sprint("import failed :broken_heart:")
 		json.Unmarshal(body, &errInfo)
-		fmt.Printf("%s:%s\n", output, errInfo.Message)
+		fmt.Printf("%s|%s %s: %s %s\n", emoji.Sprint(":broken_heart:"), red, "import failed", errInfo.Message, reset)
 	}
 }
