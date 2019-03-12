@@ -12,14 +12,14 @@
         "status": {"type": "bool"}
     },
 
-    "subResources" : [
+    "subResources": {
         "container": {
             "name": {"type": "string", "required": true},
             "image": {"type": "string", "required": true},
             "command": {"type": "array", "elemType": "string"},
             "args": {"type": "array", "elemType": "string"}
         }
-    ],
+    },
 
     "resourceMethods": [
         {
