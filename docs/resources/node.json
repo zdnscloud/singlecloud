@@ -1,4 +1,6 @@
 {
+    "resourceType": "node",
+
     "resourceFields": {
         "id": {"type": "string"},
         "type": {"type": "string"},
@@ -17,21 +19,20 @@
         "memoryUsedRatio": {"type": "string"},
         "pod": { "type": "uint32"},
         "podUsedRatio": {"type": "string"},
-        "creationTimestamp": {"type": "string"}
+        "creationTimestamp": {"type": "string"},
+        "links": {"type": "map"}
     },
 
     "parentResource": "cluster",
 
     "resourceMethods": [
         {
-            "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/nodes/:node_id"
+            "method": "GET"
         }
     ],
     "collectionMethods": [
         {
-            "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/nodes"
+            "method": "GET"
         }
     ]
 }

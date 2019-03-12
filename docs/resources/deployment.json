@@ -1,4 +1,6 @@
 {
+    "resourceType": "deployment",
+
     "resourceFields": {
         "id": {"type": "string"},
         "type": {"type": "string"},
@@ -7,30 +9,62 @@
         "containers": [
             {
              "name": {"type": "string"},
-             "image": {"type": "string"},
-             "command": {"type": "array"},
-             "args": {"type": "array"}
+             "image": {"type": "string"}
             }
-        ]
+        ],
+        "labels": { "type": "map"},
+        "annotations": { "type": "map" },
+        "status": {"type": "bool"},
+        "creationTimestamp": {"type": "string"},
+        "links": {"type": "map"}
     },
 
     "parentResource": "namespace",
 
     "resourceMethods": [
         {
-            "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id/deployments/:deployment_id"
+            "method": "PUT",
+            "fields": {
+                "replicas": {"type": "uint32"},
+                "containers": [
+                    {
+                        "name": {"type": "string"},
+                        "image": {"type": "string"},
+                        "command": {"type": "array"},
+                        "args": {"type": "array"}
+                    }
+                ],
+                "labels": {"type": "map"},
+                "annotations": {"type": "map"}
+            }
+        },
+        {
+            "method": "GET"
+        },
+        {
+            "method": "DELETE"
         }
     ],
     "collectionMethods": [
         {
             "method": "POST",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id/deployments"
+            "fields": {
+                "name": {"type": "string", "required": true},
+                "replicas": {"type": "uint32", "required": true},
+                "containers": [
+                    {
+                        "name": {"type": "string", "required": true},
+                        "image": {"type": "string", "required": true},
+                        "command": {"type": "array"},
+                        "args": {"type": "array"}
+                    }
+                ],
+                "labels": {"type": "map"},
+                "annotations": {"type": "map"}
+            }
         },
- 
         {
-            "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id/deployments"
+            "method": "GET"
         }
     ]
 }

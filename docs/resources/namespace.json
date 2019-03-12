@@ -1,23 +1,38 @@
 {
+    "resourceType": "namespace",
+
     "resourceFields": {
         "id": {"type": "string"},
         "type": {"type": "string"},
         "name": {"type": "string"},
-        "creationTimestamp": {"type": "string"}
+        "labels": { "type": "map"},
+        "annotations": { "type": "map" },
+        "status": {"type": "bool"},
+        "creationTimestamp": {"type": "string"},
+        "links": {"type": "map"}
     },
 
     "parentResource": "cluster",
 
     "resourceMethods": [
         {
-            "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces/:namespace_id"
+            "method": "GET"
+        },
+        {
+            "method": "DELETE"
         }
     ],
     "collectionMethods": [
         {
-            "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters/:cluster_id/namespaces"
+            "method": "POST",
+            "field": {
+                "name": {"type": "string", "required": true},
+                "labels": {"type": "map"},
+                "annotations": {"type": "map"}
+            }
+        },
+        {
+            "method": "GET"
         }
     ]
 }

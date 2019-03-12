@@ -1,26 +1,24 @@
 {
+    "resourceType": "cluster",
+
     "resourceFields": {
         "id": {"type": "string"},
         "type": {"type": "string"},
         "name": {"type": "string", "create": true},
         "nodeCount": {"type": "uint32"},
         "version": {"type": "string"},
-        "creationTimestamp": {"type": "string"}
+        "creationTimestamp": {"type": "string"},
+        "links": {"type": "map"}
     },
+
     "resourceMethods": [
         {
-            "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/cluster/:cluster_id"
+            "method": "GET"
         }
     ],
     "collectionMethods": [
         {
-            "method": "POST",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters"
-        },
-        {
-            "method": "GET",
-            "url": "http://127.0.0.1:1234/zcloud.cn/v1/clusters"
+            "method": "GET"
         }
     ]
 }
