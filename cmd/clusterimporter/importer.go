@@ -60,7 +60,11 @@ func main() {
 		output := emoji.Sprint("import succeed :+1:")
 		fmt.Printf("%s\n", output)
 	} else {
+		errInfo := struct {
+			Message string `json:"message"`
+		}{}
 		output := emoji.Sprint("import failed :broken_heart:")
-		fmt.Printf("%s,%s\n", output, string(body))
+		json.Unmarshal(body, &errInfo)
+		fmt.Printf("%s:%s\n", output, errInfo.Message)
 	}
 }
