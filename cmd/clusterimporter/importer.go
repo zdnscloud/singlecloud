@@ -35,9 +35,10 @@ func getDefaultConfigPath() string {
 }
 
 func main() {
-	var addr, k8sconfig string
+	var addr, k8sconfig, clusterName string
 	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
 	flag.StringVar(&k8sconfig, "k8sconfig", getDefaultConfigPath(), "k8s config file path")
+	flag.StringVar(&clusterName, "name", "local", "import cluster with which name")
 	flag.Parse()
 
 	f, err := os.Open(k8sconfig)
@@ -53,7 +54,7 @@ func main() {
 
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
 	requestBody, _ := json.Marshal(map[string]string{
-		"name":  "local",
+		"name":  clusterName,
 		"yaml_": string(data),
 	})
 
