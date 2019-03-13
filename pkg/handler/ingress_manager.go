@@ -79,8 +79,8 @@ func (m *IngressManager) Get(obj resttypes.Object) interface{} {
 	}
 
 	namespace := obj.GetParent().GetID()
-	ingress := obj.(*types.Deployment)
-	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, ingress.GetID())
+	ingress := obj.(*types.Ingress)
+	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			logger.Warn("get ingress info failed:%s", err.Error())
@@ -88,7 +88,7 @@ func (m *IngressManager) Get(obj resttypes.Object) interface{} {
 		return nil
 	}
 
-	return k8sDeployToSCDeploy(k8sDeploy)
+	return k8sIngressToSCIngress(k8sIngress)
 }
 
 func (m *IngressManager) Delete(obj resttypes.Object) *resttypes.APIError {
@@ -98,8 +98,8 @@ func (m *IngressManager) Delete(obj resttypes.Object) *resttypes.APIError {
 	}
 
 	namespace := obj.GetParent().GetID()
-	ingress := obj.(*types.Deployment)
-	err := deleteDeployment(cluster.KubeClient, namespace, ingress.GetID())
+	ingress := obj.(*types.Ingress)
+	err := deleteIngress(cluster.KubeClient, namespace, ingress.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("ingress %s desn't exist", namespace))

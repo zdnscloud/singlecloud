@@ -76,8 +76,8 @@ func (m *ServiceManager) Get(obj resttypes.Object) interface{} {
 	}
 
 	namespace := obj.GetParent().GetID()
-	service := obj.(*types.Deployment)
-	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, service.GetID())
+	service := obj.(*types.Service)
+	k8sService, err := getService(cluster.KubeClient, namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			logger.Warn("get service info failed:%s", err.Error())
@@ -85,7 +85,7 @@ func (m *ServiceManager) Get(obj resttypes.Object) interface{} {
 		return nil
 	}
 
-	return k8sDeployToSCDeploy(k8sDeploy)
+	return k8sServiceToSCService(k8sService)
 }
 
 func (m *ServiceManager) Delete(obj resttypes.Object) *resttypes.APIError {
@@ -95,8 +95,8 @@ func (m *ServiceManager) Delete(obj resttypes.Object) *resttypes.APIError {
 	}
 
 	namespace := obj.GetParent().GetID()
-	service := obj.(*types.Deployment)
-	err := deleteDeployment(cluster.KubeClient, namespace, service.GetID())
+	service := obj.(*types.Service)
+	err := deleteService(cluster.KubeClient, namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("service %s desn't exist", namespace))
@@ -135,7 +135,7 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 		})
 	}
 
-	typ, err := scServiceTypeToK8sServiceType(service.Type)
+	typ, err := scServiceTypeToK8sServiceType(service.ServiceType)
 	if err != nil {
 		return err
 	}

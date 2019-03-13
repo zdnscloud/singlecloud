@@ -90,9 +90,9 @@ func scProtocolToK8SProtocol(protocol string) (p corev1.Protocol, err error) {
 
 func scServiceTypeToK8sServiceType(typ string) (p corev1.ServiceType, err error) {
 	switch strings.ToLower(typ) {
-	case "cluster_ip":
+	case "clusterip":
 		p = corev1.ServiceTypeClusterIP
-	case "node_port":
+	case "nodeport":
 		p = corev1.ServiceTypeNodePort
 	default:
 		err = fmt.Errorf("service type %s isn't supported", typ)
