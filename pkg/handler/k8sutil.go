@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -72,4 +74,28 @@ func createRoleBinding(cli client.Client, clusterRoleName, serviceAccountName, s
 		},
 	}
 	return cli.Create(context.TODO(), binding)
+}
+
+func scProtocolToK8SProtocol(protocol string) (p corev1.Protocol, err error) {
+	switch strings.ToLower(protocol) {
+	case "tcp":
+		p = corev1.ProtocolTCP
+	case "udp":
+		p = corev1.ProtocolUDP
+	default:
+		err = fmt.Errorf("protocol %s isn't supported", protocol)
+	}
+	return
+}
+
+func scServiceTypeToK8sServiceType(typ string) (p corev1.ServiceType, err error) {
+	switch strings.ToLower(typ) {
+	case "clusterip":
+		p = corev1.ServiceTypeClusterIP
+	case "nodeport":
+		p = corev1.ServiceTypeNodePort
+	default:
+		err = fmt.Errorf("service type %s isn't supported", typ)
+	}
+	return
 }

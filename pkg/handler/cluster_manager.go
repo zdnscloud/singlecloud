@@ -16,9 +16,6 @@ const (
 	ZCloudNamespace = "zcloud"
 	ZCloudAdmin     = "zcloud-cluster-admin"
 	ZCloudReadonly  = "zcloud-cluster-readonly"
-
-	ShellPodName  = "zcloud-shell"
-	ShellPodImage = "rancher/rancher-agent:v2.1.6"
 )
 
 type ClusterManager struct {
@@ -62,7 +59,7 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	if err != nil {
 		logger.Error("get nodes failed:%s", err.Error())
 	}
-	cluster.NodesCount = uint32(len(nodes.Items))
+	cluster.NodesCount = len(nodes.Items)
 
 	version, err := cli.ServerVersion()
 	if err != nil {

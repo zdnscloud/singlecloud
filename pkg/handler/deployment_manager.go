@@ -135,7 +135,7 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 		}
 
 		for _, spec := range c.ExposedPorts {
-			protocol, err := convertProtocol(spec.Protocol)
+			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
 			if err != nil {
 				return err
 			}
@@ -187,18 +187,6 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 	return cli.Create(context.TODO(), k8sDeploy)
 }
 
-func convertProtocol(protocol string) (p corev1.Protocol, err error) {
-	switch strings.ToLower(protocol) {
-	case "tcp":
-		p = corev1.ProtocolTCP
-	case "udp":
-		p = corev1.ProtocolUDP
-	default:
-		err = fmt.Errorf("protocol %s isn't supported", protocol)
-	}
-	return
-}
-
 func deleteDeployment(cli client.Client, namespace, name string) error {
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
@@ -221,11 +209,11 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 			}
 		}
 
-		var exposedPorts []types.PortSpec
+		var exposedPorts []types.DeploymentPort
 		for _, p := range c.Ports {
-			exposedPorts = append(exposedPorts, types.PortSpec{
+			exposedPorts = append(exposedPorts, types.DeploymentPort{
 				Port:     int(p.ContainerPort),
-				Protocol: string(p.Protocol),
+				Protocol: strings.ToLower(string(p.Protocol)),
 			})
 		}
 
@@ -241,7 +229,7 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 	}
 	deploy := &types.Deployment{
 		Name:       k8sDeploy.Name,
-		Replicas:   uint32(*k8sDeploy.Spec.Replicas),
+		Replicas:   int(*k8sDeploy.Spec.Replicas),
 		Containers: containers,
 	}
 	deploy.SetID(k8sDeploy.Name)

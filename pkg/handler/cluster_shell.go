@@ -12,6 +12,11 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
+const (
+	ShellPodName  = "zcloud-shell"
+	ShellPodImage = "zdnscloud/kubectl:v1.13.4"
+)
+
 var _ io.ReadWriter = &ShellConn{}
 var _ remotecommand.TerminalSizeQueue = &ShellConn{}
 

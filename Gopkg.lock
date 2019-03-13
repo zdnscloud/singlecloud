@@ -225,7 +225,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8dddb55ba845601284c987a4f40be113baeb00f51e735076374f24723c90a0bd"
+  digest = "1:8cbd4c2dddf972abae73a236ddac714f48e826989f10b77143f4a49e34929276"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -242,7 +242,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "1a609cab76b1a5ae647cc38f4e8cf27c7b82acf3"
+  revision = "52d49992151ac524bcd9307e52ea97bd744f2427"
 
 [[projects]]
   branch = "master"
@@ -599,12 +599,14 @@
     "gopkg.in/igm/sockjs-go.v2/sockjs",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
+    "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/types",
+    "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/client-go/tools/remotecommand",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
