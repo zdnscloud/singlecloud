@@ -5,11 +5,8 @@
 
     "resourceFields": {
         "name": {"type": "string"},
-        "replicas": {"type": "uint32"},
-        "containers": {"type": "array", "elemType": "container"},
-        "labels": {"type": "map", "keyType": "string", "valueType": "string"},
-        "annotations": {"type": "map", "keyType": "string", "valueType": "string"},
-        "status": {"type": "bool"}
+        "replicas": {"type": "int"},
+        "containers": {"type": "array", "elemType": "container"}
     },
 
     "subResources": {
@@ -17,7 +14,15 @@
             "name": {"type": "string"},
             "image": {"type": "string"},
             "command": {"type": "array", "elemType": "string"},
-            "args": {"type": "array", "elemType": "string"}
+            "args": {"type": "array", "elemType": "string"},
+            "configName": {"type": "string"},
+            "mountPath":{"type": "string"},
+            "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+        },
+
+        "deploymentPort": {
+            "port" : {"type": "int"},
+            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
         }
     },
 
@@ -28,32 +33,22 @@
         "fields": {
             "name": {"type": "string", "required": true},
             "replicas": {"type": "uint32", "required": true},
-            "containers":  {"type": "array", "elemType": "container", "required": true} ,
-            "labels": {"type": "map", "keyType": "string", "valueType": "string"},
-            "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
+            "containers":  {"type": "array", "elemType": "container", "required": true} 
         },
         "subResources": {
             "container": {
                 "name": {"type": "string", "required": true},
                 "image": {"type": "string", "required": true},
                 "command": {"type": "array", "elemType": "string"},
-                "args": {"type": "array", "elemType": "string"}
-            }
-        }
-    },
-    "putParameters": {
-        "fields": {
-            "replicas": {"type": "uint32"},
-            "containers":  {"type": "array", "elemType": "container"} ,
-            "labels": {"type": "map", "keyType": "string", "valueType": "string"},
-            "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
-        },
-        "subResources": {
-            "container": {
-                "name": {"type": "string"},
-                "image": {"type": "string"},
-                "command": {"type": "array", "elemType": "string"},
-                "args": {"type": "array", "elemType": "string"}
+                "args": {"type": "array", "elemType": "string"},
+                "configName": {"type": "string"},
+                "mountPath":{"type": "string"},
+                "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+            },
+
+            "deploymentPort": {
+                "port" : {"type": "int", "required": true},
+                "protocol": {"type": "enum", "validValues": ["tcp", "udp"], "required": true}
             }
         }
     }
