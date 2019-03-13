@@ -5,7 +5,7 @@
 
     "resourceFields": {
         "name": {"type": "string"},
-        "serviceType": {"type": "string"},
+        "serviceType": {"type": "enum", "validValues": ["clusterIP", "nodePort"]},
         "exposedPort": {"type": "array", "elemType": "servicePort"}
     },
 
@@ -13,26 +13,29 @@
         "servicePort": {
             "name": {"type": "string"},
             "port": {"type": "int"},
-            "targetPort": {"type": "string"},
-            "protocol": {"type": "string"}
+            "targetPort": {"type": "int"},
+            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
         }
     },
 
-    "resourceMethods": [
-        { "name": "GET" },
-        { "name": "DELETE" }
-    ],
-    "collectionMethods": [
-        {
-            "name": "POST",
-            "parameters": {
-                "name": {"type": "string", "required": true},
-                "serviceType": {"type": "uint32", "required": true},
-                "exposedPorts":  {"type": "array", "elemType": "container", "required": true} ,
-                "labels": {"type": "map", "keyType": "string", "valueType": "string"},
-                "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
-            }
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "POST", "GET" ],
+        
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "serviceType": {"type": "enum", "validValues": ["clusterIP", "nodePort"], "required": true},
+            "exposedPorts":  {"type": "array", "elemType": "servicePort", "required": true} ,
+            "labels": {"type": "map", "keyType": "string", "valueType": "string"},
+            "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
         },
-        { "name": "GET" }
-    ]
+        "subResources": {
+            "servicePort": {
+                "name": {"type": "string", "required": true},
+                "port": {"type": "int", "required": true},
+                "targetPort": {"type": "int", "required": true},
+                "protocol": {"type": "enum", "validValues": ["tcp", "udp"], "required": true}
+            }
+        }
+    }
 }

@@ -10,16 +10,14 @@
         "status": {"type": "bool"}
     },
 
-    "resourceMethods": [ { "name": "GET" }, { "name": "DELETE" } ],
-    "collectionMethods": [
-        {
-            "name": "POST",
-            "parameters": {
-                "name": {"type": "string", "required": true},
-                "labels": {"type": "map", "keyType": "string", "valueType": "string"},
-                "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
-            }
-        },
-        { "name": "GET" }
-    ]
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "POST", "GET" ],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "labels": {"type": "map", "keyType": "string", "valueType": "string"},
+            "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
+        }
+    }
 }

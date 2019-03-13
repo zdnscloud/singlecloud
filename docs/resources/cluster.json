@@ -8,6 +8,6 @@
         "version": {"type": "string"}
     },
 
-    "resourceMethods": [ { "name": "GET" } ],
-    "collectionMethods": [ { "name": "GET" } ]
+    "resourceMethods": [ "GET" ],
+    "collectionMethods": [ "GET" ]
 }

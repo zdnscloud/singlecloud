@@ -14,37 +14,47 @@
 
     "subResources": {
         "container": {
-            "name": {"type": "string", "required": true},
-            "image": {"type": "string", "required": true},
+            "name": {"type": "string"},
+            "image": {"type": "string"},
             "command": {"type": "array", "elemType": "string"},
             "args": {"type": "array", "elemType": "string"}
         }
     },
 
-    "resourceMethods": [
-        {
-            "name": "PUT",
-            "parameters": {
-                "replicas": {"type": "uint32"},
-                "containers":  {"type": "array", "elemType": "container"} ,
-                "labels": {"type": "map", "keyType": "string", "valueType": "string"},
-                "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
-            }
+    "resourceMethods": [ "PUT", "GET", "DELETE" ],
+    "collectionMethods": [ "POST", "GET" ],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "replicas": {"type": "uint32", "required": true},
+            "containers":  {"type": "array", "elemType": "container", "required": true} ,
+            "labels": {"type": "map", "keyType": "string", "valueType": "string"},
+            "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
         },
-        { "name": "GET" },
-        { "name": "DELETE" }
-    ],
-    "collectionMethods": [
-        {
-            "name": "POST",
-            "parameters": {
+        "subResources": {
+            "container": {
                 "name": {"type": "string", "required": true},
-                "replicas": {"type": "uint32", "required": true},
-                "containers":  {"type": "array", "elemType": "container", "required": true} ,
-                "labels": {"type": "map", "keyType": "string", "valueType": "string"},
-                "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
+                "image": {"type": "string", "required": true},
+                "command": {"type": "array", "elemType": "string"},
+                "args": {"type": "array", "elemType": "string"}
             }
+        }
+    },
+    "putParameters": {
+        "fields": {
+            "replicas": {"type": "uint32"},
+            "containers":  {"type": "array", "elemType": "container"} ,
+            "labels": {"type": "map", "keyType": "string", "valueType": "string"},
+            "annotations": {"type": "map", "keyType": "string", "valueType": "string"}
         },
-        { "name": "GET" }
-    ]
+        "subResources": {
+            "container": {
+                "name": {"type": "string"},
+                "image": {"type": "string"},
+                "command": {"type": "array", "elemType": "string"},
+                "args": {"type": "array", "elemType": "string"}
+            }
+        }
+    }
 }
