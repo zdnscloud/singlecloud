@@ -24,7 +24,7 @@ func Parse(rw http.ResponseWriter, req *http.Request, schemas *types.Schemas) (*
 	result.Method = parseMethod(req)
 	result.ResponseFormat = parseResponseFormat(req)
 	path := req.URL.EscapedPath()
-	path = multiSlashRegexp.ReplaceAllString(path, types.Root)
+	path = multiSlashRegexp.ReplaceAllString(path, "/")
 	version, obj, schema, err := parseVersionAndResource(schemas, path)
 	if err != nil {
 		return result, err
@@ -47,7 +47,7 @@ func Parse(rw http.ResponseWriter, req *http.Request, schemas *types.Schemas) (*
 
 func versionsForPath(schemas *types.Schemas, escapedPath string) *types.APIVersion {
 	for _, version := range schemas.Versions() {
-		if strings.HasPrefix(escapedPath, path.Join(types.Root, types.GroupPrefix, version.Group, version.Path)) {
+		if strings.HasPrefix(escapedPath, path.Join(version.Group, version.Path)) {
 			return &version
 		}
 	}
@@ -55,30 +55,36 @@ func versionsForPath(schemas *types.Schemas, escapedPath string) *types.APIVersi
 }
 
 func parseVersionAndResource(schemas *types.Schemas, escapedPath string) (*types.APIVersion, types.Object, *types.Schema, *types.APIError) {
+
+	if strings.HasPrefix(escapedPath, types.GroupPrefix+"/") == false {
+		return nil, nil, nil, types.NewAPIError(types.InvalidFormat, "url not start with "+types.GroupPrefix)
+	}
+
+	escapedPath = escapedPath[len(types.GroupPrefix)+1:]
 	version := versionsForPath(schemas, escapedPath)
 	if version == nil {
 		return nil, nil, nil, types.NewAPIError(types.NotFound, "no found version with "+escapedPath)
 	}
 
-	if strings.HasSuffix(escapedPath, types.Root) {
+	if strings.HasSuffix(escapedPath, "/") {
 		escapedPath = escapedPath[:len(escapedPath)-1]
 	}
 
-	versionParts := strings.Split(version.Path, types.Root)
-	versionGroups := strings.Split(version.Group, types.Root)
-	groupPrefix := strings.Split(types.GroupPrefix, types.Root)
-	pp := strings.Split(escapedPath, types.Root)
-	var pathParts []string
+	if len(escapedPath) <= len(version.Group)+len(version.Path) {
+		return nil, nil, nil, types.NewAPIError(types.InvalidFormat, "no schema name in url "+escapedPath)
+	}
+
+	escapedPath = escapedPath[len(version.Group)+len(version.Path)+1:]
+	pp := strings.Split(escapedPath, "/")
+	var paths []string
 	for _, p := range pp {
 		part, err := url.PathUnescape(p)
 		if err == nil {
-			pathParts = append(pathParts, part)
+			paths = append(paths, part)
 		} else {
-			pathParts = append(pathParts, p)
+			paths = append(paths, p)
 		}
 	}
-
-	paths := pathParts[len(groupPrefix)+len(versionParts)+len(versionGroups):]
 
 	if len(paths) == 0 {
 		return version, nil, nil, types.NewAPIError(types.NotFound, "no found schema with url "+escapedPath)

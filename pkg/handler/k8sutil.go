@@ -1,4 +1,4 @@
-package k8smanager
+package handler
 
 import (
 	"context"
