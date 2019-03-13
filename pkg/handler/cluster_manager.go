@@ -1,4 +1,4 @@
-package k8smanager
+package handler
 
 import (
 	"fmt"
@@ -16,12 +16,10 @@ const (
 	ZCloudNamespace = "zcloud"
 	ZCloudAdmin     = "zcloud-cluster-admin"
 	ZCloudReadonly  = "zcloud-cluster-readonly"
-
-	ShellPodName  = "zcloud-shell"
-	ShellPodImage = "rancher/rancher-agent:v2.1.6"
 )
 
 type ClusterManager struct {
+	DefaultHandler
 	clusters []*types.Cluster
 }
 
@@ -29,11 +27,16 @@ func newClusterManager() *ClusterManager {
 	return &ClusterManager{}
 }
 
-func (m *ClusterManager) Create(cluster *types.Cluster, yamlConf []byte) (*types.Cluster, *resttypes.APIError) {
-	for _, c := range m.clusters {
-		if c.Name == cluster.Name {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
-		}
+func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *types.Cluster {
+	ancestors := resttypes.GetAncestors(obj)
+	clusterID := ancestors[0].GetID()
+	return m.get(clusterID)
+}
+
+func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := obj.(*types.Cluster)
+	if c := m.get(cluster.Name); c != nil {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
 	}
 
 	cluster.SetID(cluster.Name)
@@ -56,7 +59,7 @@ func (m *ClusterManager) Create(cluster *types.Cluster, yamlConf []byte) (*types
 	if err != nil {
 		logger.Error("get nodes failed:%s", err.Error())
 	}
-	cluster.NodesCount = uint32(len(nodes.Items))
+	cluster.NodesCount = len(nodes.Items)
 
 	version, err := cli.ServerVersion()
 	if err != nil {
@@ -76,7 +79,11 @@ func (m *ClusterManager) Create(cluster *types.Cluster, yamlConf []byte) (*types
 	return cluster, nil
 }
 
-func (m *ClusterManager) Get(id string) *types.Cluster {
+func (m *ClusterManager) Get(obj resttypes.Object) interface{} {
+	return m.get(obj.GetID())
+}
+
+func (m *ClusterManager) get(id string) *types.Cluster {
 	for _, c := range m.clusters {
 		if c.GetID() == id {
 			return c
@@ -85,7 +92,7 @@ func (m *ClusterManager) Get(id string) *types.Cluster {
 	return nil
 }
 
-func (m *ClusterManager) List() []*types.Cluster {
+func (m *ClusterManager) List(obj resttypes.Object) interface{} {
 	return m.clusters
 }
 

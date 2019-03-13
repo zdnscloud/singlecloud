@@ -1,4 +1,4 @@
-package k8smanager
+package handler
 
 import (
 	"context"
@@ -16,15 +16,22 @@ import (
 )
 
 type NamespaceManager struct {
-	cluster *types.Cluster
+	DefaultHandler
+	clusters *ClusterManager
 }
 
-func newNamespaceManager(cluster *types.Cluster) NamespaceManager {
-	return NamespaceManager{cluster: cluster}
+func newNamespaceManager(clusters *ClusterManager) *NamespaceManager {
+	return &NamespaceManager{clusters: clusters}
 }
 
-func (m NamespaceManager) Create(namespace *types.Namespace, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	err := createNamespace(m.cluster.KubeClient, namespace.Name)
+func (m *NamespaceManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+	}
+
+	namespace := obj.(*types.Namespace)
+	err := createNamespace(cluster.KubeClient, namespace.Name)
 	if err == nil {
 		namespace.SetID(namespace.Name)
 		return namespace, nil
@@ -37,10 +44,15 @@ func (m NamespaceManager) Create(namespace *types.Namespace, yamlConf []byte) (i
 	}
 }
 
-func (m NamespaceManager) List() interface{} {
-	k8sNamespaces, err := getNamespaces(m.cluster.KubeClient)
+func (m *NamespaceManager) List(obj resttypes.Object) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	k8sNamespaces, err := getNamespaces(cluster.KubeClient)
 	if err != nil {
-		logger.Warn("get node info failed:%s", err.Error())
+		logger.Warn("get namespace info failed:%s", err.Error())
 		return nil
 	}
 
@@ -51,8 +63,14 @@ func (m NamespaceManager) List() interface{} {
 	return namespaces
 }
 
-func (m NamespaceManager) Get(namespace *types.Namespace) interface{} {
-	k8sNamespace, err := getNamespace(m.cluster.KubeClient, namespace.GetID())
+func (m *NamespaceManager) Get(obj resttypes.Object) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	namespace := obj.(*types.Namespace)
+	k8sNamespace, err := getNamespace(cluster.KubeClient, namespace.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			logger.Warn("get namespace info failed:%s", err.Error())
@@ -63,8 +81,14 @@ func (m NamespaceManager) Get(namespace *types.Namespace) interface{} {
 	return k8sNamespaceToSCNamespace(k8sNamespace)
 }
 
-func (m NamespaceManager) Delete(namespace *types.Namespace) *resttypes.APIError {
-	err := deleteNamespace(m.cluster.KubeClient, namespace.GetID())
+func (m *NamespaceManager) Delete(obj resttypes.Object) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	namespace := obj.(*types.Namespace)
+	err := deleteNamespace(cluster.KubeClient, namespace.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))

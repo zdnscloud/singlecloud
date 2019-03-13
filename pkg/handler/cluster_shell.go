@@ -1,4 +1,4 @@
-package k8smanager
+package handler
 
 import (
 	"encoding/json"
@@ -10,6 +10,11 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
 	"k8s.io/client-go/tools/remotecommand"
+)
+
+const (
+	ShellPodName  = "zcloud-shell"
+	ShellPodImage = "zdnscloud/kubectl:v1.13.4"
 )
 
 var _ io.ReadWriter = &ShellConn{}
@@ -54,7 +59,7 @@ func (t *ShellConn) Next() *remotecommand.TerminalSize {
 }
 
 func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.ResponseWriter) {
-	cluster := m.Get(id)
+	cluster := m.get(id)
 	if cluster == nil {
 		logger.Warn("cluster %s isn't found to open console", id)
 		return

@@ -1,4 +1,4 @@
-package k8smanager
+package handler
 
 import (
 	"strings"
@@ -16,14 +16,14 @@ var (
 
 var (
 	ShellClusterPrefix = strings.Join([]string{
-		"/" + resttypes.GroupPrefix,
+		resttypes.GroupPrefix,
 		WSVersion.Group,
 		WSVersion.Version,
 		"clusters",
 	}, "/")
 
 	GINShellPath = strings.Join([]string{
-		"/" + resttypes.GroupPrefix,
+		resttypes.GroupPrefix,
 		WSVersion.Group,
 		WSVersion.Version,
 		"clusters",
