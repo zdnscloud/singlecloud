@@ -6,7 +6,8 @@
     "resourceFields": {
         "name": {"type": "string"},
         "replicas": {"type": "int"},
-        "containers": {"type": "array", "elemType": "container"}
+        "containers": {"type": "array", "elemType": "container"},
+        "advancedOptions": {"type": "advancedOptions"}
     },
 
     "subResources": {
@@ -21,8 +22,17 @@
         },
 
         "deploymentPort": {
+            "name" : {"type": "string"},
             "port" : {"type": "int"},
             "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
+        },
+
+        "advancedOptions": {
+            "autoCreateService" : {"type": "bool"},
+            "serviceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
+            "servcePort" : {"type": "int"},
+            "autoCreateIngress" : {"type": "bool"},
+            "ingressDomainName" : {"type": "string"}
         }
     },
 
@@ -47,8 +57,17 @@
             },
 
             "deploymentPort": {
+                "name" : {"type": "string"},
                 "port" : {"type": "int", "required": true},
                 "protocol": {"type": "enum", "validValues": ["tcp", "udp"], "required": true}
+            },
+
+            "advancedOptions": {
+                "autoCreateService" : {"type": "bool", "required": true},
+                "serviceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
+                "servcePort" : {"type": "int"},
+                "autoCreateIngress" : {"type": "bool"},
+                "ingressDomainName" : {"type": "string"}
             }
         }
     }

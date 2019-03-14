@@ -12,6 +12,7 @@ func SetDeploymentSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 }
 
 type DeploymentPort struct {
+	Name     string `json:"name"`
 	Port     int    `json:"port"`
 	Protocol string `json:"protocol"`
 }
@@ -26,11 +27,20 @@ type Container struct {
 	ExposedPorts []DeploymentPort `json:"exposedPorts,omitempty"`
 }
 
+type DeploymentAdvancedOptions struct {
+	AutoCreateService bool   `json:"autoCreateService"`
+	ServiceType       string `json:"serviceType"`
+	ServicePort       int    `json:"servicePort"`
+	AutoCreateIngress bool   `json:"autoCreateIngress"`
+	IngressDomainName string `json:"ingressDomainName"`
+}
+
 type Deployment struct {
 	resttypes.Resource `json:",inline"`
-	Name               string      `json:"name,omitempty"`
-	Replicas           int         `json:"replicas"`
-	Containers         []Container `json:"containers"`
+	Name               string                    `json:"name,omitempty"`
+	Replicas           int                       `json:"replicas"`
+	Containers         []Container               `json:"containers"`
+	AdvancedOptions    DeploymentAdvancedOptions `json:"advancedOptions"`
 }
 
 var DeploymentType = resttypes.GetResourceType(Deployment{})

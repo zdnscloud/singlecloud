@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -15,6 +16,10 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+)
+
+const (
+	AnnkeyForDeploymentAdvancedoption = "zcloud_deployment_advanded_options"
 )
 
 type DeploymentManager struct {
@@ -35,16 +40,67 @@ func (m *DeploymentManager) Create(obj resttypes.Object, yamlConf []byte) (inter
 	namespace := obj.GetParent().GetID()
 	deploy := obj.(*types.Deployment)
 	err := createDeployment(cluster.KubeClient, namespace, deploy)
-	if err == nil {
-		deploy.SetID(deploy.Name)
-		return deploy, nil
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate deploy name %s", deploy.Name))
+		} else {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create deploy failed %s", err.Error()))
+		}
 	}
 
-	if apierrors.IsAlreadyExists(err) {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate deploy name %s", deploy.Name))
-	} else {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create deploy failed %s", err.Error()))
+	deploy.SetID(deploy.Name)
+	if deploy.AdvancedOptions.AutoCreateService {
+		var servicePorts []types.ServicePort
+		for _, c := range deploy.Containers {
+			for _, p := range c.ExposedPorts {
+				servicePorts = append(servicePorts, types.ServicePort{
+					Name:       p.Name,
+					Port:       deploy.AdvancedOptions.ServicePort,
+					TargetPort: p.Port,
+					Protocol:   p.Protocol,
+				})
+			}
+		}
+
+		service := &types.Service{
+			Name:         deploy.Name,
+			ServiceType:  deploy.AdvancedOptions.ServiceType,
+			ExposedPorts: servicePorts,
+		}
+		err = createService(cluster.KubeClient, namespace, service)
+		if err != nil {
+			deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
+		}
+
+		if deploy.AdvancedOptions.AutoCreateIngress {
+			rules := []types.IngressRule{
+				types.IngressRule{
+					Host: deploy.AdvancedOptions.IngressDomainName,
+					Paths: []types.IngressPath{
+						types.IngressPath{
+							Path:        "/",
+							ServiceName: deploy.Name,
+							ServicePort: deploy.AdvancedOptions.ServicePort,
+						},
+					},
+				},
+			}
+			ingress := &types.Ingress{
+				Name:  deploy.Name,
+				Rules: rules,
+			}
+
+			err = createIngress(cluster.KubeClient, namespace, ingress)
+			if err != nil {
+				deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
+				deleteService(cluster.KubeClient, namespace, deploy.Name)
+				return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
+			}
+		}
 	}
+
+	return deploy, nil
 }
 
 func (m *DeploymentManager) List(obj resttypes.Object) interface{} {
@@ -96,12 +152,29 @@ func (m *DeploymentManager) Delete(obj resttypes.Object) *resttypes.APIError {
 
 	namespace := obj.GetParent().GetID()
 	deploy := obj.(*types.Deployment)
-	err := deleteDeployment(cluster.KubeClient, namespace, deploy.GetID())
+
+	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) == false {
 			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+		}
+	}
+
+	if err := deleteDeployment(cluster.KubeClient, namespace, deploy.GetID()); err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
+	}
+
+	var advancedOpts types.DeploymentAdvancedOptions
+	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
+	if ok {
+		json.Unmarshal([]byte(opts), &advancedOpts)
+		if advancedOpts.AutoCreateService {
+			deleteService(cluster.KubeClient, namespace, deploy.GetID())
+			if advancedOpts.AutoCreateIngress {
+				deleteIngress(cluster.KubeClient, namespace, deploy.GetID())
+			}
 		}
 	}
 	return nil
@@ -168,8 +241,15 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 		})
 	}
 
+	advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
 	k8sDeploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: deploy.Name, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deploy.Name,
+			Namespace: namespace,
+			Annotations: map[string]string{
+				AnnkeyForDeploymentAdvancedoption: string(advancedOpts),
+			},
+		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replica,
 			Selector: &metav1.LabelSelector{
@@ -227,10 +307,18 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 			ExposedPorts: exposedPorts,
 		})
 	}
+
+	var advancedOpts types.DeploymentAdvancedOptions
+	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
+	if ok {
+		json.Unmarshal([]byte(opts), &advancedOpts)
+	}
+
 	deploy := &types.Deployment{
-		Name:       k8sDeploy.Name,
-		Replicas:   int(*k8sDeploy.Spec.Replicas),
-		Containers: containers,
+		Name:            k8sDeploy.Name,
+		Replicas:        int(*k8sDeploy.Spec.Replicas),
+		Containers:      containers,
+		AdvancedOptions: advancedOpts,
 	}
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetType(types.DeploymentType)
