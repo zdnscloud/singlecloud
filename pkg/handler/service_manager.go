@@ -139,7 +139,7 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 				Port:       int32(p.Port),
 				TargetPort: intstr.FromInt(p.TargetPort),
 			})
-		} else {
+		} else if typ == corev1.ServiceTypeNodePort {
 			ports = append(ports, corev1.ServicePort{
 				Name:       p.Name,
 				Protocol:   protocol,
