@@ -55,7 +55,7 @@ func (m *DeploymentManager) Create(obj resttypes.Object, yamlConf []byte) (inter
 	var rules []types.IngressRule
 	for _, c := range deploy.Containers {
 		for _, p := range c.ExposedPorts {
-			if p.ServicePort != 0 {
+			if p.ServicePort != 0 || strings.ToLower(p.ServiceType) == "nodeport" {
 				if serviceType == "" {
 					serviceType = p.ServiceType
 				}
@@ -182,7 +182,7 @@ func (m *DeploymentManager) Delete(obj resttypes.Object) *resttypes.APIError {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 		serviceAutoCreated := false
 		for _, dp := range advancedOpts {
-			if dp.ServiceType != "" && dp.ServicePort != 0 {
+			if dp.ServiceType != "" {
 				serviceAutoCreated = true
 				break
 			}
