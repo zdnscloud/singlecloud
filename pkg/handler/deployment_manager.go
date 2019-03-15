@@ -49,22 +49,44 @@ func (m *DeploymentManager) Create(obj resttypes.Object, yamlConf []byte) (inter
 	}
 
 	deploy.SetID(deploy.Name)
-	if deploy.AdvancedOptions.AutoCreateService {
-		var servicePorts []types.ServicePort
-		for _, c := range deploy.Containers {
-			for _, p := range c.ExposedPorts {
+
+	var serviceType string
+	var servicePorts []types.ServicePort
+	var rules []types.IngressRule
+	for _, c := range deploy.Containers {
+		for _, p := range c.ExposedPorts {
+			if p.ServicePort != 0 {
+				if serviceType == "" {
+					serviceType = p.ServiceType
+				}
+
 				servicePorts = append(servicePorts, types.ServicePort{
 					Name:       p.Name,
-					Port:       deploy.AdvancedOptions.ServicePort,
+					Port:       p.ServicePort,
 					TargetPort: p.Port,
 					Protocol:   p.Protocol,
 				})
+
+				if p.IngressDomainName != "" {
+					rules = append(rules, types.IngressRule{
+						Host: p.IngressDomainName,
+						Paths: []types.IngressPath{
+							types.IngressPath{
+								Path:        "/",
+								ServiceName: deploy.Name,
+								ServicePort: p.ServicePort,
+							},
+						},
+					})
+				}
 			}
 		}
+	}
 
+	if len(servicePorts) > 0 {
 		service := &types.Service{
 			Name:         deploy.Name,
-			ServiceType:  deploy.AdvancedOptions.ServiceType,
+			ServiceType:  serviceType,
 			ExposedPorts: servicePorts,
 		}
 		err = createService(cluster.KubeClient, namespace, service)
@@ -73,19 +95,7 @@ func (m *DeploymentManager) Create(obj resttypes.Object, yamlConf []byte) (inter
 			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
 		}
 
-		if deploy.AdvancedOptions.AutoCreateIngress {
-			rules := []types.IngressRule{
-				types.IngressRule{
-					Host: deploy.AdvancedOptions.IngressDomainName,
-					Paths: []types.IngressPath{
-						types.IngressPath{
-							Path:        "/",
-							ServiceName: deploy.Name,
-							ServicePort: deploy.AdvancedOptions.ServicePort,
-						},
-					},
-				},
-			}
+		if len(rules) > 0 {
 			ingress := &types.Ingress{
 				Name:  deploy.Name,
 				Rules: rules,
@@ -166,13 +176,29 @@ func (m *DeploymentManager) Delete(obj resttypes.Object) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
 	}
 
-	var advancedOpts types.DeploymentAdvancedOptions
 	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
 	if ok {
+		advancedOpts := make(map[int]types.DeploymentPort)
 		json.Unmarshal([]byte(opts), &advancedOpts)
-		if advancedOpts.AutoCreateService {
+		serviceAutoCreated := false
+		for _, dp := range advancedOpts {
+			if dp.ServiceType != "" && dp.ServicePort != 0 {
+				serviceAutoCreated = true
+				break
+			}
+		}
+		ingressAutoCreated := false
+		if serviceAutoCreated {
+			for _, dp := range advancedOpts {
+				if dp.IngressDomainName != "" {
+					ingressAutoCreated = true
+					break
+				}
+			}
+		}
+		if serviceAutoCreated {
 			deleteService(cluster.KubeClient, namespace, deploy.GetID())
-			if advancedOpts.AutoCreateIngress {
+			if ingressAutoCreated {
 				deleteIngress(cluster.KubeClient, namespace, deploy.GetID())
 			}
 		}
@@ -196,6 +222,7 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 	replica := int32(deploy.Replicas)
 	var containers []corev1.Container
 	usedConfigMap := make(map[string]struct{})
+	exposedPorts := make(map[int]types.DeploymentPort)
 	for _, c := range deploy.Containers {
 		var mounts []corev1.VolumeMount
 		var ports []corev1.ContainerPort
@@ -207,15 +234,16 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 			usedConfigMap[c.ConfigName] = struct{}{}
 		}
 
-		for _, spec := range c.ExposedPorts {
-			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
+		for _, p := range c.ExposedPorts {
+			protocol, err := scProtocolToK8SProtocol(p.Protocol)
 			if err != nil {
 				return err
 			}
 			ports = append(ports, corev1.ContainerPort{
-				ContainerPort: int32(spec.Port),
+				ContainerPort: int32(p.Port),
 				Protocol:      protocol,
 			})
+			exposedPorts[p.Port] = p
 		}
 
 		containers = append(containers, corev1.Container{
@@ -241,7 +269,7 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 		})
 	}
 
-	advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
+	advancedOpts, _ := json.Marshal(exposedPorts)
 	k8sDeploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploy.Name,
@@ -277,6 +305,13 @@ func deleteDeployment(cli client.Client, namespace, name string) error {
 func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 	var containers []types.Container
 	var volumes = k8sDeploy.Spec.Template.Spec.Volumes
+
+	advancedOpts := make(map[int]types.DeploymentPort)
+	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
+	if ok {
+		json.Unmarshal([]byte(opts), &advancedOpts)
+	}
+
 	for _, c := range k8sDeploy.Spec.Template.Spec.Containers {
 		var configName, mountPath string
 		for _, vm := range c.VolumeMounts {
@@ -291,10 +326,15 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 
 		var exposedPorts []types.DeploymentPort
 		for _, p := range c.Ports {
-			exposedPorts = append(exposedPorts, types.DeploymentPort{
-				Port:     int(p.ContainerPort),
-				Protocol: strings.ToLower(string(p.Protocol)),
-			})
+			if dp, ok := advancedOpts[int(p.ContainerPort)]; ok {
+				exposedPorts = append(exposedPorts, dp)
+			} else {
+				exposedPorts = append(exposedPorts, types.DeploymentPort{
+					Name:     p.Name,
+					Port:     int(p.ContainerPort),
+					Protocol: strings.ToLower(string(p.Protocol)),
+				})
+			}
 		}
 
 		containers = append(containers, types.Container{
@@ -308,17 +348,10 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 		})
 	}
 
-	var advancedOpts types.DeploymentAdvancedOptions
-	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
-	if ok {
-		json.Unmarshal([]byte(opts), &advancedOpts)
-	}
-
 	deploy := &types.Deployment{
-		Name:            k8sDeploy.Name,
-		Replicas:        int(*k8sDeploy.Spec.Replicas),
-		Containers:      containers,
-		AdvancedOptions: advancedOpts,
+		Name:       k8sDeploy.Name,
+		Replicas:   int(*k8sDeploy.Spec.Replicas),
+		Containers: containers,
 	}
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetType(types.DeploymentType)

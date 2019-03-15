@@ -120,6 +120,11 @@ func getServices(cli client.Client, namespace string) (*corev1.ServiceList, erro
 }
 
 func createService(cli client.Client, namespace string, service *types.Service) error {
+	typ, err := scServiceTypeToK8sServiceType(service.ServiceType)
+	if err != nil {
+		return err
+	}
+
 	var ports []corev1.ServicePort
 	for _, p := range service.ExposedPorts {
 		protocol, err := scProtocolToK8SProtocol(p.Protocol)
@@ -127,17 +132,21 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 			return err
 		}
 
-		ports = append(ports, corev1.ServicePort{
-			Name:       p.Name,
-			Protocol:   protocol,
-			Port:       int32(p.Port),
-			TargetPort: intstr.FromInt(p.TargetPort),
-		})
-	}
-
-	typ, err := scServiceTypeToK8sServiceType(service.ServiceType)
-	if err != nil {
-		return err
+		if typ == corev1.ServiceTypeClusterIP {
+			ports = append(ports, corev1.ServicePort{
+				Name:       p.Name,
+				Protocol:   protocol,
+				Port:       int32(p.Port),
+				TargetPort: intstr.FromInt(p.TargetPort),
+			})
+		} else {
+			ports = append(ports, corev1.ServicePort{
+				Name:       p.Name,
+				Protocol:   protocol,
+				NodePort:   int32(p.Port),
+				TargetPort: intstr.FromInt(p.TargetPort),
+			})
+		}
 	}
 
 	k8sService := &corev1.Service{
