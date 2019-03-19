@@ -57,6 +57,7 @@
             "containerID": {"type": "string"},
             "exitCode": {"type": "int32"},
             "reason": {"type": "string"},
+            "message": {"type": "string"},
             "finishedAt": {"type": "string"},
             "startedAt": {"type": "string"}
         }

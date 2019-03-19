@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +40,7 @@ func (m *PodManager) List(obj resttypes.Object) interface{} {
 
 	var pods []*types.Pod
 	for _, k8sPod := range k8sPods.Items {
-		if isPodBelongToDeployment(k8sPod, deploy) {
+		if isPodBelongToDeployment(&k8sPod, deploy) {
 			pods = append(pods, k8sPodToSCPod(&k8sPod))
 		}
 	}
@@ -85,8 +84,8 @@ func getPods(cli client.Client, namespace string) (*corev1.PodList, error) {
 	return &pods, err
 }
 
-func isPodBelongToDeployment(k8sPod corev1.Pod, deploy string) bool {
-	if k8sPod != nil && k8sPod.ObjectMeta != nil && k8sPod.ObjectMeta.Labels != nil {
+func isPodBelongToDeployment(k8sPod *corev1.Pod, deploy string) bool {
+	if k8sPod != nil && k8sPod.ObjectMeta.Labels != nil {
 		return k8sPod.ObjectMeta.Labels["app"] == deploy
 	}
 
@@ -149,8 +148,8 @@ func k8sContainerStateToScContainerState(k8sContainerState corev1.ContainerState
 		}
 	} else if k8sContainerState.Running != nil {
 		state = types.ContainerState{
-			Type:    types.RunningState,
-			StartAt: k8sContainerState.Running.StartedAt.Time,
+			Type:      types.RunningState,
+			StartedAt: k8sContainerState.Running.StartedAt.Time,
 		}
 	} else if k8sContainerState.Terminated != nil {
 		state = types.ContainerState{

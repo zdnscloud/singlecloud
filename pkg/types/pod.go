@@ -49,8 +49,9 @@ type ContainerStatus struct {
 type ContainerState struct {
 	Type        string    `json:"type,omitempty"`
 	ContainerID string    `json:"containerID,omitempty"`
-	ExitCode    uint32    `json:"exitCode,omitempty"`
+	ExitCode    int32     `json:"exitCode,omitempty"`
 	Reason      string    `json:"reason,omitempty"`
+	Message     string    `json:"message,omitempty"`
 	StartedAt   time.Time `json:"startedAt,omitempty"`
 	FinishedAt  time.Time `json:"finishedAt,omitempty"`
 }
