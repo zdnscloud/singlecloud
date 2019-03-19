@@ -100,8 +100,8 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 		conditions = append(conditions, types.PodCondition{
 			Type:               string(condition.Type),
 			Status:             string(condition.Status),
-			LastProbeTime:      condition.LastProbeTime.Time,
-			LastTransitionTime: condition.LastTransitionTime.Time,
+			LastProbeTime:      resttypes.ISOTime(condition.LastProbeTime.Time),
+			LastTransitionTime: resttypes.ISOTime(condition.LastTransitionTime.Time),
 		})
 	}
 
@@ -138,27 +138,27 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 	return pod
 }
 
-func k8sContainerStateToScContainerState(k8sContainerState corev1.ContainerState) types.ContainerState {
-	var state = types.ContainerState{}
+func k8sContainerStateToScContainerState(k8sContainerState corev1.ContainerState) *types.ContainerState {
+	var state *types.ContainerState
 	if k8sContainerState.Waiting != nil {
-		state = types.ContainerState{
+		state = &types.ContainerState{
 			Type:    types.WaitingState,
 			Reason:  k8sContainerState.Waiting.Reason,
 			Message: k8sContainerState.Waiting.Message,
 		}
 	} else if k8sContainerState.Running != nil {
-		state = types.ContainerState{
+		state = &types.ContainerState{
 			Type:      types.RunningState,
-			StartedAt: k8sContainerState.Running.StartedAt.Time,
+			StartedAt: resttypes.ISOTime(k8sContainerState.Running.StartedAt.Time),
 		}
 	} else if k8sContainerState.Terminated != nil {
-		state = types.ContainerState{
+		state = &types.ContainerState{
 			Type:        types.TerminatedState,
 			ContainerID: k8sContainerState.Terminated.ContainerID,
 			ExitCode:    k8sContainerState.Terminated.ExitCode,
 			Reason:      k8sContainerState.Terminated.Reason,
-			StartedAt:   k8sContainerState.Terminated.StartedAt.Time,
-			FinishedAt:  k8sContainerState.Terminated.FinishedAt.Time,
+			StartedAt:   resttypes.ISOTime(k8sContainerState.Terminated.StartedAt.Time),
+			FinishedAt:  resttypes.ISOTime(k8sContainerState.Terminated.FinishedAt.Time),
 		}
 	}
 

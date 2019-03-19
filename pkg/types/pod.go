@@ -1,8 +1,6 @@
 package types
 
 import (
-	"time"
-
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
@@ -29,31 +27,31 @@ type PodAdvancedOptions struct {
 }
 
 type PodCondition struct {
-	Type               string    `json:"type,omitempty"`
-	Status             string    `json:"status,omitempty"`
-	LastProbeTime      time.Time `json:"lastProbeTime,omitempty"`
-	LastTransitionTime time.Time `json:"lastTransitionTime,omitempty"`
+	Type               string            `json:"type,omitempty"`
+	Status             string            `json:"status,omitempty"`
+	LastProbeTime      resttypes.ISOTime `json:"lastProbeTime,omitempty"`
+	LastTransitionTime resttypes.ISOTime `json:"lastTransitionTime,omitempty"`
 }
 
 type ContainerStatus struct {
-	Name         string         `json:"name,omitempty"`
-	Ready        bool           `json:"ready,omitempty"`
-	RestartCount int32          `json:"restartCount"`
-	Image        string         `json:"image,omitempty"`
-	ImageID      string         `json:"imageID,omitempty"`
-	ContainerID  string         `json:"containerID,omitempty"`
-	LastState    ContainerState `json:"lastState,omitempty"`
-	State        ContainerState `json:"state,omitempty"`
+	Name         string          `json:"name,omitempty"`
+	Ready        bool            `json:"ready,omitempty"`
+	RestartCount int32           `json:"restartCount"`
+	Image        string          `json:"image,omitempty"`
+	ImageID      string          `json:"imageID,omitempty"`
+	ContainerID  string          `json:"containerID,omitempty"`
+	LastState    *ContainerState `json:"lastState,omitempty"`
+	State        *ContainerState `json:"state,omitempty"`
 }
 
 type ContainerState struct {
-	Type        string    `json:"type,omitempty"`
-	ContainerID string    `json:"containerID,omitempty"`
-	ExitCode    int32     `json:"exitCode,omitempty"`
-	Reason      string    `json:"reason,omitempty"`
-	Message     string    `json:"message,omitempty"`
-	StartedAt   time.Time `json:"startedAt,omitempty"`
-	FinishedAt  time.Time `json:"finishedAt,omitempty"`
+	Type        string            `json:"type,omitempty"`
+	ContainerID string            `json:"containerID,omitempty"`
+	ExitCode    int32             `json:"exitCode,omitempty"`
+	Reason      string            `json:"reason,omitempty"`
+	Message     string            `json:"message,omitempty"`
+	StartedAt   resttypes.ISOTime `json:"startedAt,omitempty"`
+	FinishedAt  resttypes.ISOTime `json:"finishedAt,omitempty"`
 }
 
 const (
