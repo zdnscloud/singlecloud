@@ -35,7 +35,7 @@
         },
 
         "podCondition": {
-            "type" : {"type": "enum": "validValues": ["PodScheduled", "Ready", "Initialized", "ContainersReady"]},
+            "type" : {"type": "enum", "validValues": ["PodScheduled", "Ready", "Initialized", "ContainersReady"]},
             "status": {"type": "enum", "validValues": ["True", "False", "Unknown"]},
             "lastProbeTime" : {"type": "date"},
             "lastTransitionTime" : {"type": "date"}
