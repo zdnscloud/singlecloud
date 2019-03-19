@@ -15,7 +15,6 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type NodeManager struct {
@@ -151,13 +150,6 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 	node.SetCreationTimestamp(k8sNode.CreationTimestamp.Time)
 	node.SetType(resttypes.GetResourceType(node))
 	return node
-}
-
-func calculateUsedRatio(capacity, avail *resource.Quantity) float64 {
-	used := capacity.Copy()
-	used.Sub(*avail)
-
-	return float64(used.Value()*100) / float64(capacity.Value())
 }
 
 func getPodCountOnNode(cli client.Client, name string) map[string]int {
