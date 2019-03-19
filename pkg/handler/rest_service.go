@@ -24,6 +24,7 @@ func NewRestHandler() (*api.Server, *ClusterManager, error) {
 	schemas.MustImportAndCustomize(&Version, types.ConfigMap{}, newConfigMapManager(clusterHandler), types.SetConfigMapSchema)
 	schemas.MustImportAndCustomize(&Version, types.Service{}, newServiceManager(clusterHandler), types.SetServiceSchema)
 	schemas.MustImportAndCustomize(&Version, types.Ingress{}, newIngressManager(clusterHandler), types.SetIngressSchema)
+	schemas.MustImportAndCustomize(&Version, types.Pod{}, newPodManager(clusterHandler), types.SetPodSchema)
 
 	server := api.NewAPIServer()
 	if err := server.AddSchemas(schemas); err != nil {

@@ -279,9 +279,29 @@ func deleteDeployment(cli client.Client, namespace, name string) error {
 }
 
 func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
+	containers := K8sContainersToScContainers(k8sDeploy.Spec.Template.Spec.Containers, k8sDeploy.Spec.Template.Spec.Volumes)
+
+	var advancedOpts types.DeploymentAdvancedOptions
+	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
+	if ok {
+		json.Unmarshal([]byte(opts), &advancedOpts)
+	}
+
+	deploy := &types.Deployment{
+		Name:            k8sDeploy.Name,
+		Replicas:        int(*k8sDeploy.Spec.Replicas),
+		Containers:      containers,
+		AdvancedOptions: advancedOpts,
+	}
+	deploy.SetID(k8sDeploy.Name)
+	deploy.SetType(types.DeploymentType)
+	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)
+	return deploy
+}
+
+func K8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
 	var containers []types.Container
-	var volumes = k8sDeploy.Spec.Template.Spec.Volumes
-	for _, c := range k8sDeploy.Spec.Template.Spec.Containers {
+	for _, c := range k8sContainers {
 		var configName, mountPath string
 		for _, vm := range c.VolumeMounts {
 			for _, v := range volumes {
@@ -313,20 +333,5 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 		})
 	}
 
-	var advancedOpts types.DeploymentAdvancedOptions
-	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
-	if ok {
-		json.Unmarshal([]byte(opts), &advancedOpts)
-	}
-
-	deploy := &types.Deployment{
-		Name:            k8sDeploy.Name,
-		Replicas:        int(*k8sDeploy.Spec.Replicas),
-		Containers:      containers,
-		AdvancedOptions: advancedOpts,
-	}
-	deploy.SetID(k8sDeploy.Name)
-	deploy.SetType(types.DeploymentType)
-	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)
-	return deploy
+	return containers
 }
