@@ -1,9 +1,13 @@
+VERSION=`git describe --tags`
+BUILD=`date +%FT%T%z`
+
+LDFLAGS=-ldflags "-w -s -X main.version=${VERSION} -X main.build=${BUILD}"
 GOSRC = $(shell find . -type f -name '*.go')
 
 build: singlecloud
 
-singlecloud: $(GOSRC) cmd/singlecloud/singlecloud.go
-	go build cmd/singlecloud/singlecloud.go
+singlecloud: $(GOSRC) 
+	go build ${LDFLAGS} cmd/singlecloud/singlecloud.go
 
 docker: build-image
 	docker push zdnscloud/singlecloud:v0.1.0

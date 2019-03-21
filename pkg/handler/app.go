@@ -55,8 +55,9 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 }
 
 const (
-	WSShellPathTemp  = "/apis/ws.zcloud.cn/v1/clusters/%s/shell"
-	WSPodLogPathTemp = "/apis/ws.zcloud.cn/v1/clusters/%s/namespaces/%s/pods/%s/containers/%s/log"
+	WSPrefix         = "/apis/ws.zcloud.cn/v1"
+	WSShellPathTemp  = WSPrefix + "/clusters/%s/shell"
+	WSPodLogPathTemp = WSPrefix + "/clusters/%s/namespaces/%s/pods/%s/containers/%s/log"
 )
 
 func (a *App) registerWSHandler(router gin.IRoutes) {
