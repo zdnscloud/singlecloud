@@ -119,7 +119,7 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 		})
 	}
 
-	advancedOpts := types.PodAdvancedOptions{
+	podStatus := types.PodStatus{
 		HostIP:            k8sPod.Status.HostIP,
 		PodIP:             k8sPod.Status.PodIP,
 		PodConditions:     conditions,
@@ -127,10 +127,10 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 	}
 
 	pod := &types.Pod{
-		Name:            k8sPod.Name,
-		NodeName:        k8sPod.Spec.NodeName,
-		Containers:      containers,
-		AdvancedOptions: advancedOpts,
+		Name:       k8sPod.Name,
+		NodeName:   k8sPod.Spec.NodeName,
+		Containers: containers,
+		Status:     podStatus,
 	}
 	pod.SetID(k8sPod.Name)
 	pod.SetType(types.PodType)

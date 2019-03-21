@@ -13,13 +13,13 @@ func SetPodSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 
 type Pod struct {
 	resttypes.Resource `json:",inline"`
-	Name               string             `json:"name,omitempty"`
-	NodeName           string             `json:"nodeName,omitempty"`
-	Containers         []Container        `json:"containers"`
-	AdvancedOptions    PodAdvancedOptions `json:"advancedOptions"`
+	Name               string      `json:"name,omitempty"`
+	NodeName           string      `json:"nodeName,omitempty"`
+	Containers         []Container `json:"containers"`
+	Status             PodStatus   `json:"status"`
 }
 
-type PodAdvancedOptions struct {
+type PodStatus struct {
 	HostIP            string            `json:"hostIP,omitempty"`
 	PodIP             string            `json:"podIP,omitempty"`
 	PodConditions     []PodCondition    `json:"podConditions,omitempty"`

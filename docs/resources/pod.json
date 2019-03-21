@@ -7,7 +7,7 @@
         "name": {"type": "string"},
         "nodeName": {"type": "string"},
         "containers": {"type": "array", "elemType": "container"},
-        "advancedOptions": {"type": "advancedOptions"}
+        "status": {"type": "podStatus"}
     },
 
     "subResources": {
@@ -27,7 +27,7 @@
             "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
         },
 
-        "advancedOptions": {
+        "podStatus": {
             "hostIP": {"type": "string"},
             "podIP": {"type": "string"},
             "podConditions": {"type": "array", "elemType": "podCondition"},
