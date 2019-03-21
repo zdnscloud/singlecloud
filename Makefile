@@ -10,7 +10,7 @@ docker: build-image
 	docker push zdnscloud/singlecloud:${VERSION}
 
 build-image:
-	rm -rf ui && git clone https://github.com/zdnscloud/singlecloud-ui.git --depth=1 ui
+	docker pull zdnscloud/singlecloud-ui:dev
 	docker build -t zdnscloud/singlecloud:${VERSION} .
 	docker image prune -f
 
