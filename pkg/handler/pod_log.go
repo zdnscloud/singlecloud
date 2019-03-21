@@ -12,6 +12,8 @@ import (
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
 )
 
+var MaxLineCountFromTail = int64(1000)
+
 func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string, r *http.Request, w http.ResponseWriter) {
 	cluster := m.get(clusterID)
 	if cluster == nil {
@@ -25,6 +27,7 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 			Follow:     true,
 			Container:  container,
 			Timestamps: true,
+			TailLines:  &MaxLineCountFromTail,
 		}
 		req := podClient.
 			Get().
