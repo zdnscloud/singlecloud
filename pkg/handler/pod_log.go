@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -59,6 +59,6 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 		io.Copy(wrapper, readCloser)
 	}
 
-	path := strings.Join([]string{ShellClusterPrefix, clusterID, "namespaces", namespace, "pods", pod, "containers", container}, "/")
+	path := fmt.Sprintf(WSPodLogPathTemp, clusterID, namespace, pod, container)
 	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }

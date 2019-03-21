@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -84,5 +85,6 @@ func (m *ClusterManager) OpenConsole(clusterID string, r *http.Request, w http.R
 		}
 	}
 
-	sockjs.NewHandler(ShellClusterPrefix+"/"+clusterID, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+	path := fmt.Sprintf(WSShellPathTemp, clusterID)
+	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }
