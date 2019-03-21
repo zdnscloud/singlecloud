@@ -12,6 +12,22 @@ import (
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
 )
 
+var _ io.Writer = &SessionAdaptor{}
+
+type SessionAdaptor struct {
+	conn sockjs.Session
+}
+
+func newSessionAdaptor(session sockjs.Session) *SessionAdaptor {
+	return &SessionAdaptor{
+		conn: session,
+	}
+}
+
+func (sa *SessionAdaptor) Write(p []byte) (int, error) {
+	return len(p), sa.conn.Send(string(p))
+}
+
 func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string, r *http.Request, w http.ResponseWriter) {
 	cluster := m.get(clusterID)
 	if cluster == nil {
@@ -33,7 +49,7 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 			SubResource("log").
 			VersionedParams(&opts, scheme.ParameterCodec)
 		readCloser, err := req.Stream()
-		wrapper := newShellConn(session)
+		wrapper := newSessionAdaptor(session)
 		if err != nil {
 			wrapper.Write([]byte(err.Error()))
 			return
