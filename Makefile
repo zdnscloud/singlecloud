@@ -3,7 +3,6 @@ BUILD=`date +%FT%T%z`
 
 LDFLAGS=-ldflags "-w -s -X main.version=${VERSION} -X main.build=${BUILD}"
 GOSRC = $(shell find . -type f -name '*.go')
-VERSION=$${VERSION:-dev}
 
 build: singlecloud
 
