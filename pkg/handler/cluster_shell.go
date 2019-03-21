@@ -58,10 +58,10 @@ func (t *ShellConn) Next() *remotecommand.TerminalSize {
 	return <-t.sizeChan
 }
 
-func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.ResponseWriter) {
-	cluster := m.get(id)
+func (m *ClusterManager) OpenConsole(clusterID string, r *http.Request, w http.ResponseWriter) {
+	cluster := m.get(clusterID)
 	if cluster == nil {
-		logger.Warn("cluster %s isn't found to open console", id)
+		logger.Warn("cluster %s isn't found to open console", clusterID)
 		return
 	}
 
@@ -84,5 +84,5 @@ func (m *ClusterManager) OpenConsole(id string, r *http.Request, w http.Response
 		}
 	}
 
-	sockjs.NewHandler(ShellClusterPrefix+"/"+id, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+	sockjs.NewHandler(ShellClusterPrefix+"/"+clusterID, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }

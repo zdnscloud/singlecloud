@@ -26,7 +26,22 @@ var (
 		WSVersion.Group,
 		WSVersion.Version,
 		"clusters",
-		":id",
+		":cluster",
+		"*actions",
+	}, "/")
+
+	GINPodLogPath = strings.Join([]string{
+		resttypes.GroupPrefix,
+		WSVersion.Group,
+		WSVersion.Version,
+		"clusters",
+		":cluster",
+		"namespaces",
+		":namespace",
+		"pods",
+		":pod",
+		"containers",
+		":container",
 		"*actions",
 	}, "/")
 )

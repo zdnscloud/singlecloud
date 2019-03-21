@@ -26,7 +26,10 @@ func NewServer() (*Server, error) {
 	})
 
 	router.GET(handler.GINShellPath, func(c *gin.Context) {
-		wsHandler.OpenConsole(c.Param("id"), c.Request, c.Writer)
+		wsHandler.OpenConsole(c.Param("cluster"), c.Request, c.Writer)
+	})
+	router.GET(handler.GINPodLogPath, func(c *gin.Context) {
+		wsHandler.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
 	})
 	adaptor.RegisterHandler(router, gin.WrapH(restHandler), restHandler.Schemas.UrlMethods())
 
