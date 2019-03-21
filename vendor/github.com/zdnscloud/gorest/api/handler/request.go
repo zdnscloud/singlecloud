@@ -201,5 +201,9 @@ func parseCreateBody(apiContext *types.APIContext) ([]byte, types.Object, *types
 	}
 
 	obj, apiErr := getObject(apiContext, val)
-	return []byte(params.Yaml), obj, apiErr
+	if apiErr != nil {
+		return nil, nil, apiErr
+	}
+
+	return []byte(params.Yaml), obj, CheckObjectFields(apiContext, obj)
 }

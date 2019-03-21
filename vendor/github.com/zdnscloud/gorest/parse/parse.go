@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path"
 	"regexp"
 	"strings"
 
@@ -47,7 +46,7 @@ func Parse(rw http.ResponseWriter, req *http.Request, schemas *types.Schemas) (*
 
 func versionsForPath(schemas *types.Schemas, escapedPath string) *types.APIVersion {
 	for _, version := range schemas.Versions() {
-		if strings.HasPrefix(escapedPath, path.Join(version.Group, version.Path)) {
+		if strings.HasPrefix(escapedPath, version.GetVersionURL()) {
 			return &version
 		}
 	}
@@ -55,12 +54,6 @@ func versionsForPath(schemas *types.Schemas, escapedPath string) *types.APIVersi
 }
 
 func parseVersionAndResource(schemas *types.Schemas, escapedPath string) (*types.APIVersion, types.Object, *types.Schema, *types.APIError) {
-
-	if strings.HasPrefix(escapedPath, types.GroupPrefix+"/") == false {
-		return nil, nil, nil, types.NewAPIError(types.InvalidFormat, "url not start with "+types.GroupPrefix)
-	}
-
-	escapedPath = escapedPath[len(types.GroupPrefix)+1:]
 	version := versionsForPath(schemas, escapedPath)
 	if version == nil {
 		return nil, nil, nil, types.NewAPIError(types.NotFound, "no found version with "+escapedPath)
@@ -70,11 +63,12 @@ func parseVersionAndResource(schemas *types.Schemas, escapedPath string) (*types
 		escapedPath = escapedPath[:len(escapedPath)-1]
 	}
 
-	if len(escapedPath) <= len(version.Group)+len(version.Path) {
+	versionURL := version.GetVersionURL()
+	if len(escapedPath) <= len(versionURL) {
 		return nil, nil, nil, types.NewAPIError(types.InvalidFormat, "no schema name in url "+escapedPath)
 	}
 
-	escapedPath = escapedPath[len(version.Group)+len(version.Path)+1:]
+	escapedPath = escapedPath[len(versionURL)+1:]
 	pp := strings.Split(escapedPath, "/")
 	var paths []string
 	for _, p := range pp {

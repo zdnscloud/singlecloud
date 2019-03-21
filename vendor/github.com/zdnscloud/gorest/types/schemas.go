@@ -13,17 +13,17 @@ import (
 const GroupPrefix = "/apis"
 
 type Schemas struct {
-	typeNames     map[reflect.Type]string
-	schemasByPath map[string]map[string]*Schema
-	versions      []APIVersion
-	schemas       []*Schema
-	errors        []error
+	typeNames        map[reflect.Type]string
+	schemasByVersion map[string]map[string]*Schema
+	versions         []APIVersion
+	schemas          []*Schema
+	errors           []error
 }
 
 func NewSchemas() *Schemas {
 	return &Schemas{
-		typeNames:     map[reflect.Type]string{},
-		schemasByPath: map[string]map[string]*Schema{},
+		typeNames:        map[reflect.Type]string{},
+		schemasByVersion: map[string]map[string]*Schema{},
 	}
 }
 
@@ -41,10 +41,10 @@ func (s *Schemas) AddSchemas(schema *Schemas) *Schemas {
 func (s *Schemas) AddSchema(schema Schema) *Schemas {
 	s.setupDefaults(&schema)
 
-	schemas, ok := s.schemasByPath[schema.Version.Path]
+	schemas, ok := s.schemasByVersion[schema.Version.Version]
 	if !ok {
 		schemas = map[string]*Schema{}
-		s.schemasByPath[schema.Version.Path] = schemas
+		s.schemasByVersion[schema.Version.Version] = schemas
 		s.versions = append(s.versions, schema.Version)
 	}
 
@@ -61,7 +61,7 @@ func (s *Schemas) setupDefaults(schema *Schema) {
 		s.errors = append(s.errors, fmt.Errorf("ID is not set on schema: %v", schema))
 		return
 	}
-	if schema.Version.Path == "" || schema.Version.Version == "" {
+	if schema.Version.Version == "" {
 		s.errors = append(s.errors, fmt.Errorf("version is not set on schema: %s", schema.ID))
 		return
 	}
@@ -79,7 +79,7 @@ func (s *Schemas) Schemas() []*Schema {
 }
 
 func (s *Schemas) Schema(version *APIVersion, name string) *Schema {
-	schemas, ok := s.schemasByPath[version.Path]
+	schemas, ok := s.schemasByVersion[version.Version]
 	if !ok {
 		return nil
 	}
@@ -121,7 +121,7 @@ func (s *Schemas) UrlMethods() map[string][]string {
 		}
 
 		parentUrl := buffer.String()
-		url := path.Join(GroupPrefix, schema.Version.Group, schema.Version.Path, parentUrl, schema.PluralName)
+		url := path.Join(schema.Version.GetVersionURL(), parentUrl, schema.PluralName)
 		if len(schema.CollectionMethods) != 0 {
 			urlMethods[url] = schema.CollectionMethods
 		}

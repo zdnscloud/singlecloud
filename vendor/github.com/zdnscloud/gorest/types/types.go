@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"path"
 	"reflect"
 	"time"
 )
@@ -16,7 +17,10 @@ type Collection struct {
 type APIVersion struct {
 	Group   string `json:"group,omitempty"`
 	Version string `json:"version,omitempty"`
-	Path    string `json:"path,omitempty"`
+}
+
+func (v *APIVersion) GetVersionURL() string {
+	return path.Join(GroupPrefix, v.Group, v.Version)
 }
 
 type Schema struct {
@@ -41,7 +45,6 @@ type Field struct {
 	Default      interface{} `json:"default,omitempty"`
 	Nullable     bool        `json:"nullable,omitempty"`
 	Create       bool        `json:"create"`
-	WriteOnly    bool        `json:"writeOnly,omitempty"`
 	Required     bool        `json:"required,omitempty"`
 	Update       bool        `json:"update"`
 	MinLength    *int64      `json:"minLength,omitempty"`
@@ -51,9 +54,7 @@ type Field struct {
 	Options      []string    `json:"options,omitempty"`
 	ValidChars   string      `json:"validChars,omitempty"`
 	InvalidChars string      `json:"invalidChars,omitempty"`
-	Description  string      `json:"description,omitempty"`
 	CodeName     string      `json:"-"`
-	DynamicField bool        `json:"dynamicField,omitempty"`
 }
 
 type Action struct {
@@ -130,5 +131,20 @@ func GetAncestors(parent ObjectParent) []Object {
 type ISOTime time.Time
 
 func (t ISOTime) MarshalJSON() ([]byte, error) {
+	if time.Time(t).IsZero() {
+		return []byte("null"), nil
+	}
+
 	return []byte(fmt.Sprintf("\"%s\"", time.Time(t).Format(time.RFC3339))), nil
+}
+
+func (t *ISOTime) UnmarshalJSON(data []byte) (err error) {
+	if len(data) == 4 && string(data) == "null" {
+		*t = ISOTime(time.Time{})
+		return
+	}
+
+	now, err := time.Parse(`"`+time.RFC3339+`"`, string(data))
+	*t = ISOTime(now)
+	return
 }

@@ -10,7 +10,6 @@ var (
 	Version = resttypes.APIVersion{
 		Version: "v1",
 		Group:   "zcloud.cn",
-		Path:    "/v1",
 	}
 )
 

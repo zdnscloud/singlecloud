@@ -214,11 +214,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ca00108b57e9ac871bd97d76711d0df6b0d3a08becf838ec9fd6c612796c9189"
+  digest = "1:28a847a619b9911032c17401ae91411bf16aaa94b00d01af2995c8ea122c2536"
   name = "github.com/zdnscloud/cement"
   packages = [
     "log",
     "log/log4go",
+    "reflector",
   ]
   pruneopts = "UT"
   revision = "3e9edaca4e5a437983a7968f818829084d30a77a"
@@ -246,7 +247,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8d27bdd2979685d3633a63d008f0a1040e8c4a6add49949864fd81e547ab90d8"
+  digest = "1:ee0604911fb0ed7e30a2c08188d8fe738f316f2e0871dc091eadc49620544e77"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -257,7 +258,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "a3e97f85d8f569da7b9abdda10352d9b4ea9e61a"
+  revision = "0eacee8e7ef9229b7cf2652c6b4a20bcbd8f7e19"
 
 [[projects]]
   branch = "master"
@@ -602,7 +603,6 @@
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
     "k8s.io/apimachinery/pkg/api/errors",
-    "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/types",

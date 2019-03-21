@@ -11,7 +11,9 @@ import (
 
 var (
 	blacklistNames = map[string]bool{
-		"actions": true,
+		"actions":           true,
+		"links":             true,
+		"creationTimestamp": true,
 	}
 )
 
@@ -106,46 +108,59 @@ func (s *Schemas) importType(version *APIVersion, t reflect.Type, overrides ...r
 	return s.Schema(&schema.Version, schema.ID), s.Err()
 }
 
-func jsonName(f reflect.StructField) string {
+func getJsonName(f reflect.StructField) string {
 	return strings.SplitN(f.Tag.Get("json"), ",", 2)[0]
+}
+
+func GetFieldJsonName(field reflect.StructField) (string, bool) {
+	if field.PkgPath != "" {
+		return "", false
+	}
+
+	jsonName := getJsonName(field)
+	if jsonName == "-" {
+		return "", false
+	}
+
+	if field.Anonymous && jsonName == "" {
+		t := field.Type
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+		}
+		if t.Kind() == reflect.Struct {
+			return "", true
+		}
+		return "", false
+	}
+
+	fieldJsonName := jsonName
+	if fieldJsonName == "" {
+		fieldJsonName = strings.ToLower(field.Name)
+		if strings.HasSuffix(fieldJsonName, "ID") {
+			fieldJsonName = strings.TrimSuffix(fieldJsonName, "ID") + "Id"
+		}
+	}
+
+	if blacklistNames[fieldJsonName] {
+		return "", false
+	}
+
+	return fieldJsonName, false
 }
 
 func (s *Schemas) readFields(schema *Schema, t reflect.Type) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 
-		if field.PkgPath != "" {
-			// unexported field
-			continue
-		}
-
-		jsonName := jsonName(field)
-		if jsonName == "-" {
-			continue
-		}
-
-		if field.Anonymous && jsonName == "" {
-			t := field.Type
-			if t.Kind() == reflect.Ptr {
-				t = t.Elem()
-			}
-			if t.Kind() == reflect.Struct {
-				if err := s.readFields(schema, t); err != nil {
-					return err
-				}
+		fieldJsonName, isAnonymous := GetFieldJsonName(field)
+		if isAnonymous {
+			if err := s.readFields(schema, field.Type); err != nil {
+				return err
 			}
 			continue
 		}
 
-		fieldName := jsonName
-		if fieldName == "" {
-			fieldName = strings.ToLower(field.Name)
-			if strings.HasSuffix(fieldName, "ID") {
-				fieldName = strings.TrimSuffix(fieldName, "ID") + "Id"
-			}
-		}
-
-		if blacklistNames[fieldName] {
+		if fieldJsonName == "" {
 			continue
 		}
 
@@ -177,7 +192,7 @@ func (s *Schemas) readFields(schema *Schema, t reflect.Type) error {
 		if schemaField.Type == "" {
 			inferedType, err := s.determineSchemaType(&schema.Version, fieldType)
 			if err != nil {
-				return fmt.Errorf("failed inspecting type %s, field %s: %v", t, fieldName, err)
+				return fmt.Errorf("failed inspecting type %s, field %s: %v", t, fieldJsonName, err)
 			}
 			schemaField.Type = inferedType
 		}
@@ -195,7 +210,7 @@ func (s *Schemas) readFields(schema *Schema, t reflect.Type) error {
 			}
 		}
 
-		schema.ResourceFields[fieldName] = schemaField
+		schema.ResourceFields[fieldJsonName] = schemaField
 	}
 
 	return nil
@@ -218,17 +233,13 @@ func applyTag(structField *reflect.StructField, field *Field) error {
 		case "default":
 			field.Default = value
 		case "nullable":
-			field.Nullable = true
-		case "notnullable":
-			field.Nullable = false
-		case "nocreate":
-			field.Create = false
-		case "writeOnly":
-			field.WriteOnly = true
+			field.Nullable = value != "false"
+		case "create":
+			field.Create = value != "false"
 		case "required":
-			field.Required = true
-		case "noupdate":
-			field.Update = false
+			field.Required = value == "true"
+		case "update":
+			field.Update = value != "false"
 		case "minLength":
 			field.MinLength, err = toInt(value, structField)
 		case "maxLength":
@@ -334,14 +345,8 @@ func (s *Schemas) determineSchemaType(version *APIVersion, t reflect.Type) (stri
 	case reflect.String:
 		return "string", nil
 	case reflect.Struct:
-		if t.Name() == "Time" {
+		if t.Name() == "ISOTime" {
 			return "date", nil
-		}
-		if t.Name() == "IntOrString" {
-			return "intOrString", nil
-		}
-		if t.Name() == "Quantity" {
-			return "string", nil
 		}
 		schema, err := s.importType(version, t)
 		if err != nil {
