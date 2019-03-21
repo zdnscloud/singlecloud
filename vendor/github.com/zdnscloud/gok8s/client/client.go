@@ -25,7 +25,8 @@ import (
 )
 
 var (
-	errMetricsServerIsNotValiable = errors.New("metrics server isn't available")
+	errMetricsServerIsNotValiable   = errors.New("metrics server isn't available")
+	errDiscoveryServerIsNotValiable = errors.New("discovery server isn't available")
 )
 
 type Options struct {
@@ -64,8 +65,13 @@ func New(config *rest.Config, options Options) (Client, error) {
 		metricsClient = nil
 	}
 
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		discoveryClient = nil
+	}
+
 	return &client{
-		discoveryClient: discovery.NewDiscoveryClientForConfigOrDie(config),
+		discoveryClient: discoveryClient,
 		metricsClient:   metricsClient,
 		typedClient: typedClient{
 			cache: clientCache{
@@ -95,7 +101,11 @@ type client struct {
 }
 
 func (c *client) ServerVersion() (*version.Info, error) {
-	return c.discoveryClient.ServerVersion()
+	if c.discoveryClient != nil {
+		return c.discoveryClient.ServerVersion()
+	} else {
+		return nil, errDiscoveryServerIsNotValiable
+	}
 }
 
 func (c *client) GetNodeMetrics(name string, selector labels.Selector) (*metricsapi.NodeMetricsList, error) {
@@ -124,6 +134,10 @@ func (c *client) GetNodeMetrics(name string, selector labels.Selector) (*metrics
 		return nil, err
 	}
 	return metrics, nil
+}
+
+func (c *client) RestClientForObject(obj runtime.Object) (rest.Interface, error) {
+	return c.typedClient.RestClientForObject(obj)
 }
 
 func (c *client) Create(ctx context.Context, obj runtime.Object) error {

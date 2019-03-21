@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/rest"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
 )
 
@@ -54,4 +55,6 @@ type Client interface {
 	Discovery
 	StatusClient
 	Metrics
+
+	RestClientForObject(obj runtime.Object) (rest.Interface, error)
 }
