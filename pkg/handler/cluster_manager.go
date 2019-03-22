@@ -7,6 +7,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/exec"
+	"github.com/zdnscloud/gok8s/watcher"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -18,16 +19,15 @@ const (
 	ZCloudReadonly  = "zcloud-cluster-readonly"
 )
 
+const defaultEventMaxSize = 10000
+
 type ClusterManager struct {
 	DefaultHandler
-	clusters     []*types.Cluster
-	eventManager *EventManager
+	clusters []*types.Cluster
 }
 
 func newClusterManager() *ClusterManager {
-	return &ClusterManager{
-		eventManager: newEventManager(),
-	}
+	return &ClusterManager{}
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *types.Cluster {
@@ -73,12 +73,14 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	cluster.KubeClient = cli
 	cluster.Executor = executor
 
-	if err := initCluster(cluster); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
+	if eventWatcher, err := watcher.New(k8sconf, defaultEventMaxSize); err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
+	} else {
+		cluster.EventWatcher = eventWatcher
 	}
 
-	if err := m.eventManager.AddEventWatcher(cluster.Name, k8sconf, defaultEventMaxSize); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
+	if err := initCluster(cluster); err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
 	}
 
 	cluster.SetCreationTimestamp(time.Now())
