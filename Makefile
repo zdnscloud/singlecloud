@@ -11,6 +11,8 @@ singlecloud: $(GOSRC)
 
 docker: build-image
 	docker push zdnscloud/singlecloud:${VERSION}
+	docker tag zdnscloud/singlecloud:${VERSION} zdnscloud/singlecloud:latest
+	docker push zdnscloud/singlecloud:latest
 
 build-image:
 	docker pull zdnscloud/singlecloud-ui:dev
