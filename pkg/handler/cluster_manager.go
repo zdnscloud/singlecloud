@@ -7,8 +7,8 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/exec"
-	"github.com/zdnscloud/gok8s/watcher"
 	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/singlecloud/pkg/event"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -73,7 +73,7 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	cluster.KubeClient = cli
 	cluster.Executor = executor
 
-	if eventWatcher, err := watcher.New(k8sconf, defaultEventMaxSize); err != nil {
+	if eventWatcher, err := event.New(k8sconf, defaultEventMaxSize); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
 	} else {
 		cluster.EventWatcher = eventWatcher

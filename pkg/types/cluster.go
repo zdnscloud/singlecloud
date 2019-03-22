@@ -3,8 +3,9 @@ package types
 import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/exec"
-	"github.com/zdnscloud/gok8s/watcher"
 	"github.com/zdnscloud/gorest/types"
+
+	"github.com/zdnscloud/singlecloud/pkg/event"
 )
 
 func SetClusterSchema(schema *types.Schema, handler types.Handler) {
@@ -19,9 +20,9 @@ type Cluster struct {
 	NodesCount     int    `json:"nodeCount,omitempty"`
 	Version        string `json:"version,omitempty"`
 
-	KubeClient   client.Client         `json:"-"`
-	Executor     *exec.Executor        `json:"-"`
-	EventWatcher *watcher.EventWatcher `json:"-"`
+	KubeClient   client.Client       `json:"-"`
+	Executor     *exec.Executor      `json:"-"`
+	EventWatcher *event.EventWatcher `json:"-"`
 }
 
 var ClusterType = types.GetResourceType(Cluster{})
