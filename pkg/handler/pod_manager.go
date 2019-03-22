@@ -5,6 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/gok8s/client"
@@ -30,7 +31,20 @@ func (m *PodManager) List(obj resttypes.Object) interface{} {
 
 	deploy := obj.GetParent().GetID()
 	namespace := obj.GetParent().GetParent().GetID()
-	k8sPods, err := getPods(cluster.KubeClient, namespace)
+	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy)
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			logger.Warn("get deployment info failed:%s", err.Error())
+		}
+		return nil
+	}
+
+	if k8sDeploy.Spec.Selector == nil {
+		logger.Warn("deployment %s has no selector", deploy)
+		return nil
+	}
+
+	k8sPods, err := getPods(cluster.KubeClient, namespace, k8sDeploy.Spec.Selector)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			logger.Warn("list pods info failed:%s", err.Error())
@@ -40,9 +54,7 @@ func (m *PodManager) List(obj resttypes.Object) interface{} {
 
 	var pods []*types.Pod
 	for _, k8sPod := range k8sPods.Items {
-		if isPodBelongToDeployment(&k8sPod, deploy) {
-			pods = append(pods, k8sPodToSCPod(&k8sPod))
-		}
+		pods = append(pods, k8sPodToSCPod(&k8sPod))
 	}
 	return pods
 }
@@ -53,7 +65,6 @@ func (m *PodManager) Get(obj resttypes.Object) interface{} {
 		return nil
 	}
 
-	deploy := obj.GetParent().GetID()
 	namespace := obj.GetParent().GetParent().GetID()
 	pod := obj.(*types.Pod)
 	k8sPod, err := getPod(cluster.KubeClient, namespace, pod.GetID())
@@ -61,11 +72,6 @@ func (m *PodManager) Get(obj resttypes.Object) interface{} {
 		if apierrors.IsNotFound(err) == false {
 			logger.Warn("get pod info failed:%s", err.Error())
 		}
-		return nil
-	}
-
-	if isPodBelongToDeployment(k8sPod, deploy) == false {
-		logger.Warn("get pod info failed: pod %s not belong to deployment %s", pod.GetID(), deploy)
 		return nil
 	}
 
@@ -78,18 +84,17 @@ func getPod(cli client.Client, namespace, name string) (*corev1.Pod, error) {
 	return &pod, err
 }
 
-func getPods(cli client.Client, namespace string) (*corev1.PodList, error) {
+func getPods(cli client.Client, namespace string, selector *metav1.LabelSelector) (*corev1.PodList, error) {
 	pods := corev1.PodList{}
-	err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace}, &pods)
-	return &pods, err
-}
-
-func isPodBelongToDeployment(k8sPod *corev1.Pod, deploy string) bool {
-	if k8sPod != nil && k8sPod.ObjectMeta.Labels != nil {
-		return k8sPod.ObjectMeta.Labels["app"] == deploy
+	opts := &client.ListOptions{Namespace: namespace}
+	labels, err := metav1.LabelSelectorAsSelector(selector)
+	if err != nil {
+		return nil, err
 	}
 
-	return false
+	opts.LabelSelector = labels
+	err = cli.List(context.TODO(), opts, &pods)
+	return &pods, err
 }
 
 func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {

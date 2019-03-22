@@ -103,8 +103,14 @@ func (e *Executor) waitPodReady(p Pod, timeout time.Duration) error {
 	}
 }
 
+var (
+	privileged               = false
+	defaultUser              = int64(1000)
+	defaultGroup             = int64(2000)
+	allowPrivilegeEscalation = false
+)
+
 func (e *Executor) createPod(p Pod, c Cmd) (*corev1.Pod, error) {
-	privileged := false
 	termPeroidSeonds := int64(0)
 	kp := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -123,7 +129,10 @@ func (e *Executor) createPod(p Pod, c Cmd) (*corev1.Pod, error) {
 					Name:  p.Name,
 					Image: p.Image,
 					SecurityContext: &corev1.SecurityContext{
-						Privileged: &privileged,
+						Privileged:               &privileged,
+						RunAsUser:                &defaultUser,
+						RunAsGroup:               &defaultGroup,
+						AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 					},
 					ImagePullPolicy: corev1.PullPolicy(corev1.PullAlways),
 				},

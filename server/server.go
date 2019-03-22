@@ -3,7 +3,6 @@ package server
 import (
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
-	"github.com/zdnscloud/gorest/adaptor"
 
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 )
@@ -13,22 +12,18 @@ type Server struct {
 }
 
 func NewServer() (*Server, error) {
-	restHandler, wsHandler, err := handler.NewRestHandler()
-	if err != nil {
-		return nil, err
-	}
 	gin.SetMode(gin.ReleaseMode)
 
+	app := handler.NewApp()
 	router := gin.New()
 	router.Use(static.Serve("/", static.LocalFile("/www", false)))
 	router.NoRoute(func(c *gin.Context) {
 		c.File("/www/index.html")
 	})
 
-	router.GET(handler.GINShellPath, func(c *gin.Context) {
-		wsHandler.OpenConsole(c.Param("id"), c.Request, c.Writer)
-	})
-	adaptor.RegisterHandler(router, gin.WrapH(restHandler), restHandler.Schemas.UrlMethods())
+	if err := app.RegisterHandler(router); err != nil {
+		panic("register handler failed:" + err.Error())
+	}
 
 	return &Server{
 		router: router,

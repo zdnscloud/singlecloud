@@ -4,11 +4,21 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 )
 
 type typedClient struct {
 	cache      clientCache
 	paramCodec runtime.ParameterCodec
+}
+
+func (c *typedClient) RestClientForObject(obj runtime.Object) (rest.Interface, error) {
+	o, err := c.cache.getObjMeta(obj)
+	if err != nil {
+		return nil, err
+	} else {
+		return o.Interface, nil
+	}
 }
 
 func (c *typedClient) Create(ctx context.Context, obj runtime.Object) error {
