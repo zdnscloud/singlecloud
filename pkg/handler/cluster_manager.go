@@ -20,11 +20,14 @@ const (
 
 type ClusterManager struct {
 	DefaultHandler
-	clusters []*types.Cluster
+	clusters     []*types.Cluster
+	eventManager *EventManager
 }
 
 func newClusterManager() *ClusterManager {
-	return &ClusterManager{}
+	return &ClusterManager{
+		eventManager: newEventManager(),
+	}
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *types.Cluster {
@@ -72,6 +75,10 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 
 	if err := initCluster(cluster); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
+	}
+
+	if err := m.eventManager.AddEventWatcher(cluster.Name, k8sconf, defaultEventMaxSize); err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
 	}
 
 	cluster.SetCreationTimestamp(time.Now())
