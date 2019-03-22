@@ -22,4 +22,7 @@ build-image:
 clean:
 	rm -rf singlecloud
 
+clean-image:
+	docker rmi zdnscloud/singlecloud:${VERSION}
+
 .PHONY: clean install
