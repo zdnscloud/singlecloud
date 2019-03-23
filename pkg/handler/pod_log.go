@@ -26,7 +26,7 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 	}
 
 	Sockjshandler := func(session sockjs.Session) {
-		podClient, _ := cluster.KubeClient.RestClientForObject(&corev1.Pod{})
+		podClient, _ := cluster.KubeClient.RestClientForObject(&corev1.Pod{}, LogRequestTimeout)
 		opts := corev1.PodLogOptions{
 			Follow:     true,
 			Container:  container,
@@ -40,11 +40,10 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 			Resource("pods").
 			SubResource("log").
 			VersionedParams(&opts, scheme.ParameterCodec)
-		req.Timeout(LogRequestTimeout)
 		readCloser, err := req.Stream()
 		if err != nil {
 			logger.Warn("request log get err %s", err.Error())
-			session.Send(err.Error())
+			session.Close(503, err.Error())
 			return
 		}
 
