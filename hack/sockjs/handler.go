@@ -123,7 +123,7 @@ func (h *handler) sessionByRequest(req *http.Request) (*session, error) {
 			go h.handlerFunc(sess)
 		}
 		go func() {
-			<-sess.closedNotify()
+			<-sess.ClosedNotify()
 			h.sessionsMux.Lock()
 			delete(h.sessions, sessionID)
 			h.sessionsMux.Unlock()
