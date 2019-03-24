@@ -55,6 +55,10 @@ func (ew *EventWatcher) OnCreate(e event.CreateEvent) (handler.Result, error) {
 }
 
 func (ew *EventWatcher) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
+	if event, ok := e.ObjectNew.(*corev1.Event); ok {
+		ew.add(event)
+	}
+
 	return handler.Result{}, nil
 }
 
