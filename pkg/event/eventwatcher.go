@@ -3,7 +3,6 @@ package event
 import (
 	"container/list"
 	"fmt"
-	"strings"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -21,7 +20,7 @@ type EventWatcher struct {
 	maxSize   uint
 	lock      sync.RWMutex
 	eventList *list.List
-	events    map[string]map[string]*list.Element
+	events    map[string][]*list.Element
 	stopCh    chan struct{}
 }
 
@@ -39,7 +38,7 @@ func New(k8sCfg *rest.Config, size uint) (*EventWatcher, error) {
 	ew := &EventWatcher{
 		maxSize:   size,
 		eventList: list.New(),
-		events:    make(map[string]map[string]*list.Element),
+		events:    make(map[string][]*list.Element),
 		stopCh:    stop,
 	}
 
@@ -56,53 +55,31 @@ func (ew *EventWatcher) OnCreate(e event.CreateEvent) (handler.Result, error) {
 }
 
 func (ew *EventWatcher) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
-	if event, ok := e.ObjectNew.(*corev1.Event); ok {
-		ew.add(event)
-	}
 	return handler.Result{}, nil
 }
 
 func (ew *EventWatcher) OnDelete(e event.DeleteEvent) (handler.Result, error) {
-	if event, ok := e.Object.(*corev1.Event); ok {
-		ew.add(event)
-	}
-
 	return handler.Result{}, nil
 }
 
 func (ew *EventWatcher) OnGeneric(e event.GenericEvent) (handler.Result, error) {
-	if event, ok := e.Object.(*corev1.Event); ok {
-		ew.add(event)
-	}
-
 	return handler.Result{}, nil
 }
 
 func (ew *EventWatcher) add(event *corev1.Event) {
 	ew.lock.Lock()
 	defer ew.lock.Unlock()
-	namespace := event.InvolvedObject.Namespace
-	key := getEventKey(event)
-	k8sevents, ok := ew.events[namespace]
-	if ok == false {
-		k8sevents = make(map[string]*list.Element)
-		ew.events[namespace] = k8sevents
-	}
-
-	if elem, ok := k8sevents[key]; ok {
-		ew.eventList.MoveToFront(elem)
-		elem.Value = event
-	} else {
-		elem := ew.eventList.PushFront(event)
-		k8sevents[key] = elem
-	}
-
+	k8sevents := ew.events[event.InvolvedObject.Namespace]
+	k8sevents = append(k8sevents, ew.eventList.PushFront(event))
+	ew.events[event.InvolvedObject.Namespace] = k8sevents
 	if uint(ew.eventList.Len()) > ew.maxSize {
 		elem := ew.eventList.Back()
 		if elem != nil {
 			ew.eventList.Remove(elem)
 			event := elem.Value.(*corev1.Event)
-			delete(ew.events[event.InvolvedObject.Namespace], getEventKey(event))
+			k8sevents := ew.events[event.InvolvedObject.Namespace]
+			k8sevents = k8sevents[1:]
+			ew.events[event.InvolvedObject.Namespace] = k8sevents
 		}
 	}
 }
@@ -132,20 +109,4 @@ func (ew *EventWatcher) GetAllNamespaceEvents() []*corev1.Event {
 	ew.lock.RUnlock()
 
 	return k8sevents
-}
-
-func getEventKey(event *corev1.Event) string {
-	return strings.Join([]string{
-		event.Source.Component,
-		event.Source.Host,
-		event.InvolvedObject.Kind,
-		event.InvolvedObject.Namespace,
-		event.InvolvedObject.Name,
-		event.InvolvedObject.FieldPath,
-		string(event.InvolvedObject.UID),
-		event.InvolvedObject.APIVersion,
-		event.Type,
-		event.Reason,
-		event.Message,
-	}, "")
 }
