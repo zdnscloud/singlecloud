@@ -188,7 +188,7 @@ func (s *session) close() {
 	}
 }
 
-func (s *session) closedNotify() <-chan struct{} { return s.closeCh }
+func (s *session) ClosedNotify() <-chan struct{} { return s.closeCh }
 
 // Conn interface implementation
 func (s *session) Close(status uint32, reason string) error {

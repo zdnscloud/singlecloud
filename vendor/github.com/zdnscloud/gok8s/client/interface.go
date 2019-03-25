@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
@@ -56,5 +57,5 @@ type Client interface {
 	StatusClient
 	Metrics
 
-	RestClientForObject(obj runtime.Object) (rest.Interface, error)
+	RestClientForObject(obj runtime.Object, timeout time.Duration) (rest.Interface, error)
 }

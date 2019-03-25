@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/zdnscloud/gok8s/exec"
+	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
-	"gopkg.in/igm/sockjs-go.v2/sockjs"
 	"k8s.io/client-go/tools/remotecommand"
 )
 

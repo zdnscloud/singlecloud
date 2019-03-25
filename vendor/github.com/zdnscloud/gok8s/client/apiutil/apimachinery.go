@@ -48,7 +48,6 @@ func RESTClientForGVK(gvk schema.GroupVersionKind, baseConfig *rest.Config, code
 
 func createRestConfig(gvk schema.GroupVersionKind, baseConfig *rest.Config) *rest.Config {
 	gv := gvk.GroupVersion()
-
 	cfg := rest.CopyConfig(baseConfig)
 	cfg.GroupVersion = &gv
 	if gvk.Group == "" {
