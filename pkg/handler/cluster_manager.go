@@ -17,9 +17,9 @@ const (
 	ZCloudNamespace = "zcloud"
 	ZCloudAdmin     = "zcloud-cluster-admin"
 	ZCloudReadonly  = "zcloud-cluster-readonly"
-)
 
-const defaultEventMaxSize = 10000
+	MaxEventCount = 4096
+)
 
 type ClusterManager struct {
 	DefaultHandler
@@ -73,11 +73,11 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	cluster.KubeClient = cli
 	cluster.Executor = executor
 
-	if eventWatcher, err := event.New(k8sconf, defaultEventMaxSize); err != nil {
+	eventWatcher, err := event.New(k8sconf, MaxEventCount)
+	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
-	} else {
-		cluster.EventWatcher = eventWatcher
 	}
+	cluster.EventWatcher = eventWatcher
 
 	if err := initCluster(cluster); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))

@@ -57,6 +57,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 const (
 	WSPrefix         = "/apis/ws.zcloud.cn/v1"
 	WSShellPathTemp  = WSPrefix + "/clusters/%s/shell"
+	WSEventPathTemp  = WSPrefix + "/clusters/%s/event"
 	WSPodLogPathTemp = WSPrefix + "/clusters/%s/namespaces/%s/pods/%s/containers/%s/log"
 )
 
@@ -64,6 +65,11 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 	shellPath := fmt.Sprintf(WSShellPathTemp, ":cluster") + "/*actions"
 	router.GET(shellPath, func(c *gin.Context) {
 		a.clusterManager.OpenConsole(c.Param("cluster"), c.Request, c.Writer)
+	})
+
+	eventPath := fmt.Sprintf(WSEventPathTemp, ":cluster") + "/*actions"
+	router.GET(eventPath, func(c *gin.Context) {
+		a.clusterManager.OpenEvent(c.Param("cluster"), c.Request, c.Writer)
 	})
 
 	podLogPath := fmt.Sprintf(WSPodLogPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
