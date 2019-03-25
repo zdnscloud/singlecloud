@@ -1,0 +1,64 @@
+{
+    "resourceType": "cronjob",
+    "collectionName": "cronjobs",
+    "parentResource": "namespace",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "schedule": {"type": "string"},
+        "suspend": {"type": "bool"},
+        "containers": {"type": "array", "elemType": "container"},
+        "status": {"type": "cronJobStatus"}
+    },
+
+    "subResources": {
+        "container": {
+            "name": {"type": "string"},
+            "image": {"type": "string"},
+            "command": {"type": "array", "elemType": "string"},
+            "args": {"type": "array", "elemType": "string"},
+            "configName": {"type": "string"},
+            "mountPath":{"type": "string"},
+            "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+        },
+
+        "cronJobStatus": {
+            "lastScheduleTime": {"type": "date"},
+            "active": {"type": "array", "elemType": "objectReference"}
+        },
+
+        "objectReference": {
+            "kind": {"type":"string"},
+            "namespace": {"type": "string"},
+            "name": {"type": "string"},
+            "uid": {"type": "string"},
+            "apiVersion": {"type": "string"},
+            "resourceVersion": {"type": "string"},
+            "fieldPath": {"type": "string"}
+        }
+    },
+
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "GET", "POST"],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "schedule": {"type": "string", "required": true},
+            "containers": {"type": "array", "elemType": "container", "required": true}
+        },
+
+        "subResources": {
+            "container": {
+                "name": {"type": "string", "required": true},
+                "image": {"type": "string", "required": true},
+                "command": {"type": "array", "elemType": "string"},
+                "args": {"type": "array", "elemType": "string"},
+                "configName": {"type": "string"},
+                "mountPath":{"type": "string"},
+                "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+            }
+        }
+    }
+}
+

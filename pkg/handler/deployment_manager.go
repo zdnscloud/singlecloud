@@ -198,51 +198,9 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
 	replica := int32(deploy.Replicas)
-	var containers []corev1.Container
-	usedConfigMap := make(map[string]struct{})
-	for _, c := range deploy.Containers {
-		var mounts []corev1.VolumeMount
-		var ports []corev1.ContainerPort
-		if c.ConfigName != "" {
-			mounts = append(mounts, corev1.VolumeMount{
-				Name:      c.ConfigName,
-				MountPath: c.MountPath,
-			})
-			usedConfigMap[c.ConfigName] = struct{}{}
-		}
-
-		for _, spec := range c.ExposedPorts {
-			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
-			if err != nil {
-				return err
-			}
-			ports = append(ports, corev1.ContainerPort{
-				ContainerPort: int32(spec.Port),
-				Protocol:      protocol,
-			})
-		}
-
-		containers = append(containers, corev1.Container{
-			Name:         c.Name,
-			Image:        c.Image,
-			Command:      c.Command,
-			Args:         c.Args,
-			VolumeMounts: mounts,
-			Ports:        ports,
-		})
-	}
-
-	var podVolumes []corev1.Volume
-	for n, _ := range usedConfigMap {
-		configMapSource := &corev1.ConfigMapVolumeSource{}
-		configMapSource.Name = n
-		source := corev1.VolumeSource{
-			ConfigMap: configMapSource,
-		}
-		podVolumes = append(podVolumes, corev1.Volume{
-			Name:         n,
-			VolumeSource: source,
-		})
+	k8sPodSpec, err := scContainersToK8sPodSpec(deploy.Containers)
+	if err != nil {
+		return err
 	}
 
 	advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
@@ -261,10 +219,7 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": deploy.Name}},
-				Spec: corev1.PodSpec{
-					Containers: containers,
-					Volumes:    podVolumes,
-				},
+				Spec:       k8sPodSpec,
 			},
 		},
 	}
@@ -279,7 +234,7 @@ func deleteDeployment(cli client.Client, namespace, name string) error {
 }
 
 func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
-	containers := K8sContainersToScContainers(k8sDeploy.Spec.Template.Spec.Containers, k8sDeploy.Spec.Template.Spec.Volumes)
+	containers := k8sContainersToScContainers(k8sDeploy.Spec.Template.Spec.Containers, k8sDeploy.Spec.Template.Spec.Volumes)
 
 	var advancedOpts types.DeploymentAdvancedOptions
 	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
@@ -299,7 +254,7 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 	return deploy
 }
 
-func K8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
+func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
 	var containers []types.Container
 	for _, c := range k8sContainers {
 		var configName, mountPath string
@@ -334,4 +289,58 @@ func K8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 	}
 
 	return containers
+}
+
+func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, error) {
+	var k8sContainers []corev1.Container
+	usedConfigMap := make(map[string]struct{})
+	for _, c := range containers {
+		var mounts []corev1.VolumeMount
+		var ports []corev1.ContainerPort
+		if c.ConfigName != "" {
+			mounts = append(mounts, corev1.VolumeMount{
+				Name:      c.ConfigName,
+				MountPath: c.MountPath,
+			})
+			usedConfigMap[c.ConfigName] = struct{}{}
+		}
+
+		for _, spec := range c.ExposedPorts {
+			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
+			if err != nil {
+				return corev1.PodSpec{}, err
+			}
+			ports = append(ports, corev1.ContainerPort{
+				ContainerPort: int32(spec.Port),
+				Protocol:      protocol,
+			})
+		}
+
+		k8sContainers = append(k8sContainers, corev1.Container{
+			Name:         c.Name,
+			Image:        c.Image,
+			Command:      c.Command,
+			Args:         c.Args,
+			VolumeMounts: mounts,
+			Ports:        ports,
+		})
+	}
+
+	var k8sVolumes []corev1.Volume
+	for n, _ := range usedConfigMap {
+		configMapSource := &corev1.ConfigMapVolumeSource{}
+		configMapSource.Name = n
+		source := corev1.VolumeSource{
+			ConfigMap: configMapSource,
+		}
+		k8sVolumes = append(k8sVolumes, corev1.Volume{
+			Name:         n,
+			VolumeSource: source,
+		})
+	}
+
+	return corev1.PodSpec{
+		Containers: k8sContainers,
+		Volumes:    k8sVolumes,
+	}, nil
 }

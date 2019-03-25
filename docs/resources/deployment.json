@@ -49,7 +49,7 @@
     "postParameters": {
         "fields": {
             "name": {"type": "string", "required": true},
-            "replicas": {"type": "uint32", "required": true},
+            "replicas": {"type": "int", "required": true},
             "containers":  {"type": "array", "elemType": "container", "required": true},
             "advancedOptions": {"type": "advancedOptions"}
         },

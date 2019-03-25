@@ -98,7 +98,7 @@ func getPods(cli client.Client, namespace string, selector *metav1.LabelSelector
 }
 
 func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
-	containers := K8sContainersToScContainers(k8sPod.Spec.Containers, k8sPod.Spec.Volumes)
+	containers := k8sContainersToScContainers(k8sPod.Spec.Containers, k8sPod.Spec.Volumes)
 
 	var conditions []types.PodCondition
 	for _, condition := range k8sPod.Status.Conditions {
