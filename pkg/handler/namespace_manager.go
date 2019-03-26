@@ -84,7 +84,7 @@ func (m *NamespaceManager) Get(obj resttypes.Object) interface{} {
 func (m *NamespaceManager) Delete(obj resttypes.Object) *resttypes.APIError {
 	cluster := m.clusters.GetClusterForSubResource(obj)
 	if cluster == nil {
-		return nil
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := obj.(*types.Namespace)

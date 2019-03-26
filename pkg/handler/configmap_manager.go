@@ -89,7 +89,7 @@ func (m ConfigMapManager) Get(obj resttypes.Object) interface{} {
 func (m ConfigMapManager) Delete(obj resttypes.Object) *resttypes.APIError {
 	cluster := m.clusters.GetClusterForSubResource(obj)
 	if cluster == nil {
-		return nil
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := obj.GetParent().GetID()
