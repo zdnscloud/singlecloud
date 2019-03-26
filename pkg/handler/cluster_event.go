@@ -37,11 +37,11 @@ func (m *ClusterManager) OpenEvent(clusterID string, r *http.Request, w http.Res
 				"time":      e.FirstTimestamp.Format("3:04PM"),
 				"namespace": e.Namespace,
 				"type":      e.Type,
-				"action":    e.Action,
 				"kind":      e.InvolvedObject.Kind,
 				"name":      e.InvolvedObject.Name,
 				"reason":    e.Reason,
 				"message":   e.Message,
+				"source":    e.Source.Component + "," + e.Source.Host,
 			}
 			d, _ := json.Marshal(event)
 			err := session.Send(string(d))
