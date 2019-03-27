@@ -15,7 +15,7 @@ type DaemonSet struct {
 	resttypes.Resource `json:",inline"`
 	Name               string          `json:"name,omitempty"`
 	Containers         []Container     `json:"containers,omitempty"`
-	AdvancedOptions    AdvancedOptions `json:"advancedOptions"`
+	AdvancedOptions    AdvancedOptions `json:"advancedOptions,omitempty"`
 	Status             DaemonSetStatus `json:"status,omitempty"`
 }
 

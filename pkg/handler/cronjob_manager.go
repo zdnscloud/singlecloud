@@ -156,7 +156,7 @@ func deleteCronJob(cli client.Client, namespace, name string) error {
 	cronJob := &batchv1beta1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}
-	return cli.Delete(context.TODO(), cronJob)
+	return cli.Delete(context.TODO(), cronJob, client.PropagationPolicy(metav1.DeletePropagationForeground))
 }
 
 func k8sCronJobToScCronJob(k8sCronJob *batchv1beta1.CronJob) *types.CronJob {
