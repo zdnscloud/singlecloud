@@ -49,56 +49,9 @@ func (m *DeploymentManager) Create(obj resttypes.Object, yamlConf []byte) (inter
 	}
 
 	deploy.SetID(deploy.Name)
-	advancedOpts := deploy.AdvancedOptions
-	var servicePorts []types.ServicePort
-	var rules []types.IngressRule
-	for _, s := range advancedOpts.ExposedServices {
-		servicePorts = append(servicePorts, types.ServicePort{
-			Name:       s.Name,
-			Port:       s.ServicePort,
-			TargetPort: s.Port,
-			Protocol:   s.Protocol,
-		})
-
-		if s.AutoCreateIngress {
-			rules = append(rules, types.IngressRule{
-				Host: s.IngressDomainName,
-				Paths: []types.IngressPath{
-					types.IngressPath{
-						Path:        s.IngressPath,
-						ServiceName: deploy.Name,
-						ServicePort: s.ServicePort,
-					},
-				},
-			})
-		}
-	}
-
-	if len(servicePorts) > 0 {
-		service := &types.Service{
-			Name:         deploy.Name,
-			ServiceType:  deploy.AdvancedOptions.ExposedServiceType,
-			ExposedPorts: servicePorts,
-		}
-		err = createService(cluster.KubeClient, namespace, service)
-		if err != nil {
-			deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
-		}
-
-		if len(rules) > 0 {
-			ingress := &types.Ingress{
-				Name:  deploy.Name,
-				Rules: rules,
-			}
-
-			err = createIngress(cluster.KubeClient, namespace, ingress)
-			if err != nil {
-				deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
-				deleteService(cluster.KubeClient, namespace, deploy.Name)
-				return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
-			}
-		}
+	if err := createServiceAndIngress(deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name); err != nil {
+		deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
+		return nil, err
 	}
 
 	return deploy, nil
@@ -167,19 +120,9 @@ func (m *DeploymentManager) Delete(obj resttypes.Object) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
 	}
 
-	var advancedOpts types.DeploymentAdvancedOptions
 	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
 	if ok {
-		json.Unmarshal([]byte(opts), &advancedOpts)
-		if len(advancedOpts.ExposedServices) > 0 {
-			deleteService(cluster.KubeClient, namespace, deploy.GetID())
-			for _, s := range advancedOpts.ExposedServices {
-				if s.AutoCreateIngress {
-					deleteIngress(cluster.KubeClient, namespace, deploy.GetID())
-					break
-				}
-			}
-		}
+		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
 	}
 	return nil
 }
@@ -236,7 +179,7 @@ func deleteDeployment(cli client.Client, namespace, name string) error {
 func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 	containers := k8sContainersToScContainers(k8sDeploy.Spec.Template.Spec.Containers, k8sDeploy.Spec.Template.Spec.Volumes)
 
-	var advancedOpts types.DeploymentAdvancedOptions
+	var advancedOpts types.AdvancedOptions
 	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
@@ -343,4 +286,70 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 		Containers: k8sContainers,
 		Volumes:    k8sVolumes,
 	}, nil
+}
+
+func createServiceAndIngress(advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string) *resttypes.APIError {
+	var servicePorts []types.ServicePort
+	var rules []types.IngressRule
+	for _, s := range advancedOpts.ExposedServices {
+		servicePorts = append(servicePorts, types.ServicePort{
+			Name:       s.Name,
+			Port:       s.ServicePort,
+			TargetPort: s.Port,
+			Protocol:   s.Protocol,
+		})
+
+		if s.AutoCreateIngress {
+			rules = append(rules, types.IngressRule{
+				Host: s.IngressDomainName,
+				Paths: []types.IngressPath{
+					types.IngressPath{
+						Path:        s.IngressPath,
+						ServiceName: serviceName,
+						ServicePort: s.ServicePort,
+					},
+				},
+			})
+		}
+	}
+
+	if len(servicePorts) > 0 {
+		service := &types.Service{
+			Name:         serviceName,
+			ServiceType:  advancedOpts.ExposedServiceType,
+			ExposedPorts: servicePorts,
+		}
+
+		if err := createService(cli, namespace, service); err != nil {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
+		}
+
+		if len(rules) > 0 {
+			ingress := &types.Ingress{
+				Name:  serviceName,
+				Rules: rules,
+			}
+
+			if err := createIngress(cli, namespace, ingress); err != nil {
+				deleteService(cli, namespace, serviceName)
+				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
+			}
+		}
+	}
+
+	return nil
+}
+
+func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts string) {
+	var advancedOpts types.AdvancedOptions
+	json.Unmarshal([]byte(opts), &advancedOpts)
+	if len(advancedOpts.ExposedServices) > 0 {
+		deleteService(cli, namespace, serviceName)
+		for _, s := range advancedOpts.ExposedServices {
+			if s.AutoCreateIngress {
+				deleteIngress(cli, namespace, serviceName)
+				break
+			}
+		}
+	}
 }

@@ -181,7 +181,6 @@ func k8sCronJobToScCronJob(k8sCronJob *batchv1beta1.CronJob) *types.CronJob {
 	cronJob := &types.CronJob{
 		Name:       k8sCronJob.Name,
 		Schedule:   k8sCronJob.Spec.Schedule,
-		Suspend:    *k8sCronJob.Spec.Suspend,
 		Containers: containers,
 		Status:     cronJobStatus,
 	}

@@ -6,7 +6,6 @@
     "resourceFields": {
         "name": {"type": "string"},
         "schedule": {"type": "string"},
-        "suspend": {"type": "bool"},
         "containers": {"type": "array", "elemType": "container"},
         "status": {"type": "cronJobStatus"}
     },
@@ -20,6 +19,12 @@
             "configName": {"type": "string"},
             "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+        },
+
+        "deploymentPort": {
+            "name" : {"type": "string"},
+            "port" : {"type": "int"},
+            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
         },
 
         "cronJobStatus": {
@@ -57,6 +62,12 @@
                 "configName": {"type": "string"},
                 "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+            },
+
+            "deploymentPort": {
+                "name" : {"type": "string"},
+                "port" : {"type": "int"},
+                "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
             }
         }
     }

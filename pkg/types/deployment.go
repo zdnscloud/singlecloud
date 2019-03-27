@@ -37,17 +37,17 @@ type ExposedService struct {
 	IngressPath       string `json:"ingressPath"`
 }
 
-type DeploymentAdvancedOptions struct {
+type AdvancedOptions struct {
 	ExposedServiceType string           `json:"exposedServiceType"`
 	ExposedServices    []ExposedService `json:"exposedServices"`
 }
 
 type Deployment struct {
 	resttypes.Resource `json:",inline"`
-	Name               string                    `json:"name,omitempty"`
-	Replicas           int                       `json:"replicas"`
-	Containers         []Container               `json:"containers"`
-	AdvancedOptions    DeploymentAdvancedOptions `json:"advancedOptions"`
+	Name               string          `json:"name,omitempty"`
+	Replicas           int             `json:"replicas"`
+	Containers         []Container     `json:"containers"`
+	AdvancedOptions    AdvancedOptions `json:"advancedOptions"`
 }
 
 var DeploymentType = resttypes.GetResourceType(Deployment{})
