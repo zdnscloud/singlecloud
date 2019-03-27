@@ -125,6 +125,12 @@ func createJob(cli client.Client, namespace string, job *types.Job) error {
 		return err
 	}
 
+	policy, err := scRestartPolicyToK8sRestartPolicy(job.RestartPolicy)
+	if err != nil {
+		return err
+	}
+
+	k8sPodSpec.RestartPolicy = policy
 	k8sJob := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      job.Name,
@@ -166,8 +172,8 @@ func k8sJobToSCJob(k8sJob *batchv1.Job) *types.Job {
 	}
 
 	jobStatus := types.JobStatus{
-		StartTime:      resttypes.ISOTime(k8sJob.Status.StartTime.Time),
-		CompletionTime: resttypes.ISOTime(k8sJob.Status.CompletionTime.Time),
+		StartTime:      k8sMetaV1TimePtrToISOTime(k8sJob.Status.StartTime),
+		CompletionTime: k8sMetaV1TimePtrToISOTime(k8sJob.Status.CompletionTime),
 		Active:         k8sJob.Status.Active,
 		Succeeded:      k8sJob.Status.Succeeded,
 		Failed:         k8sJob.Status.Failed,
@@ -175,12 +181,21 @@ func k8sJobToSCJob(k8sJob *batchv1.Job) *types.Job {
 	}
 
 	job := &types.Job{
-		Name:       k8sJob.Name,
-		Containers: containers,
-		Status:     jobStatus,
+		Name:          k8sJob.Name,
+		RestartPolicy: string(k8sJob.Spec.Template.Spec.RestartPolicy),
+		Containers:    containers,
+		Status:        jobStatus,
 	}
 	job.SetID(k8sJob.Name)
 	job.SetType(types.JobType)
 	job.SetCreationTimestamp(k8sJob.CreationTimestamp.Time)
 	return job
+}
+
+func k8sMetaV1TimePtrToISOTime(metav1Time *metav1.Time) (isoTime resttypes.ISOTime) {
+	if metav1Time != nil {
+		isoTime = resttypes.ISOTime(metav1Time.Time)
+	}
+
+	return isoTime
 }

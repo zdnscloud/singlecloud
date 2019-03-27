@@ -126,6 +126,12 @@ func createCronJob(cli client.Client, namespace string, cronJob *types.CronJob) 
 		return err
 	}
 
+	policy, err := scRestartPolicyToK8sRestartPolicy(cronJob.RestartPolicy)
+	if err != nil {
+		return err
+	}
+
+	k8sPodSpec.RestartPolicy = policy
 	k8sCronJob := &batchv1beta1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cronJob.Name,
@@ -135,9 +141,6 @@ func createCronJob(cli client.Client, namespace string, cronJob *types.CronJob) 
 			Schedule: cronJob.Schedule,
 			JobTemplate: batchv1beta1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{"cronjob-name": cronJob.Name},
-					},
 					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"cronjob-name": cronJob.Name}},
 						Spec:       k8sPodSpec,
@@ -174,15 +177,16 @@ func k8sCronJobToScCronJob(k8sCronJob *batchv1beta1.CronJob) *types.CronJob {
 	}
 
 	cronJobStatus := types.CronJobStatus{
-		LastScheduleTime: resttypes.ISOTime(k8sCronJob.Status.LastScheduleTime.Time),
+		LastScheduleTime: k8sMetaV1TimePtrToISOTime(k8sCronJob.Status.LastScheduleTime),
 		Active:           objectReferences,
 	}
 
 	cronJob := &types.CronJob{
-		Name:       k8sCronJob.Name,
-		Schedule:   k8sCronJob.Spec.Schedule,
-		Containers: containers,
-		Status:     cronJobStatus,
+		Name:          k8sCronJob.Name,
+		Schedule:      k8sCronJob.Spec.Schedule,
+		RestartPolicy: string(k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.RestartPolicy),
+		Containers:    containers,
+		Status:        cronJobStatus,
 	}
 	cronJob.SetID(k8sCronJob.Name)
 	cronJob.SetType(types.CronJobType)
