@@ -6,7 +6,7 @@
     "resourceFields": {
         "name": {"type": "string"},
         "schedule": {"type": "string"},
-        "suspend": {"type": "bool"},
+        "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"]},
         "containers": {"type": "array", "elemType": "container"},
         "status": {"type": "cronJobStatus"}
     },
@@ -45,6 +45,7 @@
         "fields": {
             "name": {"type": "string", "required": true},
             "schedule": {"type": "string", "required": true},
+            "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"], "required": true},
             "containers": {"type": "array", "elemType": "container", "required": true}
         },
 

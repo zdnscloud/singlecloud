@@ -15,7 +15,7 @@ type CronJob struct {
 	resttypes.Resource `json:",inline"`
 	Name               string        `json:"name,omitempty"`
 	Schedule           string        `json:"schedule,omitempty"`
-	Suspend            bool          `json:"suspend,omitempty"`
+	RestartPolicy      string        `json:"restartPolicy,omitempty"`
 	Containers         []Container   `json:"containers"`
 	Status             CronJobStatus `json:"status"`
 }

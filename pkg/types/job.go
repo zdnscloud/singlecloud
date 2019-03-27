@@ -18,6 +18,7 @@ type Job struct {
 	Completions        int32       `json:"completions,omitempty"`
 	BackoffLimit       int32       `json:"backoffLimit,omitempty"`
 	NodeName           string      `json:"nodeName,omitempty"`
+	RestartPolicy      string      `json:"restartPolicy,omitempty"`
 	Containers         []Container `json:"containers"`
 	Status             JobStatus   `json:"status"`
 }

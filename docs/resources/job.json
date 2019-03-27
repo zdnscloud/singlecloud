@@ -9,6 +9,7 @@
         "completions": {"type": "int32"},
         "backoffLimit": {"type": "int32"},
         "nodeName": {"type": "string"},
+        "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"]},
         "containers": {"type": "array", "elemType": "container"},
         "status": {"type": "jobStatus"}
     },
@@ -52,6 +53,7 @@
             "parallelism": {"type": "int32"},
             "completions": {"type": "int32"},
             "backoffLimit": {"type": "int32"},
+            "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"], "required": true},
             "containers": {"type": "array", "elemType": "container", "required": true}
         },
 
