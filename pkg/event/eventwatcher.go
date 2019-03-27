@@ -104,9 +104,7 @@ func (ew *EventWatcher) add(event *corev1.Event) {
 	ew.eventList.PushBack(e)
 	if uint(ew.eventList.Len()) > ew.maxSize {
 		elem := ew.eventList.Front()
-		if elem != nil {
-			ew.eventList.Remove(elem)
-		}
+		ew.eventList.Remove(elem)
 	}
 	ew.lock.Unlock()
 	ew.cond.Broadcast()
@@ -123,9 +121,8 @@ func (ew *EventWatcher) AddListener() *EventListener {
 	return l
 }
 
-const batchSize = 32
-
 func (ew *EventWatcher) publishEvent(l *EventListener) {
+	batchSize := ew.maxSize / 4
 	events := make([]*corev1.Event, batchSize)
 	for {
 		lastID, c := ew.getEventsAfterID(l.lastID, events)
@@ -157,19 +154,61 @@ func (ew *EventWatcher) publishEvent(l *EventListener) {
 
 func (ew *EventWatcher) getEventsAfterID(id uint64, events []*corev1.Event) (uint64, int) {
 	ew.lock.RLock()
+	defer ew.lock.RUnlock()
+
 	elem := ew.eventList.Front()
+	if elem == nil {
+		return 0, 0
+	}
+
+	begID := elem.Value.(Event).id
+	if id < begID {
+		return ew.getEventsFromOutdated(id, events)
+	}
+
+	elem = ew.eventList.Back()
+	if elem == nil {
+		return 0, 0
+	}
+
+	endID := elem.Value.(Event).id
+	if id == endID {
+		return 0, 0
+	}
+
+	if id-begID < endID-id {
+		return ew.getEventsFromOutdated(id, events)
+	} else {
+		return ew.getEventsFromLatest(id, events)
+	}
+}
+
+func (ew *EventWatcher) getEventsFromOutdated(id uint64, events []*corev1.Event) (uint64, int) {
+	elem := ew.eventList.Front()
+	for elem.Value.(Event).id <= id {
+		elem = elem.Next()
+	}
+	return ew.getEventsFromElem(elem, events)
+}
+
+func (ew *EventWatcher) getEventsFromLatest(id uint64, events []*corev1.Event) (uint64, int) {
+	elem := ew.eventList.Back()
+	for elem.Value.(Event).id > id {
+		elem = elem.Prev()
+	}
+	elem = elem.Next()
+	return ew.getEventsFromElem(elem, events)
+}
+
+func (ew *EventWatcher) getEventsFromElem(elem *list.Element, events []*corev1.Event) (uint64, int) {
 	ec := 0
 	batch := len(events)
-	lastID := id
+	startID := elem.Value.(Event).id
 	for elem != nil && ec < batch {
 		e := elem.Value.(Event)
+		events[ec] = e.k8sEvent
+		ec += 1
 		elem = elem.Next()
-		if e.id > id {
-			events[ec] = e.k8sEvent
-			ec += 1
-			lastID = e.id
-		}
 	}
-	ew.lock.RUnlock()
-	return lastID, ec
+	return startID + uint64(ec-1), ec
 }
