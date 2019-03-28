@@ -70,6 +70,7 @@
     "postParameters": {
         "fields": {
             "name": {"type": "string", "required": true},
+            "advancedOptions": {"type": "advancedOptions"},
             "containers": {"type": "array", "elemType": "container", "required": true}
         },
 
