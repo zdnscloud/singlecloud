@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/exec"
@@ -57,12 +58,12 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	defer close(stop)
 	cache, err := cache.New(k8sconf, cache.Options{})
 	if err != nil {
-		log.Panic(fmt.Sprintf("create cache failed %v\n", err))
+		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create cache failed:%s", err.Error()))
 	}
 	go cache.Start(stop)
 	cache.WaitForCacheSync(stop)
 
-	executor, err := exec.New(k8sconf, cache)
+	executor, err := exec.New(k8sconf, cli, cache)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
