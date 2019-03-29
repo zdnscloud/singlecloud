@@ -153,7 +153,7 @@ func deleteJob(cli client.Client, namespace, name string) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}
-	return cli.Delete(context.TODO(), job)
+	return cli.Delete(context.TODO(), job, client.PropagationPolicy(metav1.DeletePropagationForeground))
 }
 
 func k8sJobToSCJob(k8sJob *batchv1.Job) *types.Job {

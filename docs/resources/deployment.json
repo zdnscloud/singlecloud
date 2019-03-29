@@ -18,7 +18,8 @@
             "args": {"type": "array", "elemType": "string"},
             "configName": {"type": "string"},
             "mountPath":{"type": "string"},
-            "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+            "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
+            "env": {"type": "map", "keyType": "string", "valueType": "string"}
         },
 
         "deploymentPort": {
@@ -62,7 +63,8 @@
                 "args": {"type": "array", "elemType": "string"},
                 "configName": {"type": "string"},
                 "mountPath":{"type": "string"},
-                "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+                "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
+                "env": {"type": "map", "keyType": "string", "valueType": "string"}
             },
 
             "deploymentPort": {

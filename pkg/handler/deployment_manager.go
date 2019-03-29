@@ -220,6 +220,11 @@ func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 			})
 		}
 
+		env := make(map[string]string)
+		for _, e := range c.Env {
+			env[e.Name] = e.Value
+		}
+
 		containers = append(containers, types.Container{
 			Name:         c.Name,
 			Image:        c.Image,
@@ -228,6 +233,7 @@ func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 			ConfigName:   configName,
 			MountPath:    mountPath,
 			ExposedPorts: exposedPorts,
+			Env:          env,
 		})
 	}
 
@@ -240,6 +246,7 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 	for _, c := range containers {
 		var mounts []corev1.VolumeMount
 		var ports []corev1.ContainerPort
+		var env []corev1.EnvVar
 		if c.ConfigName != "" {
 			mounts = append(mounts, corev1.VolumeMount{
 				Name:      c.ConfigName,
@@ -259,6 +266,13 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			})
 		}
 
+		for k, v := range c.Env {
+			env = append(env, corev1.EnvVar{
+				Name:  k,
+				Value: v,
+			})
+		}
+
 		k8sContainers = append(k8sContainers, corev1.Container{
 			Name:         c.Name,
 			Image:        c.Image,
@@ -266,6 +280,7 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			Args:         c.Args,
 			VolumeMounts: mounts,
 			Ports:        ports,
+			Env:          env,
 		})
 	}
 
