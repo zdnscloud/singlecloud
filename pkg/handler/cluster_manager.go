@@ -55,7 +55,6 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	}
 
 	stop := make(chan struct{})
-	defer close(stop)
 	cache, err := cache.New(k8sconf, cache.Options{})
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create cache failed:%s", err.Error()))
