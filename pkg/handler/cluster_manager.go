@@ -53,7 +53,16 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
 
-	executor, err := exec.New(k8sconf)
+	stop := make(chan struct{})
+	defer close(stop)
+	cache, err := cache.New(k8sconf, cache.Options{})
+	if err != nil {
+		log.Panic(fmt.Sprintf("create cache failed %v\n", err))
+	}
+	go cache.Start(stop)
+	cache.WaitForCacheSync(stop)
+
+	executor, err := exec.New(k8sconf, cache)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
@@ -73,7 +82,7 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	cluster.KubeClient = cli
 	cluster.Executor = executor
 
-	eventWatcher, err := event.New(k8sconf, MaxEventCount)
+	eventWatcher, err := event.New(cache, MaxEventCount)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
 	}

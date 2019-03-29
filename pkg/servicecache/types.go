@@ -15,8 +15,19 @@ type Pod struct {
 }
 
 type Ingress struct {
-	Name string `json:"name"`
-	Self string `json:"self"`
+	Name  string        `json:"name"`
+	Self  string        `json:"self"`
+	Rules []IngressRule `json:"rules"`
+}
+
+type IngressRule struct {
+	Domain string        `json:"domain"`
+	Paths  []IngressPath `json:"path"`
+}
+
+type IngressPath struct {
+	Service string `json:"service"`
+	Path    string `json:"path"`
 }
 
 type Workload struct {

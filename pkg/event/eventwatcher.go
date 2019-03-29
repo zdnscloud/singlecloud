@@ -2,13 +2,11 @@ package event
 
 import (
 	"container/list"
-	"fmt"
 	"sync"
 	"sync/atomic"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/controller"
@@ -47,16 +45,9 @@ type EventWatcher struct {
 	stopCh    chan struct{}
 }
 
-func New(k8sCfg *rest.Config, size uint) (*EventWatcher, error) {
-	c, err := cache.New(k8sCfg, cache.Options{})
-	if err != nil {
-		return nil, fmt.Errorf("create cache failed %v\n", err.Error())
-	}
-
+func New(cache cache.Cache, size uint) (*EventWatcher, error) {
 	stop := make(chan struct{})
-	go c.Start(stop)
-	c.WaitForCacheSync(stop)
-	ctrl := controller.New("eventWatcher", c, scheme.Scheme)
+	ctrl := controller.New("eventWatcher", cache, scheme.Scheme)
 	ctrl.Watch(&corev1.Event{})
 	ew := &EventWatcher{
 		eventID:   1,

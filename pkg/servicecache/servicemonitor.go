@@ -16,16 +16,18 @@ import (
 )
 
 type ServiceMonitor struct {
-	services map[string]*Service
-	lock     sync.Mutex
+	services          map[string]*Service
+	ingWaitForService map[string]*Ingress
+	lock              sync.Mutex
 
 	cache cache.Cache
 }
 
 func newServiceMonitor(cache cache.Cache) *ServiceMonitor {
 	return &ServiceMonitor{
-		cache:    cache,
-		services: make(map[string]*Service),
+		cache:             cache,
+		services:          make(map[string]*Service),
+		ingWaitForService: make(map[string]*Ingress),
 	}
 }
 
@@ -40,9 +42,28 @@ func (s *ServiceMonitor) GetServices() []*Service {
 }
 
 func (s *ServiceMonitor) OnNewService(k8ssvc *corev1.Service) {
+	svc, err := s.k8ssvcToSCService(k8ssvc)
+	if err != nil {
+		return
+	}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	s.services[svc.Name] = svc
+	for _, ing := range s.ingWaitForService {
+		for _, rule := range ing.Rules {
+			for _, path := range rule.Paths {
+				if path.Service == svc.Name {
+					s.addIngressToService(ing, svc.Name)
+					break
+				}
+			}
+		}
+	}
+}
+
+func (s *ServiceMonitor) k8ssvcToSCService(k8ssvc *corev1.Service) (*Service, error) {
 	svc := &Service{
 		Name: k8ssvc.Name,
 	}
@@ -57,7 +78,7 @@ func (s *ServiceMonitor) OnNewService(k8ssvc *corev1.Service) {
 	err := s.cache.List(context.TODO(), opts, &k8spods)
 	if err != nil {
 		logger.Warn("get pod list failed:%s", err.Error())
-		return
+		return nil, err
 	}
 
 	workerLoads := make(map[string]*Workload)
@@ -85,7 +106,7 @@ func (s *ServiceMonitor) OnNewService(k8ssvc *corev1.Service) {
 			wl.Pods = append(wl.Pods, pod)
 		}
 	}
-	s.services[svc.Name] = svc
+	return svc, nil
 }
 
 func (s *ServiceMonitor) getPodOwner(namespace string, owner metav1.OwnerReference) (string, string, bool) {
@@ -187,11 +208,92 @@ func (s *ServiceMonitor) hasPodNameChange(eps *corev1.Endpoints) bool {
 	return false
 }
 
-func (s *ServiceMonitor) OnNewIngress(p *extv1beta1.Ingress) {
+func (s *ServiceMonitor) OnNewIngress(k8sing *extv1beta1.Ingress) {
+	ing, involvedServices := k8sIngressToSCIngress(k8sing)
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	for _, name := range involvedServices {
+		s.addIngressToService(ing, name)
+	}
 }
+
+func (s *ServiceMonitor) addIngressToService(ing *Ingress, name string) {
+	svc, ok := s.services[name]
+	if ok == false {
+		s.ingWaitForService[ing.Name] = ing
+		logger.Warn("unknown service %s specified in ingress %s", name, ing.Name)
+	} else {
+		svc.Ingress = ing
+	}
+}
+
+func (s *ServiceMonitor) removeIngressFromService(ing *Ingress, name string) {
+	svc, ok := s.services[name]
+	if ok == false {
+		logger.Warn("unknown service %s specified in ingress %s", name, ing.Name)
+	} else {
+		svc.Ingress = nil
+	}
+}
+
+func k8sIngressToSCIngress(k8sing *extv1beta1.Ingress) (*Ingress, []string) {
+	ing := &Ingress{
+		Name: k8sing.Name,
+	}
+	k8srules := k8sing.Spec.Rules
+	var rules []IngressRule
+	var involvedServices []string
+	for _, rule := range k8srules {
+		http := rule.HTTP
+		if http == nil {
+			continue
+		}
+
+		var paths []IngressPath
+		for _, p := range http.Paths {
+			involvedServices = append(involvedServices, p.Backend.ServiceName)
+			paths = append(paths, IngressPath{
+				Service: p.Backend.ServiceName,
+				Path:    p.Path,
+			})
+		}
+
+		rules = append(rules, IngressRule{
+			Domain: rule.Host,
+			Paths:  paths,
+		})
+	}
+	ing.Rules = rules
+	return ing, involvedServices
+}
+
 func (s *ServiceMonitor) OnUpdateIngress(old, new *extv1beta1.Ingress) {
+	olding, involvedServicesOld := k8sIngressToSCIngress(old)
+	newing, involvedServicesNew := k8sIngressToSCIngress(new)
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	delete(s.ingWaitForService, old.Name)
+
+	for _, name := range involvedServicesOld {
+		s.removeIngressFromService(olding, name)
+	}
+	for _, name := range involvedServicesNew {
+		s.addIngressToService(newing, name)
+	}
 }
-func (s *ServiceMonitor) OnDeleteIngress(p *extv1beta1.Ingress) {
+
+func (s *ServiceMonitor) OnDeleteIngress(k8sing *extv1beta1.Ingress) {
+	ing, involvedServices := k8sIngressToSCIngress(k8sing)
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	delete(s.ingWaitForService, k8sing.Name)
+	for _, name := range involvedServices {
+		s.removeIngressFromService(ing, name)
+	}
 }
 
 func isMapEqual(m1, m2 map[string]string) bool {
