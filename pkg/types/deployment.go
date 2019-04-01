@@ -26,6 +26,8 @@ type Container struct {
 	MountPath    string            `json:"mountPath,omitempty"`
 	ExposedPorts []DeploymentPort  `json:"exposedPorts,omitempty"`
 	Env          map[string]string `json:"env,omitempty"`
+	SecretName   string            `json:"secretName,omitempty"`
+	SecretPath   string            `json:"secretPath,omitempty"`
 }
 
 type ExposedService struct {

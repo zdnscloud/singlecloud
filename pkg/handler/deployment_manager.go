@@ -200,12 +200,20 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
 	var containers []types.Container
 	for _, c := range k8sContainers {
-		var configName, mountPath string
+		var configName, mountPath, secretName, secretPath string
 		for _, vm := range c.VolumeMounts {
 			for _, v := range volumes {
 				if v.Name == vm.Name && v.ConfigMap != nil {
 					configName = v.ConfigMap.Name
 					mountPath = vm.MountPath
+					break
+				}
+			}
+
+			for _, v := range volumes {
+				if v.Name == vm.Name && v.Secret != nil {
+					secretName = v.Secret.SecretName
+					secretPath = vm.MountPath
 					break
 				}
 			}
@@ -234,6 +242,8 @@ func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 			MountPath:    mountPath,
 			ExposedPorts: exposedPorts,
 			Env:          env,
+			SecretName:   secretName,
+			SecretPath:   secretPath,
 		})
 	}
 
@@ -243,6 +253,7 @@ func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, error) {
 	var k8sContainers []corev1.Container
 	usedConfigMap := make(map[string]struct{})
+	usedSecretMap := make(map[string]struct{})
 	for _, c := range containers {
 		var mounts []corev1.VolumeMount
 		var ports []corev1.ContainerPort
@@ -253,6 +264,14 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 				MountPath: c.MountPath,
 			})
 			usedConfigMap[c.ConfigName] = struct{}{}
+		}
+
+		if c.SecretName != "" {
+			mounts = append(mounts, corev1.VolumeMount{
+				Name:      c.SecretName,
+				MountPath: c.SecretPath,
+			})
+			usedSecretMap[c.SecretName] = struct{}{}
 		}
 
 		for _, spec := range c.ExposedPorts {
@@ -294,6 +313,18 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 		k8sVolumes = append(k8sVolumes, corev1.Volume{
 			Name:         n,
 			VolumeSource: source,
+		})
+	}
+
+	for n, _ := range usedSecretMap {
+		secretMapSource := &corev1.SecretVolumeSource{
+			SecretName: n,
+		}
+		k8sVolumes = append(k8sVolumes, corev1.Volume{
+			Name: n,
+			VolumeSource: corev1.VolumeSource{
+				Secret: secretMapSource,
+			},
 		})
 	}
 

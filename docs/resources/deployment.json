@@ -19,7 +19,9 @@
             "configName": {"type": "string"},
             "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-            "env": {"type": "map", "keyType": "string", "valueType": "string"}
+            "env": {"type": "map", "keyType": "string", "valueType": "string"},
+            "secretName": {"type": "string"},
+            "secretPath": {"type": "string"}
         },
 
         "deploymentPort": {
@@ -64,7 +66,9 @@
                 "configName": {"type": "string"},
                 "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-                "env": {"type": "map", "keyType": "string", "valueType": "string"}
+                "env": {"type": "map", "keyType": "string", "valueType": "string"},
+                "secretName": {"type": "string"},
+                "secretPath": {"type": "string"}
             },
 
             "deploymentPort": {
