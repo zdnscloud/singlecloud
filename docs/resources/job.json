@@ -61,8 +61,7 @@
             "completions": {"type": "int32"},
             "backoffLimit": {"type": "int32"},
             "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"], "required": true},
-            "containers": {"type": "array", "elemType": "container", "required": true},
-            "env": {"type": "map", "keyType": "string", "valueType": "string"}
+            "containers": {"type": "array", "elemType": "container", "required": true}
         },
 
         "subResources": {
@@ -73,7 +72,8 @@
                 "args": {"type": "array", "elemType": "string"},
                 "configName": {"type": "string"},
                 "mountPath":{"type": "string"},
-                "exposedPorts":{"type": "array", "elemType": "deploymentPort"}
+                "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
+                "env": {"type": "map", "keyType": "string", "valueType": "string"}
             },
 
             "deploymentPort": {
