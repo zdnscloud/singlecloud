@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/exec"
 	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/singlecloud/pkg/event"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -16,6 +18,8 @@ const (
 	ZCloudNamespace = "zcloud"
 	ZCloudAdmin     = "zcloud-cluster-admin"
 	ZCloudReadonly  = "zcloud-cluster-readonly"
+
+	MaxEventCount = 4096
 )
 
 type ClusterManager struct {
@@ -50,7 +54,15 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
 
-	executor, err := exec.New(k8sconf)
+	stop := make(chan struct{})
+	cache, err := cache.New(k8sconf, cache.Options{})
+	if err != nil {
+		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create cache failed:%s", err.Error()))
+	}
+	go cache.Start(stop)
+	cache.WaitForCacheSync(stop)
+
+	executor, err := exec.New(k8sconf, cli, cache)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
@@ -69,6 +81,12 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	}
 	cluster.KubeClient = cli
 	cluster.Executor = executor
+
+	eventWatcher, err := event.New(cache, MaxEventCount)
+	if err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
+	}
+	cluster.EventWatcher = eventWatcher
 
 	if err := initCluster(cluster); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))

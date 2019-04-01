@@ -41,21 +41,8 @@ type Executor struct {
 	stopCh     chan struct{}
 }
 
-func New(k8sCfg *rest.Config) (*Executor, error) {
-	cli, err := client.New(k8sCfg, client.Options{})
-	if err != nil {
-		return nil, err
-	}
-
-	cache, err := cache.New(k8sCfg, cache.Options{})
-	if err != nil {
-		return nil, err
-	}
-
+func New(k8sCfg *rest.Config, client client.Client, cache cache.Cache) (*Executor, error) {
 	stopCh := make(chan struct{})
-	go cache.Start(stopCh)
-	cache.WaitForCacheSync(stopCh)
-
 	ctrl := controller.New("podWatcher", cache, scheme.Scheme)
 	ctrl.Watch(&corev1.Pod{})
 	podWatcher := newPodWatcher()
@@ -63,7 +50,7 @@ func New(k8sCfg *rest.Config) (*Executor, error) {
 
 	return &Executor{
 		k8sCfg:     k8sCfg,
-		client:     cli,
+		client:     client,
 		podWatcher: podWatcher,
 		stopCh:     stopCh,
 	}, nil

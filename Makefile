@@ -11,13 +11,18 @@ singlecloud: $(GOSRC)
 
 docker: build-image
 	docker push zdnscloud/singlecloud:${VERSION}
+	docker tag zdnscloud/singlecloud:${VERSION} zdnscloud/singlecloud:latest
+	docker push zdnscloud/singlecloud:latest
 
 build-image:
-	docker pull zdnscloud/singlecloud-ui:dev
+	docker pull zdnscloud/singlecloud-ui:latest
 	docker build -t zdnscloud/singlecloud:${VERSION} .
 	docker image prune -f
 
 clean:
 	rm -rf singlecloud
+
+clean-image:
+	docker rmi zdnscloud/singlecloud:${VERSION}
 
 .PHONY: clean install

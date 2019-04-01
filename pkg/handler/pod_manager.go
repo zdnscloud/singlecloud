@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -78,6 +79,25 @@ func (m *PodManager) Get(obj resttypes.Object) interface{} {
 	return k8sPodToSCPod(k8sPod)
 }
 
+func (m *PodManager) Delete(obj resttypes.Object) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(obj)
+	if cluster == nil {
+		return nil
+	}
+
+	namespace := obj.GetParent().GetParent().GetID()
+	pod := obj.(*types.Pod)
+	err := deletePod(cluster.KubeClient, namespace, pod.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("pod %s desn't exist", pod.GetID()))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete pod failed %s", err.Error()))
+		}
+	}
+	return nil
+}
+
 func getPod(cli client.Client, namespace, name string) (*corev1.Pod, error) {
 	pod := corev1.Pod{}
 	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &pod)
@@ -95,6 +115,13 @@ func getPods(cli client.Client, namespace string, selector *metav1.LabelSelector
 	opts.LabelSelector = labels
 	err = cli.List(context.TODO(), opts, &pods)
 	return &pods, err
+}
+
+func deletePod(cli client.Client, namespace, name string) error {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+	}
+	return cli.Delete(context.TODO(), pod)
 }
 
 func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {

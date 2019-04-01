@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,6 +45,21 @@ func (c *clientCache) newResource(obj runtime.Object) (*resourceMeta, error) {
 		return nil, err
 	}
 	return &resourceMeta{Interface: client, mapping: mapping, gvk: gvk}, nil
+}
+
+func (c *clientCache) newRestClient(obj runtime.Object, timeout time.Duration) (rest.Interface, error) {
+	gvk, err := apiutil.GVKForObject(obj, c.scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.HasSuffix(gvk.Kind, "List") && meta.IsListType(obj) {
+		gvk.Kind = gvk.Kind[:len(gvk.Kind)-4]
+	}
+
+	config := rest.CopyConfig(c.config)
+	config.Timeout = timeout
+	return apiutil.RESTClientForGVK(gvk, config, c.codecs)
 }
 
 func (c *clientCache) getResource(obj runtime.Object) (*resourceMeta, error) {

@@ -132,21 +132,12 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 			return err
 		}
 
-		if typ == corev1.ServiceTypeClusterIP {
-			ports = append(ports, corev1.ServicePort{
-				Name:       p.Name,
-				Protocol:   protocol,
-				Port:       int32(p.Port),
-				TargetPort: intstr.FromInt(p.TargetPort),
-			})
-		} else if typ == corev1.ServiceTypeNodePort {
-			ports = append(ports, corev1.ServicePort{
-				Name:       p.Name,
-				Protocol:   protocol,
-				NodePort:   int32(p.Port),
-				TargetPort: intstr.FromInt(p.TargetPort),
-			})
-		}
+		ports = append(ports, corev1.ServicePort{
+			Name:       p.Name,
+			Protocol:   protocol,
+			Port:       int32(p.Port),
+			TargetPort: intstr.FromInt(p.TargetPort),
+		})
 	}
 
 	k8sService := &corev1.Service{
