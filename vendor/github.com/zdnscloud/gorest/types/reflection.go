@@ -345,9 +345,6 @@ func (s *Schemas) determineSchemaType(version *APIVersion, t reflect.Type) (stri
 	case reflect.String:
 		return "string", nil
 	case reflect.Struct:
-		if t.Name() == "ISOTime" {
-			return "date", nil
-		}
 		schema, err := s.importType(version, t)
 		if err != nil {
 			return "", err

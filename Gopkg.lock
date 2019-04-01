@@ -248,7 +248,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:992154384e5f51f82767226dc70605443af907bb291a0d43fe66755743227740"
+  digest = "1:ac1c393732eaf974e9c9dbdd6c50bbd2462e4a4d8fb8ec3d2da20646fb24592c"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -259,7 +259,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "da4ffbfef7040fc63499e7fb44afd6402c383e55"
+  revision = "e7dc35b05d7258934bb20691ff069b50e0a6c791"
 
 [[projects]]
   branch = "master"
@@ -598,6 +598,8 @@
     "github.com/zdnscloud/gorest/api",
     "github.com/zdnscloud/gorest/types",
     "k8s.io/api/apps/v1",
+    "k8s.io/api/batch/v1",
+    "k8s.io/api/batch/v1beta1",
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
