@@ -57,10 +57,10 @@ func (r *TokenRepo) ParseToken(tokenRaw string) (string, error) {
 
 	if expire_, ok := claims[ExpireKey]; ok == false {
 		return "", ErrInvalidToken
-	} else if expire, ok := expire_.(int64); ok == false {
+	} else if expire, ok := expire_.(float64); ok == false {
 		return "", ErrInvalidToken
 	} else {
-		expireTime := time.Unix(expire, 0)
+		expireTime := time.Unix(int64(expire), 0)
 		if time.Now().After(expireTime) {
 			return "", ErrExpiredToken
 		}
