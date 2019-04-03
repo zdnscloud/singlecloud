@@ -24,13 +24,13 @@ func newNamespaceManager(clusters *ClusterManager) *NamespaceManager {
 	return &NamespaceManager{clusters: clusters}
 }
 
-func (m *NamespaceManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *NamespaceManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := obj.(*types.Namespace)
+	namespace := ctx.Object.(*types.Namespace)
 	err := createNamespace(cluster.KubeClient, namespace.Name)
 	if err == nil {
 		namespace.SetID(namespace.Name)
@@ -44,8 +44,8 @@ func (m *NamespaceManager) Create(obj resttypes.Object, yamlConf []byte) (interf
 	}
 }
 
-func (m *NamespaceManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *NamespaceManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
@@ -63,13 +63,13 @@ func (m *NamespaceManager) List(obj resttypes.Object) interface{} {
 	return namespaces
 }
 
-func (m *NamespaceManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *NamespaceManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.(*types.Namespace)
+	namespace := ctx.Object.(*types.Namespace)
 	k8sNamespace, err := getNamespace(cluster.KubeClient, namespace.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -81,13 +81,13 @@ func (m *NamespaceManager) Get(obj resttypes.Object) interface{} {
 	return k8sNamespaceToSCNamespace(k8sNamespace)
 }
 
-func (m *NamespaceManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *NamespaceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := obj.(*types.Namespace)
+	namespace := ctx.Object.(*types.Namespace)
 	err := deleteNamespace(cluster.KubeClient, namespace.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {

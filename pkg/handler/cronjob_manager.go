@@ -26,14 +26,14 @@ func newCronJobManager(clusters *ClusterManager) *CronJobManager {
 	return &CronJobManager{clusters: clusters}
 }
 
-func (m *CronJobManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *CronJobManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	cronJob := obj.(*types.CronJob)
+	namespace := ctx.Object.GetParent().GetID()
+	cronJob := ctx.Object.(*types.CronJob)
 	err := createCronJob(cluster.KubeClient, namespace, cronJob)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -47,13 +47,13 @@ func (m *CronJobManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	return cronJob, nil
 }
 
-func (m *CronJobManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *CronJobManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetID()
 	k8sCronJobs, err := getCronJobs(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -69,14 +69,14 @@ func (m *CronJobManager) List(obj resttypes.Object) interface{} {
 	return cronJobs
 }
 
-func (m *CronJobManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *CronJobManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
-	cronJob := obj.(*types.CronJob)
+	namespace := ctx.Object.GetParent().GetID()
+	cronJob := ctx.Object.(*types.CronJob)
 	k8sCronJob, err := getCronJob(cluster.KubeClient, namespace, cronJob.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -88,14 +88,14 @@ func (m *CronJobManager) Get(obj resttypes.Object) interface{} {
 	return k8sCronJobToScCronJob(k8sCronJob)
 }
 
-func (m *CronJobManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *CronJobManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	cronJob := obj.(*types.CronJob)
+	namespace := ctx.Object.GetParent().GetID()
+	cronJob := ctx.Object.(*types.CronJob)
 	if err := deleteCronJob(cluster.KubeClient, namespace, cronJob.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
 			return resttypes.NewAPIError(resttypes.NotFound,
