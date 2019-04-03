@@ -25,14 +25,14 @@ func newJobManager(clusters *ClusterManager) *JobManager {
 	return &JobManager{clusters: clusters}
 }
 
-func (m *JobManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *JobManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	job := obj.(*types.Job)
+	namespace := ctx.Object.GetParent().GetID()
+	job := ctx.Object.(*types.Job)
 	err := createJob(cluster.KubeClient, namespace, job)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -46,13 +46,13 @@ func (m *JobManager) Create(obj resttypes.Object, yamlConf []byte) (interface{},
 	return job, nil
 }
 
-func (m *JobManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *JobManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetID()
 	k8sJobs, err := getJobs(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -68,14 +68,14 @@ func (m *JobManager) List(obj resttypes.Object) interface{} {
 	return jobs
 }
 
-func (m *JobManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *JobManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
-	job := obj.(*types.Job)
+	namespace := ctx.Object.GetParent().GetID()
+	job := ctx.Object.(*types.Job)
 	k8sJob, err := getJob(cluster.KubeClient, namespace, job.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -87,14 +87,14 @@ func (m *JobManager) Get(obj resttypes.Object) interface{} {
 	return k8sJobToSCJob(k8sJob)
 }
 
-func (m *JobManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *JobManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	job := obj.(*types.Job)
+	namespace := ctx.Object.GetParent().GetID()
+	job := ctx.Object.(*types.Job)
 	if err := deleteJob(cluster.KubeClient, namespace, job.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
 			return resttypes.NewAPIError(resttypes.NotFound,

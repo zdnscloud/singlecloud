@@ -222,12 +222,13 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9a027606810e73152fa61ea71cc4fc6c00beec28c07ad28ddad7f2a8080d34f0"
+  digest = "1:1cb9c3a7797361811e919e66916f8c8cc9ba4377a56d4068e6b9b91304456a47"
   name = "github.com/zdnscloud/cement"
   packages = [
     "log",
     "log/log4go",
     "reflector",
+    "slice",
     "unittest",
   ]
   pruneopts = "UT"
@@ -256,7 +257,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ac1c393732eaf974e9c9dbdd6c50bbd2462e4a4d8fb8ec3d2da20646fb24592c"
+  digest = "1:65726aab693392a4304781bb7f23b34480a39a42da97226cc6af6173b40e2fec"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -267,7 +268,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "e7dc35b05d7258934bb20691ff069b50e0a6c791"
+  revision = "27cf2de7935d6964f6ff4ede733a35591baaf1ce"
 
 [[projects]]
   branch = "master"

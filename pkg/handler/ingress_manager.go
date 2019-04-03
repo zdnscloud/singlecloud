@@ -29,14 +29,14 @@ func newIngressManager(clusters *ClusterManager) *IngressManager {
 	return &IngressManager{clusters: clusters}
 }
 
-func (m *IngressManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *IngressManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	ingress := obj.(*types.Ingress)
+	namespace := ctx.Object.GetParent().GetID()
+	ingress := ctx.Object.(*types.Ingress)
 	err := createIngress(cluster.KubeClient, namespace, ingress)
 	if err == nil {
 		ingress.SetID(ingress.Name)
@@ -50,13 +50,13 @@ func (m *IngressManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	}
 }
 
-func (m *IngressManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *IngressManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetID()
 	k8sIngresss, err := getIngresss(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -72,14 +72,14 @@ func (m *IngressManager) List(obj resttypes.Object) interface{} {
 	return ingresss
 }
 
-func (m *IngressManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *IngressManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
-	ingress := obj.(*types.Ingress)
+	namespace := ctx.Object.GetParent().GetID()
+	ingress := ctx.Object.(*types.Ingress)
 	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -91,14 +91,14 @@ func (m *IngressManager) Get(obj resttypes.Object) interface{} {
 	return k8sIngressToSCIngress(k8sIngress)
 }
 
-func (m *IngressManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *IngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	ingress := obj.(*types.Ingress)
+	namespace := ctx.Object.GetParent().GetID()
+	ingress := ctx.Object.(*types.Ingress)
 	err := deleteIngress(cluster.KubeClient, namespace, ingress.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {

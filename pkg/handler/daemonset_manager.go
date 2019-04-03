@@ -30,14 +30,14 @@ func newDaemonSetManager(clusters *ClusterManager) *DaemonSetManager {
 	return &DaemonSetManager{clusters: clusters}
 }
 
-func (m *DaemonSetManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	daemonSet := obj.(*types.DaemonSet)
+	namespace := ctx.Object.GetParent().GetID()
+	daemonSet := ctx.Object.(*types.DaemonSet)
 	if err := createDaemonSet(cluster.KubeClient, namespace, daemonSet); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate daemonSet name %s", daemonSet.Name))
@@ -55,13 +55,13 @@ func (m *DaemonSetManager) Create(obj resttypes.Object, yamlConf []byte) (interf
 	return daemonSet, nil
 }
 
-func (m *DaemonSetManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *DaemonSetManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetID()
 	k8sDaemonSets, err := getDaemonSets(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -77,14 +77,14 @@ func (m *DaemonSetManager) List(obj resttypes.Object) interface{} {
 	return daemonSets
 }
 
-func (m *DaemonSetManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *DaemonSetManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
-	daemonSet := obj.(*types.DaemonSet)
+	namespace := ctx.Object.GetParent().GetID()
+	daemonSet := ctx.Object.(*types.DaemonSet)
 	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -96,14 +96,14 @@ func (m *DaemonSetManager) Get(obj resttypes.Object) interface{} {
 	return k8sDaemonSetToSCDaemonSet(k8sDaemonSet)
 }
 
-func (m *DaemonSetManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	daemonSet := obj.(*types.DaemonSet)
+	namespace := ctx.Object.GetParent().GetID()
+	daemonSet := ctx.Object.(*types.DaemonSet)
 
 	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID())
 	if err != nil {

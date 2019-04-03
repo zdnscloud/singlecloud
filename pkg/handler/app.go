@@ -54,6 +54,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	if err := server.AddSchemas(schemas); err != nil {
 		return err
 	}
+	server.Use(api.RestHandler)
 	adaptor.RegisterHandler(router, gin.WrapH(server), server.Schemas.UrlMethods())
 	return nil
 }
