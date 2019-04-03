@@ -6,7 +6,7 @@
     "resourceFields": {
         "name": {"type": "string"},
         "serviceType": {"type": "enum", "validValues": ["clusterIP", "nodePort"]},
-        "exposedPort": {"type": "array", "elemType": "servicePort"}
+        "exposedPorts": {"type": "array", "elemType": "servicePort"}
     },
 
     "subResources": {

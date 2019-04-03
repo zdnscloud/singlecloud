@@ -24,14 +24,14 @@ func newPodManager(clusters *ClusterManager) *PodManager {
 	return &PodManager{clusters: clusters}
 }
 
-func (m *PodManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *PodManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	deploy := obj.GetParent().GetID()
-	namespace := obj.GetParent().GetParent().GetID()
+	deploy := ctx.Object.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetParent().GetID()
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -60,14 +60,14 @@ func (m *PodManager) List(obj resttypes.Object) interface{} {
 	return pods
 }
 
-func (m *PodManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *PodManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetParent().GetID()
-	pod := obj.(*types.Pod)
+	namespace := ctx.Object.GetParent().GetParent().GetID()
+	pod := ctx.Object.(*types.Pod)
 	k8sPod, err := getPod(cluster.KubeClient, namespace, pod.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -79,14 +79,14 @@ func (m *PodManager) Get(obj resttypes.Object) interface{} {
 	return k8sPodToSCPod(k8sPod)
 }
 
-func (m *PodManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *PodManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetParent().GetID()
-	pod := obj.(*types.Pod)
+	namespace := ctx.Object.GetParent().GetParent().GetID()
+	pod := ctx.Object.(*types.Pod)
 	err := deletePod(cluster.KubeClient, namespace, pod.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -125,7 +125,7 @@ func deletePod(cli client.Client, namespace, name string) error {
 }
 
 func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
-	containers := K8sContainersToScContainers(k8sPod.Spec.Containers, k8sPod.Spec.Volumes)
+	containers := k8sContainersToScContainers(k8sPod.Spec.Containers, k8sPod.Spec.Volumes)
 
 	var conditions []types.PodCondition
 	for _, condition := range k8sPod.Status.Conditions {

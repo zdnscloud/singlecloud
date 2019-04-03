@@ -24,14 +24,14 @@ func newConfigMapManager(clusters *ClusterManager) *ConfigMapManager {
 	return &ConfigMapManager{clusters: clusters}
 }
 
-func (m *ConfigMapManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *ConfigMapManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	cm := obj.(*types.ConfigMap)
+	namespace := ctx.Object.GetParent().GetID()
+	cm := ctx.Object.(*types.ConfigMap)
 	err := createConfigMap(cluster.KubeClient, namespace, cm)
 	if err == nil {
 		cm.SetID(cm.Name)
@@ -45,13 +45,13 @@ func (m *ConfigMapManager) Create(obj resttypes.Object, yamlConf []byte) (interf
 	}
 }
 
-func (m *ConfigMapManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *ConfigMapManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetID()
 	k8sConfigMaps, err := getConfigMaps(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -67,14 +67,14 @@ func (m *ConfigMapManager) List(obj resttypes.Object) interface{} {
 	return cms
 }
 
-func (m ConfigMapManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m ConfigMapManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
-	cm := obj.(*types.ConfigMap)
+	namespace := ctx.Object.GetParent().GetID()
+	cm := ctx.Object.(*types.ConfigMap)
 	k8sConfigMap, err := getConfigMap(cluster.KubeClient, namespace, cm.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -86,14 +86,14 @@ func (m ConfigMapManager) Get(obj resttypes.Object) interface{} {
 	return k8sConfigMapToSCConfigMap(k8sConfigMap)
 }
 
-func (m ConfigMapManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m ConfigMapManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	cm := obj.(*types.ConfigMap)
+	namespace := ctx.Object.GetParent().GetID()
+	cm := ctx.Object.(*types.ConfigMap)
 	err := deleteConfigMap(cluster.KubeClient, namespace, cm.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {

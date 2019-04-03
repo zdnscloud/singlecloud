@@ -26,13 +26,13 @@ func newNodeManager(clusters *ClusterManager) *NodeManager {
 	return &NodeManager{clusters: clusters}
 }
 
-func (m *NodeManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *NodeManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	node := obj.(*types.Node)
+	node := ctx.Object.(*types.Node)
 	cli := cluster.KubeClient
 	k8sNode, err := getNode(cli, node.GetID())
 	if err != nil {
@@ -46,8 +46,8 @@ func (m *NodeManager) Get(obj resttypes.Object) interface{} {
 	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name))
 }
 
-func (m *NodeManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}

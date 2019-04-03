@@ -8,21 +8,21 @@ import (
 	"github.com/zdnscloud/gorest/types"
 )
 
-func CheckObjectFields(ctx *types.APIContext, obj types.Object) *types.APIError {
-	structVal, ok := reflector.GetStructFromPointer(obj)
+func CheckObjectFields(ctx *types.Context) *types.APIError {
+	structVal, ok := reflector.GetStructFromPointer(ctx.Object)
 	if ok == false {
 		return types.NewAPIError(types.ServerError, "get object structure but return "+structVal.Kind().String())
 	}
 
-	_, err := getStructValue(ctx, ctx.Schema, structVal)
+	_, err := getStructValue(ctx, ctx.Object.GetSchema(), structVal)
 	return err
 }
 
-func getStructValue(ctx *types.APIContext, schema *types.Schema, structVal reflect.Value) (map[string]interface{}, *types.APIError) {
+func getStructValue(ctx *types.Context, schema *types.Schema, structVal reflect.Value) (map[string]interface{}, *types.APIError) {
 	fieldValues := map[string]interface{}{}
 	structTyp := structVal.Type()
 	if schema == nil {
-		schema = ctx.Schemas.Schema(ctx.Version, strings.ToLower(structTyp.Name()))
+		schema = ctx.Schemas.Schema(&ctx.Object.GetSchema().Version, strings.ToLower(structTyp.Name()))
 		if schema == nil {
 			return nil, types.NewAPIError(types.NotFound, "no found schema "+strings.ToLower(structTyp.Name()))
 		}
@@ -33,7 +33,7 @@ func getStructValue(ctx *types.APIContext, schema *types.Schema, structVal refle
 		fieldJsonName, isAnonymous := types.GetFieldJsonName(field)
 		if isAnonymous {
 			fieldVal := structVal.FieldByName(field.Name)
-			if _, err := getStructValue(ctx, ctx.Schema, fieldVal); err != nil {
+			if _, err := getStructValue(ctx, ctx.Object.GetSchema(), fieldVal); err != nil {
 				return nil, err
 			}
 			continue
@@ -78,7 +78,7 @@ func valueIsNil(value interface{}) bool {
 	}
 }
 
-func getFieldValue(ctx *types.APIContext, fieldType reflect.Type, fieldVal reflect.Value) (interface{}, *types.APIError) {
+func getFieldValue(ctx *types.Context, fieldType reflect.Type, fieldVal reflect.Value) (interface{}, *types.APIError) {
 	if fieldType.Kind() == reflect.Ptr {
 		fieldType = fieldType.Elem()
 	}
@@ -95,7 +95,7 @@ func getFieldValue(ctx *types.APIContext, fieldType reflect.Type, fieldVal refle
 	}
 }
 
-func getSliceValue(ctx *types.APIContext, fieldValSlice reflect.Value) (interface{}, *types.APIError) {
+func getSliceValue(ctx *types.Context, fieldValSlice reflect.Value) (interface{}, *types.APIError) {
 	var values []interface{}
 	for i := 0; i < fieldValSlice.Len(); i++ {
 		fieldVal := fieldValSlice.Index(i)
@@ -109,7 +109,7 @@ func getSliceValue(ctx *types.APIContext, fieldValSlice reflect.Value) (interfac
 	return values, nil
 }
 
-func getMapValue(ctx *types.APIContext, fieldValMap reflect.Value) (interface{}, *types.APIError) {
+func getMapValue(ctx *types.Context, fieldValMap reflect.Value) (interface{}, *types.APIError) {
 	values := map[string]interface{}{}
 	for _, key := range fieldValMap.MapKeys() {
 		val := fieldValMap.MapIndex(key)

@@ -31,14 +31,14 @@ func newDeploymentManager(clusters *ClusterManager) *DeploymentManager {
 	return &DeploymentManager{clusters: clusters}
 }
 
-func (m *DeploymentManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	deploy := obj.(*types.Deployment)
+	namespace := ctx.Object.GetParent().GetID()
+	deploy := ctx.Object.(*types.Deployment)
 	err := createDeployment(cluster.KubeClient, namespace, deploy)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -49,68 +49,21 @@ func (m *DeploymentManager) Create(obj resttypes.Object, yamlConf []byte) (inter
 	}
 
 	deploy.SetID(deploy.Name)
-	advancedOpts := deploy.AdvancedOptions
-	var servicePorts []types.ServicePort
-	var rules []types.IngressRule
-	for _, s := range advancedOpts.ExposedServices {
-		servicePorts = append(servicePorts, types.ServicePort{
-			Name:       s.Name,
-			Port:       s.ServicePort,
-			TargetPort: s.Port,
-			Protocol:   s.Protocol,
-		})
-
-		if s.AutoCreateIngress {
-			rules = append(rules, types.IngressRule{
-				Host: s.IngressDomainName,
-				Paths: []types.IngressPath{
-					types.IngressPath{
-						Path:        s.IngressPath,
-						ServiceName: deploy.Name,
-						ServicePort: s.ServicePort,
-					},
-				},
-			})
-		}
-	}
-
-	if len(servicePorts) > 0 {
-		service := &types.Service{
-			Name:         deploy.Name,
-			ServiceType:  deploy.AdvancedOptions.ExposedServiceType,
-			ExposedPorts: servicePorts,
-		}
-		err = createService(cluster.KubeClient, namespace, service)
-		if err != nil {
-			deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
-		}
-
-		if len(rules) > 0 {
-			ingress := &types.Ingress{
-				Name:  deploy.Name,
-				Rules: rules,
-			}
-
-			err = createIngress(cluster.KubeClient, namespace, ingress)
-			if err != nil {
-				deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
-				deleteService(cluster.KubeClient, namespace, deploy.Name)
-				return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
-			}
-		}
+	if err := createServiceAndIngress(deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name); err != nil {
+		deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
+		return nil, err
 	}
 
 	return deploy, nil
 }
 
-func (m *DeploymentManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *DeploymentManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetID()
 	k8sDeploys, err := getDeployments(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -126,14 +79,14 @@ func (m *DeploymentManager) List(obj resttypes.Object) interface{} {
 	return deploys
 }
 
-func (m *DeploymentManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *DeploymentManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
-	deploy := obj.(*types.Deployment)
+	namespace := ctx.Object.GetParent().GetID()
+	deploy := ctx.Object.(*types.Deployment)
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -145,14 +98,14 @@ func (m *DeploymentManager) Get(obj resttypes.Object) interface{} {
 	return k8sDeployToSCDeploy(k8sDeploy)
 }
 
-func (m *DeploymentManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	deploy := obj.(*types.Deployment)
+	namespace := ctx.Object.GetParent().GetID()
+	deploy := ctx.Object.(*types.Deployment)
 
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
@@ -167,19 +120,9 @@ func (m *DeploymentManager) Delete(obj resttypes.Object) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
 	}
 
-	var advancedOpts types.DeploymentAdvancedOptions
 	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
 	if ok {
-		json.Unmarshal([]byte(opts), &advancedOpts)
-		if len(advancedOpts.ExposedServices) > 0 {
-			deleteService(cluster.KubeClient, namespace, deploy.GetID())
-			for _, s := range advancedOpts.ExposedServices {
-				if s.AutoCreateIngress {
-					deleteIngress(cluster.KubeClient, namespace, deploy.GetID())
-					break
-				}
-			}
-		}
+		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
 	}
 	return nil
 }
@@ -198,51 +141,9 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
 	replica := int32(deploy.Replicas)
-	var containers []corev1.Container
-	usedConfigMap := make(map[string]struct{})
-	for _, c := range deploy.Containers {
-		var mounts []corev1.VolumeMount
-		var ports []corev1.ContainerPort
-		if c.ConfigName != "" {
-			mounts = append(mounts, corev1.VolumeMount{
-				Name:      c.ConfigName,
-				MountPath: c.MountPath,
-			})
-			usedConfigMap[c.ConfigName] = struct{}{}
-		}
-
-		for _, spec := range c.ExposedPorts {
-			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
-			if err != nil {
-				return err
-			}
-			ports = append(ports, corev1.ContainerPort{
-				ContainerPort: int32(spec.Port),
-				Protocol:      protocol,
-			})
-		}
-
-		containers = append(containers, corev1.Container{
-			Name:         c.Name,
-			Image:        c.Image,
-			Command:      c.Command,
-			Args:         c.Args,
-			VolumeMounts: mounts,
-			Ports:        ports,
-		})
-	}
-
-	var podVolumes []corev1.Volume
-	for n, _ := range usedConfigMap {
-		configMapSource := &corev1.ConfigMapVolumeSource{}
-		configMapSource.Name = n
-		source := corev1.VolumeSource{
-			ConfigMap: configMapSource,
-		}
-		podVolumes = append(podVolumes, corev1.Volume{
-			Name:         n,
-			VolumeSource: source,
-		})
+	k8sPodSpec, err := scContainersToK8sPodSpec(deploy.Containers)
+	if err != nil {
+		return err
 	}
 
 	advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
@@ -261,10 +162,7 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": deploy.Name}},
-				Spec: corev1.PodSpec{
-					Containers: containers,
-					Volumes:    podVolumes,
-				},
+				Spec:       k8sPodSpec,
 			},
 		},
 	}
@@ -279,9 +177,9 @@ func deleteDeployment(cli client.Client, namespace, name string) error {
 }
 
 func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
-	containers := K8sContainersToScContainers(k8sDeploy.Spec.Template.Spec.Containers, k8sDeploy.Spec.Template.Spec.Volumes)
+	containers := k8sContainersToScContainers(k8sDeploy.Spec.Template.Spec.Containers, k8sDeploy.Spec.Template.Spec.Volumes)
 
-	var advancedOpts types.DeploymentAdvancedOptions
+	var advancedOpts types.AdvancedOptions
 	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
@@ -299,15 +197,23 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 	return deploy
 }
 
-func K8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
+func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
 	var containers []types.Container
 	for _, c := range k8sContainers {
-		var configName, mountPath string
+		var configName, mountPath, secretName, secretPath string
 		for _, vm := range c.VolumeMounts {
 			for _, v := range volumes {
 				if v.Name == vm.Name && v.ConfigMap != nil {
 					configName = v.ConfigMap.Name
 					mountPath = vm.MountPath
+					break
+				}
+			}
+
+			for _, v := range volumes {
+				if v.Name == vm.Name && v.Secret != nil {
+					secretName = v.Secret.SecretName
+					secretPath = vm.MountPath
 					break
 				}
 			}
@@ -322,6 +228,11 @@ func K8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 			})
 		}
 
+		env := make(map[string]string)
+		for _, e := range c.Env {
+			env[e.Name] = e.Value
+		}
+
 		containers = append(containers, types.Container{
 			Name:         c.Name,
 			Image:        c.Image,
@@ -330,8 +241,161 @@ func K8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 			ConfigName:   configName,
 			MountPath:    mountPath,
 			ExposedPorts: exposedPorts,
+			Env:          env,
+			SecretName:   secretName,
+			SecretPath:   secretPath,
 		})
 	}
 
 	return containers
+}
+
+func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, error) {
+	var k8sContainers []corev1.Container
+	usedConfigMap := make(map[string]struct{})
+	usedSecretMap := make(map[string]struct{})
+	for _, c := range containers {
+		var mounts []corev1.VolumeMount
+		var ports []corev1.ContainerPort
+		var env []corev1.EnvVar
+		if c.ConfigName != "" {
+			mounts = append(mounts, corev1.VolumeMount{
+				Name:      c.ConfigName,
+				MountPath: c.MountPath,
+			})
+			usedConfigMap[c.ConfigName] = struct{}{}
+		}
+
+		if c.SecretName != "" {
+			mounts = append(mounts, corev1.VolumeMount{
+				Name:      c.SecretName,
+				MountPath: c.SecretPath,
+			})
+			usedSecretMap[c.SecretName] = struct{}{}
+		}
+
+		for _, spec := range c.ExposedPorts {
+			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
+			if err != nil {
+				return corev1.PodSpec{}, err
+			}
+			ports = append(ports, corev1.ContainerPort{
+				ContainerPort: int32(spec.Port),
+				Protocol:      protocol,
+			})
+		}
+
+		for k, v := range c.Env {
+			env = append(env, corev1.EnvVar{
+				Name:  k,
+				Value: v,
+			})
+		}
+
+		k8sContainers = append(k8sContainers, corev1.Container{
+			Name:         c.Name,
+			Image:        c.Image,
+			Command:      c.Command,
+			Args:         c.Args,
+			VolumeMounts: mounts,
+			Ports:        ports,
+			Env:          env,
+		})
+	}
+
+	var k8sVolumes []corev1.Volume
+	for n, _ := range usedConfigMap {
+		configMapSource := &corev1.ConfigMapVolumeSource{}
+		configMapSource.Name = n
+		source := corev1.VolumeSource{
+			ConfigMap: configMapSource,
+		}
+		k8sVolumes = append(k8sVolumes, corev1.Volume{
+			Name:         n,
+			VolumeSource: source,
+		})
+	}
+
+	for n, _ := range usedSecretMap {
+		secretMapSource := &corev1.SecretVolumeSource{
+			SecretName: n,
+		}
+		k8sVolumes = append(k8sVolumes, corev1.Volume{
+			Name: n,
+			VolumeSource: corev1.VolumeSource{
+				Secret: secretMapSource,
+			},
+		})
+	}
+
+	return corev1.PodSpec{
+		Containers: k8sContainers,
+		Volumes:    k8sVolumes,
+	}, nil
+}
+
+func createServiceAndIngress(advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string) *resttypes.APIError {
+	var servicePorts []types.ServicePort
+	var rules []types.IngressRule
+	for _, s := range advancedOpts.ExposedServices {
+		servicePorts = append(servicePorts, types.ServicePort{
+			Name:       s.Name,
+			Port:       s.ServicePort,
+			TargetPort: s.Port,
+			Protocol:   s.Protocol,
+		})
+
+		if s.AutoCreateIngress {
+			rules = append(rules, types.IngressRule{
+				Host: s.IngressDomainName,
+				Paths: []types.IngressPath{
+					types.IngressPath{
+						Path:        s.IngressPath,
+						ServiceName: serviceName,
+						ServicePort: s.ServicePort,
+					},
+				},
+			})
+		}
+	}
+
+	if len(servicePorts) > 0 {
+		service := &types.Service{
+			Name:         serviceName,
+			ServiceType:  advancedOpts.ExposedServiceType,
+			ExposedPorts: servicePorts,
+		}
+
+		if err := createService(cli, namespace, service); err != nil {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
+		}
+
+		if len(rules) > 0 {
+			ingress := &types.Ingress{
+				Name:  serviceName,
+				Rules: rules,
+			}
+
+			if err := createIngress(cli, namespace, ingress); err != nil {
+				deleteService(cli, namespace, serviceName)
+				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
+			}
+		}
+	}
+
+	return nil
+}
+
+func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts string) {
+	var advancedOpts types.AdvancedOptions
+	json.Unmarshal([]byte(opts), &advancedOpts)
+	if len(advancedOpts.ExposedServices) > 0 {
+		deleteService(cli, namespace, serviceName)
+		for _, s := range advancedOpts.ExposedServices {
+			if s.AutoCreateIngress {
+				deleteIngress(cli, namespace, serviceName)
+				break
+			}
+		}
+	}
 }

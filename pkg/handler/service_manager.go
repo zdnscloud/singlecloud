@@ -26,14 +26,14 @@ func newServiceManager(clusters *ClusterManager) *ServiceManager {
 	return &ServiceManager{clusters: clusters}
 }
 
-func (m *ServiceManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *ServiceManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	service := obj.(*types.Service)
+	namespace := ctx.Object.GetParent().GetID()
+	service := ctx.Object.(*types.Service)
 	err := createService(cluster.KubeClient, namespace, service)
 	if err == nil {
 		service.SetID(service.Name)
@@ -47,13 +47,13 @@ func (m *ServiceManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	}
 }
 
-func (m *ServiceManager) List(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *ServiceManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetID()
 	k8sServices, err := getServices(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -69,14 +69,14 @@ func (m *ServiceManager) List(obj resttypes.Object) interface{} {
 	return services
 }
 
-func (m *ServiceManager) Get(obj resttypes.Object) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *ServiceManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := obj.GetParent().GetID()
-	service := obj.(*types.Service)
+	namespace := ctx.Object.GetParent().GetID()
+	service := ctx.Object.(*types.Service)
 	k8sService, err := getService(cluster.KubeClient, namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -88,14 +88,14 @@ func (m *ServiceManager) Get(obj resttypes.Object) interface{} {
 	return k8sServiceToSCService(k8sService)
 }
 
-func (m *ServiceManager) Delete(obj resttypes.Object) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(obj)
+func (m *ServiceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := obj.GetParent().GetID()
-	service := obj.(*types.Service)
+	namespace := ctx.Object.GetParent().GetID()
+	service := ctx.Object.(*types.Service)
 	err := deleteService(cluster.KubeClient, namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {

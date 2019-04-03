@@ -1,13 +1,13 @@
 {
-    "resourceType": "deployment",
-    "collectionName": "deployments",
+    "resourceType": "daemonset",
+    "collectionName": "daemonsets",
     "parentResource": "namespace",
 
     "resourceFields": {
         "name": {"type": "string"},
-        "replicas": {"type": "int"},
         "containers": {"type": "array", "elemType": "container"},
-        "advancedOptions": {"type": "advancedOptions"}
+        "advancedOptions": {"type": "advancedOptions"},
+        "status": {"type": "daemonsetStatus"}
     },
 
     "subResources": {
@@ -19,9 +19,7 @@
             "configName": {"type": "string"},
             "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-            "env": {"type": "map", "keyType": "string", "valueType": "string"},
-            "secretName": {"type": "string"},
-            "secretPath": {"type": "string"}
+            "env": {"type": "map", "keyType": "string", "valueType": "string"}
         },
 
         "deploymentPort": {
@@ -43,18 +41,38 @@
             "autoCreateIngress" : {"type": "bool"},
             "ingressDomainName" : {"type": "string"},
             "ingressPath" : {"type": "string"}
+        },
+
+        "daemonsetStatus": {
+            "currentNumberScheduled": {"type": "int32"},
+            "numberMisscheduled": {"type": "int32"},
+            "desiredNumberScheduled": {"type": "int32"},
+            "numberReady": {"type": "int32"},
+            "observedGeneration": {"type": "int64"},
+            "updatedNumberScheduled": {"type": "int32"},
+            "numberAvailable": {"type": "int32"},
+            "numberUnavailable": {"type": "int32"},
+            "collisionCount": {"type": "int32"},
+            "conditions": {"type": "daemonsetCondition"}
+        },
+
+        "daemonsetCondition": {
+            "type": {"type": "string"},
+            "status": {"type": "enum", "validValues": ["True", "False", "Unknown"]},
+            "lastTransitionTime": {"type": "date"},
+            "reason": {"type": "string"},
+            "message": {"type": "string"}
         }
     },
 
-    "resourceMethods": [ "PUT", "GET", "DELETE" ],
-    "collectionMethods": [ "POST", "GET" ],
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "GET", "POST"],
 
     "postParameters": {
         "fields": {
             "name": {"type": "string", "required": true},
-            "replicas": {"type": "int", "required": true},
-            "containers":  {"type": "array", "elemType": "container", "required": true},
-            "advancedOptions": {"type": "advancedOptions"}
+            "advancedOptions": {"type": "advancedOptions"},
+            "containers": {"type": "array", "elemType": "container", "required": true}
         },
 
         "subResources": {
@@ -66,16 +84,15 @@
                 "configName": {"type": "string"},
                 "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-                "env": {"type": "map", "keyType": "string", "valueType": "string"},
-                "secretName": {"type": "string"},
-                "secretPath": {"type": "string"}
+                "env": {"type": "map", "keyType": "string", "valueType": "string"}
             },
 
             "deploymentPort": {
                 "name" : {"type": "string"},
-                "port" : {"type": "int", "required": true},
-                "protocol": {"type": "enum", "validValues": ["tcp", "udp"], "required": true}
+                "port" : {"type": "int"},
+                "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
             },
+
 
             "advancedOptions": {
                 "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},

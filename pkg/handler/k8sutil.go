@@ -99,3 +99,15 @@ func scServiceTypeToK8sServiceType(typ string) (p corev1.ServiceType, err error)
 	}
 	return
 }
+
+func scRestartPolicyToK8sRestartPolicy(policy string) (p corev1.RestartPolicy, err error) {
+	switch strings.ToLower(policy) {
+	case "onfailure":
+		p = corev1.RestartPolicyOnFailure
+	case "never":
+		p = corev1.RestartPolicyNever
+	default:
+		err = fmt.Errorf("restart policy %s isn`t supported", policy)
+	}
+	return
+}
