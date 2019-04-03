@@ -37,8 +37,8 @@ func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *types.C
 	return m.get(clusterID)
 }
 
-func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := obj.(*types.Cluster)
+func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	cluster := ctx.Object.(*types.Cluster)
 	if c := m.get(cluster.Name); c != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
 	}
@@ -97,8 +97,8 @@ func (m *ClusterManager) Create(obj resttypes.Object, yamlConf []byte) (interfac
 	return cluster, nil
 }
 
-func (m *ClusterManager) Get(obj resttypes.Object) interface{} {
-	return m.get(obj.GetID())
+func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
+	return m.get(ctx.Object.GetID())
 }
 
 func (m *ClusterManager) get(id string) *types.Cluster {
@@ -110,7 +110,7 @@ func (m *ClusterManager) get(id string) *types.Cluster {
 	return nil
 }
 
-func (m *ClusterManager) List(obj resttypes.Object) interface{} {
+func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	return m.clusters
 }
 

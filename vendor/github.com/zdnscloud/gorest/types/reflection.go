@@ -56,9 +56,8 @@ func (s *Schemas) Import(version *APIVersion, obj interface{}, externalOverrides
 	return s.importType(version, reflect.TypeOf(obj), types...)
 }
 
-func (s *Schemas) newSchemaFromType(version *APIVersion, t reflect.Type, typeName string) (*Schema, error) {
+func (s *Schemas) newSchemaFromType(version *APIVersion, t reflect.Type) (*Schema, error) {
 	schema := &Schema{
-		ID:                typeName,
 		Version:           *version,
 		ResourceFields:    map[string]Field{},
 		ResourceActions:   map[string]Action{},
@@ -92,7 +91,7 @@ func (s *Schemas) importType(version *APIVersion, t reflect.Type, overrides ...r
 		return existing, nil
 	}
 
-	schema, err := s.newSchemaFromType(version, t, typeName)
+	schema, err := s.newSchemaFromType(version, t)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +104,7 @@ func (s *Schemas) importType(version *APIVersion, t reflect.Type, overrides ...r
 
 	s.AddSchema(*schema)
 
-	return s.Schema(&schema.Version, schema.ID), s.Err()
+	return s.Schema(&schema.Version, schema.GetType()), s.Err()
 }
 
 func getJsonName(f reflect.StructField) string {
@@ -349,7 +348,7 @@ func (s *Schemas) determineSchemaType(version *APIVersion, t reflect.Type) (stri
 		if err != nil {
 			return "", err
 		}
-		return schema.ID, nil
+		return schema.GetType(), nil
 	default:
 		return "", fmt.Errorf("unknown type kind %s", t.Kind())
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -24,8 +25,6 @@ func (v *APIVersion) GetVersionURL() string {
 }
 
 type Schema struct {
-	ID                string            `json:"id,omitempty"`
-	Type              string            `json:"type,omitempty"`
 	Version           APIVersion        `json:"version"`
 	PluralName        string            `json:"pluralName,omitempty"`
 	ResourceMethods   []string          `json:"resourceMethods,omitempty"`
@@ -38,6 +37,10 @@ type Schema struct {
 	StructVal reflect.Value `json:"-"`
 	Handler   Handler       `json:"-"`
 	Parent    string        `json:"-"`
+}
+
+func (s *Schema) GetType() string {
+	return strings.ToLower(s.StructVal.Type().Name())
 }
 
 type Field struct {
@@ -58,13 +61,14 @@ type Field struct {
 }
 
 type Action struct {
+	Name   string
 	Input  string `json:"input,omitempty"`
 	Output string `json:"output,omitempty"`
 }
 
-type ActionHandler func(request *APIContext, action *Action) *APIError
+type ActionHandler func(request *Context, action *Action) *APIError
 
-type RequestHandler func(request *APIContext) *APIError
+type RequestHandler func(request *Context) *APIError
 
 type Resource struct {
 	ID                string            `json:"id,omitempty"`
@@ -72,6 +76,7 @@ type Resource struct {
 	Links             map[string]string `json:"links,omitempty"`
 	CreationTimestamp ISOTime           `json:"creationTimestamp,omitempty"`
 	Parent            Object            `json:"-"`
+	Schema            *Schema           `json:"-"`
 }
 
 func (r *Resource) GetID() string {
@@ -112,6 +117,14 @@ func (r *Resource) GetParent() Object {
 
 func (r *Resource) SetParent(parent Object) {
 	r.Parent = parent
+}
+
+func (r *Resource) GetSchema() *Schema {
+	return r.Schema
+}
+
+func (r *Resource) SetSchema(schema *Schema) {
+	r.Schema = schema
 }
 
 func GetAncestors(parent ObjectParent) []Object {
