@@ -10,45 +10,45 @@ import (
 	"github.com/zdnscloud/gorest/util"
 )
 
-func addLinks(apiContext *types.APIContext, obj types.Object) {
+func addLinks(ctx *types.Context, schema *types.Schema, obj types.Object) {
 	links := make(map[string]string)
-	self := genResourceLink(apiContext.Request, obj.GetID())
+	self := genResourceLink(ctx.Request, obj.GetID())
 	links["self"] = self
 
-	if util.ContainsString(apiContext.Schema.ResourceMethods, http.MethodPut) {
+	if util.ContainsString(schema.ResourceMethods, http.MethodPut) {
 		links["update"] = self
 	}
 
-	if util.ContainsString(apiContext.Schema.ResourceMethods, http.MethodDelete) {
+	if util.ContainsString(schema.ResourceMethods, http.MethodDelete) {
 		links["remove"] = self
 	}
 
-	if util.ContainsString(apiContext.Schema.CollectionMethods, http.MethodGet) {
-		links["collection"] = genCollectionLink(apiContext.Request, obj.GetID())
+	if util.ContainsString(schema.CollectionMethods, http.MethodGet) {
+		links["collection"] = genCollectionLink(ctx.Request, obj.GetID())
 	}
 
-	for _, childPluralName := range apiContext.Schemas.GetChildren(apiContext.Schema.ID) {
-		links[childPluralName] = genChildLink(apiContext.Request, obj.GetID(), childPluralName)
+	for _, childPluralName := range ctx.Schemas.GetChildren(obj.GetType()) {
+		links[childPluralName] = genChildLink(ctx.Request, obj.GetID(), childPluralName)
 	}
 
 	obj.SetLinks(links)
 }
 
-func addResourceLinks(apiContext *types.APIContext, obj interface{}) {
+func addResourceLinks(ctx *types.Context, obj interface{}) {
 	if object, ok := obj.(types.Object); ok {
-		addLinks(apiContext, object)
+		addLinks(ctx, ctx.Object.GetSchema(), object)
 	}
 }
 
-func addCollectionLinks(apiContext *types.APIContext, collection *types.Collection) {
+func addCollectionLinks(ctx *types.Context, collection *types.Collection) {
 	collection.Links = map[string]string{
-		"self": getRequestURL(apiContext.Request),
+		"self": getRequestURL(ctx.Request),
 	}
 
 	sliceData := reflect.ValueOf(collection.Data)
 	if sliceData.Kind() == reflect.Slice {
 		for i := 0; i < sliceData.Len(); i++ {
-			addResourceLinks(apiContext, sliceData.Index(i).Interface())
+			addResourceLinks(ctx, sliceData.Index(i).Interface())
 		}
 	}
 }

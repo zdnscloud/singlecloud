@@ -7,15 +7,15 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-func WriteResponse(apiContext *types.APIContext, status int, result interface{}) {
-	resp := apiContext.Response
+func WriteResponse(ctx *types.Context, status int, result interface{}) {
+	resp := ctx.Response
 	resp.WriteHeader(status)
 	var body []byte
-	switch apiContext.ResponseFormat {
-	case "json":
+	switch ctx.ResponseFormat {
+	case types.ResponseJSON:
 		resp.Header().Set("content-type", "application/json")
 		body, _ = json.Marshal(result)
-	case "yaml":
+	case types.ResponseYAML:
 		resp.Header().Set("content-type", "application/yaml")
 		body, _ = yaml.Marshal(result)
 	}
