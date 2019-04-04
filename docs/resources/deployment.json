@@ -46,7 +46,7 @@
         }
     },
 
-    "resourceMethods": [ "PUT", "GET", "DELETE" ],
+    "resourceMethods": [ "GET", "DELETE" ],
     "collectionMethods": [ "POST", "GET" ],
 
     "postParameters": {

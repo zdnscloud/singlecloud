@@ -1,0 +1,54 @@
+{
+    "resourceType": "resourcequota",
+    "collectionName": "resourcequotas",
+    "parentResource": "namespace",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "hard": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+        "scopes": {"type": "array", "elemType": "resourceQuotaScope"},
+        "scopeSelectors": {"type": "array", "elemType": "scopeSelector"},
+        "status": {"type": "array", "type": "resourceQuotaStatus"}
+    },
+
+    "subResources": {
+        "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeralStorage", "pods", "services", "replicationcontrollers", "resourcequotas", "secrets", "configmaps", "persistentvolumeclaims", "servicesNodeports", "servicesLoadbalancers", "requestsCPU", "requestsMemory", "requestsStorage", "requestsEphemeralStorage", "limitsCPU", "limitsMemory", "limitsEphemeralStorage"]},
+
+        "resourceQuotaScope": {"type": "enum", "validValues": [ "terminating", "notTerminating", "bestEffort", "notBestEffort", "priorityClass"]},
+
+        "scopeSelector": {
+            "scopeName": {"type": "resourceQuotaScope"},
+            "operator": {"type": "enum", "validValues": ["in", "notin", "exists", "doesnotexist"]},
+            "values": {"type": "array", "elemType": "string"}
+        },
+
+        "resourceQuotaStatus": {
+            "hard": {"type": "resourceList"},
+            "used": {"type": "resourceList"}
+        }
+    },
+
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "GET", "POST"],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "hard": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+            "scopes": {"type": "array", "elemType": "resourceQuotaScope"},
+            "scopeSelectors": {"type": "array", "elemType": "scopeSelector"}
+        },
+
+        "subResources": {
+            "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeralStorage", "pods", "services", "replicationcontrollers", "resourcequotas", "secrets", "configmaps", "persistentvolumeclaims", "servicesNodeports", "servicesLoadbalancers", "requestsCPU", "requestsMemory", "requestsStorage", "requestsEphemeralStorage", "limitsCPU", "limitsMemory", "limitsEphemeralStorage"]},
+
+            "resourceQuotaScope": {"type": "enum", "validValues": [ "terminating", "notTerminating", "bestEffort", "notBestEffort", "priorityClass"]},
+
+            "scopeSelector": {
+                "scopeName": {"type": "resourceQuotaScope"},
+                "operator": {"type": "enum", "validValues": ["in", "notin", "exists", "doesnotexist"]},
+                "values": {"type": "array", "elemType": "string"}
+            }
+        }
+    }
+}

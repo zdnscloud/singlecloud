@@ -1,0 +1,46 @@
+{
+    "resourceType": "limitrange",
+    "collectionName": "limitranges",
+    "parentResource": "namespace",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "limits": {"type": "array", "elemType": "limitRangeItem"}
+    },
+
+    "subResources": {
+        "limitRangeItem": {
+            "type": {"type": "enum", "validValues": ["pod", "container", "persistentVolumeClaim"]},
+            "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+            "min": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+            "default": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+            "defaultRequest": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+            "maxLimitRequestRatio": {"type": "map", "keyType": "resourceName", "valueType": "string"}
+        },
+
+        "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeralStorage"]}
+    },
+
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "GET", "POST"],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "limits": {"type": "array", "elemType": "limitRangeItem", "required": true}
+        },
+
+        "subResources": {
+            "limitRangeItem": {
+                "type": {"type": "enum", "validValues": ["pod", "container", "persistentVolumeClaim"]},
+                "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+                "min": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+                "default": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+                "defaultRequest": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+                "maxLimitRequestRatio": {"type": "map", "keyType": "resourceName", "valueType": "string"}
+            },
+
+            "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeralStorage"]}
+        }
+    }
+}
