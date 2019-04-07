@@ -27,6 +27,6 @@ func (m DefaultHandler) Update(ctx *resttypes.Context) (interface{}, *resttypes.
 	return nil, nil
 }
 
-func (m DefaultHandler) Action(ctx *resttypes.Context, action string, params map[string]interface{}) (interface{}, *resttypes.APIError) {
+func (m DefaultHandler) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
 	return nil, nil
 }

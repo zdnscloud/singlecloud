@@ -74,3 +74,11 @@ func (r *TokenRepo) ParseToken(tokenRaw string) (string, error) {
 		return user, nil
 	}
 }
+
+func (r *TokenRepo) RenewToken(tokenRaw string) (string, error) {
+	if user, err := r.ParseToken(tokenRaw); err != nil {
+		return "", err
+	} else {
+		return r.CreateToken(user)
+	}
+}

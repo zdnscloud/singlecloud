@@ -58,11 +58,9 @@ func (s *Schemas) Import(version *APIVersion, obj interface{}, externalOverrides
 
 func (s *Schemas) newSchemaFromType(version *APIVersion, t reflect.Type) (*Schema, error) {
 	schema := &Schema{
-		Version:           *version,
-		ResourceFields:    map[string]Field{},
-		ResourceActions:   map[string]Action{},
-		CollectionActions: map[string]Action{},
-		StructVal:         reflect.New(t).Elem(),
+		Version:        *version,
+		ResourceFields: map[string]Field{},
+		StructVal:      reflect.New(t).Elem(),
 	}
 
 	if err := s.readFields(schema, t); err != nil {

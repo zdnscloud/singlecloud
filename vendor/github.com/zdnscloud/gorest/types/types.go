@@ -25,14 +25,14 @@ func (v *APIVersion) GetVersionURL() string {
 }
 
 type Schema struct {
-	Version           APIVersion        `json:"version"`
-	PluralName        string            `json:"pluralName,omitempty"`
-	ResourceMethods   []string          `json:"resourceMethods,omitempty"`
-	ResourceFields    map[string]Field  `json:"resourceFields"`
-	ResourceActions   map[string]Action `json:"resourceActions,omitempty"`
-	CollectionMethods []string          `json:"collectionMethods,omitempty"`
-	CollectionFields  map[string]Field  `json:"collectionFields,omitempty"`
-	CollectionActions map[string]Action `json:"collectionActions,omitempty"`
+	Version           APIVersion       `json:"version"`
+	PluralName        string           `json:"pluralName,omitempty"`
+	ResourceMethods   []string         `json:"resourceMethods,omitempty"`
+	ResourceFields    map[string]Field `json:"resourceFields"`
+	ResourceActions   []Action         `json:"resourceActions,omitempty"`
+	CollectionMethods []string         `json:"collectionMethods,omitempty"`
+	CollectionFields  map[string]Field `json:"collectionFields,omitempty"`
+	CollectionActions []Action         `json:"collectionActions,omitempty"`
 
 	StructVal reflect.Value `json:"-"`
 	Handler   Handler       `json:"-"`
@@ -62,8 +62,12 @@ type Field struct {
 
 type Action struct {
 	Name   string
-	Input  string `json:"input,omitempty"`
-	Output string `json:"output,omitempty"`
+	Input  interface{} `json:"input,omitempty"`
+	Output string      `json:"output,omitempty"`
+}
+
+type Input struct {
+	Data []byte `json:"data,omitempty"`
 }
 
 type ActionHandler func(request *Context, action *Action) *APIError

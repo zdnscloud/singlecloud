@@ -6,7 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterHandler(router gin.IRoutes, handlerFunc gin.HandlerFunc, urlMethods map[string][]string) {
+func RegisterHandler(router gin.IRoutes, handler http.Handler, urlMethods map[string][]string) {
+	handlerFunc := gin.WrapH(handler)
 	for url, methods := range urlMethods {
 		for _, method := range methods {
 			switch method {

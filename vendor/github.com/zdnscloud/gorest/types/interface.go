@@ -49,5 +49,5 @@ type Handler interface {
 	Update(*Context) (interface{}, *APIError)
 	List(*Context) interface{}
 	Get(*Context) interface{}
-	Action(*Context, string, map[string]interface{}) (interface{}, *APIError)
+	Action(*Context) (interface{}, *APIError)
 }

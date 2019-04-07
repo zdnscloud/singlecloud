@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -35,10 +37,11 @@ func getDefaultConfigPath() string {
 }
 
 func main() {
-	var addr, k8sconfig, clusterName string
+	var addr, k8sconfig, clusterName, adminPassword string
 	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
 	flag.StringVar(&k8sconfig, "k8sconfig", getDefaultConfigPath(), "k8s config file path")
 	flag.StringVar(&clusterName, "name", "local", "import cluster with which name")
+	flag.StringVar(&adminPassword, "passwd", "zdns", "admin password for singlecloud")
 	flag.Parse()
 
 	f, err := os.Open(k8sconfig)
@@ -52,22 +55,41 @@ func main() {
 		log.Fatalf("read %s failed:%s", k8sconfig, err.Error())
 	}
 
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/admin?action=login", addr)
+	pwHash := sha1.Sum([]byte(adminPassword))
 	requestBody, _ := json.Marshal(map[string]string{
-		"name":  clusterName,
-		"yaml_": string(data),
+		"user":     "admin",
+		"password": hex.EncodeToString(pwHash[:]),
 	})
-
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Fatalf("get token failed:%s", err.Error())
+	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	token := struct {
+		Token string `json:"token"`
+	}{}
+	json.Unmarshal(body, &token)
+
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
+	requestBody, _ = json.Marshal(map[string]string{
+		"name":  clusterName,
+		"yaml_": string(data),
+	})
+	req, _ = http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+token.Token)
+	resp, err = client.Do(req)
+	if err != nil {
 		log.Fatalf("send request failed:%s", err.Error())
 	}
 
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ = ioutil.ReadAll(resp.Body)
 	if resp.StatusCode == 201 {
 		fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "import succeed", reset)
 	} else {

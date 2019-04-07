@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,6 +17,9 @@ var (
 		Version: "v1",
 		Group:   "zcloud.cn",
 	}
+
+	tokenSecret        = []byte("hello single cloud")
+	tokenValidDuration = 24 * 3600 * time.Second
 )
 
 type App struct {
@@ -50,12 +54,16 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.CronJob{}, newCronJobManager(a.clusterManager), types.SetCronJobSchema)
 	schemas.MustImportAndCustomize(&Version, types.DaemonSet{}, newDaemonSetManager(a.clusterManager), types.SetDaemonSetSchema)
 	schemas.MustImportAndCustomize(&Version, types.Secret{}, newSecretManager(a.clusterManager), types.SetSecretSchema)
+
+	userManager := newUserManager(tokenSecret, tokenValidDuration)
+	schemas.MustImportAndCustomize(&Version, types.User{}, userManager, types.SetUserSchema)
 	server := api.NewAPIServer()
 	if err := server.AddSchemas(schemas); err != nil {
 		return err
 	}
+	server.Use(userManager.createAuthenticationHandler())
 	server.Use(api.RestHandler)
-	adaptor.RegisterHandler(router, gin.WrapH(server), server.Schemas.UrlMethods())
+	adaptor.RegisterHandler(router, server, server.Schemas.UrlMethods())
 	return nil
 }
 

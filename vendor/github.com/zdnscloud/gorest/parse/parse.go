@@ -23,19 +23,19 @@ func Parse(rw http.ResponseWriter, req *http.Request, schemas *types.Schemas) (*
 	ctx := types.NewContext(req, rw, schemas)
 	err := parseVersionAndResource(ctx)
 	if err != nil {
-		return nil, err
+		return ctx, err
 	}
 
 	if err := parseMethod(ctx); err != nil {
-		return nil, err
+		return ctx, err
 	}
 
 	if err := parseAction(ctx); err != nil {
-		return nil, err
+		return ctx, err
 	}
 
 	if err := parseResponseFormat(ctx); err != nil {
-		return nil, err
+		return ctx, err
 	}
 
 	return ctx, nil
@@ -164,10 +164,12 @@ func parseAction(ctx *types.Context) *types.APIError {
 		actions = ctx.Object.GetSchema().ResourceActions
 	}
 
-	if action_, ok := actions[action]; ok == false {
-		return types.NewAPIError(types.InvalidAction, fmt.Sprintf("Invalid action: %s", action))
-	} else {
-		ctx.Action = &action_
-		return nil
+	for _, action_ := range actions {
+		if action_.Name == action {
+			ctx.Action = &action_
+			return nil
+		}
 	}
+
+	return types.NewAPIError(types.InvalidAction, fmt.Sprintf("Invalid action: %s", action))
 }

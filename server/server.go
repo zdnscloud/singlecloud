@@ -12,7 +12,7 @@ type Server struct {
 }
 
 func NewServer() (*Server, error) {
-	gin.SetMode(gin.ReleaseMode)
+	//gin.SetMode(gin.ReleaseMode)
 
 	app := handler.NewApp()
 	router := gin.New()
