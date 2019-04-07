@@ -32,6 +32,21 @@ func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
 	return m.impl.GetUser(ctx.Object.GetID())
 }
 
+func (m *UserManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	if err := m.impl.DeleteUser(ctx.Object.GetID()); err != nil {
+		return resttypes.NewAPIError(resttypes.NotFound, err.Error())
+	}
+	return nil
+}
+
+func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	user := ctx.Object.(*types.User)
+	if err := m.impl.UpdateUser(user); err != nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
+	}
+	return user, nil
+}
+
 func (m *UserManager) List(ctx *resttypes.Context) interface{} {
 	return m.impl.GetUsers()
 }

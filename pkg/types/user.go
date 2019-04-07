@@ -21,12 +21,12 @@ type UserPassword struct {
 
 type User struct {
 	resttypes.Resource `json:",inline"`
-	Name               string `json:"name"`
-	Password           string `json:"password"`
-	Roles              []Role `json:"roles"`
+	Name               string    `json:"name"`
+	Password           string    `json:"password"`
+	Projects           []Project `json:"projects"`
 }
 
-type Role struct {
+type Project struct {
 	Cluster   string `json:"cluster"`
 	Namespace string `json:"namespace"`
 }

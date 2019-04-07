@@ -96,8 +96,10 @@ func (m *UserManager) authenticateUser(userName string, ctx *resttypes.Context) 
 	switch len(ancestors) {
 	case 0:
 		if ctx.Object.GetType() == types.UserType {
-			if ctx.Method == http.MethodGet && ctx.Object.GetID() == userName {
-				return nil
+			if ctx.Method == http.MethodGet {
+				if ctx.Object.GetID() == userName {
+					return nil
+				}
 			}
 		}
 		return fmt.Errorf("only admin could modify top level resource")
@@ -116,8 +118,8 @@ func (m *UserManager) authenticateUser(userName string, ctx *resttypes.Context) 
 		namespace = ancestors[1].GetID()
 	}
 	cluster := ancestors[0].GetID()
-	for _, role := range user.Roles {
-		if role.Cluster == cluster && role.Namespace == namespace {
+	for _, project := range user.Projects {
+		if project.Cluster == cluster && project.Namespace == namespace {
 			return nil
 		}
 	}
@@ -138,15 +140,15 @@ func (m *UserManager) AddUser(user *types.User) error {
 	}
 }
 
-func (m *UserManager) DeleteUser(name string) bool {
+func (m *UserManager) DeleteUser(name string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	if _, ok := m.users[name]; ok {
 		delete(m.users, name)
-		return true
+		return nil
 	} else {
-		return false
+		return fmt.Errorf("user %s doesn't exist", name)
 	}
 }
 

@@ -1,0 +1,21 @@
+{
+    "resourceType": "user",
+    "collectionName": "users",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "password": {"type": "string"},
+        "projects": {"type": "array", "elemType": "project"},
+        "version": {"type": "string"}
+    },
+
+    "subResources": {
+        "project": {
+            "cluster": {"type": "string"},
+            "namespace": {"type": "string"}
+        }
+    },
+
+    "resourceMethods": [ "GET", "DELETE", "UPDATE" ],
+    "collectionMethods": [ "GET", "POST" ]
+}
