@@ -5,7 +5,7 @@
 
     "resourceFields": {
         "name": {"type": "string"},
-        "serviceType": {"type": "enum", "validValues": ["clusterIP", "nodePort"]},
+        "serviceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
         "exposedPorts": {"type": "array", "elemType": "servicePort"}
     },
 
@@ -24,7 +24,7 @@
     "postParameters": {
         "fields": {
             "name": {"type": "string", "required": true},
-            "serviceType": {"type": "enum", "validValues": ["clusterIP", "nodePort"], "required": true},
+            "serviceType": {"type": "enum", "validValues": ["clusterip", "nodeport"], "required": true},
             "exposedPorts":  {"type": "array", "elemType": "servicePort", "required": true}
         },
 

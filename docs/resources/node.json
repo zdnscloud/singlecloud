@@ -13,11 +13,11 @@
         "operatingSystem": {"type": "string"},
         "operatingSystemImage": {"type": "string"},
         "dockerVersion": {"type": "string"},
-        "cpu": {"type": "uint32"},
+        "cpu": {"type": "string"},
         "cpuUsedRatio": {"type": "string"},
         "memory": { "type": "string"},
         "memoryUsedRatio": {"type": "string"},
-        "pod": { "type": "uint32"},
+        "pod": { "type": "string"},
         "podUsedRatio": {"type": "string"}
     },
 

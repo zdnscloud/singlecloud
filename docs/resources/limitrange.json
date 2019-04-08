@@ -10,7 +10,7 @@
 
     "subResources": {
         "limitRangeItem": {
-            "type": {"type": "enum", "validValues": ["pod", "container", "persistentVolumeClaim"]},
+            "type": {"type": "enum", "validValues": ["Pod", "Container", "PersistentVolumeClaim"]},
             "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
             "min": {"type": "map", "keyType": "resourceName", "valueType": "string"},
             "default": {"type": "map", "keyType": "resourceName", "valueType": "string"},
@@ -18,7 +18,7 @@
             "maxLimitRequestRatio": {"type": "map", "keyType": "resourceName", "valueType": "string"}
         },
 
-        "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeralStorage"]}
+        "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeral-storage"]}
     },
 
     "resourceMethods": [ "GET", "DELETE" ],
@@ -32,7 +32,7 @@
 
         "subResources": {
             "limitRangeItem": {
-                "type": {"type": "enum", "validValues": ["pod", "container", "persistentVolumeClaim"]},
+                "type": {"type": "enum", "validValues": ["Pod", "Container", "PersistentVolumeClaim"]},
                 "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
                 "min": {"type": "map", "keyType": "resourceName", "valueType": "string"},
                 "default": {"type": "map", "keyType": "resourceName", "valueType": "string"},
@@ -40,7 +40,7 @@
                 "maxLimitRequestRatio": {"type": "map", "keyType": "resourceName", "valueType": "string"}
             },
 
-            "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeralStorage"]}
+            "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeral-storage"]}
         }
     }
 }

@@ -134,7 +134,7 @@ func scLimitsResourceNameToK8sResourceName(name string) (k8sname corev1.Resource
 		k8sname = corev1.ResourceMemory
 	case "storage":
 		k8sname = corev1.ResourceStorage
-	case "ephemeralstorage":
+	case "ephemeral-storage":
 		k8sname = corev1.ResourceEphemeralStorage
 	default:
 		err = fmt.Errorf("limitrange resoucename %s isn`t supported", name)
@@ -150,7 +150,7 @@ func scQuotaResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceN
 		k8sname = corev1.ResourceMemory
 	case "storage":
 		k8sname = corev1.ResourceStorage
-	case "ephemeralStorage":
+	case "ephemeral-storage":
 		k8sname = corev1.ResourceEphemeralStorage
 	case "pods":
 		k8sname = corev1.ResourcePods
@@ -166,23 +166,23 @@ func scQuotaResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceN
 		k8sname = corev1.ResourceConfigMaps
 	case "persistentvolumeclaims":
 		k8sname = corev1.ResourcePersistentVolumeClaims
-	case "servicesnodeports":
+	case "services.nodeports":
 		k8sname = corev1.ResourceServicesNodePorts
-	case "servicesloadbalancers":
+	case "services.loadbalancers":
 		k8sname = corev1.ResourceServicesLoadBalancers
-	case "requestscpu":
+	case "requests.cpu":
 		k8sname = corev1.ResourceRequestsCPU
-	case "requestsmemory":
+	case "requests.memory":
 		k8sname = corev1.ResourceRequestsMemory
-	case "requestsstorage":
+	case "requests.storage":
 		k8sname = corev1.ResourceRequestsStorage
-	case "requestsephemeralstorage":
+	case "requests.ephemeral-storage":
 		k8sname = corev1.ResourceRequestsEphemeralStorage
-	case "limitscpu":
+	case "limits.cpu":
 		k8sname = corev1.ResourceLimitsCPU
-	case "limitsmemory":
+	case "limits.memory":
 		k8sname = corev1.ResourceLimitsMemory
-	case "limitsephemeralstorage":
+	case "limits.ephemeral-storage":
 		k8sname = corev1.ResourceLimitsEphemeralStorage
 	default:
 		err = fmt.Errorf("resoucequota resourcename %s isn`t supported", name)
