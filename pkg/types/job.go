@@ -14,10 +14,6 @@ func SetJobSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 type Job struct {
 	resttypes.Resource `json:",inline"`
 	Name               string      `json:"name,omitempty"`
-	Parallelism        int32       `json:"parallelism,omitempty"`
-	Completions        int32       `json:"completions,omitempty"`
-	BackoffLimit       int32       `json:"backoffLimit,omitempty"`
-	NodeName           string      `json:"nodeName,omitempty"`
 	RestartPolicy      string      `json:"restartPolicy,omitempty"`
 	Containers         []Container `json:"containers"`
 	Status             JobStatus   `json:"status"`
