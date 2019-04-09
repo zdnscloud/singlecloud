@@ -5,16 +5,12 @@
 
     "resourceFields": {
         "name": {"type": "string"},
-        "containerLimit": {"type": "containerLimitRange"}
+        "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+        "min": {"type": "map", "keyType": "resourceName", "valueType": "string"}
     },
 
     "subResources": {
-        "containerLimitRange": {
-            "max": {"type": "map", "keyType": "containerResourceName", "valueType": "string"},
-            "min": {"type": "map", "keyType": "containerResourceName", "valueType": "string"}
-        },
-
-        "containerResourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
+        "resourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
     },
 
     "resourceMethods": [ "GET", "DELETE" ],
@@ -23,16 +19,12 @@
     "postParameters": {
         "fields": {
             "name": {"type": "string", "required": true},
-            "containerLimit": {"type": "containerLimitRange", "required": true}
+            "max": {"type": "map", "keyType": "resourceName", "valueType": "string", "required": true},
+            "min": {"type": "map", "keyType": "resourceName", "valueType": "string", "required": true}
         },
 
         "subResources": {
-            "containerLimitRange": {
-                "max": {"type": "map", "keyType": "containerResourceName", "valueType": "string", "required": true},
-                "min": {"type": "map", "keyType": "containerResourceName", "valueType": "string", "required": true}
-            },
-
-            "containerResourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
+            "resourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
         }
     }
 }
