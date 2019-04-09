@@ -25,6 +25,7 @@ func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface
 	if err := m.impl.AddUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
 	}
+	user.SetID(user.Name)
 	return user, nil
 }
 
