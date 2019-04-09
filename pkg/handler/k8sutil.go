@@ -112,114 +112,30 @@ func scRestartPolicyToK8sRestartPolicy(policy string) (p corev1.RestartPolicy, e
 	return
 }
 
-func scLimitRangeTypeToK8sLimitRangeType(typ string) (t corev1.LimitType, err error) {
-	switch strings.ToLower(typ) {
-	case "pod":
-		t = corev1.LimitTypePod
-	case "container":
-		t = corev1.LimitTypeContainer
-	case "persistentvolumeclaim":
-		t = corev1.LimitTypePersistentVolumeClaim
-	default:
-		err = fmt.Errorf("limit range type %s isn`t supported", typ)
-	}
-	return
-}
-
 func scLimitsResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceName, err error) {
 	switch strings.ToLower(name) {
 	case "cpu":
 		k8sname = corev1.ResourceCPU
 	case "memory":
 		k8sname = corev1.ResourceMemory
-	case "storage":
-		k8sname = corev1.ResourceStorage
-	case "ephemeral-storage":
-		k8sname = corev1.ResourceEphemeralStorage
 	default:
-		err = fmt.Errorf("limitrange resoucename %s isn`t supported", name)
+		err = fmt.Errorf("container limitrange resoucename %s isn`t supported", name)
 	}
 	return
 }
 
 func scQuotaResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceName, err error) {
 	switch strings.ToLower(name) {
-	case "cpu":
-		k8sname = corev1.ResourceCPU
-	case "memory":
-		k8sname = corev1.ResourceMemory
-	case "storage":
-		k8sname = corev1.ResourceStorage
-	case "ephemeral-storage":
-		k8sname = corev1.ResourceEphemeralStorage
-	case "pods":
-		k8sname = corev1.ResourcePods
-	case "services":
-		k8sname = corev1.ResourceServices
-	case "replicationcontrollers":
-		k8sname = corev1.ResourceReplicationControllers
-	case "resourcequotas":
-		k8sname = corev1.ResourceQuotas
-	case "secrets":
-		k8sname = corev1.ResourceSecrets
-	case "configmaps":
-		k8sname = corev1.ResourceConfigMaps
-	case "persistentvolumeclaims":
-		k8sname = corev1.ResourcePersistentVolumeClaims
-	case "services.nodeports":
-		k8sname = corev1.ResourceServicesNodePorts
-	case "services.loadbalancers":
-		k8sname = corev1.ResourceServicesLoadBalancers
 	case "requests.cpu":
 		k8sname = corev1.ResourceRequestsCPU
 	case "requests.memory":
 		k8sname = corev1.ResourceRequestsMemory
-	case "requests.storage":
-		k8sname = corev1.ResourceRequestsStorage
-	case "requests.ephemeral-storage":
-		k8sname = corev1.ResourceRequestsEphemeralStorage
 	case "limits.cpu":
 		k8sname = corev1.ResourceLimitsCPU
 	case "limits.memory":
 		k8sname = corev1.ResourceLimitsMemory
-	case "limits.ephemeral-storage":
-		k8sname = corev1.ResourceLimitsEphemeralStorage
 	default:
 		err = fmt.Errorf("resoucequota resourcename %s isn`t supported", name)
-	}
-	return
-}
-
-func scQuotaScopeToK8sQuotaScope(scope string) (s corev1.ResourceQuotaScope, err error) {
-	switch strings.ToLower(scope) {
-	case "terminating":
-		s = corev1.ResourceQuotaScopeTerminating
-	case "notterminating":
-		s = corev1.ResourceQuotaScopeNotTerminating
-	case "besteffort":
-		s = corev1.ResourceQuotaScopeBestEffort
-	case "notbesteffort":
-		s = corev1.ResourceQuotaScopeNotBestEffort
-	case "priorityclass":
-		s = corev1.ResourceQuotaScopePriorityClass
-	default:
-		err = fmt.Errorf("resoucequota scope %s isn`t supported", scope)
-	}
-	return
-}
-
-func scQuotaOperatorToK8sQuotaOperator(operator string) (op corev1.ScopeSelectorOperator, err error) {
-	switch strings.ToLower(operator) {
-	case "in":
-		op = corev1.ScopeSelectorOpIn
-	case "notin":
-		op = corev1.ScopeSelectorOpNotIn
-	case "exists":
-		op = corev1.ScopeSelectorOpExists
-	case "doesnotexist":
-		op = corev1.ScopeSelectorOpDoesNotExist
-	default:
-		err = fmt.Errorf("resoucequota operator %s isn`t supported", operator)
 	}
 	return
 }

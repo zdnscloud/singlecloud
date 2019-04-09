@@ -120,38 +120,9 @@ func getResourceQuotas(cli client.Client, namespace string) (*corev1.ResourceQuo
 }
 
 func createResourceQuota(cli client.Client, namespace string, resourceQuota *types.ResourceQuota) error {
-	k8sHard, err := scQuotaResourceListToK8sResourceList(resourceQuota.Hard)
+	k8sHard, err := scQuotaResourceListToK8sResourceList(resourceQuota.Limits)
 	if err != nil {
 		return err
-	}
-
-	var k8sScopes []corev1.ResourceQuotaScope
-	for _, scope := range resourceQuota.Scopes {
-		k8sScope, err := scQuotaScopeToK8sQuotaScope(scope)
-		if err != nil {
-			return err
-		}
-
-		k8sScopes = append(k8sScopes, k8sScope)
-	}
-
-	var k8sSelectors []corev1.ScopedResourceSelectorRequirement
-	for _, selector := range resourceQuota.ScopeSelectors {
-		k8sScopeName, err := scQuotaScopeToK8sQuotaScope(selector.ScopeName)
-		if err != nil {
-			return err
-		}
-
-		k8sOperator, err := scQuotaOperatorToK8sQuotaOperator(selector.Operator)
-		if err != nil {
-			return err
-		}
-
-		k8sSelectors = append(k8sSelectors, corev1.ScopedResourceSelectorRequirement{
-			ScopeName: k8sScopeName,
-			Operator:  k8sOperator,
-			Values:    selector.Values,
-		})
 	}
 
 	k8sResourceQuota := &corev1.ResourceQuota{
@@ -160,11 +131,7 @@ func createResourceQuota(cli client.Client, namespace string, resourceQuota *typ
 			Namespace: namespace,
 		},
 		Spec: corev1.ResourceQuotaSpec{
-			Hard:   k8sHard,
-			Scopes: k8sScopes,
-			ScopeSelector: &corev1.ScopeSelector{
-				MatchExpressions: k8sSelectors,
-			},
+			Hard: k8sHard,
 		},
 	}
 	return cli.Create(context.TODO(), k8sResourceQuota)
@@ -196,34 +163,27 @@ func deleteResourceQuota(cli client.Client, namespace, name string) error {
 }
 
 func k8sResourceQuotaToSCResourceQuota(k8sResourceQuota *corev1.ResourceQuota) *types.ResourceQuota {
-	var scopes []string
-	for _, scope := range k8sResourceQuota.Spec.Scopes {
-		scopes = append(scopes, string(scope))
-	}
-
-	var selectors []types.ScopeSelector
-	if k8sSelector := k8sResourceQuota.Spec.ScopeSelector; k8sSelector != nil {
-		for _, selector := range k8sSelector.MatchExpressions {
-			selectors = append(selectors, types.ScopeSelector{
-				ScopeName: string(selector.ScopeName),
-				Operator:  string(selector.Operator),
-				Values:    selector.Values,
-			})
-		}
-	}
-
 	resourceQuota := &types.ResourceQuota{
-		Name:           k8sResourceQuota.ObjectMeta.Name,
-		Hard:           k8sResourceListToSCResourceList(k8sResourceQuota.Spec.Hard),
-		Scopes:         scopes,
-		ScopeSelectors: selectors,
+		Name:   k8sResourceQuota.ObjectMeta.Name,
+		Limits: k8sResourceListToSCQuotaResourceList(k8sResourceQuota.Spec.Hard),
 		Status: types.ResourceQuotaStatus{
-			Hard: k8sResourceListToSCResourceList(k8sResourceQuota.Status.Hard),
-			Used: k8sResourceListToSCResourceList(k8sResourceQuota.Status.Used),
+			Limits: k8sResourceListToSCQuotaResourceList(k8sResourceQuota.Status.Hard),
+			Used:   k8sResourceListToSCQuotaResourceList(k8sResourceQuota.Status.Used),
 		},
 	}
 	resourceQuota.SetID(k8sResourceQuota.Name)
 	resourceQuota.SetType(types.ResourceQuotaType)
 	resourceQuota.SetCreationTimestamp(k8sResourceQuota.CreationTimestamp.Time)
 	return resourceQuota
+}
+
+func k8sResourceListToSCQuotaResourceList(k8sResourceList corev1.ResourceList) map[string]string {
+	resourceList := make(map[string]string)
+	for name, quantity := range k8sResourceList {
+		if name == corev1.ResourceRequestsCPU || name == corev1.ResourceRequestsMemory ||
+			name == corev1.ResourceLimitsCPU || name == corev1.ResourceLimitsMemory {
+			resourceList[string(name)] = quantity.String()
+		}
+	}
+	return resourceList
 }

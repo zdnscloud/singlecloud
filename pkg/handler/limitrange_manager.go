@@ -121,46 +121,25 @@ func getLimitRanges(cli client.Client, namespace string) (*corev1.LimitRangeList
 
 func createLimitRange(cli client.Client, namespace string, limitRange *types.LimitRange) error {
 	var k8sLimitRangeItems []corev1.LimitRangeItem
-	for _, limit := range limitRange.Limits {
-		k8sLimitRangeType, err := scLimitRangeTypeToK8sLimitRangeType(limit.Type)
-		if err != nil {
-			return err
-		}
-
-		max, err := scLimitResourceListToK8sResourceList(limit.Max)
-		if err != nil {
-			return err
-		}
-
-		min, err := scLimitResourceListToK8sResourceList(limit.Min)
-		if err != nil {
-			return err
-		}
-
-		defaults, err := scLimitResourceListToK8sResourceList(limit.Default)
-		if err != nil {
-			return err
-		}
-
-		defaultRequest, err := scLimitResourceListToK8sResourceList(limit.DefaultRequest)
-		if err != nil {
-			return err
-		}
-
-		maxLimitRequestRatio, err := scLimitResourceListToK8sResourceList(limit.MaxLimitRequestRatio)
-		if err != nil {
-			return err
-		}
-
-		k8sLimitRangeItems = append(k8sLimitRangeItems, corev1.LimitRangeItem{
-			Type:                 k8sLimitRangeType,
-			Max:                  max,
-			Min:                  min,
-			Default:              defaults,
-			DefaultRequest:       defaultRequest,
-			MaxLimitRequestRatio: maxLimitRequestRatio,
-		})
+	if len(limitRange.Max) == 0 && len(limitRange.Min) == 0 {
+		return fmt.Errorf("limit range must set min or max")
 	}
+
+	max, err := scLimitResourceListToK8sResourceList(limitRange.Max)
+	if err != nil {
+		return fmt.Errorf("parse limitrange max failed: %v", err.Error())
+	}
+
+	min, err := scLimitResourceListToK8sResourceList(limitRange.Min)
+	if err != nil {
+		return fmt.Errorf("parse limitrange min failed: %v", err.Error())
+	}
+
+	k8sLimitRangeItems = append(k8sLimitRangeItems, corev1.LimitRangeItem{
+		Type: corev1.LimitTypeContainer,
+		Max:  max,
+		Min:  min,
+	})
 
 	k8sLimitRange := &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
@@ -200,32 +179,29 @@ func deleteLimitRange(cli client.Client, namespace, name string) error {
 }
 
 func k8sLimitRangeToSCLimitRange(k8sLimitRange *corev1.LimitRange) *types.LimitRange {
-	var limitRangeItems []types.LimitRangeItem
+	limitRange := &types.LimitRange{
+		Name: k8sLimitRange.ObjectMeta.Name,
+	}
 	for _, limit := range k8sLimitRange.Spec.Limits {
-		limitRangeItems = append(limitRangeItems, types.LimitRangeItem{
-			Type:                 string(limit.Type),
-			Max:                  k8sResourceListToSCResourceList(limit.Max),
-			Min:                  k8sResourceListToSCResourceList(limit.Min),
-			Default:              k8sResourceListToSCResourceList(limit.Default),
-			DefaultRequest:       k8sResourceListToSCResourceList(limit.DefaultRequest),
-			MaxLimitRequestRatio: k8sResourceListToSCResourceList(limit.MaxLimitRequestRatio),
-		})
+		if limit.Type == corev1.LimitTypeContainer {
+			limitRange.Max = k8sResourceListToSCLimitResourceList(limit.Max)
+			limitRange.Min = k8sResourceListToSCLimitResourceList(limit.Min)
+			break
+		}
 	}
 
-	limitRange := &types.LimitRange{
-		Name:   k8sLimitRange.ObjectMeta.Name,
-		Limits: limitRangeItems,
-	}
 	limitRange.SetID(k8sLimitRange.Name)
 	limitRange.SetType(types.LimitRangeType)
 	limitRange.SetCreationTimestamp(k8sLimitRange.CreationTimestamp.Time)
 	return limitRange
 }
 
-func k8sResourceListToSCResourceList(k8sResourceList corev1.ResourceList) map[string]string {
+func k8sResourceListToSCLimitResourceList(k8sResourceList corev1.ResourceList) map[string]string {
 	resourceList := make(map[string]string)
 	for name, quantity := range k8sResourceList {
-		resourceList[string(name)] = quantity.String()
+		if name == corev1.ResourceCPU || name == corev1.ResourceMemory {
+			resourceList[string(name)] = quantity.String()
+		}
 	}
 	return resourceList
 }

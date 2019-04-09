@@ -5,20 +5,16 @@
 
     "resourceFields": {
         "name": {"type": "string"},
-        "limits": {"type": "array", "elemType": "limitRangeItem"}
+        "containerLimit": {"type": "containerLimitRange"}
     },
 
     "subResources": {
-        "limitRangeItem": {
-            "type": {"type": "enum", "validValues": ["Pod", "Container", "PersistentVolumeClaim"]},
-            "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-            "min": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-            "default": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-            "defaultRequest": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-            "maxLimitRequestRatio": {"type": "map", "keyType": "resourceName", "valueType": "string"}
+        "containerLimitRange": {
+            "max": {"type": "map", "keyType": "containerResourceName", "valueType": "string"},
+            "min": {"type": "map", "keyType": "containerResourceName", "valueType": "string"}
         },
 
-        "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeral-storage"]}
+        "containerResourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
     },
 
     "resourceMethods": [ "GET", "DELETE" ],
@@ -27,20 +23,16 @@
     "postParameters": {
         "fields": {
             "name": {"type": "string", "required": true},
-            "limits": {"type": "array", "elemType": "limitRangeItem", "required": true}
+            "containerLimit": {"type": "containerLimitRange", "required": true}
         },
 
         "subResources": {
-            "limitRangeItem": {
-                "type": {"type": "enum", "validValues": ["Pod", "Container", "PersistentVolumeClaim"]},
-                "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-                "min": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-                "default": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-                "defaultRequest": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-                "maxLimitRequestRatio": {"type": "map", "keyType": "resourceName", "valueType": "string"}
+            "containerLimitRange": {
+                "max": {"type": "map", "keyType": "containerResourceName", "valueType": "string", "required": true},
+                "min": {"type": "map", "keyType": "containerResourceName", "valueType": "string", "required": true}
             },
 
-            "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeral-storage"]}
+            "containerResourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
         }
     }
 }

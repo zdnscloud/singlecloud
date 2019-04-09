@@ -5,25 +5,15 @@
 
     "resourceFields": {
         "name": {"type": "string"},
-        "hard": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-        "scopes": {"type": "array", "elemType": "resourceQuotaScope"},
-        "scopeSelectors": {"type": "array", "elemType": "scopeSelector"},
+        "limits": {"type": "map", "keyType": "resourceName", "valueType": "string"},
         "status": {"type": "array", "type": "resourceQuotaStatus"}
     },
 
     "subResources": {
-        "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeral-storage", "pods", "services", "replicationcontrollers", "resourcequotas", "secrets", "configmaps", "persistentvolumeclaims", "services.nodeports", "services.loadbalancers", "requests.cpu", "requests.memory", "requests.storage", "requests.ephemeral-storage", "limits.cpu", "limits.memory", "limits.ephemeral-storage"]},
-
-        "resourceQuotaScope": {"type": "enum", "validValues": [ "Terminating", "NotTerminating", "BestEffort", "NotBestEffort", "PriorityClass"]},
-
-        "scopeSelector": {
-            "scopeName": {"type": "resourceQuotaScope"},
-            "operator": {"type": "enum", "validValues": ["In", "Notin", "Exists", "DoesNotExist"]},
-            "values": {"type": "array", "elemType": "string"}
-        },
+        "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory"]},
 
         "resourceQuotaStatus": {
-            "hard": {"type": "resourceList"},
+            "limits": {"type": "resourceList"},
             "used": {"type": "resourceList"}
         }
     },
@@ -34,21 +24,11 @@
     "postParameters": {
         "fields": {
             "name": {"type": "string", "required": true},
-            "hard": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-            "scopes": {"type": "array", "elemType": "resourceQuotaScope"},
-            "scopeSelectors": {"type": "array", "elemType": "scopeSelector"}
+            "limits": {"type": "map", "keyType": "resourceName", "valueType": "string"}
         },
 
         "subResources": {
-            "resourceName": { "type": "enum", "validValues": ["cpu", "memory", "storage", "ephemeral-storage", "pods", "services", "replicationcontrollers", "resourcequotas", "secrets", "configmaps", "persistentvolumeclaims", "services.nodeports", "services.loadbalancers", "requests.cpu", "requests.memory", "requests.storage", "requests.ephemeral-storage", "limits.cpu", "limits.memory", "limits.ephemeral-storage"]},
-
-            "resourceQuotaScope": {"type": "enum", "validValues": [ "Terminating", "NotTerminating", "BestEffort", "NotBestEffort", "PriorityClass"]},
-
-            "scopeSelector": {
-                "scopeName": {"type": "resourceQuotaScope"},
-                "operator": {"type": "enum", "validValues": ["In", "Notin", "Exists", "DoesNotExist"]},
-                "values": {"type": "array", "elemType": "string"}
-            }
+            "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory"]}
         }
     }
 }
