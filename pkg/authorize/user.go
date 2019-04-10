@@ -14,7 +14,7 @@ import (
 const (
 	Administrator string = "admin"
 	AdminPasswd   string = "6710fc5dd8cd10e010af0083d9573fd327e8e67e" //hex encoding for sha1(zdns)
-	AllNamespace  string = "*"
+	AllNamespace  string = "_all"
 )
 
 var adminUser = &types.User{
