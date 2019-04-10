@@ -18,7 +18,6 @@ type Node struct {
 	Role                 string            `json:"role,omitempty"`
 	Labels               map[string]string `json:"labels,omitempty"`
 	Annotations          map[string]string `json:"annotations,omitempty"`
-	Status               bool              `json:"status,omitempty"`
 	OperatingSystem      string            `json:"operatingSystem,omitempty"`
 	OperatingSystemImage string            `json:"operatingSystemImage,omitempty"`
 	DockerVersion        string            `json:"dockerVersion,omitempty"`
