@@ -26,11 +26,19 @@ func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
 	}
 	user.SetID(user.Name)
+	user.SetType(types.UserType)
+	user.SetCreationTimestamp(time.Now())
 	return user, nil
 }
 
 func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
-	return m.impl.GetUser(ctx.Object.GetID())
+	var ret types.User
+	user := m.impl.GetUser(ctx.Object.GetID())
+	if user != nil {
+		ret = *user
+		ret.Password = ""
+	}
+	return &ret
 }
 
 func (m *UserManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
@@ -49,7 +57,14 @@ func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.AP
 }
 
 func (m *UserManager) List(ctx *resttypes.Context) interface{} {
-	return m.impl.GetUsers()
+	users := m.impl.GetUsers()
+	var ret []*types.User
+	for _, user := range users {
+		tmp := *user
+		tmp.Password = ""
+		ret = append(ret, &tmp)
+	}
+	return ret
 }
 
 func (m *UserManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {

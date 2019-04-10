@@ -30,6 +30,9 @@ type UserManager struct {
 
 func NewUserManager(secret []byte, validDuration time.Duration) *UserManager {
 	users := make(map[string]*types.User)
+	adminUser.SetID(Administrator)
+	adminUser.SetType(types.UserType)
+	adminUser.SetCreationTimestamp(time.Now())
 	users[Administrator] = adminUser
 	return &UserManager{
 		repo:  NewTokenRepo(secret, validDuration),
