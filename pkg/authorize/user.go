@@ -122,7 +122,7 @@ func (m *UserManager) authenticateUser(userName string, ctx *resttypes.Context) 
 	}
 	cluster := ancestors[0].GetID()
 	for _, project := range user.Projects {
-		if project.Cluster == cluster && project.Namespace == namespace {
+		if project.Cluster == cluster && (project.Namespace == AllNamespace || project.Namespace == namespace) {
 			return nil
 		}
 	}
