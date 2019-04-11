@@ -37,8 +37,10 @@ func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
 	if user != nil {
 		ret = *user
 		ret.Password = ""
+		return &ret
+	} else {
+		return nil
 	}
-	return &ret
 }
 
 func (m *UserManager) Delete(ctx *resttypes.Context) *resttypes.APIError {

@@ -22,7 +22,7 @@ type UserPassword struct {
 type User struct {
 	resttypes.Resource `json:",inline"`
 	Name               string    `json:"name"`
-	Password           string    `json:"password"`
+	Password           string    `json:"password,omitempty"`
 	Projects           []Project `json:"projects"`
 }
 

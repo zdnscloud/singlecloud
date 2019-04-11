@@ -3,7 +3,9 @@ package handler
 import (
 	"context"
 	"fmt"
+	"strconv"
 
+	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +16,11 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+)
+
+const (
+	NginxIngressNamespace = "ingress-nginx"
+	NginxUdpConfigMapName = "udp-services"
 )
 
 var defaultIngressClassAnnotation = map[string]string{
@@ -99,12 +106,27 @@ func (m *IngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 
 	namespace := ctx.Object.GetParent().GetID()
 	ingress := ctx.Object.(*types.Ingress)
-	err := deleteIngress(cluster.KubeClient, namespace, ingress.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("ingress %s desn't exist", namespace))
-		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete ingress failed %s", err.Error()))
+	var udpPorts []int
+	for _, r := range ingress.Rules {
+		if r.Port != 0 {
+			udpPorts = append(udpPorts, r.Port)
+		}
+	}
+	if len(udpPorts) > 0 {
+		err := deleteUDPIngress(cluster.KubeClient, udpPorts)
+		if err != nil {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete udp ingress failed %s", err.Error()))
+		}
+	}
+
+	if len(udpPorts) < len(ingress.Rules) {
+		err := deleteHTTPIngress(cluster.KubeClient, namespace, ingress.GetID())
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("ingress %s desn't exist", namespace))
+			} else {
+				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete ingress failed %s", err.Error()))
+			}
 		}
 	}
 	return nil
@@ -124,7 +146,22 @@ func getIngresss(cli client.Client, namespace string) (*extv1beta1.IngressList, 
 
 func createIngress(cli client.Client, namespace string, ingress *types.Ingress) error {
 	var rules []extv1beta1.IngressRule
+	udpServices := make(map[int]string)
 	for _, r := range ingress.Rules {
+		protocol, err := scProtocolToK8SProtocol(r.Protocol)
+		if err != nil {
+			return err
+		}
+
+		if protocol == corev1.ProtocolUDP {
+			if len(r.Paths) != 1 {
+				return fmt.Errorf("for udp protocol, one port can only map to one service")
+			}
+
+			udpServices[r.Port] = fmt.Sprintf("%s/%s:%d", namespace, r.Paths[0].ServiceName, r.Paths[0].ServicePort)
+			continue
+		}
+
 		var paths []extv1beta1.HTTPIngressPath
 		for _, p := range r.Paths {
 			paths = append(paths, extv1beta1.HTTPIngressPath{
@@ -145,24 +182,74 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 		})
 	}
 
-	k8sIngress := &extv1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        ingress.Name,
-			Namespace:   namespace,
-			Annotations: defaultIngressClassAnnotation,
-		},
-		Spec: extv1beta1.IngressSpec{
-			Rules: rules,
-		},
+	if len(rules) > 0 {
+		k8sIngress := &extv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        ingress.Name,
+				Namespace:   namespace,
+				Annotations: defaultIngressClassAnnotation,
+			},
+			Spec: extv1beta1.IngressSpec{
+				Rules: rules,
+			},
+		}
+		if err := cli.Create(context.TODO(), k8sIngress); err != nil {
+			return err
+		}
 	}
-	return cli.Create(context.TODO(), k8sIngress)
+
+	if len(udpServices) > 0 {
+		return createUdpIngresses(cli, udpServices)
+	}
+
+	return nil
 }
 
-func deleteIngress(cli client.Client, namespace, name string) error {
+func createUdpIngresses(cli client.Client, udpServices map[int]string) error {
+	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, NginxUdpConfigMapName)
+	if err != nil {
+		return err
+	}
+
+	cm := k8sConfigMapToSCConfigMap(k8sCM)
+	for _, c := range cm.Configs {
+		p, err := strconv.Atoi(c.Name)
+		if err != nil {
+			return fmt.Errorf("nginx udp config map has invalid port %s", c.Name)
+		}
+
+		if _, ok := udpServices[p]; ok {
+			return fmt.Errorf("udp port %d is already used", p)
+		}
+	}
+
+	for p, s := range udpServices {
+		cm.Configs = append(cm.Configs, types.Config{
+			Name: strconv.Itoa(p),
+			Data: s,
+		})
+	}
+
+	return updateConfigMap(cli, NginxIngressNamespace, cm)
+}
+
+func deleteHTTPIngress(cli client.Client, namespace, name string) error {
 	ingress := &extv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}
 	return cli.Delete(context.TODO(), ingress)
+}
+
+func deleteUDPIngress(cli client.Client, udpPorts []int) error {
+	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, NginxUdpConfigMapName)
+	if err != nil {
+		return err
+	}
+	for _, p := range udpPorts {
+		delete(k8sCM.Data, strconv.Itoa(p))
+	}
+	return cli.Update(context.TODO(), k8sCM)
+
 }
 
 func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {

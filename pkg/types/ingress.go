@@ -17,8 +17,10 @@ type IngressPath struct {
 	ServicePort int    `json:"servicePort"`
 }
 type IngressRule struct {
-	Host  string        `json:"host"`
-	Paths []IngressPath `json:"paths"`
+	Host     string        `json:"host"`
+	Port     int           `json:"port"`
+	Protocol string        `json:"protocol"`
+	Paths    []IngressPath `json:"paths"`
 }
 
 type Ingress struct {

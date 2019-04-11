@@ -36,8 +36,9 @@ type ExposedService struct {
 	Protocol          string `json:"protocol"`
 	ServicePort       int    `json:"servicePort"`
 	AutoCreateIngress bool   `json:"autoCreateIngress"`
-	IngressDomainName string `json:"ingressDomainName"`
-	IngressPath       string `json:"ingressPath"`
+	IngressDomainName string `json:"ingressDomainName,omitempty"`
+	IngressPath       string `json:"ingressPath,omitempty"`
+	IngressPort       int    `json:"ingressPort,omitempty"`
 }
 
 type AdvancedOptions struct {

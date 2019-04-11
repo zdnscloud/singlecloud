@@ -347,7 +347,9 @@ func createServiceAndIngress(advancedOpts types.AdvancedOptions, cli client.Clie
 
 		if s.AutoCreateIngress {
 			rules = append(rules, types.IngressRule{
-				Host: s.IngressDomainName,
+				Host:     s.IngressDomainName,
+				Port:     s.IngressPort,
+				Protocol: s.Protocol,
 				Paths: []types.IngressPath{
 					types.IngressPath{
 						Path:        s.IngressPath,
@@ -391,11 +393,22 @@ func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts str
 	json.Unmarshal([]byte(opts), &advancedOpts)
 	if len(advancedOpts.ExposedServices) > 0 {
 		deleteService(cli, namespace, serviceName)
+		var udpPorts []int
+		hasHTTPIngress := false
 		for _, s := range advancedOpts.ExposedServices {
 			if s.AutoCreateIngress {
-				deleteIngress(cli, namespace, serviceName)
-				break
+				if s.IngressPort != 0 {
+					udpPorts = append(udpPorts, s.IngressPort)
+				} else {
+					hasHTTPIngress = true
+				}
 			}
+		}
+		if len(udpPorts) > 0 {
+			deleteUDPIngress(cli, udpPorts)
+		}
+		if hasHTTPIngress {
+			deleteHTTPIngress(cli, namespace, serviceName)
 		}
 	}
 }
