@@ -132,6 +132,10 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 			return err
 		}
 
+		if len(r.Paths) == 0 {
+			return fmt.Errorf("invalid ingress with empty path")
+		}
+
 		if protocol == corev1.ProtocolUDP {
 			if len(r.Paths) != 1 {
 				return fmt.Errorf("for udp protocol, one port can only map to one service")
@@ -178,10 +182,21 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 				Namespace:   namespace,
 				Annotations: annaotations,
 			},
-			Spec: extv1beta1.IngressSpec{
-				Rules: rules,
-			},
 		}
+
+		if len(rules) > 0 {
+			k8sIngress.Spec = extv1beta1.IngressSpec{
+				Rules: rules,
+			}
+		} else {
+			k8sIngress.Spec = extv1beta1.IngressSpec{
+				Backend: &extv1beta1.IngressBackend{
+					ServiceName: ingress.Rules[0].Paths[0].ServiceName,
+					ServicePort: intstr.FromInt(ingress.Rules[0].Paths[0].ServicePort),
+				},
+			}
+		}
+
 		if err := cli.Create(context.TODO(), k8sIngress); err != nil {
 			return err
 		}
