@@ -159,10 +159,11 @@ func (m *UserManager) UpdateUser(user *types.User) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if _, ok := m.users[user.Name]; ok == false {
-		return fmt.Errorf("user %s doesn't exist", user.Name)
+	name := user.GetID()
+	if _, ok := m.users[name]; ok == false {
+		return fmt.Errorf("user %s doesn't exist", name)
 	} else {
-		m.users[user.Name] = user
+		m.users[name] = user
 		return nil
 	}
 }

@@ -12,13 +12,13 @@ func SetIngressSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 }
 
 type IngressPath struct {
-	Path        string `json:"path"`
+	Path        string `json:"path,omitempty"`
 	ServiceName string `json:"serviceName"`
 	ServicePort int    `json:"servicePort"`
 }
 type IngressRule struct {
 	Host     string        `json:"host"`
-	Port     int           `json:"port"`
+	Port     int           `json:"port,omitempty"`
 	Protocol string        `json:"protocol"`
 	Paths    []IngressPath `json:"paths"`
 }

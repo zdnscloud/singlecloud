@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -21,6 +22,7 @@ import (
 const (
 	NginxIngressNamespace = "ingress-nginx"
 	NginxUdpConfigMapName = "udp-services"
+	AnnkeyForUDPIngress   = "zcloud_ingress_udp"
 )
 
 var defaultIngressClassAnnotation = map[string]string{
@@ -106,20 +108,16 @@ func (m *IngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 
 	namespace := ctx.Object.GetParent().GetID()
 	ingress := ctx.Object.(*types.Ingress)
-	var udpPorts []int
-	for _, r := range ingress.Rules {
-		if r.Port != 0 {
-			udpPorts = append(udpPorts, r.Port)
-		}
-	}
-	if len(udpPorts) > 0 {
-		err := deleteUDPIngress(cluster.KubeClient, udpPorts)
-		if err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete udp ingress failed %s", err.Error()))
+	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("ingress %s in namespace %s desn't exist", ingress.GetID(), namespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get ingress failed %s", err.Error()))
 		}
 	}
 
-	if len(udpPorts) < len(ingress.Rules) {
+	if len(k8sIngress.Spec.Rules) > 0 {
 		err := deleteHTTPIngress(cluster.KubeClient, namespace, ingress.GetID())
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -129,6 +127,23 @@ func (m *IngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 			}
 		}
 	}
+
+	udpRulesJson, ok := k8sIngress.Annotations[AnnkeyForUDPIngress]
+	if ok {
+		var udpRules []types.IngressRule
+		json.Unmarshal([]byte(udpRulesJson), &udpRules)
+
+		var udpPorts []int
+		for _, r := range udpRules {
+			udpPorts = append(udpPorts, r.Port)
+		}
+
+		err := deleteUDPIngress(cluster.KubeClient, udpPorts)
+		if err != nil {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete udp ingress failed %s", err.Error()))
+		}
+	}
+
 	return nil
 }
 
@@ -147,6 +162,7 @@ func getIngresss(cli client.Client, namespace string) (*extv1beta1.IngressList, 
 func createIngress(cli client.Client, namespace string, ingress *types.Ingress) error {
 	var rules []extv1beta1.IngressRule
 	udpServices := make(map[int]string)
+	var udpRules []types.IngressRule
 	for _, r := range ingress.Rules {
 		protocol, err := scProtocolToK8SProtocol(r.Protocol)
 		if err != nil {
@@ -157,8 +173,8 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 			if len(r.Paths) != 1 {
 				return fmt.Errorf("for udp protocol, one port can only map to one service")
 			}
-
 			udpServices[r.Port] = fmt.Sprintf("%s/%s:%d", namespace, r.Paths[0].ServiceName, r.Paths[0].ServicePort)
+			udpRules = append(udpRules, r)
 			continue
 		}
 
@@ -182,12 +198,22 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 		})
 	}
 
-	if len(rules) > 0 {
+	if len(rules) > 0 || len(udpRules) > 0 {
+		annaotations := make(map[string]string)
+		for k, v := range defaultIngressClassAnnotation {
+			annaotations[k] = v
+		}
+
+		if len(udpRules) > 0 {
+			udpRulesJson, _ := json.Marshal(udpRules)
+			annaotations[AnnkeyForUDPIngress] = string(udpRulesJson)
+		}
+
 		k8sIngress := &extv1beta1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        ingress.Name,
 				Namespace:   namespace,
-				Annotations: defaultIngressClassAnnotation,
+				Annotations: annaotations,
 			},
 			Spec: extv1beta1.IngressSpec{
 				Rules: rules,
@@ -249,7 +275,6 @@ func deleteUDPIngress(cli client.Client, udpPorts []int) error {
 		delete(k8sCM.Data, strconv.Itoa(p))
 	}
 	return cli.Update(context.TODO(), k8sCM)
-
 }
 
 func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {
@@ -268,6 +293,13 @@ func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {
 			Host:  r.Host,
 			Paths: paths,
 		})
+	}
+
+	udpRulesJson, ok := k8sIngress.Annotations[AnnkeyForUDPIngress]
+	if ok {
+		var udpRules []types.IngressRule
+		json.Unmarshal([]byte(udpRulesJson), &udpRules)
+		rules = append(rules, udpRules...)
 	}
 
 	ingress := &types.Ingress{
