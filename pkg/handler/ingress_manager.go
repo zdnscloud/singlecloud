@@ -107,44 +107,7 @@ func (m *IngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 
 	namespace := ctx.Object.GetParent().GetID()
-	ingress := ctx.Object.(*types.Ingress)
-	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("ingress %s in namespace %s desn't exist", ingress.GetID(), namespace))
-		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get ingress failed %s", err.Error()))
-		}
-	}
-
-	if len(k8sIngress.Spec.Rules) > 0 {
-		err := deleteHTTPIngress(cluster.KubeClient, namespace, ingress.GetID())
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("ingress %s desn't exist", namespace))
-			} else {
-				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete ingress failed %s", err.Error()))
-			}
-		}
-	}
-
-	udpRulesJson, ok := k8sIngress.Annotations[AnnkeyForUDPIngress]
-	if ok {
-		var udpRules []types.IngressRule
-		json.Unmarshal([]byte(udpRulesJson), &udpRules)
-
-		var udpPorts []int
-		for _, r := range udpRules {
-			udpPorts = append(udpPorts, r.Port)
-		}
-
-		err := deleteUDPIngress(cluster.KubeClient, udpPorts)
-		if err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete udp ingress failed %s", err.Error()))
-		}
-	}
-
-	return nil
+	return deleteIngress(cluster.KubeClient, namespace, ctx.Object.GetID())
 }
 
 func getIngress(cli client.Client, namespace, name string) (*extv1beta1.Ingress, error) {
@@ -226,6 +189,44 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 
 	if len(udpServices) > 0 {
 		return createUdpIngresses(cli, udpServices)
+	}
+
+	return nil
+}
+
+func deleteIngress(cli client.Client, namespace, name string) *resttypes.APIError {
+	k8sIngress, err := getIngress(cli, namespace, name)
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("ingress %s in namespace %s desn't exist", name, namespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get ingress failed %s", err.Error()))
+		}
+	}
+
+	err = deleteHTTPIngress(cli, namespace, name)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("ingress %s desn't exist", namespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete ingress failed %s", err.Error()))
+		}
+	}
+
+	udpRulesJson, ok := k8sIngress.Annotations[AnnkeyForUDPIngress]
+	if ok {
+		var udpRules []types.IngressRule
+		json.Unmarshal([]byte(udpRulesJson), &udpRules)
+
+		var udpPorts []int
+		for _, r := range udpRules {
+			udpPorts = append(udpPorts, r.Port)
+		}
+
+		err := deleteUDPIngress(cli, udpPorts)
+		if err != nil {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete udp ingress failed %s", err.Error()))
+		}
 	}
 
 	return nil

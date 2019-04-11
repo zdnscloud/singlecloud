@@ -393,22 +393,11 @@ func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts str
 	json.Unmarshal([]byte(opts), &advancedOpts)
 	if len(advancedOpts.ExposedServices) > 0 {
 		deleteService(cli, namespace, serviceName)
-		var udpPorts []int
-		hasHTTPIngress := false
 		for _, s := range advancedOpts.ExposedServices {
 			if s.AutoCreateIngress {
-				if s.IngressPort != 0 {
-					udpPorts = append(udpPorts, s.IngressPort)
-				} else {
-					hasHTTPIngress = true
-				}
+				deleteIngress(cli, namespace, serviceName)
+				break
 			}
-		}
-		if len(udpPorts) > 0 {
-			deleteUDPIngress(cli, udpPorts)
-		}
-		if hasHTTPIngress {
-			deleteHTTPIngress(cli, namespace, serviceName)
 		}
 	}
 }
