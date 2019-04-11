@@ -1,0 +1,34 @@
+{
+    "resourceType": "resourcequota",
+    "collectionName": "resourcequotas",
+    "parentResource": "namespace",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "limits": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+        "status": {"type": "array", "type": "resourceQuotaStatus"}
+    },
+
+    "subResources": {
+        "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory"]},
+
+        "resourceQuotaStatus": {
+            "limits": {"type": "resourceList"},
+            "used": {"type": "resourceList"}
+        }
+    },
+
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "GET", "POST"],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "limits": {"type": "map", "keyType": "resourceName", "valueType": "string"}
+        },
+
+        "subResources": {
+            "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory"]}
+        }
+    }
+}

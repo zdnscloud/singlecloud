@@ -1,0 +1,30 @@
+{
+    "resourceType": "limitrange",
+    "collectionName": "limitranges",
+    "parentResource": "namespace",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
+        "min": {"type": "map", "keyType": "resourceName", "valueType": "string"}
+    },
+
+    "subResources": {
+        "resourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
+    },
+
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "GET", "POST"],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "max": {"type": "map", "keyType": "resourceName", "valueType": "string", "required": true},
+            "min": {"type": "map", "keyType": "resourceName", "valueType": "string", "required": true}
+        },
+
+        "subResources": {
+            "resourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
+        }
+    }
+}

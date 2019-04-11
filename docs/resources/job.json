@@ -5,10 +5,6 @@
 
     "resourceFields": {
         "name": {"type": "string"},
-        "parallelism": {"type": "int32"},
-        "completions": {"type": "int32"},
-        "backoffLimit": {"type": "int32"},
-        "nodeName": {"type": "string"},
         "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"]},
         "containers": {"type": "array", "elemType": "container"},
         "status": {"type": "jobStatus"}
@@ -57,9 +53,6 @@
     "postParameters": {
         "fields": {
             "name": {"type": "string", "required": true},
-            "parallelism": {"type": "int32"},
-            "completions": {"type": "int32"},
-            "backoffLimit": {"type": "int32"},
             "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"], "required": true},
             "containers": {"type": "array", "elemType": "container", "required": true}
         },
