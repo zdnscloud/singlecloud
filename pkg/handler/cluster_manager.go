@@ -11,6 +11,7 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/event"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
+	"github.com/zdnscloud/singlecloud/pkg/servicecache"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -22,25 +23,38 @@ const (
 	MaxEventCount = 4096
 )
 
+type Cluster struct {
+	*types.Cluster `json:",inline"`
+
+	KubeClient   client.Client              `json:"-"`
+	Executor     *exec.Executor             `json:"-"`
+	EventWatcher *event.EventWatcher        `json:"-"`
+	ServiceCache *servicecache.ServiceCache `json:"-"`
+}
+
 type ClusterManager struct {
 	DefaultHandler
-	clusters []*types.Cluster
+	clusters []*Cluster
 }
 
 func newClusterManager() *ClusterManager {
 	return &ClusterManager{}
 }
 
-func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *types.Cluster {
+func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
 	ancestors := resttypes.GetAncestors(obj)
 	clusterID := ancestors[0].GetID()
 	return m.get(clusterID)
 }
 
 func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := ctx.Object.(*types.Cluster)
-	if c := m.get(cluster.Name); c != nil {
+	inner := ctx.Object.(*types.Cluster)
+	if c := m.get(inner.Name); c != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
+	}
+
+	cluster := &Cluster{
+		Cluster: inner,
 	}
 
 	cluster.SetID(cluster.Name)
@@ -88,6 +102,12 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 	cluster.EventWatcher = eventWatcher
 
+	serviceCache, err := servicecache.New(cache)
+	if err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service cache failed:%s", err.Error()))
+	}
+	cluster.ServiceCache = serviceCache
+
 	if err := initCluster(cluster); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
 	}
@@ -101,7 +121,7 @@ func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	return m.get(ctx.Object.GetID())
 }
 
-func (m *ClusterManager) get(id string) *types.Cluster {
+func (m *ClusterManager) get(id string) *Cluster {
 	for _, c := range m.clusters {
 		if c.GetID() == id {
 			return c
@@ -114,7 +134,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	return m.clusters
 }
 
-func initCluster(cluster *types.Cluster) error {
+func initCluster(cluster *Cluster) error {
 	imported, err := isClusterImportBefore(cluster)
 	if err != nil {
 		return err
@@ -138,11 +158,11 @@ func initCluster(cluster *types.Cluster) error {
 	return nil
 }
 
-func isClusterImportBefore(cluster *types.Cluster) (bool, error) {
+func isClusterImportBefore(cluster *Cluster) (bool, error) {
 	return hasNamespace(cluster.KubeClient, ZCloudNamespace)
 }
 
-func createRole(cluster *types.Cluster, roleName string, role ClusterRole) error {
+func createRole(cluster *Cluster, roleName string, role ClusterRole) error {
 	cli := cluster.KubeClient
 	if err := createServiceAccount(cli, roleName, ZCloudNamespace); err != nil {
 		logger.Error("create service account %s failed: %s", roleName, err.Error())

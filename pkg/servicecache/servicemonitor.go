@@ -1,7 +1,8 @@
-package resourcerepo
+package servicecache
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -13,12 +14,15 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
+
+const AnnkeyForUDPIngress = "zcloud_ingress_udp"
 
 type ServiceMonitor struct {
 	services          map[string]*Service
 	ingWaitForService map[string]*Ingress
-	lock              sync.Mutex
+	lock              sync.RWMutex
 
 	cache cache.Cache
 }
@@ -31,14 +35,53 @@ func newServiceMonitor(cache cache.Cache) *ServiceMonitor {
 	}
 }
 
-func (s *ServiceMonitor) GetServices() []*Service {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	svcs := make([]*Service, 0, len(s.services))
+func (s *ServiceMonitor) GetInnerServices() []types.InnerService {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	svcs := make([]types.InnerService, 0, len(s.services))
 	for _, svc := range s.services {
-		svcs = append(svcs, svc)
+		if svc.Ingress == nil {
+			svcs = append(svcs, types.InnerService{
+				Name:      svc.Name,
+				Workloads: svc.Workloads,
+			})
+		}
 	}
 	return svcs
+}
+
+func (s *ServiceMonitor) GetOuterServices() []types.OuterService {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	outerSvcs := make([]types.OuterService, 0, len(s.services))
+	for _, svc := range s.services {
+		if svc.Ingress != nil {
+			outerSvcs = append(outerSvcs, s.toOuterService(svc.Ingress)...)
+		}
+	}
+	return outerSvcs
+}
+
+func (s *ServiceMonitor) toOuterService(ing *Ingress) []types.OuterService {
+	outerSvcs := make([]types.OuterService, 0, len(ing.Rules))
+	var outerSvc types.OuterService
+	for _, rule := range ing.Rules {
+		outerSvc.Domain = rule.Domain
+		outerSvc.Port = rule.Port
+		innerSvcs := make(map[string]types.InnerService)
+		for _, p := range rule.Paths {
+			svc, ok := s.services[p.Service]
+			if ok {
+				innerSvcs[p.Path] = types.InnerService{
+					Name:      svc.Name,
+					Workloads: svc.Workloads,
+				}
+			}
+		}
+		outerSvc.Services = innerSvcs
+		outerSvcs = append(outerSvcs, outerSvc)
+	}
+	return outerSvcs
 }
 
 func (s *ServiceMonitor) OnNewService(k8ssvc *corev1.Service) {
@@ -81,9 +124,9 @@ func (s *ServiceMonitor) k8ssvcToSCService(k8ssvc *corev1.Service) (*Service, er
 		return nil, err
 	}
 
-	workerLoads := make(map[string]*Workload)
+	workerLoads := make(map[string]types.Workload)
 	for _, k8spod := range k8spods.Items {
-		pod := &Pod{
+		pod := types.SimplePod{
 			Name:    k8spod.Name,
 			IsReady: k8spod.Status.Phase == corev1.PodRunning,
 		}
@@ -96,7 +139,7 @@ func (s *ServiceMonitor) k8ssvcToSCService(k8ssvc *corev1.Service) (*Service, er
 
 			wl, ok := workerLoads[name]
 			if ok == false {
-				wl = &Workload{
+				wl = types.Workload{
 					Name: name,
 					Kind: kind,
 				}
@@ -175,7 +218,7 @@ func (s *ServiceMonitor) hasPodNameChange(eps *corev1.Endpoints) bool {
 		return false
 	}
 
-	pods := make(map[string]*Pod)
+	pods := make(map[string]types.SimplePod)
 	for _, wl := range svc.Workloads {
 		for _, p := range wl.Pods {
 			pods[p.Name] = p
@@ -264,6 +307,25 @@ func k8sIngressToSCIngress(k8sing *extv1beta1.Ingress) (*Ingress, []string) {
 			Paths:  paths,
 		})
 	}
+
+	udpRulesJson, ok := k8sing.Annotations[AnnkeyForUDPIngress]
+	if ok {
+		var udpRules []types.IngressRule
+		json.Unmarshal([]byte(udpRulesJson), &udpRules)
+		for _, rule := range udpRules {
+			var paths []IngressPath
+			for _, path := range rule.Paths {
+				paths = append(paths, IngressPath{
+					Service: path.ServiceName,
+				})
+			}
+			rules = append(rules, IngressRule{
+				Port:  rule.Port,
+				Paths: paths,
+			})
+		}
+	}
+
 	ing.Rules = rules
 	return ing, involvedServices
 }

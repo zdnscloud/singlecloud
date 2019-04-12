@@ -12,7 +12,6 @@ import (
 
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
-	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 var (
@@ -20,7 +19,7 @@ var (
 	LogRequestTimeout    = 5 * time.Second
 )
 
-func (m *ClusterManager) openPodLog(cluster *types.Cluster, namespace, pod, container string) (io.ReadCloser, error) {
+func (m *ClusterManager) openPodLog(cluster *Cluster, namespace, pod, container string) (io.ReadCloser, error) {
 	//when container has no log, Stream call will block forever
 	//if set client timeout, Stream will be timed out too
 	//so check whether there is any log first
