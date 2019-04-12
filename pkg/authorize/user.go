@@ -162,9 +162,12 @@ func (m *UserManager) UpdateUser(user *types.User) error {
 	defer m.lock.Unlock()
 
 	name := user.GetID()
-	if _, ok := m.users[name]; ok == false {
+	if old, ok := m.users[name]; ok == false {
 		return fmt.Errorf("user %s doesn't exist", name)
 	} else {
+		if user.Password == "" {
+			user.Password = old.Password
+		}
 		m.users[name] = user
 		return nil
 	}
