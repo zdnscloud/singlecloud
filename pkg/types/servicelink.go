@@ -13,7 +13,7 @@ func SetInnerServiceSchema(schema *resttypes.Schema, handler resttypes.Handler) 
 type InnerService struct {
 	resttypes.Resource `json:",inline"`
 	Name               string     `json:"name"`
-	Workloads          []Workload `json:"workload"`
+	Workloads          []Workload `json:"workloads"`
 }
 
 type Workload struct {
@@ -33,7 +33,7 @@ type OuterService struct {
 	resttypes.Resource `json:",inline"`
 	Domain             string                  `json:"domain"`
 	Port               int                     `json:"port"`
-	Services           map[string]InnerService `json:"workload"`
+	Services           map[string]InnerService `json:"services"`
 }
 
 func SetOuterServiceSchema(schema *resttypes.Schema, handler resttypes.Handler) {

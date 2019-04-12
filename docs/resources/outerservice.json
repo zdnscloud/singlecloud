@@ -1,0 +1,13 @@
+{
+    "resourceType": "outerservice",
+    "collectionName": "outerservices",
+    "parentResource": "namespace",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "domain": {"type": "string"},
+        "port": {"type": "int"}, 
+        "services": {"type": "map", "keyType": "string", "valueType": "innerservice"}
+    },
+    "collectionMethods": [ "GET" ]
+}
