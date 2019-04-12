@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,29 +27,41 @@ import (
 
 const (
 	addr               = "0.0.0.0:1234"
-	clusterName        = "test-cluster1"
-	namespaceName      = "test-namespace1"
-	deploymentName     = "test-deployment1"
-	containerName      = "test-containter1"
-	configMapName      = "test-configmap1"
-	configMountPath    = "/etc/config"
-	secretName         = "test-secret1"
-	secretMountPath    = "/etc/secret"
-	secretDataName     = "test-secret-dataname1"
+	clusterName        = "sc-test-cluster1"
+	namespaceName      = "sc-test-namespace1"
+	deploymentName     = "sc-test-deployment1"
+	containerName      = "sc-test-containter1"
+	configMapName      = "sc-test-configmap1"
+	configMountPath    = "/etc/scconfig"
+	secretName         = "sc-test-secret1"
+	secretMountPath    = "/etc/scsecret"
+	secretDataName     = "sc-test-secret-dataname1"
 	secretData         = "emRucw=="
-	ingressName        = "test-ingress1"
-	ingressPath        = "/etc/ingress"
-	exposedPortName    = "test-port1"
+	ingressName        = "sc-test-ingress1"
+	ingressPath        = "/etc/scingress"
+	exposedPortName    = "sc-test-port1"
 	exposedPort        = 22222
 	exposedProtocol    = "tcp"
 	exposedServiceType = "clusterip"
-	configMapDataName  = "test-cm-dataname1"
-	configMapData      = "test-cm-data1"
-	jobName            = "test-job1"
-	cronjobName        = "test-cronjob1"
+	configMapDataName  = "sc-test-cm-dataname1"
+	configMapData      = "sc-test-cm-data1"
+	jobName            = "sc-test-job1"
+	cronjobName        = "sc-test-cronjob1"
 	cronjobSchedule    = "*/1 * * * *"
 	restartPolicy      = "onfailure"
+	adminUserName      = "admin"
+	adminPassword      = "zdns"
+	limitRangeName     = "sc-test-limitrange1"
+	resourceQuotaName  = "sc-test-resourcequota1"
+	userName           = "sc-test-username1"
+	userPass           = "sc-test-userpass1"
 )
+
+var gToken string
+
+type Token struct {
+	Token string `json:"token"`
+}
 
 func runTestServer() {
 	if err := logger.InitLogger(); err != nil {
@@ -62,6 +76,11 @@ func runTestServer() {
 	if err := server.Run(addr); err != nil {
 		panic("server run failed:" + err.Error())
 	}
+}
+
+func genPassword(pass string) string {
+	pwHash := sha1.Sum([]byte(pass))
+	return hex.EncodeToString(pwHash[:])
 }
 
 func importTestCluster() error {
@@ -82,8 +101,20 @@ func importTestCluster() error {
 		return fmt.Errorf("read %s failed:%s", k8sconfig, err.Error())
 	}
 
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/admin?action=login", addr)
 	params := map[string]interface{}{
+		"user":     adminUserName,
+		"password": genPassword(adminPassword),
+	}
+	var token Token
+	err = sendRequest("POST", url, getBodyFromMap(params), &token)
+	if err != nil {
+		return fmt.Errorf("login failed:%s", err.Error())
+	}
+	gToken = token.Token
+
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
+	params = map[string]interface{}{
 		"name":  clusterName,
 		"yaml_": string(data),
 	}
@@ -101,6 +132,9 @@ func TestSingleCloud(t *testing.T) {
 	testDeployment(t)
 	testJob(t)
 	testCronJob(t)
+	testLimitRange(t)
+	testResourceQuota(t)
+	testUser(t)
 	testClearCluster(t)
 }
 
@@ -108,33 +142,20 @@ func testCluster(t *testing.T) {
 	err := importTestCluster()
 	ut.Equal(t, err, nil)
 
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
-	var collection restTypes.Collection
-	err = sendRequest("GET", url, nil, &collection)
+	existClusterNum, err := getCollectionNum(fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr))
 	ut.Equal(t, err, nil)
-	sliceData := reflect.ValueOf(collection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 1)
-	c := sliceData.Index(0).Interface()
-	object, ok := c.(map[string]interface{})
-	ut.Equal(t, ok, true)
-	ut.Equal(t, object["name"], clusterName)
+	ut.Equal(t, existClusterNum, 1)
 
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s", addr, clusterName)
 	var cluster types.Cluster
-	err = sendRequest("GET", url, nil, &cluster)
+	err = sendRequest("GET", fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s", addr, clusterName), nil, &cluster)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, cluster.Name, clusterName)
 }
 
 func testNamespace(t *testing.T) {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces", addr, clusterName)
-	var oldcollection restTypes.Collection
-	err := sendRequest("GET", url, nil, &oldcollection)
+	existNamespaceNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData := reflect.ValueOf(oldcollection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	existNamespaceNum := sliceData.Len()
 
 	params := map[string]interface{}{
 		"name": namespaceName,
@@ -142,22 +163,9 @@ func testNamespace(t *testing.T) {
 	err = sendRequest("POST", url, getBodyFromMap(params), nil)
 	ut.Equal(t, err, nil)
 
-	var collection restTypes.Collection
-	err = sendRequest("GET", url, nil, &collection)
+	newNamespaceNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData = reflect.ValueOf(collection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), existNamespaceNum+1)
-	exits := false
-	for i := 0; i < sliceData.Len(); i++ {
-		c := sliceData.Index(i).Interface()
-		object, ok := c.(map[string]interface{})
-		ut.Equal(t, ok, true)
-		if object["name"] == namespaceName {
-			exits = true
-		}
-	}
-	ut.Equal(t, exits, true)
+	ut.Equal(t, newNamespaceNum, existNamespaceNum+1)
 
 	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s", addr, clusterName, namespaceName)
 	var namespace types.Namespace
@@ -168,12 +176,9 @@ func testNamespace(t *testing.T) {
 
 func testConfigMap(t *testing.T) {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/configmaps", addr, clusterName, namespaceName)
-	var oldcollection restTypes.Collection
-	err := sendRequest("GET", url, nil, &oldcollection)
+	existConfigMapNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData := reflect.ValueOf(oldcollection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 0)
+	ut.Equal(t, existConfigMapNum, 0)
 
 	params := map[string]interface{}{
 		"name": configMapName,
@@ -187,16 +192,9 @@ func testConfigMap(t *testing.T) {
 	err = sendRequest("POST", url, getBodyFromMap(params), nil)
 	ut.Equal(t, err, nil)
 
-	var collection restTypes.Collection
-	err = sendRequest("GET", url, nil, &collection)
+	newConfigMapNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData = reflect.ValueOf(collection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 1)
-	c := sliceData.Index(0).Interface()
-	object, ok := c.(map[string]interface{})
-	ut.Equal(t, ok, true)
-	ut.Equal(t, object["name"], configMapName)
+	ut.Equal(t, newConfigMapNum, 1)
 
 	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/configmaps/%s",
 		addr, clusterName, namespaceName, configMapName)
@@ -209,13 +207,10 @@ func testConfigMap(t *testing.T) {
 
 func testSecret(t *testing.T) {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/secrets", addr, clusterName, namespaceName)
-	var oldcollection restTypes.Collection
-	err := sendRequest("GET", url, nil, &oldcollection)
+	existSecretNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData := reflect.ValueOf(oldcollection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
 	//default-token
-	ut.Equal(t, sliceData.Len(), 1)
+	ut.Equal(t, existSecretNum, 1)
 
 	params := map[string]interface{}{
 		"name": secretName,
@@ -226,12 +221,9 @@ func testSecret(t *testing.T) {
 	err = sendRequest("POST", url, getBodyFromMap(params), nil)
 	ut.Equal(t, err, nil)
 
-	var collection restTypes.Collection
-	err = sendRequest("GET", url, nil, &collection)
+	newSecretNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData = reflect.ValueOf(collection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 2)
+	ut.Equal(t, newSecretNum, 2)
 
 	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/secrets/%s",
 		addr, clusterName, namespaceName, secretName)
@@ -244,12 +236,9 @@ func testSecret(t *testing.T) {
 
 func testDeployment(t *testing.T) {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/deployments", addr, clusterName, namespaceName)
-	var oldcollection restTypes.Collection
-	err := sendRequest("GET", url, nil, &oldcollection)
+	existDeploymentNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData := reflect.ValueOf(oldcollection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 0)
+	ut.Equal(t, existDeploymentNum, 0)
 
 	containers := []types.Container{
 		types.Container{
@@ -298,16 +287,9 @@ func testDeployment(t *testing.T) {
 	err = sendRequest("POST", url, getBodyFromMap(params), nil)
 	ut.Equal(t, err, nil)
 
-	var collection restTypes.Collection
-	err = sendRequest("GET", url, nil, &collection)
+	newDeploymentNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData = reflect.ValueOf(collection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 1)
-	c := sliceData.Index(0).Interface()
-	object, ok := c.(map[string]interface{})
-	ut.Equal(t, ok, true)
-	ut.Equal(t, object["name"], deploymentName)
+	ut.Equal(t, newDeploymentNum, 1)
 
 	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/deployments/%s",
 		addr, clusterName, namespaceName, deploymentName)
@@ -344,12 +326,9 @@ func testDeployment(t *testing.T) {
 
 func testCronJob(t *testing.T) {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/cronjobs", addr, clusterName, namespaceName)
-	var oldcollection restTypes.Collection
-	err := sendRequest("GET", url, nil, &oldcollection)
+	existCronJobNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData := reflect.ValueOf(oldcollection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 0)
+	ut.Equal(t, existCronJobNum, 0)
 
 	params := map[string]interface{}{
 		"name":          cronjobName,
@@ -365,12 +344,9 @@ func testCronJob(t *testing.T) {
 	err = sendRequest("POST", url, getBodyFromMap(params), nil)
 	ut.Equal(t, err, nil)
 
-	var collection restTypes.Collection
-	err = sendRequest("GET", url, nil, &collection)
+	newCronJobNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData = reflect.ValueOf(collection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 1)
+	ut.Equal(t, newCronJobNum, 1)
 
 	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/cronjobs/%s",
 		addr, clusterName, namespaceName, cronjobName)
@@ -384,12 +360,9 @@ func testCronJob(t *testing.T) {
 
 func testJob(t *testing.T) {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/jobs", addr, clusterName, namespaceName)
-	var oldcollection restTypes.Collection
-	err := sendRequest("GET", url, nil, &oldcollection)
+	existJobNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData := reflect.ValueOf(oldcollection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 0)
+	ut.Equal(t, existJobNum, 0)
 
 	params := map[string]interface{}{
 		"name":          jobName,
@@ -404,12 +377,9 @@ func testJob(t *testing.T) {
 	err = sendRequest("POST", url, getBodyFromMap(params), nil)
 	ut.Equal(t, err, nil)
 
-	var collection restTypes.Collection
-	err = sendRequest("GET", url, nil, &collection)
+	newJobNum, err := getCollectionNum(url)
 	ut.Equal(t, err, nil)
-	sliceData = reflect.ValueOf(collection.Data)
-	ut.Equal(t, sliceData.Kind(), reflect.Slice)
-	ut.Equal(t, sliceData.Len(), 1)
+	ut.Equal(t, newJobNum, 1)
 
 	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/jobs/%s",
 		addr, clusterName, namespaceName, jobName)
@@ -418,6 +388,121 @@ func testJob(t *testing.T) {
 	ut.Equal(t, err, nil)
 	ut.Equal(t, job.Name, jobName)
 	ut.Equal(t, job.Containers[0].Name, containerName)
+}
+
+func testLimitRange(t *testing.T) {
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/limitranges",
+		addr, clusterName, namespaceName)
+	existLimitsNum, err := getCollectionNum(url)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, existLimitsNum, 0)
+
+	params := map[string]interface{}{
+		"name": limitRangeName,
+		"max": map[string]string{
+			"cpu":    "200m",
+			"memory": "200Ki",
+		},
+		"min": map[string]string{
+			"cpu":    "100m",
+			"memory": "100Ki",
+		},
+	}
+	err = sendRequest("POST", url, getBodyFromMap(params), nil)
+	ut.Equal(t, err, nil)
+
+	newLimitsNum, err := getCollectionNum(url)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, newLimitsNum, 1)
+
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/limitranges/%s",
+		addr, clusterName, namespaceName, limitRangeName)
+	var limit types.LimitRange
+	err = sendRequest("GET", url, nil, &limit)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, limit.Name, limitRangeName)
+	ut.Equal(t, limit.Max["cpu"], "200m")
+	ut.Equal(t, limit.Max["memory"], "200Ki")
+	ut.Equal(t, limit.Min["cpu"], "100m")
+	ut.Equal(t, limit.Min["memory"], "100Ki")
+}
+
+func testResourceQuota(t *testing.T) {
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/resourcequotas",
+		addr, clusterName, namespaceName)
+	existQuotasNum, err := getCollectionNum(url)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, existQuotasNum, 0)
+
+	params := map[string]interface{}{
+		"name": resourceQuotaName,
+		"limits": map[string]string{
+			"requests.cpu":    "200m",
+			"requests.memory": "200Ki",
+			"limits.cpu":      "200m",
+			"limits.memory":   "200Ki",
+		},
+	}
+	err = sendRequest("POST", url, getBodyFromMap(params), nil)
+	ut.Equal(t, err, nil)
+
+	newQuotasNum, err := getCollectionNum(url)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, newQuotasNum, 1)
+
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/resourcequotas/%s",
+		addr, clusterName, namespaceName, resourceQuotaName)
+	var quota types.ResourceQuota
+	err = sendRequest("GET", url, nil, &quota)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, quota.Name, resourceQuotaName)
+	ut.Equal(t, quota.Limits["limits.cpu"], "200m")
+	ut.Equal(t, quota.Limits["limits.memory"], "200Ki")
+	ut.Equal(t, quota.Limits["requests.cpu"], "200m")
+	ut.Equal(t, quota.Limits["requests.memory"], "200Ki")
+}
+
+func testUser(t *testing.T) {
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users", addr)
+	existUserNum, err := getCollectionNum(url)
+	ut.Equal(t, err, nil)
+	//admin
+	ut.Equal(t, existUserNum, 1)
+
+	params := map[string]interface{}{
+		"name":     userName,
+		"password": genPassword(userPass),
+	}
+	err = sendRequest("POST", url, getBodyFromMap(params), nil)
+	ut.Equal(t, err, nil)
+
+	newUserNum, err := getCollectionNum(url)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, newUserNum, 2)
+
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/%s", addr, userName)
+	var user types.User
+	err = sendRequest("GET", url, nil, &user)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, user.Name, userName)
+
+	params = map[string]interface{}{
+		"user":     userName,
+		"password": genPassword(userPass),
+	}
+	var token Token
+	err = sendRequest("POST", url, getBodyFromMap(params), &token)
+	if err != nil {
+		return fmt.Errorf("login failed:%s", err.Error())
+	}
+	adminToken = gToken
+	gToken = token.Token
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/%s", addr, userName)
+	var user types.User
+	err = sendRequest("GET", url, nil, &user)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, user.Name, userName)
+	gToken = adminToken
 }
 
 func testClearCluster(t *testing.T) {
@@ -446,6 +531,20 @@ func testClearCluster(t *testing.T) {
 	err = sendRequest("DELETE", url, nil, nil)
 	ut.Equal(t, err, nil)
 
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/limitranges/%s",
+		addr, clusterName, namespaceName, limitRangeName)
+	err = sendRequest("DELETE", url, nil, nil)
+	ut.Equal(t, err, nil)
+
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/resourcequotas/%s",
+		addr, clusterName, namespaceName, resourceQuotaName)
+	err = sendRequest("DELETE", url, nil, nil)
+	ut.Equal(t, err, nil)
+
+	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/%s", addr, userName)
+	err = sendRequest("DELETE", url, nil, nil)
+	ut.Equal(t, err, nil)
+
 	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s", addr, clusterName, namespaceName)
 	err = sendRequest("DELETE", url, nil, nil)
 	ut.Equal(t, err, nil)
@@ -459,6 +558,7 @@ func getBodyFromMap(params map[string]interface{}) io.Reader {
 func sendRequest(method, url string, reqBody io.Reader, result interface{}) error {
 	req, _ := http.NewRequest(method, url, reqBody)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+gToken)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -469,6 +569,8 @@ func sendRequest(method, url string, reqBody io.Reader, result interface{}) erro
 	body, _ := ioutil.ReadAll(resp.Body)
 	switch resp.StatusCode {
 	case http.StatusOK:
+		fallthrough
+	case http.StatusAccepted:
 		err := json.Unmarshal(body, result)
 		return err
 	case http.StatusCreated:
@@ -482,4 +584,18 @@ func sendRequest(method, url string, reqBody io.Reader, result interface{}) erro
 		json.Unmarshal(body, &errInfo)
 		return fmt.Errorf("%s %s failed: %s", method, url, errInfo.Message)
 	}
+}
+
+func getCollectionNum(url string) (int, error) {
+	var oldcollection restTypes.Collection
+	err := sendRequest("GET", url, nil, &oldcollection)
+	if err != nil {
+		return 0, err
+	}
+	sliceData := reflect.ValueOf(oldcollection.Data)
+	if sliceData.Kind() != reflect.Slice {
+		return 0, fmt.Errorf("get collection must return slice")
+	}
+
+	return sliceData.Len(), nil
 }
