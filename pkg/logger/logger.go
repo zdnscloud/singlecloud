@@ -1,14 +1,15 @@
 package logger
 
 import (
+	"os"
+
 	"github.com/zdnscloud/cement/log"
 )
 
 var gLogger log.Logger
 
-func InitLogger() (err error) {
+func InitLogger() {
 	gLogger = log.NewLog4jConsoleLogger(log.Debug)
-	return nil
 }
 
 func GetLogger() log.Logger {
@@ -29,4 +30,9 @@ func Warn(fmt string, args ...interface{}) error {
 
 func Error(fmt string, args ...interface{}) error {
 	return GetLogger().Error(fmt, args...)
+}
+
+func Fatal(fmt string, args ...interface{}) {
+	GetLogger().Error(fmt, args...)
+	os.Exit(1)
 }
