@@ -42,7 +42,7 @@ func NewUserManager(secret []byte, validDuration time.Duration) *UserManager {
 
 func (m *UserManager) HandleRequest(ctx *resttypes.Context) *resttypes.APIError {
 	if ctx.Object.GetType() == types.UserType {
-		if ctx.Action != nil && ctx.Action.Name == "login" {
+		if ctx.Action != nil && ctx.Action.Name == types.ActionLogin {
 			return nil
 		}
 	}
@@ -56,6 +56,8 @@ func (m *UserManager) HandleRequest(ctx *resttypes.Context) *resttypes.APIError 
 	if err != nil {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, "invalid token:"+err.Error())
 	}
+
+	ctx.Set(types.CurrentUserKey, user)
 
 	if err := m.authenticateUser(user, ctx); err != nil {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
@@ -99,7 +101,7 @@ func (m *UserManager) authenticateUser(userName string, ctx *resttypes.Context) 
 	switch len(ancestors) {
 	case 0:
 		if ctx.Object.GetType() == types.UserType {
-			if ctx.Method == http.MethodGet {
+			if ctx.Method == http.MethodGet || (ctx.Action != nil && ctx.Action.Name == types.ActionResetPassword) {
 				if ctx.Object.GetID() == userName {
 					return nil
 				}
@@ -160,9 +162,27 @@ func (m *UserManager) UpdateUser(user *types.User) error {
 	defer m.lock.Unlock()
 
 	name := user.GetID()
-	if _, ok := m.users[name]; ok == false {
+	if old, ok := m.users[name]; ok == false {
 		return fmt.Errorf("user %s doesn't exist", name)
 	} else {
+		if user.Password == "" {
+			user.Password = old.Password
+		}
+		m.users[name] = user
+		return nil
+	}
+}
+
+func (m *UserManager) ResetPassword(name, oldPassword, newPassword string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if user, ok := m.users[name]; ok == false {
+		return fmt.Errorf("user %s doesn't exist", name)
+	} else if user.Password != oldPassword {
+		return fmt.Errorf("old password isn't correct")
+	} else {
+		user.Password = newPassword
 		m.users[name] = user
 		return nil
 	}

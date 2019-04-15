@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/zdnscloud/gorest/api"
@@ -70,22 +71,44 @@ func (m *UserManager) List(ctx *resttypes.Context) interface{} {
 }
 
 func (m *UserManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	if ctx.Action.Name != "login" {
-		return nil, resttypes.NewAPIError(resttypes.InvalidAction, "only login is supported now")
+	switch ctx.Action.Name {
+	case types.ActionLogin:
+		return m.login(ctx)
+	case types.ActionResetPassword:
+		return m.resetPassword(ctx)
+	default:
+		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
 	}
+}
 
+func (m *UserManager) login(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
 	up, ok := ctx.Action.Input.(*types.UserPassword)
 	if ok == false {
 		return nil, resttypes.NewAPIError(resttypes.InvalidFormat, "login param not valid")
 	}
 
-	token, err := m.impl.CreateToken(up.User, up.Password)
+	token, err := m.impl.CreateToken(ctx.Object.GetID(), up.Password)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
 	} else {
 		return map[string]string{
 			"token": token,
 		}, nil
+	}
+}
+
+func (m *UserManager) resetPassword(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	param, ok := ctx.Action.Input.(*types.ResetPassword)
+	if ok == false {
+		return nil, resttypes.NewAPIError(resttypes.InvalidFormat, "reset password param not valid")
+	}
+
+	currentUser, _ := ctx.Get(types.CurrentUserKey)
+	err := m.impl.ResetPassword(currentUser.(string), param.OldPassword, param.NewPassword)
+	if err != nil {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
+	} else {
+		return nil, nil
 	}
 }
 
