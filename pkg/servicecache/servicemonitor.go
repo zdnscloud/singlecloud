@@ -143,11 +143,14 @@ func (s *ServiceMonitor) k8ssvcToSCService(k8ssvc *corev1.Service) (*Service, er
 					Name: name,
 					Kind: kind,
 				}
-				svc.Workloads = append(svc.Workloads, wl)
-				workerLoads[name] = wl
 			}
 			wl.Pods = append(wl.Pods, pod)
+			workerLoads[name] = wl
 		}
+	}
+
+	for _, wl := range workerLoads {
+		svc.Workloads = append(svc.Workloads, wl)
 	}
 	return svc, nil
 }
@@ -315,6 +318,7 @@ func k8sIngressToSCIngress(k8sing *extv1beta1.Ingress) (*Ingress, []string) {
 		for _, rule := range udpRules {
 			var paths []IngressPath
 			for _, path := range rule.Paths {
+				involvedServices = append(involvedServices, path.ServiceName)
 				paths = append(paths, IngressPath{
 					Service: path.ServiceName,
 				})
