@@ -1,0 +1,45 @@
+{
+    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/deployments",
+    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/deployments/sc-test-deployment1",
+
+    "params": {
+		"name":            "sc-test-deployment1",
+		"replicas":        2,
+		"containers":      [
+            {
+                "name": "sc-test-containter1",
+                "image": "redis",
+                "command": ["ls"],
+                "args": ["-l", "/"],
+                "configName": "sc-test-configmap1",
+                "mountPath": "/etc/scconfig",
+                "secretName": "sc-test-secret1",
+                "secretPath": "/etc/scsecret",
+                "env": {
+                    "TESTENV1": "testenv1"
+                },
+                "exposedPorts": [
+                    {
+                        "name": "sc-test-port1",
+                        "port": 22222,
+                        "protocol": "tcp"
+                    }
+                ]
+            }
+        ],
+		"advancedOptions": {
+            "exposedServiceType": "clusterip",
+            "exposedServices": [
+                {
+                    "name": "sc-test-port1",
+                    "port": 22222,
+                    "protocol": "tcp",
+                    "servicePort": 22222,
+                    "autoCreateIngress": true,
+                    "ingressDomainName": "sc-test-ingress1",
+                    "ingressPath": "/etc/scingress"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/configmaps",
+    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/configmaps/sc-test-configmap1",
+
+    "params": {
+        "name": "sc-test-configmap1",
+        "configs": [
+            {
+                "name": "sc-test-cm-dataname1",
+                "data": "sc-test-cm-data1"
+            }
+        ]
+    }
+}

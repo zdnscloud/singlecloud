@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,42 +23,51 @@ import (
 	"github.com/zdnscloud/singlecloud/server"
 )
 
-const (
-	addr               = "0.0.0.0:1234"
-	clusterName        = "sc-test-cluster1"
-	namespaceName      = "sc-test-namespace1"
-	deploymentName     = "sc-test-deployment1"
-	containerName      = "sc-test-containter1"
-	configMapName      = "sc-test-configmap1"
-	configMountPath    = "/etc/scconfig"
-	secretName         = "sc-test-secret1"
-	secretMountPath    = "/etc/scsecret"
-	secretDataName     = "sc-test-secret-dataname1"
-	secretData         = "emRucw=="
-	ingressName        = "sc-test-ingress1"
-	ingressPath        = "/etc/scingress"
-	exposedPortName    = "sc-test-port1"
-	exposedPort        = 22222
-	exposedProtocol    = "tcp"
-	exposedServiceType = "clusterip"
-	configMapDataName  = "sc-test-cm-dataname1"
-	configMapData      = "sc-test-cm-data1"
-	jobName            = "sc-test-job1"
-	cronjobName        = "sc-test-cronjob1"
-	cronjobSchedule    = "*/1 * * * *"
-	restartPolicy      = "onfailure"
-	adminUserName      = "admin"
-	adminPassword      = "zdns"
-	limitRangeName     = "sc-test-limitrange1"
-	resourceQuotaName  = "sc-test-resourcequota1"
-	userName           = "sc-test-username1"
-	userPass           = "sc-test-userpass1"
-)
-
 var gToken string
 
 type Token struct {
 	Token string `json:"token"`
+}
+
+type TestResource struct {
+	CollectionUrl string                 `json:"collectionUrl"`
+	ResourceUrl   string                 `json:"resourceUrl"`
+	Params        map[string]interface{} `json:"params"`
+}
+
+type TestLogin struct {
+	LoginUrl    string                 `json:"loginUrl"`
+	LoginParams map[string]interface{} `json:"loginParams"`
+}
+
+func loadTestLogin(file string) (*TestLogin, error) {
+	var login TestLogin
+	if err := load(file, &login); err != nil {
+		return nil, err
+	} else {
+		return &login, nil
+	}
+}
+
+func loadTestResource(file string) (*TestResource, error) {
+	var resource TestResource
+	if err := load(file, &resource); err != nil {
+		return nil, err
+	} else {
+		return &resource, nil
+	}
+}
+
+func load(file string, resource interface{}) error {
+	if data, err := ioutil.ReadFile(file); err != nil {
+		return err
+	} else {
+		if err := json.Unmarshal(data, resource); err != nil {
+			return err
+		} else {
+			return nil
+		}
+	}
 }
 
 func runTestServer() {
@@ -73,17 +80,12 @@ func runTestServer() {
 		panic("create server failed:" + err.Error())
 	}
 
-	if err := server.Run(addr); err != nil {
+	if err := server.Run("0.0.0.0:1234"); err != nil {
 		panic("server run failed:" + err.Error())
 	}
 }
 
-func genPassword(pass string) string {
-	pwHash := sha1.Sum([]byte(pass))
-	return hex.EncodeToString(pwHash[:])
-}
-
-func importTestCluster() error {
+func importTestCluster(loginResource *TestLogin, clusterResource *TestResource) error {
 	usr, err := user.Current()
 	if err != nil {
 		return fmt.Errorf("get current user failed:%s", err.Error())
@@ -101,456 +103,187 @@ func importTestCluster() error {
 		return fmt.Errorf("read %s failed:%s", k8sconfig, err.Error())
 	}
 
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/admin?action=login", addr)
-	params := map[string]interface{}{
-		"user":     adminUserName,
-		"password": genPassword(adminPassword),
-	}
 	var token Token
-	err = sendRequest("POST", url, getBodyFromMap(params), &token)
+	err = sendRequest("POST", loginResource.LoginUrl, parseBodyFromParams(loginResource.LoginParams), &token)
 	if err != nil {
 		return fmt.Errorf("login failed:%s", err.Error())
 	}
 	gToken = token.Token
 
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
-	params = map[string]interface{}{
-		"name":  clusterName,
-		"yaml_": string(data),
-	}
-
-	return sendRequest("POST", url, getBodyFromMap(params), nil)
+	clusterResource.Params["yaml_"] = string(data)
+	return sendRequest("POST", clusterResource.CollectionUrl, parseBodyFromParams(clusterResource.Params), nil)
 }
 
-func TestSingleCloud(t *testing.T) {
+func TestRunSingleCloud(t *testing.T) {
 	go runTestServer()
 	time.Sleep(1 * time.Second)
-	testCluster(t)
-	testNamespace(t)
-	testConfigMap(t)
-	testSecret(t)
-	testDeployment(t)
-	testJob(t)
-	testCronJob(t)
-	testLimitRange(t)
-	testResourceQuota(t)
-	testUser(t)
-	testClearCluster(t)
 }
 
-func testCluster(t *testing.T) {
-	err := importTestCluster()
+func TestCluster(t *testing.T) {
+	loginResource, err := loadTestLogin("adminlogin.json")
+	ut.Equal(t, err, nil)
+	clusterResource, err := loadTestResource("cluster.json")
+	ut.Equal(t, err, nil)
+	err = importTestCluster(loginResource, clusterResource)
 	ut.Equal(t, err, nil)
 
-	existClusterNum, err := getCollectionNum(fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr))
+	existClusterNum, err := getCollectionNum(clusterResource.CollectionUrl)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, existClusterNum, 1)
 
 	var cluster types.Cluster
-	err = sendRequest("GET", fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s", addr, clusterName), nil, &cluster)
+	err = sendRequest("GET", clusterResource.ResourceUrl, nil, &cluster)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, cluster.Name, clusterName)
+	ut.Equal(t, cluster.Name, "sc-test-cluster1")
 }
 
-func testNamespace(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces", addr, clusterName)
-	existNamespaceNum, err := getCollectionNum(url)
+func TestNamespace(t *testing.T) {
+	namespaceResource, err := loadTestResource("namespace.json")
 	ut.Equal(t, err, nil)
-
-	params := map[string]interface{}{
-		"name": namespaceName,
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newNamespaceNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newNamespaceNum, existNamespaceNum+1)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s", addr, clusterName, namespaceName)
 	var namespace types.Namespace
-	err = sendRequest("GET", url, nil, &namespace)
+	err = testOperatorResource(namespaceResource, &namespace)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, namespace.Name, namespaceName)
+	ut.Equal(t, namespace.Name, "sc-test-namespace1")
 }
 
-func testConfigMap(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/configmaps", addr, clusterName, namespaceName)
-	existConfigMapNum, err := getCollectionNum(url)
+func TestConfigMap(t *testing.T) {
+	configmapResource, err := loadTestResource("configmap.json")
 	ut.Equal(t, err, nil)
-	ut.Equal(t, existConfigMapNum, 0)
-
-	params := map[string]interface{}{
-		"name": configMapName,
-		"configs": []types.Config{
-			types.Config{
-				Name: configMapDataName,
-				Data: configMapData,
-			},
-		},
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newConfigMapNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newConfigMapNum, 1)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/configmaps/%s",
-		addr, clusterName, namespaceName, configMapName)
 	var configMap types.ConfigMap
-	err = sendRequest("GET", url, nil, &configMap)
+	err = testOperatorResource(configmapResource, &configMap)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, configMap.Name, configMapName)
-	ut.Equal(t, configMap.Configs[0].Name, configMapDataName)
+	ut.Equal(t, configMap.Name, "sc-test-configmap1")
+	ut.Equal(t, configMap.Configs[0].Name, "sc-test-cm-dataname1")
+	ut.Equal(t, configMap.Configs[0].Data, "sc-test-cm-data1")
 }
 
-func testSecret(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/secrets", addr, clusterName, namespaceName)
-	existSecretNum, err := getCollectionNum(url)
+func TestSecret(t *testing.T) {
+	secretResource, err := loadTestResource("secret.json")
 	ut.Equal(t, err, nil)
-	//default-token
-	ut.Equal(t, existSecretNum, 1)
-
-	params := map[string]interface{}{
-		"name": secretName,
-		"data": map[string]string{
-			secretDataName: secretData,
-		},
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newSecretNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newSecretNum, 2)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/secrets/%s",
-		addr, clusterName, namespaceName, secretName)
 	var secret types.Secret
-	err = sendRequest("GET", url, nil, &secret)
+	err = testOperatorResource(secretResource, &secret)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, secret.Name, secretName)
-	ut.Equal(t, secret.Data[secretDataName], secretData)
+	ut.Equal(t, secret.Name, "sc-test-secret1")
+	ut.Equal(t, secret.Data["sc-test-secret-dataname1"], "emRucw==")
 }
 
-func testDeployment(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/deployments", addr, clusterName, namespaceName)
-	existDeploymentNum, err := getCollectionNum(url)
+func TestDeployment(t *testing.T) {
+	deployResource, err := loadTestResource("deployment.json")
 	ut.Equal(t, err, nil)
-	ut.Equal(t, existDeploymentNum, 0)
-
-	containers := []types.Container{
-		types.Container{
-			Name:       containerName,
-			Image:      "redis",
-			Command:    []string{"ls", "-l"},
-			Args:       []string{"/"},
-			ConfigName: configMapName,
-			MountPath:  configMountPath,
-			SecretName: secretName,
-			SecretPath: secretMountPath,
-			Env: map[string]string{
-				"TESTENV1": "testenv1",
-			},
-			ExposedPorts: []types.DeploymentPort{
-				types.DeploymentPort{
-					Name:     exposedPortName,
-					Port:     exposedPort,
-					Protocol: exposedProtocol,
-				},
-			},
-		},
-	}
-
-	advancedOptions := types.AdvancedOptions{
-		ExposedServiceType: exposedServiceType,
-		ExposedServices: []types.ExposedService{
-			types.ExposedService{
-				Name:              exposedPortName,
-				Port:              exposedPort,
-				Protocol:          exposedProtocol,
-				ServicePort:       exposedPort,
-				AutoCreateIngress: true,
-				IngressDomainName: ingressName,
-				IngressPath:       ingressPath,
-			},
-		},
-	}
-
-	params := map[string]interface{}{
-		"name":            deploymentName,
-		"replicas":        2,
-		"containers":      containers,
-		"advancedOptions": advancedOptions,
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newDeploymentNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newDeploymentNum, 1)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/deployments/%s",
-		addr, clusterName, namespaceName, deploymentName)
 	var deploy types.Deployment
-	err = sendRequest("GET", url, nil, &deploy)
+	err = testOperatorResource(deployResource, &deploy)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, deploy.Name, deploymentName)
-	ut.Equal(t, deploy.Containers[0].Name, containerName)
-	ut.Equal(t, deploy.Containers[0].ConfigName, configMapName)
-	ut.Equal(t, deploy.Containers[0].SecretName, secretName)
+	ut.Equal(t, deploy.Name, "sc-test-deployment1")
+	ut.Equal(t, deploy.Containers[0].Name, "sc-test-containter1")
+	ut.Equal(t, deploy.Containers[0].ConfigName, "sc-test-configmap1")
+	ut.Equal(t, deploy.Containers[0].SecretName, "sc-test-secret1")
 
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/services/%s",
-		addr, clusterName, namespaceName, deploymentName)
+	serviceResource, err := loadTestResource("service.json")
+	ut.Equal(t, err, nil)
 	var service types.Service
-	err = sendRequest("GET", url, nil, &service)
+	err = sendRequest("GET", serviceResource.ResourceUrl, nil, &service)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, service.Name, deploymentName)
-	ut.Equal(t, service.ServiceType, exposedServiceType)
-	ut.Equal(t, service.ExposedPorts[0].Name, exposedPortName)
-	ut.Equal(t, service.ExposedPorts[0].Port, exposedPort)
-	ut.Equal(t, service.ExposedPorts[0].Protocol, exposedProtocol)
+	ut.Equal(t, service.Name, "sc-test-deployment1")
+	ut.Equal(t, service.ServiceType, "clusterip")
+	ut.Equal(t, service.ExposedPorts[0].Name, "sc-test-port1")
+	ut.Equal(t, service.ExposedPorts[0].Port, 22222)
+	ut.Equal(t, service.ExposedPorts[0].Protocol, "tcp")
 
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/ingresses/%s",
-		addr, clusterName, namespaceName, deploymentName)
+	ingressResource, err := loadTestResource("ingress.json")
+	ut.Equal(t, err, nil)
 	var ingress types.Ingress
-	err = sendRequest("GET", url, nil, &ingress)
+	err = sendRequest("GET", ingressResource.ResourceUrl, nil, &ingress)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, ingress.Name, deploymentName)
-	ut.Equal(t, ingress.Rules[0].Host, ingressName)
-	ut.Equal(t, ingress.Rules[0].Paths[0].Path, ingressPath)
-	ut.Equal(t, ingress.Rules[0].Paths[0].ServicePort, exposedPort)
-	ut.Equal(t, ingress.Rules[0].Paths[0].ServiceName, deploymentName)
+	ut.Equal(t, ingress.Name, "sc-test-deployment1")
+	ut.Equal(t, ingress.Rules[0].Host, "sc-test-ingress1")
+	ut.Equal(t, ingress.Rules[0].Paths[0].Path, "/etc/scingress")
+	ut.Equal(t, ingress.Rules[0].Paths[0].ServicePort, 22222)
+	ut.Equal(t, ingress.Rules[0].Paths[0].ServiceName, "sc-test-deployment1")
 }
 
-func testCronJob(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/cronjobs", addr, clusterName, namespaceName)
-	existCronJobNum, err := getCollectionNum(url)
+func TestCronJob(t *testing.T) {
+	cronjobResource, err := loadTestResource("cronjob.json")
 	ut.Equal(t, err, nil)
-	ut.Equal(t, existCronJobNum, 0)
-
-	params := map[string]interface{}{
-		"name":          cronjobName,
-		"schedule":      cronjobSchedule,
-		"restartPolicy": restartPolicy,
-		"containers": []types.Container{
-			types.Container{
-				Name:  containerName,
-				Image: "redis",
-			},
-		},
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newCronJobNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newCronJobNum, 1)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/cronjobs/%s",
-		addr, clusterName, namespaceName, cronjobName)
 	var cronjob types.CronJob
-	err = sendRequest("GET", url, nil, &cronjob)
+	err = testOperatorResource(cronjobResource, &cronjob)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, cronjob.Name, cronjobName)
-	ut.Equal(t, cronjob.Schedule, cronjobSchedule)
-	ut.Equal(t, cronjob.Containers[0].Name, containerName)
+	ut.Equal(t, cronjob.Name, "sc-test-cronjob1")
+	ut.Equal(t, cronjob.Schedule, "*/1 * * * *")
+	ut.Equal(t, cronjob.Containers[0].Name, "sc-test-cronjob-containter1")
 }
 
-func testJob(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/jobs", addr, clusterName, namespaceName)
-	existJobNum, err := getCollectionNum(url)
+func TestJob(t *testing.T) {
+	jobResource, err := loadTestResource("job.json")
 	ut.Equal(t, err, nil)
-	ut.Equal(t, existJobNum, 0)
-
-	params := map[string]interface{}{
-		"name":          jobName,
-		"restartPolicy": restartPolicy,
-		"containers": []types.Container{
-			types.Container{
-				Name:  containerName,
-				Image: "redis",
-			},
-		},
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newJobNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newJobNum, 1)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/jobs/%s",
-		addr, clusterName, namespaceName, jobName)
 	var job types.Job
-	err = sendRequest("GET", url, nil, &job)
+	err = testOperatorResource(jobResource, &job)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, job.Name, jobName)
-	ut.Equal(t, job.Containers[0].Name, containerName)
+	ut.Equal(t, job.Name, "sc-test-job1")
+	ut.Equal(t, job.Containers[0].Name, "sc-test-job-containter1")
 }
 
-func testLimitRange(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/limitranges",
-		addr, clusterName, namespaceName)
-	existLimitsNum, err := getCollectionNum(url)
+func TestLimitRange(t *testing.T) {
+	limitsResource, err := loadTestResource("limitrange.json")
 	ut.Equal(t, err, nil)
-	ut.Equal(t, existLimitsNum, 0)
-
-	params := map[string]interface{}{
-		"name": limitRangeName,
-		"max": map[string]string{
-			"cpu":    "200m",
-			"memory": "200Ki",
-		},
-		"min": map[string]string{
-			"cpu":    "100m",
-			"memory": "100Ki",
-		},
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newLimitsNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newLimitsNum, 1)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/limitranges/%s",
-		addr, clusterName, namespaceName, limitRangeName)
 	var limit types.LimitRange
-	err = sendRequest("GET", url, nil, &limit)
+	err = testOperatorResource(limitsResource, &limit)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, limit.Name, limitRangeName)
+	ut.Equal(t, limit.Name, "sc-test-limitrange1")
 	ut.Equal(t, limit.Max["cpu"], "200m")
 	ut.Equal(t, limit.Max["memory"], "200Ki")
 	ut.Equal(t, limit.Min["cpu"], "100m")
 	ut.Equal(t, limit.Min["memory"], "100Ki")
 }
 
-func testResourceQuota(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/resourcequotas",
-		addr, clusterName, namespaceName)
-	existQuotasNum, err := getCollectionNum(url)
+func TestResourceQuota(t *testing.T) {
+	quotaResource, err := loadTestResource("resourcequota.json")
 	ut.Equal(t, err, nil)
-	ut.Equal(t, existQuotasNum, 0)
-
-	params := map[string]interface{}{
-		"name": resourceQuotaName,
-		"limits": map[string]string{
-			"requests.cpu":    "200m",
-			"requests.memory": "200Ki",
-			"limits.cpu":      "200m",
-			"limits.memory":   "200Ki",
-		},
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newQuotasNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newQuotasNum, 1)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/resourcequotas/%s",
-		addr, clusterName, namespaceName, resourceQuotaName)
 	var quota types.ResourceQuota
-	err = sendRequest("GET", url, nil, &quota)
+	err = testOperatorResource(quotaResource, &quota)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, quota.Name, resourceQuotaName)
+	ut.Equal(t, quota.Name, "sc-test-resourcequota1")
 	ut.Equal(t, quota.Limits["limits.cpu"], "200m")
 	ut.Equal(t, quota.Limits["limits.memory"], "200Ki")
 	ut.Equal(t, quota.Limits["requests.cpu"], "200m")
 	ut.Equal(t, quota.Limits["requests.memory"], "200Ki")
 }
 
-func testUser(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users", addr)
-	existUserNum, err := getCollectionNum(url)
+func TestUser(t *testing.T) {
+	userResource, err := loadTestResource("user.json")
 	ut.Equal(t, err, nil)
-	//admin
-	ut.Equal(t, existUserNum, 1)
-
-	params := map[string]interface{}{
-		"name":     userName,
-		"password": genPassword(userPass),
-	}
-	err = sendRequest("POST", url, getBodyFromMap(params), nil)
-	ut.Equal(t, err, nil)
-
-	newUserNum, err := getCollectionNum(url)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, newUserNum, 2)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/%s", addr, userName)
 	var user types.User
-	err = sendRequest("GET", url, nil, &user)
+	err = testOperatorResource(userResource, &user)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, user.Name, userName)
+	ut.Equal(t, user.Name, "sc-test-user1")
 
-	params = map[string]interface{}{
-		"user":     userName,
-		"password": genPassword(userPass),
-	}
+	userLogin, err := loadTestLogin("userlogin.json")
+	ut.Equal(t, err, nil)
 	var token Token
-	err = sendRequest("POST", url, getBodyFromMap(params), &token)
-	if err != nil {
-		return fmt.Errorf("login failed:%s", err.Error())
-	}
-	adminToken = gToken
-	gToken = token.Token
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/%s", addr, userName)
-	var user types.User
-	err = sendRequest("GET", url, nil, &user)
+	err = sendRequest("POST", userLogin.LoginUrl, parseBodyFromParams(userLogin.LoginParams), &token)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, user.Name, userName)
+	ut.Equal(t, token.Token != "", true)
+	adminToken := gToken
+	gToken = token.Token
+	var testUser types.User
+	err = sendRequest("GET", userResource.ResourceUrl, nil, &testUser)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, testUser.Name, "sc-test-user1")
 	gToken = adminToken
 }
 
-func testClearCluster(t *testing.T) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/deployments/%s",
-		addr, clusterName, namespaceName, deploymentName)
-	err := sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
+func TestDeleteResource(t *testing.T) {
+	deleteResourceFiles := []string{"deployment.json", "configmap.json", "secret.json", "job.json", "cronjob.json",
+		"limitrange.json", "resourcequota.json", "user.json", "namespace.json"}
 
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/configmaps/%s",
-		addr, clusterName, namespaceName, configMapName)
-	err = sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/secrets/%s",
-		addr, clusterName, namespaceName, secretName)
-	err = sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/jobs/%s",
-		addr, clusterName, namespaceName, jobName)
-	err = sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/cronjobs/%s",
-		addr, clusterName, namespaceName, cronjobName)
-	err = sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/limitranges/%s",
-		addr, clusterName, namespaceName, limitRangeName)
-	err = sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/resourcequotas/%s",
-		addr, clusterName, namespaceName, resourceQuotaName)
-	err = sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/%s", addr, userName)
-	err = sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
-
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/%s", addr, clusterName, namespaceName)
-	err = sendRequest("DELETE", url, nil, nil)
-	ut.Equal(t, err, nil)
+	for _, resourceFile := range deleteResourceFiles {
+		testResource, err := loadTestResource(resourceFile)
+		ut.Equal(t, err, nil)
+		err = sendRequest("DELETE", testResource.ResourceUrl, nil, nil)
+		ut.Equal(t, err, nil)
+	}
 }
 
-func getBodyFromMap(params map[string]interface{}) io.Reader {
+func parseBodyFromParams(params map[string]interface{}) io.Reader {
 	requestBody, _ := json.Marshal(params)
 	return bytes.NewBuffer(requestBody)
 }
@@ -598,4 +331,26 @@ func getCollectionNum(url string) (int, error) {
 	}
 
 	return sliceData.Len(), nil
+}
+
+func testOperatorResource(resource *TestResource, result interface{}) error {
+	existResourcesNum, err := getCollectionNum(resource.CollectionUrl)
+	if err != nil {
+		return err
+	}
+
+	if err := sendRequest("POST", resource.CollectionUrl, parseBodyFromParams(resource.Params), nil); err != nil {
+		return err
+	}
+
+	currentResourcesNum, err := getCollectionNum(resource.CollectionUrl)
+	if err != nil {
+		return err
+	}
+
+	if currentResourcesNum != existResourcesNum+1 {
+		return fmt.Errorf("expect resource num %d not %d", existResourcesNum+1, currentResourcesNum)
+	}
+
+	return sendRequest("GET", resource.ResourceUrl, nil, result)
 }

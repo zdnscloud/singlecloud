@@ -1,0 +1,14 @@
+{
+    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/resourcequotas",
+    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/resourcequotas/sc-test-resourcequota1",
+
+    "params": {
+		"name":          "sc-test-resourcequota1",
+        "limits": {
+			"requests.cpu":    "200m",
+			"requests.memory": "200Ki",
+			"limits.cpu":      "200m",
+			"limits.memory":   "200Ki"
+        }
+    }
+}

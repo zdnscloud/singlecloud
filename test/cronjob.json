@@ -1,0 +1,16 @@
+{
+    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/cronjobs",
+    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/cronjobs/sc-test-cronjob1",
+
+    "params": {
+		"name":          "sc-test-cronjob1",
+		"schedule":      "*/1 * * * *",
+		"restartPolicy": "onfailure",
+		"containers": [
+            {
+                "name": "sc-test-cronjob-containter1",
+                "image": "redis"
+            }
+        ]
+    }
+}
