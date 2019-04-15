@@ -71,9 +71,7 @@ func load(file string, resource interface{}) error {
 }
 
 func runTestServer() {
-	if err := logger.InitLogger(); err != nil {
-		panic("init logger failed:" + err.Error())
-	}
+	logger.InitLogger()
 
 	server, err := server.NewServer()
 	if err != nil {

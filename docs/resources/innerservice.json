@@ -1,0 +1,25 @@
+{
+    "resourceType": "innerservice",
+    "collectionName": "innerservices",
+    "parentResource": "namespace",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "workloads": {"type": "array", "elemType": "workload"} 
+    },
+
+    "subResources": {
+        "workload": {
+            "name": {"type": "string"},
+            "kind": {"type": "string"},
+            "pods": {"type": "array", "elemType": "simplepod"}
+        },
+
+        "simplepod": {
+            "name": {"type": "string"},
+            "isReady": {"type": "bool"}
+        }
+    },
+
+    "collectionMethods": [ "GET" ]
+}

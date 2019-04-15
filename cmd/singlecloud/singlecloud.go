@@ -25,16 +25,14 @@ func main() {
 		return
 	}
 
-	if err := logger.InitLogger(); err != nil {
-		panic("init logger failed:" + err.Error())
-	}
+	logger.InitLogger()
 
 	server, err := server.NewServer()
 	if err != nil {
-		panic("create server failed:" + err.Error())
+		logger.Fatal("create server failed:%s", err.Error())
 	}
 
 	if err := server.Run(addr); err != nil {
-		panic("server run failed:" + err.Error())
+		logger.Fatal("server run failed:%s", err.Error())
 	}
 }

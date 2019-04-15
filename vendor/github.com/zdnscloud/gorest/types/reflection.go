@@ -321,6 +321,8 @@ func (s *Schemas) determineSchemaType(version *APIVersion, t reflect.Type) (stri
 	case reflect.Uint32:
 		fallthrough
 	case reflect.Int64:
+		fallthrough
+	case reflect.Uint64:
 		return "int", nil
 	case reflect.Interface:
 		return "json", nil

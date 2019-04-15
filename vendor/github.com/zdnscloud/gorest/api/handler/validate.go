@@ -43,7 +43,7 @@ func getStructValue(ctx *types.Context, schema *types.Schema, structVal reflect.
 			continue
 		}
 
-		value, err := getFieldValue(ctx, field.Type, structVal.FieldByName(field.Name))
+		value, err := getFieldValue(ctx, structVal.FieldByName(field.Name))
 		if err != nil {
 			return nil, err
 		}
@@ -78,9 +78,11 @@ func valueIsNil(value interface{}) bool {
 	}
 }
 
-func getFieldValue(ctx *types.Context, fieldType reflect.Type, fieldVal reflect.Value) (interface{}, *types.APIError) {
+func getFieldValue(ctx *types.Context, fieldVal reflect.Value) (interface{}, *types.APIError) {
+	fieldType := fieldVal.Type()
 	if fieldType.Kind() == reflect.Ptr {
 		fieldType = fieldType.Elem()
+		fieldVal = reflect.Indirect(fieldVal)
 	}
 
 	switch fieldType.Kind() {
@@ -99,7 +101,7 @@ func getSliceValue(ctx *types.Context, fieldValSlice reflect.Value) (interface{}
 	var values []interface{}
 	for i := 0; i < fieldValSlice.Len(); i++ {
 		fieldVal := fieldValSlice.Index(i)
-		if val, err := getFieldValue(ctx, fieldVal.Type(), fieldVal); err != nil {
+		if val, err := getFieldValue(ctx, fieldVal); err != nil {
 			return nil, err
 		} else {
 			values = append(values, val)
@@ -114,7 +116,7 @@ func getMapValue(ctx *types.Context, fieldValMap reflect.Value) (interface{}, *t
 	for _, key := range fieldValMap.MapKeys() {
 		val := fieldValMap.MapIndex(key)
 		val = reflect.ValueOf(val.Interface())
-		if fieldVal, err := getFieldValue(ctx, val.Type(), val); err != nil {
+		if fieldVal, err := getFieldValue(ctx, val); err != nil {
 			return nil, err
 		} else {
 			values[key.String()] = fieldVal

@@ -1,38 +1,27 @@
-package resourcerepo
+package servicecache
+
+import (
+	"github.com/zdnscloud/singlecloud/pkg/types"
+)
 
 type Service struct {
-	Name string `json:"name"`
-	Self string `json:"self"`
-
-	Ingress   *Ingress    `json:"ingress,omitempty"`
-	Workloads []*Workload `json:"workloads"`
-}
-
-type Pod struct {
-	Name    string `json:"name"`
-	Self    string `json:"self"`
-	IsReady bool   `json:"isReady"`
+	Name      string           `json:"name"`
+	Ingress   *Ingress         `json:"ingress,omitempty"`
+	Workloads []types.Workload `json:"workloads"`
 }
 
 type Ingress struct {
 	Name  string        `json:"name"`
-	Self  string        `json:"self"`
 	Rules []IngressRule `json:"rules"`
 }
 
 type IngressRule struct {
-	Domain string        `json:"domain"`
+	Domain string        `json:"domain,omitempty"`
+	Port   int           `json:"port,omitempty"`
 	Paths  []IngressPath `json:"path"`
 }
 
 type IngressPath struct {
 	Service string `json:"service"`
 	Path    string `json:"path"`
-}
-
-type Workload struct {
-	Name string `json:"name"`
-	Kind string `json:"kind"`
-	Self string `json:"self"`
-	Pods []*Pod `json:"pods"`
 }

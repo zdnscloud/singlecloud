@@ -257,7 +257,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5c17f08f49f19f571429c7299c8ca7a5dd54cac1911314d01bc9326be7365fe2"
+  digest = "1:c28657fb9a5ff20bfab0060d2f8ad79dee30c84d5dfa2ec6cba40f1964f73327"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -268,7 +268,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "1a6651806f356ada55cad36904c0efa44dde4cb9"
+  revision = "b97bec9c6e1f2ee9f811a4fe3e12bdc867347cf2"
 
 [[projects]]
   branch = "master"
@@ -614,12 +614,12 @@
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
     "k8s.io/apimachinery/pkg/api/errors",
+    "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/client-go/kubernetes/scheme",
-    "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/remotecommand",
     "k8s.io/metrics/pkg/apis/metrics",
   ]

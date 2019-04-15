@@ -1,14 +1,12 @@
-package resourcerepo
+package servicecache
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/controller"
@@ -16,44 +14,37 @@ import (
 	"github.com/zdnscloud/gok8s/handler"
 	"github.com/zdnscloud/gok8s/predicate"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-type ResourceRepo struct {
+type ServiceCache struct {
 	services map[string]*ServiceMonitor
-	lock     sync.Mutex
+	lock     sync.RWMutex
 	cache    cache.Cache
 	stopCh   chan struct{}
 }
 
-func New(k8sCfg *rest.Config) (*ResourceRepo, error) {
-	c, err := cache.New(k8sCfg, cache.Options{})
-	if err != nil {
-		return nil, fmt.Errorf("create cache failed %v\n", err.Error())
-	}
-
-	stopCh := make(chan struct{})
-	go c.Start(stopCh)
-	c.WaitForCacheSync(stopCh)
-
-	ctrl := controller.New("resourceRepo", c, scheme.Scheme)
+func New(c cache.Cache) (*ServiceCache, error) {
+	ctrl := controller.New("serviceCache", c, scheme.Scheme)
 	ctrl.Watch(&corev1.Namespace{})
 	ctrl.Watch(&corev1.Service{})
 	ctrl.Watch(&corev1.Endpoints{})
 	ctrl.Watch(&extv1beta1.Ingress{})
 
-	repo := &ResourceRepo{
+	stopCh := make(chan struct{})
+	sc := &ServiceCache{
 		stopCh: stopCh,
 		cache:  c,
 	}
-	if err := repo.initServices(); err != nil {
+	if err := sc.initServices(); err != nil {
 		return nil, err
 	}
 
-	go ctrl.Start(stopCh, repo, predicate.NewIgnoreUnchangedUpdate())
-	return repo, nil
+	go ctrl.Start(stopCh, sc, predicate.NewIgnoreUnchangedUpdate())
+	return sc, nil
 }
 
-func (r *ResourceRepo) initServices() error {
+func (r *ServiceCache) initServices() error {
 	nses := &corev1.NamespaceList{}
 	err := r.cache.List(context.TODO(), nil, nses)
 	if err != nil {
@@ -69,18 +60,28 @@ func (r *ResourceRepo) initServices() error {
 	return nil
 }
 
-func (r *ResourceRepo) GetServices() map[string][]*Service {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+func (r *ServiceCache) GetInnerServices(namespace string) []types.InnerService {
+	r.lock.RLock()
+	monitor, ok := r.services[namespace]
+	r.lock.RUnlock()
 
-	svcs := make(map[string][]*Service)
-	for n, s := range r.services {
-		svcs[n] = s.GetServices()
+	if ok == false {
+		return nil
 	}
-	return svcs
+	return monitor.GetInnerServices()
 }
 
-func (r *ResourceRepo) OnCreate(e event.CreateEvent) (handler.Result, error) {
+func (r *ServiceCache) GetOuterServices(namespace string) []types.OuterService {
+	r.lock.RLock()
+	monitor, ok := r.services[namespace]
+	r.lock.RUnlock()
+	if ok == false {
+		return nil
+	}
+	return monitor.GetOuterServices()
+}
+
+func (r *ServiceCache) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -109,7 +110,7 @@ func (r *ResourceRepo) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
-func (r *ResourceRepo) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
+func (r *ServiceCache) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	switch newObj := e.ObjectNew.(type) {
 	case *corev1.Service:
 		s, ok := r.services[newObj.Namespace]
@@ -137,7 +138,7 @@ func (r *ResourceRepo) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
-func (r *ResourceRepo) OnDelete(e event.DeleteEvent) (handler.Result, error) {
+func (r *ServiceCache) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -168,6 +169,6 @@ func (r *ResourceRepo) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
-func (r *ResourceRepo) OnGeneric(e event.GenericEvent) (handler.Result, error) {
+func (r *ServiceCache) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
