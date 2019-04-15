@@ -29,6 +29,8 @@
         },
 
         "podStatus": {
+            "phase": {"type": "enum", "validValues": ["Pending", "Running", "Succeeded", "Failed", "Unknown"]},
+            "startTime": {"type": "date"},
             "hostIP": {"type": "string"},
             "podIP": {"type": "string"},
             "podConditions": {"type": "array", "elemType": "podCondition"},

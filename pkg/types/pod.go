@@ -20,6 +20,8 @@ type Pod struct {
 }
 
 type PodStatus struct {
+	Phase             string            `json:"phase,omitempty"`
+	StartTime         resttypes.ISOTime `json:"startTime,omitempty"`
 	HostIP            string            `json:"hostIP,omitempty"`
 	PodIP             string            `json:"podIP,omitempty"`
 	PodConditions     []PodCondition    `json:"podConditions,omitempty"`

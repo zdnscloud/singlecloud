@@ -152,6 +152,8 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 	}
 
 	podStatus := types.PodStatus{
+		Phase:             string(k8sPod.Status.Phase),
+		StartTime:         k8sMetaV1TimePtrToISOTime(k8sPod.Status.StartTime),
 		HostIP:            k8sPod.Status.HostIP,
 		PodIP:             k8sPod.Status.PodIP,
 		PodConditions:     conditions,
