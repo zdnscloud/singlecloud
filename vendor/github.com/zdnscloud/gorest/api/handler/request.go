@@ -121,7 +121,7 @@ func ActionHandler(ctx *types.Context) *types.APIError {
 		return err
 	}
 
-	WriteResponse(ctx, http.StatusAccepted, result)
+	WriteResponse(ctx, http.StatusOK, result)
 	return nil
 }
 
