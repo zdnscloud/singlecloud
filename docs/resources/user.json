@@ -33,6 +33,20 @@
         }
     },
 
+    "putParameters": {
+        "fields": {
+            "password": {"type": "string", "required": true},
+            "projects":  {"type": "array", "elemType": "project"}
+        },
+
+        "subResources": {
+            "project": {
+                "cluster": {"type": "string", "required": true},
+                "namespace": {"type": "string", "required": true}
+            }
+        }
+    },
+
     "resourceActions":[ 
         {
             "name": "login",
