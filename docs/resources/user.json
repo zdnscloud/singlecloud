@@ -5,8 +5,7 @@
     "resourceFields": {
         "name": {"type": "string"},
         "password": {"type": "string"},
-        "projects": {"type": "array", "elemType": "project"},
-        "version": {"type": "string"}
+        "projects": {"type": "array", "elemType": "project"}
     },
 
     "subResources": {
@@ -16,6 +15,19 @@
         }
     },
 
-    "resourceMethods": [ "GET", "DELETE", "UPDATE" ],
-    "collectionMethods": [ "GET", "POST" ]
+    "resourceMethods": [ "GET", "DELETE", "PUT" ],
+    "collectionMethods": [ "GET", "POST" ],
+
+    "resourceActionMethods": [ "POST" ],
+    "resourceActions": {"type": "enum", "validValues": ["login", "resetPassword"]},
+    "resourceActionParameters": {
+        "login": {
+            "password": {"type": "string"}
+        } ,
+
+        "resetPassword": {
+            "oldPassword": {"type": "string"},
+            "newPassword": {"type": "string"}
+        }
+    }
 }
