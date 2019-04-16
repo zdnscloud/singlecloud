@@ -18,16 +18,23 @@
     "resourceMethods": [ "GET", "DELETE", "PUT" ],
     "collectionMethods": [ "GET", "POST" ],
 
-    "resourceActionMethods": [ "POST" ],
-    "resourceActions": {"type": "enum", "validValues": ["login", "resetPassword"]},
-    "resourceActionParameters": {
-        "login": {
-            "password": {"type": "string"}
+    "resourceActions":[ 
+        {
+            "name": "login",
+            "input": {
+                "password": {"type": "string"}
+            },
+            "output": {
+                "token": {"type": "string"}
+            }
         } ,
 
-        "resetPassword": {
-            "oldPassword": {"type": "string"},
-            "newPassword": {"type": "string"}
+        {
+            "name": "resetPassword",
+            "input": {
+                "oldPassword": {"type": "string"},
+                "newPassword": {"type": "string"}
+            }
         }
-    }
+    ]
 }
