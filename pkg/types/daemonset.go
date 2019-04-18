@@ -28,7 +28,7 @@ type DaemonSetStatus struct {
 	UpdatedNumberScheduled int32                `json:"updatedNumberScheduled,omitempty"`
 	NumberAvailable        int32                `json:"numberAvailable,omitempty"`
 	NumberUnavailable      int32                `json:"numberUnavailable,omitempty"`
-	CollisionCount         *int32               `json:"collisionCount,omitempty"`
+	CollisionCount         int32                `json:"collisionCount,omitempty"`
 	DaemonSetConditions    []DaemonSetCondition `json:"conditions,omitempty"`
 }
 

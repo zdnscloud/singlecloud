@@ -187,6 +187,11 @@ func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet 
 		})
 	}
 
+	var collisionCount int32
+	if k8sDaemonSet.Status.CollisionCount != nil {
+		collisionCount = *k8sDaemonSet.Status.CollisionCount
+	}
+
 	daemonSetStatus := types.DaemonSetStatus{
 		CurrentNumberScheduled: k8sDaemonSet.Status.CurrentNumberScheduled,
 		NumberMisscheduled:     k8sDaemonSet.Status.NumberMisscheduled,
@@ -196,7 +201,7 @@ func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet 
 		UpdatedNumberScheduled: k8sDaemonSet.Status.UpdatedNumberScheduled,
 		NumberAvailable:        k8sDaemonSet.Status.NumberAvailable,
 		NumberUnavailable:      k8sDaemonSet.Status.NumberUnavailable,
-		CollisionCount:         k8sDaemonSet.Status.CollisionCount,
+		CollisionCount:         collisionCount,
 		DaemonSetConditions:    conditions,
 	}
 

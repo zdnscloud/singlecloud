@@ -29,16 +29,13 @@ func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface
 	user.SetID(user.Name)
 	user.SetType(types.UserType)
 	user.SetCreationTimestamp(time.Now())
-	return user, nil
+	return hideUserPassword(user), nil
 }
 
 func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
-	var ret types.User
 	user := m.impl.GetUser(ctx.Object.GetID())
 	if user != nil {
-		ret = *user
-		ret.Password = ""
-		return &ret
+		return hideUserPassword(user)
 	} else {
 		return nil
 	}
@@ -56,16 +53,14 @@ func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.AP
 	if err := m.impl.UpdateUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
 	}
-	return user, nil
+	return hideUserPassword(user), nil
 }
 
 func (m *UserManager) List(ctx *resttypes.Context) interface{} {
 	users := m.impl.GetUsers()
 	var ret []*types.User
 	for _, user := range users {
-		tmp := *user
-		tmp.Password = ""
-		ret = append(ret, &tmp)
+		ret = append(ret, hideUserPassword(user))
 	}
 	return ret
 }
@@ -116,4 +111,10 @@ func (m *UserManager) createAuthenticationHandler() api.HandlerFunc {
 	return func(ctx *resttypes.Context) *resttypes.APIError {
 		return m.impl.HandleRequest(ctx)
 	}
+}
+
+func hideUserPassword(user *types.User) *types.User {
+	ret := *user
+	ret.Password = ""
+	return &ret
 }
