@@ -43,7 +43,8 @@
             "servicePort" : {"type": "int"},
             "autoCreateIngress" : {"type": "bool"},
             "ingressDomainName" : {"type": "string"},
-            "ingressPath" : {"type": "string"}
+            "ingressPath" : {"type": "string"},
+            "ingressPort" : {"type": "int"}
         },
 
         "exposedMetric": {
@@ -85,9 +86,12 @@
 
             "advancedOptions": {
                 "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
-                "exposedServices": {"type": "array", "elemType": "exposedService"}
+                "exposedServices": {"type": "array", "elemType": "exposedService"},
+                "exposedMetric": {"type": "exposedMetric"}
             },
 
+            //if exposed service protocol is udp, then ingressPort must specified
+            //otherwise ingressDomainName, ingressPath should be specified
             "exposedService": {
                 "name" : {"type": "string"},
                 "port" : {"type": "int"},
@@ -95,7 +99,13 @@
                 "servicePort" : {"type": "int"},
                 "autoCreateIngress" : {"type": "bool"},
                 "ingressDomainName" : {"type": "string"},
-                "ingressPath" : {"type": "string"}
+                "ingressPath" : {"type": "string"},
+                "ingressPort" : {"type": "int"}
+            },
+        
+            "exposedMetric": {
+                "path" : {"type": "string"},
+                "port" : {"type": "int"}
             }
         }
     }
