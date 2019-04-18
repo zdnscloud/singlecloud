@@ -32,7 +32,8 @@
 
         "advancedOptions": {
             "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
-            "exposedServices": {"type": "array", "elemType": "exposedService"}
+            "exposedServices": {"type": "array", "elemType": "exposedService"},
+            "exposedMetric": {"type": "exposedMetric"}
         },
 
         "exposedService": {
@@ -43,6 +44,11 @@
             "autoCreateIngress" : {"type": "bool"},
             "ingressDomainName" : {"type": "string"},
             "ingressPath" : {"type": "string"}
+        },
+
+        "exposedMetric": {
+            "path" : {"type": "string"},
+            "port" : {"type": "int"}
         }
     },
 

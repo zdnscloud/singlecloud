@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,6 +21,9 @@ import (
 
 const (
 	AnnkeyForDeploymentAdvancedoption = "zcloud_deployment_advanded_options"
+	AnnkeyForPromethusScrape          = "prometheus.io/scrape"
+	AnnkeyForPromethusPort            = "prometheus.io/port"
+	AnnkeyForPromethusPath            = "prometheus.io/path"
 )
 
 type DeploymentManager struct {
@@ -147,6 +151,15 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 	}
 
 	advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
+	templateObjMeta := metav1.ObjectMeta{Labels: map[string]string{"app": deploy.Name}}
+	if deploy.AdvancedOptions.ExposedMetric.Port != 0 && deploy.AdvancedOptions.ExposedMetric.Path != "" {
+		prometheusConf := make(map[string]string)
+		prometheusConf[AnnkeyForPromethusScrape] = "true"
+		prometheusConf[AnnkeyForPromethusPort] = strconv.Itoa(deploy.AdvancedOptions.ExposedMetric.Port)
+		prometheusConf[AnnkeyForPromethusPath] = deploy.AdvancedOptions.ExposedMetric.Path
+		templateObjMeta.Annotations = prometheusConf
+	}
+
 	k8sDeploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploy.Name,
@@ -194,6 +207,13 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetType(types.DeploymentType)
 	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)
+
+	prometheusConf := k8sDeploy.Spec.Template.Annotations
+	if doScrape, ok := prometheusConf[AnnkeyForPromethusScrape]; ok && doScrape == "true" {
+		port, _ := strconv.Atoi(prometheusConf[AnnkeyForPromethusPort])
+		deploy.AdvancedOptions.ExposedMetric.Port = port
+		deploy.AdvancedOptions.ExposedMetric.Path = prometheusConf[AnnkeyForPromethusPath]
+	}
 	return deploy
 }
 

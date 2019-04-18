@@ -44,6 +44,7 @@ type ExposedService struct {
 type AdvancedOptions struct {
 	ExposedServiceType string           `json:"exposedServiceType"`
 	ExposedServices    []ExposedService `json:"exposedServices"`
+	ExposedMetric      ExposedMetric    `json:"exposedMetric"`
 }
 
 type Deployment struct {
@@ -52,6 +53,11 @@ type Deployment struct {
 	Replicas           int             `json:"replicas"`
 	Containers         []Container     `json:"containers"`
 	AdvancedOptions    AdvancedOptions `json:"advancedOptions"`
+}
+
+type ExposedMetric struct {
+	Path string `json:"path"`
+	Port int    `json:"port"`
 }
 
 var DeploymentType = resttypes.GetResourceType(Deployment{})
