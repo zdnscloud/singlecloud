@@ -174,7 +174,7 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 				MatchLabels: map[string]string{"app": deploy.Name},
 			},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": deploy.Name}},
+				ObjectMeta: templateObjMeta,
 				Spec:       k8sPodSpec,
 			},
 		},
