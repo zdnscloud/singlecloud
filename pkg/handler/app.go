@@ -37,6 +37,7 @@ func (a *App) RegisterHandler(router gin.IRoutes) error {
 		return err
 	}
 	a.registerWSHandler(router)
+	a.registerAgentHandler(router)
 	return nil
 }
 
@@ -95,5 +96,30 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 	podLogPath := fmt.Sprintf(WSPodLogPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
 	router.GET(podLogPath, func(c *gin.Context) {
 		a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
+	})
+}
+
+const (
+	ClusterAgentPrefix           = "/apis/agent.zcloud.cn/v1"
+	ClusterAgentRegisterPathTemp = ClusterAgentPrefix + "/clusters/%s/register/%s"
+	ClusterAgentProxyPathTemp    = ClusterAgentPrefix + "/clusters/%s/proxy/%s"
+)
+
+func (a *App) registerAgentHandler(router gin.IRoutes) {
+	clusterAgentRegisterPath := fmt.Sprintf(ClusterAgentRegisterPathTemp, ":cluster", ":id")
+	router.GET(clusterAgentRegisterPath, func(c *gin.Context) {
+		cluster := a.clusterManager.get(c.Param("cluster"))
+		if cluster != nil {
+			c.Request.Header.Add("_agent_id", c.Param("id"))
+			cluster.AgentManager.HandleAgentRegister(c)
+		}
+	})
+
+	clusterAgentProxyPath := fmt.Sprintf(ClusterAgentProxyPathTemp, ":cluster", ":id") + "/*realservice"
+	router.Any(clusterAgentProxyPath, func(c *gin.Context) {
+		cluster := a.clusterManager.get(c.Param("cluster"))
+		if cluster != nil {
+			cluster.AgentManager.HandleAgentProxy(c)
+		}
 	})
 }

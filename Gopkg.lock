@@ -257,6 +257,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:57352398e082783e9b23be8666baece42542c2613ecfa830e5141809f3ca1934"
+  name = "github.com/zdnscloud/goproxy"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2aeab0e93c01e6fe0f22bc9822a3e8247ec5b4ee"
+
+[[projects]]
+  branch = "master"
   digest = "1:006af861fc65778dcb6c9655fd4d5caf2270bd21e63faf518dc8000f71252d56"
   name = "github.com/zdnscloud/gorest"
   packages = [
@@ -604,6 +612,7 @@
     "github.com/zdnscloud/gok8s/exec",
     "github.com/zdnscloud/gok8s/handler",
     "github.com/zdnscloud/gok8s/predicate",
+    "github.com/zdnscloud/goproxy",
     "github.com/zdnscloud/gorest/adaptor",
     "github.com/zdnscloud/gorest/api",
     "github.com/zdnscloud/gorest/types",
