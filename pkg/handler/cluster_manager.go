@@ -8,6 +8,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/exec"
+	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/event"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
@@ -33,7 +34,7 @@ type Cluster struct {
 }
 
 type ClusterManager struct {
-	DefaultHandler
+	api.DefaultHandler
 	clusters []*Cluster
 }
 

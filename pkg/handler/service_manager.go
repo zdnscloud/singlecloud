@@ -12,13 +12,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type ServiceManager struct {
-	DefaultHandler
+	api.DefaultHandler
 	clusters *ClusterManager
 }
 

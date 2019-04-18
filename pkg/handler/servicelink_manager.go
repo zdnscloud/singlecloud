@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type ServiceLinkManager struct {
-	DefaultHandler
+	api.DefaultHandler
 	clusters *ClusterManager
 }
 
