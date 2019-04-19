@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
@@ -12,7 +13,6 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/event"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/servicecache"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -86,13 +86,13 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 
 	nodes, err := getNodes(cli)
 	if err != nil {
-		logger.Error("get nodes failed:%s", err.Error())
+		log.Errorf("get nodes failed:%s", err.Error())
 	}
 	cluster.NodesCount = len(nodes.Items)
 
 	version, err := cli.ServerVersion()
 	if err != nil {
-		logger.Error("get version failed:%s", err.Error())
+		log.Errorf("get version failed:%s", err.Error())
 	} else {
 		cluster.Version = version.GitVersion
 	}
@@ -144,7 +144,7 @@ func initCluster(cluster *Cluster) error {
 		return err
 	}
 	if imported {
-		logger.Info("cluster %s has been imported before", cluster.Name)
+		log.Infof("cluster %s has been imported before", cluster.Name)
 		return nil
 	}
 
@@ -169,17 +169,17 @@ func isClusterImportBefore(cluster *Cluster) (bool, error) {
 func createRole(cluster *Cluster, roleName string, role ClusterRole) error {
 	cli := cluster.KubeClient
 	if err := createServiceAccount(cli, roleName, ZCloudNamespace); err != nil {
-		logger.Error("create service account %s failed: %s", roleName, err.Error())
+		log.Errorf("create service account %s failed: %s", roleName, err.Error())
 		return err
 	}
 
 	if err := createClusterRole(cli, roleName, role); err != nil {
-		logger.Error("create cluster role %s failed: %s", roleName, err.Error())
+		log.Errorf("create cluster role %s failed: %s", roleName, err.Error())
 		return err
 	}
 
 	if err := createRoleBinding(cli, roleName, roleName, ZCloudNamespace); err != nil {
-		logger.Error("create clusterRoleBinding %s failed: %s", ZCloudAdmin, err.Error())
+		log.Errorf("create clusterRoleBinding %s failed: %s", ZCloudAdmin, err.Error())
 		return err
 	}
 

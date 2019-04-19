@@ -11,10 +11,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -66,7 +66,7 @@ func (m *DaemonSetManager) List(ctx *resttypes.Context) interface{} {
 	k8sDaemonSets, err := getDaemonSets(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list daemonSet info failed:%s", err.Error())
+			log.Warnf("list daemonSet info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -89,7 +89,7 @@ func (m *DaemonSetManager) Get(ctx *resttypes.Context) interface{} {
 	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get daemonSet info failed:%s", err.Error())
+			log.Warnf("get daemonSet info failed:%s", err.Error())
 		}
 		return nil
 	}

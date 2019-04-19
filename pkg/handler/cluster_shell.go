@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/exec"
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
@@ -62,7 +62,7 @@ func (t *ShellConn) Next() *remotecommand.TerminalSize {
 func (m *ClusterManager) OpenConsole(clusterID string, r *http.Request, w http.ResponseWriter) {
 	cluster := m.get(clusterID)
 	if cluster == nil {
-		logger.Warn("cluster %s isn't found to open console", clusterID)
+		log.Warnf("cluster %s isn't found to open console", clusterID)
 		return
 	}
 
@@ -81,7 +81,7 @@ func (m *ClusterManager) OpenConsole(clusterID string, r *http.Request, w http.R
 		stream := newShellConn(session)
 		err := cluster.Executor.RunCmd(pod, cmd, stream, 30*time.Second)
 		if err != nil {
-			logger.Error("execute cmd failed %s", err.Error())
+			log.Errorf("execute cmd failed %s", err.Error())
 		}
 	}
 

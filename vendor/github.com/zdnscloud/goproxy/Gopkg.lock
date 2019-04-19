@@ -17,12 +17,24 @@
   revision = "66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d"
   version = "v1.4.0"
 
+[[projects]]
+  branch = "master"
+  digest = "1:dbe190899c3589c03e9797fa553881fa3b51433b87bb5642b16c18289d85ac8f"
+  name = "github.com/zdnscloud/cement"
+  packages = [
+    "log",
+    "log/log4go",
+  ]
+  pruneopts = "UT"
+  revision = "dbe599d3f012f8c64527e2b40affb252bf95afe3"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
     "github.com/gorilla/mux",
     "github.com/gorilla/websocket",
+    "github.com/zdnscloud/cement/log",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

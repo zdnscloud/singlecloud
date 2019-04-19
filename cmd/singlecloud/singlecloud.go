@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/zdnscloud/singlecloud/pkg/logger"
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/singlecloud/server"
 )
 
@@ -25,14 +25,14 @@ func main() {
 		return
 	}
 
-	logger.InitLogger()
+	log.InitLogger(log.Debug)
 
 	server, err := server.NewServer()
 	if err != nil {
-		logger.Fatal("create server failed:%s", err.Error())
+		log.Fatalf("create server failed:%s", err.Error())
 	}
 
 	if err := server.Run(addr); err != nil {
-		logger.Fatal("server run failed:%s", err.Error())
+		log.Fatalf("server run failed:%s", err.Error())
 	}
 }

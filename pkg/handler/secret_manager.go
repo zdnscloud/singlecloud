@@ -9,10 +9,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -55,7 +55,7 @@ func (m *SecretManager) List(ctx *resttypes.Context) interface{} {
 	k8sSecrets, err := getSecrets(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list secret info failed:%s", err.Error())
+			log.Warnf("list secret info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -78,7 +78,7 @@ func (m SecretManager) Get(ctx *resttypes.Context) interface{} {
 	k8sSecret, err := getSecret(cluster.KubeClient, namespace, secret.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get secret info failed:%s", err.Error())
+			log.Warnf("get secret info failed:%s", err.Error())
 		}
 		return nil
 	}

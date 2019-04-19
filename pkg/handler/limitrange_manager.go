@@ -10,10 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -57,7 +57,7 @@ func (m *LimitRangeManager) List(ctx *resttypes.Context) interface{} {
 	k8sLimitRanges, err := getLimitRanges(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list limitRange info failed:%s", err.Error())
+			log.Warnf("list limitRange info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -80,7 +80,7 @@ func (m *LimitRangeManager) Get(ctx *resttypes.Context) interface{} {
 	k8sLimitRange, err := getLimitRange(cluster.KubeClient, namespace, limitRange.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get limitRange info failed:%s", err.Error())
+			log.Warnf("get limitRange info failed:%s", err.Error())
 		}
 		return nil
 	}

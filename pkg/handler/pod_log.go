@@ -10,8 +10,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 )
 
 var (
@@ -69,7 +69,7 @@ func (m *ClusterManager) openPodLog(cluster *Cluster, namespace, pod, container 
 func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string, r *http.Request, w http.ResponseWriter) {
 	cluster := m.get(clusterID)
 	if cluster == nil {
-		logger.Warn("cluster %s isn't found to open console", clusterID)
+		log.Warnf("cluster %s isn't found to open console", clusterID)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 		for s.Scan() {
 			err := session.Send(string(s.Bytes()))
 			if err != nil {
-				logger.Warn("send log failed:%s", err.Error())
+				log.Warnf("send log failed:%s", err.Error())
 				break
 			}
 		}

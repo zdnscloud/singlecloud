@@ -13,10 +13,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -72,7 +72,7 @@ func (m *DeploymentManager) List(ctx *resttypes.Context) interface{} {
 	k8sDeploys, err := getDeployments(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list deployment info failed:%s", err.Error())
+			log.Warnf("list deployment info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -95,7 +95,7 @@ func (m *DeploymentManager) Get(ctx *resttypes.Context) interface{} {
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get deployment info failed:%s", err.Error())
+			log.Warnf("get deployment info failed:%s", err.Error())
 		}
 		return nil
 	}

@@ -13,10 +13,10 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -70,7 +70,7 @@ func (m *IngressManager) List(ctx *resttypes.Context) interface{} {
 	k8sIngresss, err := getIngresss(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list ingress info failed:%s", err.Error())
+			log.Warnf("list ingress info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -93,7 +93,7 @@ func (m *IngressManager) Get(ctx *resttypes.Context) interface{} {
 	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get ingress info failed:%s", err.Error())
+			log.Warnf("get ingress info failed:%s", err.Error())
 		}
 		return nil
 	}

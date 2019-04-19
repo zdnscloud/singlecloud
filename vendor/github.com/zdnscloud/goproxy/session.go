@@ -152,7 +152,8 @@ func (s *Session) Close() {
 
 	s.mu.Lock()
 	for _, conn := range s.conns {
-		conn.Close()
+		conn.reportErr(io.EOF)
+		conn.doClose()
 	}
 	s.conns = map[int64]*connection{}
 	s.mu.Unlock()

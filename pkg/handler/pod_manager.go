@@ -9,10 +9,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -36,20 +36,20 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get deployment info failed:%s", err.Error())
+			log.Warnf("get deployment info failed:%s", err.Error())
 		}
 		return nil
 	}
 
 	if k8sDeploy.Spec.Selector == nil {
-		logger.Warn("deployment %s has no selector", deploy)
+		log.Warnf("deployment %s has no selector", deploy)
 		return nil
 	}
 
 	k8sPods, err := getPods(cluster.KubeClient, namespace, k8sDeploy.Spec.Selector)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list pods info failed:%s", err.Error())
+			log.Warnf("list pods info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -72,7 +72,7 @@ func (m *PodManager) Get(ctx *resttypes.Context) interface{} {
 	k8sPod, err := getPod(cluster.KubeClient, namespace, pod.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get pod info failed:%s", err.Error())
+			log.Warnf("get pod info failed:%s", err.Error())
 		}
 		return nil
 	}

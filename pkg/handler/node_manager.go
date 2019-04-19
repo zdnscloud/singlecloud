@@ -11,10 +11,10 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -38,7 +38,7 @@ func (m *NodeManager) Get(ctx *resttypes.Context) interface{} {
 	k8sNode, err := getNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Warn("get node info failed:%s", err.Error())
+			log.Warnf("get node info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -57,7 +57,7 @@ func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
 	k8sNodes, err := getNodes(cli)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Warn("get node info failed:%s", err.Error())
+			log.Warnf("get node info failed:%s", err.Error())
 		}
 		return nil
 	}

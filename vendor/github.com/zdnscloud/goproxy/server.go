@@ -1,12 +1,12 @@
 package goproxy
 
 import (
-	"log"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/zdnscloud/cement/log"
 )
 
 type Dialer func(network, address string) (net.Conn, error)
@@ -41,10 +41,13 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 func (s *Server) registerAgent(rw http.ResponseWriter, req *http.Request) {
 	agentKey, authed, err := s.authorizer(req)
 	if err != nil {
+		log.Warnf("agent %s is authenticate failed %s", agentKey, err.Error())
 		s.returnError(rw, req, 400, err)
 		return
 	}
+
 	if !authed {
+		log.Warnf("agent %s is reject", agentKey)
 		s.returnError(rw, req, 401, errFailedAuth)
 		return
 	}
@@ -56,18 +59,21 @@ func (s *Server) registerAgent(rw http.ResponseWriter, req *http.Request) {
 	}
 	wsConn, err := upgrader.Upgrade(rw, req, nil)
 	if err != nil {
+		log.Errorf("upgrade conn to ws failed:%s", err.Error())
 		s.returnError(rw, req, 400, err)
 		return
 	}
 
-	log.Printf("register agent with key %s\n", agentKey)
 	session, err := s.sessions.addAgent(agentKey, wsConn)
 	if err != nil {
+		log.Errorf("add agent failed:%s", err.Error())
 		s.returnError(rw, req, 400, err)
 	}
 
+	log.Infof("register agent with key %s", agentKey)
 	session.Serve()
 	s.sessions.removeAgent(agentKey)
+	log.Infof("remove agent with key %s", agentKey)
 }
 
 func (s *Server) returnError(rw http.ResponseWriter, req *http.Request, code int, err error) {
