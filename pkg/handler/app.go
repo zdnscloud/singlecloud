@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -106,20 +107,14 @@ const (
 )
 
 func (a *App) registerAgentHandler(router gin.IRoutes) {
-	clusterAgentRegisterPath := fmt.Sprintf(ClusterAgentRegisterPathTemp, ":cluster", ":id")
+	clusterAgentRegisterPath := fmt.Sprintf(ClusterAgentRegisterPathTemp, ":cluster", ":agentKey")
 	router.GET(clusterAgentRegisterPath, func(c *gin.Context) {
-		cluster := a.clusterManager.get(c.Param("cluster"))
-		if cluster != nil {
-			c.Request.Header.Add("_agent_id", c.Param("id"))
-			cluster.AgentManager.HandleAgentRegister(c)
-		}
+		a.clusterManager.RegisterAgent(c.Param("cluster"), c.Param("agentKey"), c.Request, c.Writer)
 	})
 
-	clusterAgentProxyPath := fmt.Sprintf(ClusterAgentProxyPathTemp, ":cluster", ":id") + "/*realservice"
+	clusterAgentProxyPath := fmt.Sprintf(ClusterAgentProxyPathTemp, ":cluster", ":agentKey") + "/*targetService"
 	router.Any(clusterAgentProxyPath, func(c *gin.Context) {
-		cluster := a.clusterManager.get(c.Param("cluster"))
-		if cluster != nil {
-			cluster.AgentManager.HandleAgentProxy(c)
-		}
+		targetService := strings.TrimPrefix(c.Param("targetService"), "/")
+		a.clusterManager.HandleAgentProxy(c.Param("cluster"), c.Param("agentKey"), targetService, c.Request, c.Writer)
 	})
 }

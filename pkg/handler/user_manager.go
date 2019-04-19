@@ -11,7 +11,7 @@ import (
 )
 
 type UserManager struct {
-	DefaultHandler
+	api.DefaultHandler
 	impl *authorize.UserManager
 }
 

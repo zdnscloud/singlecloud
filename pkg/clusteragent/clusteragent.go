@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/zdnscloud/goproxy"
+)
+
+const (
+	AgentKey = "_agent_key"
 )
 
 type AgentManager struct {
@@ -22,31 +25,30 @@ func New() *AgentManager {
 }
 
 func authorizer(req *http.Request) (string, bool, error) {
-	agentKey := req.Header.Get("_agent_id")
+	agentKey := req.Header.Get(AgentKey)
 	return agentKey, agentKey != "", nil
 }
 
-func (m *AgentManager) HandleAgentRegister(c *gin.Context) {
-	m.server.ServeHTTP(c.Writer, c.Request)
+func (m *AgentManager) HandleAgentRegister(agentKey string, r *http.Request, w http.ResponseWriter) {
+	r.Header.Add(AgentKey, agentKey)
+	m.server.ServeHTTP(w, r)
 }
 
-func (m *AgentManager) HandleAgentProxy(c *gin.Context) {
-	rw := c.Writer
-	body, err := ioutil.ReadAll(c.Request.Body)
+func (m *AgentManager) HandleAgentProxy(agentKey, targetService string, r *http.Request, w http.ResponseWriter) {
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		rw.Write([]byte(err.Error()))
-		rw.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		w.WriteHeader(500)
 		return
 	}
 
-	url := "http:/" + c.Param("realservice")
-	proxyReq, err := http.NewRequest(c.Request.Method, url, bytes.NewReader(body))
+	url := "http://" + targetService
+	proxyReq, err := http.NewRequest(r.Method, url, bytes.NewReader(body))
 	proxyReq.Header = make(http.Header)
-	for h, val := range c.Request.Header {
+	for h, val := range r.Header {
 		proxyReq.Header[h] = val
 	}
 
-	agentKey := c.Param("id")
 	dialer := m.server.GetAgentDialer(agentKey, 15*time.Second)
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -55,11 +57,11 @@ func (m *AgentManager) HandleAgentProxy(c *gin.Context) {
 	}
 	resp, err := client.Do(proxyReq)
 	if err != nil {
-		rw.Write([]byte(err.Error()))
-		rw.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		w.WriteHeader(500)
 		return
 	}
 	defer resp.Body.Close()
-	rw.WriteHeader(resp.StatusCode)
-	io.Copy(rw, resp.Body)
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
 }

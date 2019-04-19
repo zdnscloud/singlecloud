@@ -93,7 +93,11 @@ func getFieldValue(ctx *types.Context, fieldVal reflect.Value) (interface{}, *ty
 	case reflect.Map:
 		return getMapValue(ctx, fieldVal)
 	default:
-		return fieldVal.Interface(), nil
+		if fieldVal.IsValid() {
+			return fieldVal.Interface(), nil
+		} else {
+			return nil, nil
+		}
 	}
 }
 

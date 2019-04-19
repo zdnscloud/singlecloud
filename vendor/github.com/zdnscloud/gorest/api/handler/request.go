@@ -79,7 +79,7 @@ func ListHandler(ctx *types.Context) *types.APIError {
 	var result interface{}
 	if ctx.Object.GetID() == "" {
 		data := handler.List(ctx)
-		if data == nil || reflect.ValueOf(data).IsNil() {
+		if data == nil {
 			data = make([]types.Object, 0)
 		}
 
@@ -92,7 +92,7 @@ func ListHandler(ctx *types.Context) *types.APIError {
 		result = collection
 	} else {
 		result = handler.Get(ctx)
-		if result == nil || reflect.ValueOf(result).IsNil() {
+		if result == nil {
 			return types.NewAPIError(types.NotFound,
 				fmt.Sprintf("%s resource with id %s doesn't exist", ctx.Object.GetType(), ctx.Object.GetID()))
 		}
