@@ -283,6 +283,7 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			mounts = append(mounts, corev1.VolumeMount{
 				Name:      c.ConfigName,
 				MountPath: c.MountPath,
+				ReadOnly:  true,
 			})
 			usedConfigMap[c.ConfigName] = struct{}{}
 		}
@@ -291,6 +292,7 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			mounts = append(mounts, corev1.VolumeMount{
 				Name:      c.SecretName,
 				MountPath: c.SecretPath,
+				ReadOnly:  true,
 			})
 			usedSecretMap[c.SecretName] = struct{}{}
 		}
