@@ -124,7 +124,7 @@ func createSecret(cli client.Client, namespace string, secret *types.Secret) err
 	}
 
 	k8sSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: secret.Name, Namespace: namespace, Labels: map[string]string{"creator": "singlecloud"}},
+		ObjectMeta: metav1.ObjectMeta{Name: secret.Name, Namespace: namespace},
 		Data:       data,
 		Type:       corev1.SecretTypeOpaque,
 	}
