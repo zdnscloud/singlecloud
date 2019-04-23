@@ -66,6 +66,6 @@
         }
     },
 
-    "resourceMethods": [ "GET", "DELETE"],
+    "resourceMethods": [ "GET"],
     "collectionMethods": [ "GET" ]
 }
