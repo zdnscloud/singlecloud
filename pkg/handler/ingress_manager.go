@@ -307,8 +307,9 @@ func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {
 		}
 
 		rules = append(rules, types.IngressRule{
-			Host:  r.Host,
-			Paths: paths,
+			Host:     r.Host,
+			Paths:    paths,
+			Protocol: "tcp",
 		})
 	}
 

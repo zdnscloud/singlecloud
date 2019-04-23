@@ -16,6 +16,7 @@ type IngressPath struct {
 	ServiceName string `json:"serviceName"`
 	ServicePort int    `json:"servicePort"`
 }
+
 type IngressRule struct {
 	Host     string        `json:"host"`
 	Port     int           `json:"port,omitempty"`
