@@ -98,19 +98,22 @@ func (m *UserManager) authenticateUser(userName string, ctx *resttypes.Context) 
 	ctx.Set(types.CurrentUserKey, user)
 
 	ancestors := resttypes.GetAncestors(ctx.Object)
-	if len(ancestors) >= 2 {
-		if ancestors[0].GetType() == types.ClusterType && ancestors[1].GetType() == types.NamespaceType {
-			cluster := ancestors[0].GetID()
-			namespace := ancestors[1].GetID()
-			for _, project := range user.Projects {
-				if project.Cluster == cluster && (project.Namespace == AllNamespace || project.Namespace == namespace) {
-					return nil
-				}
-			}
-		}
+	if len(ancestors) < 2 {
+		return nil
 	}
 
-	return fmt.Errorf("user %s has no sufficient permission", userName)
+	if ancestors[0].GetType() == types.ClusterType && ancestors[1].GetType() == types.NamespaceType {
+		cluster := ancestors[0].GetID()
+		namespace := ancestors[1].GetID()
+		for _, project := range user.Projects {
+			if project.Cluster == cluster && (project.Namespace == AllNamespace || project.Namespace == namespace) {
+				return nil
+			}
+		}
+		return fmt.Errorf("user %s has no sufficient permission to work on cluster %s namespace %s", userName, cluster, namespace)
+	}
+
+	return nil
 }
 
 func (m *UserManager) AddUser(user *types.User) error {
