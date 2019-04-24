@@ -70,7 +70,7 @@ func (m *UserManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.AP
 	case types.ActionLogin:
 		return m.login(ctx)
 	case types.ActionResetPassword:
-		return m.resetPassword(ctx)
+		return nil, m.resetPassword(ctx)
 	default:
 		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
 	}
@@ -92,18 +92,22 @@ func (m *UserManager) login(ctx *resttypes.Context) (interface{}, *resttypes.API
 	}
 }
 
-func (m *UserManager) resetPassword(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+func (m *UserManager) resetPassword(ctx *resttypes.Context) *resttypes.APIError {
 	param, ok := ctx.Action.Input.(*types.ResetPassword)
 	if ok == false {
-		return nil, resttypes.NewAPIError(resttypes.InvalidFormat, "reset password param not valid")
+		return resttypes.NewAPIError(resttypes.InvalidFormat, "reset password param not valid")
 	}
 
-	currentUser, _ := ctx.Get(types.CurrentUserKey)
-	err := m.impl.ResetPassword(currentUser.(string), param.OldPassword, param.NewPassword)
+	user := getCurrentUser(ctx)
+	if user.Name != ctx.Object.GetID() {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "only user himself could reset his password")
+	}
+
+	err := m.impl.ResetPassword(user.Name, param.OldPassword, param.NewPassword)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
+		return resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
 	} else {
-		return nil, nil
+		return nil
 	}
 }
 

@@ -57,8 +57,6 @@ func (m *UserManager) HandleRequest(ctx *resttypes.Context) *resttypes.APIError 
 		return resttypes.NewAPIError(resttypes.PermissionDenied, "invalid token:"+err.Error())
 	}
 
-	ctx.Set(types.CurrentUserKey, user)
-
 	if err := m.authenticateUser(user, ctx); err != nil {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
 	} else {
@@ -96,40 +94,22 @@ func (m *UserManager) authenticateUser(userName string, ctx *resttypes.Context) 
 		return fmt.Errorf("user %s doesn't exists", userName)
 	}
 
+	ctx.Set(types.CurrentUserKey, user)
+
 	ancestors := resttypes.GetAncestors(ctx.Object)
-	var namespace string
-	switch len(ancestors) {
-	case 0:
-		if ctx.Object.GetType() == types.UserType {
-			if ctx.Method == http.MethodGet || (ctx.Action != nil && ctx.Action.Name == types.ActionResetPassword) {
-				if ctx.Object.GetID() == userName {
+	if len(ancestors) >= 2 {
+		if ancestors[0].GetType() == types.ClusterType && ancestors[1].GetType() == types.NamespaceType {
+			cluster := ancestors[0].GetID()
+			namespace := ancestors[1].GetID()
+			for _, project := range user.Projects {
+				if project.Cluster == cluster && (project.Namespace == AllNamespace || project.Namespace == namespace) {
 					return nil
 				}
 			}
 		}
-		return fmt.Errorf("only admin could modify top level resource")
-	case 1:
-		if ctx.Object.GetType() != types.NamespaceType {
-			return fmt.Errorf("user should only work on resource under namespace")
-		}
-		namespace = ctx.Object.GetID()
-		if namespace == "" {
-			namespace = AllNamespace
-		}
-	default:
-		if ancestors[1].GetType() != types.NamespaceType {
-			return fmt.Errorf("user should only work on resource under namespace")
-		}
-		namespace = ancestors[1].GetID()
-	}
-	cluster := ancestors[0].GetID()
-	for _, project := range user.Projects {
-		if project.Cluster == cluster && (project.Namespace == AllNamespace || project.Namespace == namespace) {
-			return nil
-		}
 	}
 
-	return fmt.Errorf("user %s has no permission on cluster %s namespace %s", userName, cluster, namespace)
+	return fmt.Errorf("user %s has no sufficient permission", userName)
 }
 
 func (m *UserManager) AddUser(user *types.User) error {

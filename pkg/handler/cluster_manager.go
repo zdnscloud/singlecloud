@@ -51,6 +51,10 @@ func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster
 }
 
 func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
+	}
+
 	inner := ctx.Object.(*types.Cluster)
 	if c := m.get(inner.Name); c != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
@@ -122,7 +126,12 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 }
 
 func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
-	return m.get(ctx.Object.GetID())
+	target := ctx.Object.GetID()
+	if hasClusterPermission(getCurrentUser(ctx), target) == false {
+		return nil
+	} else {
+		return m.get(target).Cluster
+	}
 }
 
 func (m *ClusterManager) get(id string) *Cluster {
@@ -135,7 +144,14 @@ func (m *ClusterManager) get(id string) *Cluster {
 }
 
 func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
-	return m.clusters
+	user := getCurrentUser(ctx)
+	var clusters []*types.Cluster
+	for _, c := range m.clusters {
+		if hasClusterPermission(user, c.Name) {
+			clusters = append(clusters, c.Cluster)
+		}
+	}
+	return clusters
 }
 
 func initCluster(cluster *Cluster) error {
