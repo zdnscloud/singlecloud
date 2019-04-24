@@ -84,6 +84,7 @@ func getTokenFromRequest(req *http.Request) (string, bool) {
 
 func (m *UserManager) authenticateUser(userName string, ctx *resttypes.Context) error {
 	if userName == Administrator {
+		ctx.Set(types.CurrentUserKey, adminUser)
 		return nil
 	}
 
