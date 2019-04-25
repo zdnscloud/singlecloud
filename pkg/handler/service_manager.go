@@ -11,10 +11,10 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -58,7 +58,7 @@ func (m *ServiceManager) List(ctx *resttypes.Context) interface{} {
 	k8sServices, err := getServices(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list service info failed:%s", err.Error())
+			log.Warnf("list service info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -81,7 +81,7 @@ func (m *ServiceManager) Get(ctx *resttypes.Context) interface{} {
 	k8sService, err := getService(cluster.KubeClient, namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get service info failed:%s", err.Error())
+			log.Warnf("get service info failed:%s", err.Error())
 		}
 		return nil
 	}

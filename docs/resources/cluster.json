@@ -5,7 +5,16 @@
     "resourceFields": {
         "name": {"type": "string"},
         "nodeCount": {"type": "uint32"},
-        "version": {"type": "string"}
+        "version": {"type": "string"},
+        "cpu": {"type": "int"},
+        "cpuUsed": {"type": "int"},
+        "cpuUsedRatio": {"type": "string"},
+        "memory": { "type": "int"},
+        "memoryUsed": { "type": "int"},
+        "memoryUsedRatio": {"type": "string"},
+        "pod": { "type": "int"},
+        "podUsed": { "type": "int"},
+        "podUsedRatio": {"type": "string"}
     },
 
     "resourceMethods": [ "GET" ],

@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 )
 
 func (m *ClusterManager) OpenEvent(clusterID string, r *http.Request, w http.ResponseWriter) {
 	cluster := m.get(clusterID)
 	if cluster == nil {
-		logger.Warn("cluster %s isn't found to open console", clusterID)
+		log.Warnf("cluster %s isn't found to open console", clusterID)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (m *ClusterManager) OpenEvent(clusterID string, r *http.Request, w http.Res
 			d, _ := json.Marshal(event)
 			err := session.Send(string(d))
 			if err != nil {
-				logger.Warn("send log failed:%s", err.Error())
+				log.Warnf("send log failed:%s", err.Error())
 				break
 			}
 		}

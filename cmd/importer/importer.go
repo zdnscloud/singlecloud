@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -36,6 +37,60 @@ func getDefaultConfigPath() string {
 	return filepath.Join(usr.HomeDir, ".kube", "config")
 }
 
+func login(addr string, user, password string) (string, error) {
+	client := &http.Client{}
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/%s?action=login", addr, user)
+	requestBody, _ := json.Marshal(map[string]string{
+		"password": hashPassword(password),
+	})
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	token := struct {
+		Token string `json:"token"`
+	}{}
+	json.Unmarshal(body, &token)
+	return token.Token, nil
+}
+
+func hashPassword(password string) string {
+	pwHash := sha1.Sum([]byte(password))
+	return hex.EncodeToString(pwHash[:])
+}
+
+func createCluster(addr, token, clusterName string, data []byte) error {
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
+	requestBody, _ := json.Marshal(map[string]string{
+		"name":  clusterName,
+		"yaml_": string(data),
+	})
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+token)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("send request failed:%s", err.Error())
+	}
+
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode == 201 {
+		return nil
+	}
+
+	errInfo := struct {
+		Message string `json:"message"`
+	}{}
+	json.Unmarshal(body, &errInfo)
+	return errors.New(errInfo.Message)
+}
+
 func main() {
 	var addr, k8sconfig, clusterName, adminPassword string
 	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
@@ -55,48 +110,15 @@ func main() {
 		log.Fatalf("read %s failed:%s", k8sconfig, err.Error())
 	}
 
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/admin?action=login", addr)
-	pwHash := sha1.Sum([]byte(adminPassword))
-	requestBody, _ := json.Marshal(map[string]string{
-		"user":     "admin",
-		"password": hex.EncodeToString(pwHash[:]),
-	})
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	token, err := login(addr, "admin", adminPassword)
 	if err != nil {
 		log.Fatalf("get token failed:%s", err.Error())
 	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-	token := struct {
-		Token string `json:"token"`
-	}{}
-	json.Unmarshal(body, &token)
 
-	url = fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
-	requestBody, _ = json.Marshal(map[string]string{
-		"name":  clusterName,
-		"yaml_": string(data),
-	})
-	req, _ = http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+token.Token)
-	resp, err = client.Do(req)
-	if err != nil {
-		log.Fatalf("send request failed:%s", err.Error())
-	}
-
-	defer resp.Body.Close()
-	body, _ = ioutil.ReadAll(resp.Body)
-	if resp.StatusCode == 201 {
+	err = createCluster(addr, token, clusterName, data)
+	if err == nil {
 		fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "import succeed", reset)
 	} else {
-		errInfo := struct {
-			Message string `json:"message"`
-		}{}
-		json.Unmarshal(body, &errInfo)
-		fmt.Printf("%s|%s %s: %s %s\n", emoji.Sprint(":broken_heart:"), red, "import failed", errInfo.Message, reset)
+		fmt.Printf("%s|%s %s: %s %s\n", emoji.Sprint(":broken_heart:"), red, "import failed", err.Error(), reset)
 	}
 }

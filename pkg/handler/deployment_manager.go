@@ -13,10 +13,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -72,7 +72,7 @@ func (m *DeploymentManager) List(ctx *resttypes.Context) interface{} {
 	k8sDeploys, err := getDeployments(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list deployment info failed:%s", err.Error())
+			log.Warnf("list deployment info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -95,12 +95,44 @@ func (m *DeploymentManager) Get(ctx *resttypes.Context) interface{} {
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get deployment info failed:%s", err.Error())
+			log.Warnf("get deployment info failed:%s", err.Error())
 		}
 		return nil
 	}
 
 	return k8sDeployToSCDeploy(k8sDeploy)
+}
+
+func (m *DeploymentManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	deploy := ctx.Object.(*types.Deployment)
+
+	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+		} else {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+		}
+	}
+
+	if int(*k8sDeploy.Spec.Replicas) == deploy.Replicas {
+		return deploy, nil
+	} else {
+		replicas := int32(deploy.Replicas)
+		k8sDeploy.Spec.Replicas = &replicas
+		err := cluster.KubeClient.Update(context.TODO(), k8sDeploy)
+		if err != nil {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
+		} else {
+			return deploy, nil
+		}
+	}
 }
 
 func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
@@ -145,7 +177,7 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 }
 
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
-	replica := int32(deploy.Replicas)
+	replicas := int32(deploy.Replicas)
 	k8sPodSpec, err := scContainersToK8sPodSpec(deploy.Containers)
 	if err != nil {
 		return err
@@ -170,7 +202,7 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replica,
+			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": deploy.Name},
 			},
@@ -283,6 +315,7 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			mounts = append(mounts, corev1.VolumeMount{
 				Name:      c.ConfigName,
 				MountPath: c.MountPath,
+				ReadOnly:  true,
 			})
 			usedConfigMap[c.ConfigName] = struct{}{}
 		}
@@ -291,6 +324,7 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			mounts = append(mounts, corev1.VolumeMount{
 				Name:      c.SecretName,
 				MountPath: c.SecretPath,
+				ReadOnly:  true,
 			})
 			usedSecretMap[c.SecretName] = struct{}{}
 		}

@@ -21,12 +21,15 @@ type Node struct {
 	OperatingSystem      string            `json:"operatingSystem,omitempty"`
 	OperatingSystemImage string            `json:"operatingSystemImage,omitempty"`
 	DockerVersion        string            `json:"dockerVersion,omitempty"`
-	Cpu                  string            `json:"cpu,omitempty"`
-	CpuUsedRatio         string            `json:"cpuUsedRatio,omitempty"`
-	Memory               string            `json:"memory,omitempty"`
-	MemoryUsedRatio      string            `json:"memoryUsedRatio,omitempty"`
-	Pod                  string            `json:"pod"`
-	PodUsedRatio         string            `json:"podUsedRatio,omitempty"`
+	Cpu                  int64             `json:"cpu"`
+	CpuUsed              int64             `json:"cpuUsed"`
+	CpuUsedRatio         string            `json:"cpuUsedRatio"`
+	Memory               int64             `json:"memory"`
+	MemoryUsed           int64             `json:"memoryUsed"`
+	MemoryUsedRatio      string            `json:"memoryUsedRatio"`
+	Pod                  int64             `json:"pod"`
+	PodUsed              int64             `json:"podUsed"`
+	PodUsedRatio         string            `json:"podUsedRatio"`
 }
 
 var NodeType = resttypes.GetResourceType(Node{})

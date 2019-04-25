@@ -11,10 +11,10 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -35,10 +35,10 @@ func (m *NodeManager) Get(ctx *resttypes.Context) interface{} {
 
 	node := ctx.Object.(*types.Node)
 	cli := cluster.KubeClient
-	k8sNode, err := getNode(cli, node.GetID())
+	k8sNode, err := getK8SNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Warn("get node info failed:%s", err.Error())
+			log.Warnf("get node info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -53,13 +53,18 @@ func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	cli := cluster.KubeClient
-	k8sNodes, err := getNodes(cli)
+	nodes, _ := getNodes(cluster.KubeClient)
+	return nodes
+}
+
+func getNodes(cli client.Client) ([]*types.Node, error) {
+	k8sNodes, err := getK8SNodes(cli)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Warn("get node info failed:%s", err.Error())
+			return nil, nil
+		} else {
+			return nil, err
 		}
-		return nil
 	}
 
 	podCountOnNode := getPodCountOnNode(cli, "")
@@ -68,16 +73,16 @@ func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
 	for _, k8sNode := range k8sNodes.Items {
 		nodes = append(nodes, k8sNodeToSCNode(&k8sNode, nodeMetrics, podCountOnNode))
 	}
-	return nodes
+	return nodes, nil
 }
 
-func getNode(cli client.Client, name string) (*corev1.Node, error) {
+func getK8SNode(cli client.Client, name string) (*corev1.Node, error) {
 	node := corev1.Node{}
 	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &node)
 	return &node, err
 }
 
-func getNodes(cli client.Client) (*corev1.NodeList, error) {
+func getK8SNodes(cli client.Client) (*corev1.NodeList, error) {
 	nodes := corev1.NodeList{}
 	err := cli.List(context.TODO(), nil, &nodes)
 	return &nodes, err
@@ -97,39 +102,25 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 		}
 	}
 
-	cpuAva := status.Allocatable.Cpu()
-	memoryAva := status.Allocatable.Memory()
-	podAva := status.Allocatable.Pods()
+	cpuAva := status.Allocatable.Cpu().Value()
+	memoryAva := status.Allocatable.Memory().Value()
+	podAva := status.Allocatable.Pods().Value()
 
 	usageMetrics := nodeMetrics[k8sNode.Name]
-	cpuUsed := float64(usageMetrics.Usage.Cpu().MilliValue()) / 1000
-	memoryUsed := float64(usageMetrics.Usage.Memory().MilliValue()) / 1000
-	podUsed := float64(podCountOnNode[k8sNode.Name])
+	cpuUsed := usageMetrics.Usage.Cpu().Value()
+	memoryUsed := usageMetrics.Usage.Memory().Value()
+	podUsed := int64(podCountOnNode[k8sNode.Name])
 
-	cpuRatio := fmt.Sprintf("%.2f", cpuUsed/float64(cpuAva.Value()))
-	memoryRatio := fmt.Sprintf("%.2f", memoryUsed/(float64(memoryAva.MilliValue())/1000))
-	podRatio := fmt.Sprintf("%.2f", podUsed/float64(podAva.Value()))
+	cpuRatio := fmt.Sprintf("%.2f", float64(cpuUsed)/float64(cpuAva))
+	memoryRatio := fmt.Sprintf("%.2f", float64(memoryUsed)/float64(memoryAva))
+	podRatio := fmt.Sprintf("%.2f", float64(podUsed)/float64(podAva))
 
 	nodeInfo := &status.NodeInfo
 	os := nodeInfo.OperatingSystem + " " + nodeInfo.KernelVersion
 	osImage := nodeInfo.OSImage
 	dockderVersion := nodeInfo.ContainerRuntimeVersion
 
-	var roles []string
-	v, ok := k8sNode.Labels["node-role.kubernetes.io/controlplane"]
-	if ok && (v == "true") {
-		roles = append(roles, "controlplane")
-	}
-
-	v, ok = k8sNode.Labels["node-role.kubernetes.io/etcd"]
-	if ok && (v == "true") {
-		roles = append(roles, "etcd")
-	}
-
-	v, ok = k8sNode.Labels["node-role.kubernetes.io/worker"]
-	if ok && (v == "true") {
-		roles = append(roles, "worker")
-	}
+	roles := getRoleFromLabels(k8sNode.Labels)
 
 	node := &types.Node{
 		Name:                 host,
@@ -140,11 +131,14 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 		OperatingSystem:      os,
 		OperatingSystemImage: osImage,
 		DockerVersion:        dockderVersion,
-		Cpu:                  cpuAva.String(),
+		Cpu:                  cpuAva,
+		CpuUsed:              cpuUsed,
 		CpuUsedRatio:         cpuRatio,
-		Memory:               memoryAva.String(),
+		Memory:               memoryAva,
+		MemoryUsed:           memoryUsed,
 		MemoryUsedRatio:      memoryRatio,
-		Pod:                  podAva.String(),
+		Pod:                  podAva,
+		PodUsed:              podUsed,
 		PodUsedRatio:         podRatio,
 	}
 	node.SetID(node.Name)
@@ -183,4 +177,26 @@ func getNodeMetrics(cli client.Client, name string) map[string]metricsapi.NodeMe
 		}
 	}
 	return nodeMetricsByName
+}
+
+var (
+	zkeRoleLabelPrefix = "node-role.kubernetes.io/"
+	zkeRoles           = []string{
+		"controlplane", "etcd", "worker", "edge", "storage",
+	}
+)
+
+func getRoleFromLabels(labels map[string]string) []string {
+	hasLabel := func(lbs map[string]string, lb string) bool {
+		v, ok := lbs[lb]
+		return ok && v == "true"
+	}
+
+	var roles []string
+	for _, r := range zkeRoles {
+		if hasLabel(labels, zkeRoleLabelPrefix+r) {
+			roles = append(roles, r)
+		}
+	}
+	return roles
 }

@@ -9,10 +9,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -26,6 +26,10 @@ func newNamespaceManager(clusters *ClusterManager) *NamespaceManager {
 }
 
 func (m *NamespaceManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create namespace")
+	}
+
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
@@ -53,13 +57,16 @@ func (m *NamespaceManager) List(ctx *resttypes.Context) interface{} {
 
 	k8sNamespaces, err := getNamespaces(cluster.KubeClient)
 	if err != nil {
-		logger.Warn("get namespace info failed:%s", err.Error())
+		log.Warnf("get namespace info failed:%s", err.Error())
 		return nil
 	}
 
+	user := getCurrentUser(ctx)
 	var namespaces []*types.Namespace
 	for _, ns := range k8sNamespaces.Items {
-		namespaces = append(namespaces, k8sNamespaceToSCNamespace(&ns))
+		if hasNamespacePermission(user, cluster.Name, ns.Name) {
+			namespaces = append(namespaces, k8sNamespaceToSCNamespace(&ns))
+		}
 	}
 	return namespaces
 }
@@ -71,10 +78,14 @@ func (m *NamespaceManager) Get(ctx *resttypes.Context) interface{} {
 	}
 
 	namespace := ctx.Object.(*types.Namespace)
+	if hasNamespacePermission(getCurrentUser(ctx), cluster.Name, namespace.GetID()) == false {
+		return nil
+	}
+
 	k8sNamespace, err := getNamespace(cluster.KubeClient, namespace.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get namespace info failed:%s", err.Error())
+			log.Warnf("get namespace info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -83,6 +94,10 @@ func (m *NamespaceManager) Get(ctx *resttypes.Context) interface{} {
 }
 
 func (m *NamespaceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete namespace")
+	}
+
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")

@@ -11,9 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -120,7 +120,7 @@ func (s *ServiceMonitor) k8ssvcToSCService(k8ssvc *corev1.Service) (*Service, er
 	opts.LabelSelector = labels
 	err := s.cache.List(context.TODO(), opts, &k8spods)
 	if err != nil {
-		logger.Warn("get pod list failed:%s", err.Error())
+		log.Warnf("get pod list failed:%s", err.Error())
 		return nil, err
 	}
 
@@ -163,18 +163,18 @@ func (s *ServiceMonitor) getPodOwner(namespace string, owner metav1.OwnerReferen
 	var k8srs appsv1.ReplicaSet
 	err := s.cache.Get(context.TODO(), k8stypes.NamespacedName{namespace, owner.Name}, &k8srs)
 	if err != nil {
-		logger.Warn("get replicaset failed:%s", err.Error())
+		log.Warnf("get replicaset failed:%s", err.Error())
 		return "", "", false
 	}
 
 	if len(k8srs.OwnerReferences) != 1 {
-		logger.Warn("replicaset OwnerReferences is strange:%v", k8srs.OwnerReferences)
+		log.Warnf("replicaset OwnerReferences is strange:%v", k8srs.OwnerReferences)
 		return "", "", false
 	}
 
 	owner = k8srs.OwnerReferences[0]
 	if owner.Kind != "Deployment" {
-		logger.Warn("replicaset parent is not deployment but %v", owner.Kind)
+		log.Warnf("replicaset parent is not deployment but %v", owner.Kind)
 		return "", "", false
 	}
 	return owner.Name, owner.Kind, true
@@ -207,7 +207,7 @@ func (s *ServiceMonitor) OnUpdateEndpoints(old, new *corev1.Endpoints) {
 		var k8ssvc corev1.Service
 		err := s.cache.Get(context.TODO(), k8stypes.NamespacedName{new.Namespace, new.Name}, &k8ssvc)
 		if err != nil {
-			logger.Warn("get service %s failed:%s", new.Name, err.Error())
+			log.Warnf("get service %s failed:%s", new.Name, err.Error())
 			return
 		}
 		s.OnNewService(&k8ssvc)
@@ -217,7 +217,7 @@ func (s *ServiceMonitor) OnUpdateEndpoints(old, new *corev1.Endpoints) {
 func (s *ServiceMonitor) hasPodNameChange(eps *corev1.Endpoints) bool {
 	svc, ok := s.services[eps.Name]
 	if ok == false {
-		logger.Warn("endpoints %s has no related service", eps.Name)
+		log.Warnf("endpoints %s has no related service", eps.Name)
 		return false
 	}
 
@@ -268,7 +268,7 @@ func (s *ServiceMonitor) addIngressToService(ing *Ingress, name string) {
 	svc, ok := s.services[name]
 	if ok == false {
 		s.ingWaitForService[ing.Name] = ing
-		logger.Warn("unknown service %s specified in ingress %s", name, ing.Name)
+		log.Warnf("unknown service %s specified in ingress %s", name, ing.Name)
 	} else {
 		svc.Ingress = ing
 	}
@@ -277,7 +277,7 @@ func (s *ServiceMonitor) addIngressToService(ing *Ingress, name string) {
 func (s *ServiceMonitor) removeIngressFromService(ing *Ingress, name string) {
 	svc, ok := s.services[name]
 	if ok == false {
-		logger.Warn("unknown service %s specified in ingress %s", name, ing.Name)
+		log.Warnf("unknown service %s specified in ingress %s", name, ing.Name)
 	} else {
 		svc.Ingress = nil
 	}

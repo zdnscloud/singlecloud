@@ -11,10 +11,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -58,7 +58,7 @@ func (m *CronJobManager) List(ctx *resttypes.Context) interface{} {
 	k8sCronJobs, err := getCronJobs(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("list cronJob info failed:%s", err.Error())
+			log.Warnf("list cronJob info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -81,7 +81,7 @@ func (m *CronJobManager) Get(ctx *resttypes.Context) interface{} {
 	k8sCronJob, err := getCronJob(cluster.KubeClient, namespace, cronJob.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			logger.Warn("get cronJob info failed:%s", err.Error())
+			log.Warnf("get cronJob info failed:%s", err.Error())
 		}
 		return nil
 	}
