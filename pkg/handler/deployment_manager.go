@@ -103,6 +103,28 @@ func (m *DeploymentManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sDeployToSCDeploy(k8sDeploy)
 }
 
+func (m *DeploymentManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	/*
+		cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+		if cluster == nil {
+			return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+		}
+
+		namespace := ctx.Object.GetParent().GetID()
+		deploy := ctx.Object.(*types.Deployment)
+
+		k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
+		if err != nil {
+			if apierrors.IsNotFound(err) == false {
+				return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			} else {
+				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+			}
+		}
+	*/
+	return nil, nil
+}
+
 func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {

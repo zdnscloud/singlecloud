@@ -105,18 +105,18 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 		}
 	}
 
-	cpuAva := float64(status.Allocatable.Cpu().MilliValue())
-	memoryAva := float64(status.Allocatable.Memory().MilliValue())
-	podAva := float64(status.Allocatable.Pods().Value())
+	cpuAva := status.Allocatable.Cpu().MilliValue()
+	memoryAva := status.Allocatable.Memory().MilliValue()
+	podAva := status.Allocatable.Pods().Value()
 
 	usageMetrics := nodeMetrics[k8sNode.Name]
-	cpuUsed := float64(usageMetrics.Usage.Cpu().MilliValue())
-	memoryUsed := float64(usageMetrics.Usage.Memory().MilliValue())
-	podUsed := float64(podCountOnNode[k8sNode.Name])
+	cpuUsed := usageMetrics.Usage.Cpu().MilliValue()
+	memoryUsed := usageMetrics.Usage.Memory().MilliValue()
+	podUsed := int64(podCountOnNode[k8sNode.Name])
 
-	cpuRatio := fmt.Sprintf("%.2f", cpuUsed/cpuAva)
-	memoryRatio := fmt.Sprintf("%.2f", memoryUsed/memoryAva)
-	podRatio := fmt.Sprintf("%.2f", podUsed/podAva)
+	cpuRatio := fmt.Sprintf("%.2f", float64(cpuUsed)/float64(cpuAva))
+	memoryRatio := fmt.Sprintf("%.2f", float64(memoryUsed)/float64(memoryAva))
+	podRatio := fmt.Sprintf("%.2f", float64(podUsed)/float64(podAva))
 
 	nodeInfo := &status.NodeInfo
 	os := nodeInfo.OperatingSystem + " " + nodeInfo.KernelVersion

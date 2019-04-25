@@ -101,9 +101,9 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		cluster.Pod += n.Pod
 		cluster.PodUsed += n.PodUsed
 	}
-	cluster.CpuUsedRatio = fmt.Sprintf("%.2f", cluster.CpuUsed/cluster.Cpu)
-	cluster.MemoryUsedRatio = fmt.Sprintf("%.2f", cluster.MemoryUsed/cluster.Memory)
-	cluster.PodUsedRatio = fmt.Sprintf("%.2f", cluster.PodUsed/cluster.Pod)
+	cluster.CpuUsedRatio = fmt.Sprintf("%.2f", float64(cluster.CpuUsed)/float64(cluster.Cpu))
+	cluster.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(cluster.MemoryUsed)/float64(cluster.Memory))
+	cluster.PodUsedRatio = fmt.Sprintf("%.2f", float64(cluster.PodUsed)/float64(cluster.Pod))
 
 	version, err := cli.ServerVersion()
 	if err != nil {

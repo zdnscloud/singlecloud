@@ -21,14 +21,14 @@ type Node struct {
 	OperatingSystem      string            `json:"operatingSystem,omitempty"`
 	OperatingSystemImage string            `json:"operatingSystemImage,omitempty"`
 	DockerVersion        string            `json:"dockerVersion,omitempty"`
-	Cpu                  float64           `json:"cpu,omitempty"`
-	CpuUsed              float64           `json:"-"`
+	Cpu                  int64             `json:"cpu,omitempty"`
+	CpuUsed              int64             `json:"-"`
 	CpuUsedRatio         string            `json:"cpuUsedRatio,omitempty"`
-	Memory               float64           `json:"memory,omitempty"`
-	MemoryUsed           float64           `json:"-"`
+	Memory               int64             `json:"memory,omitempty"`
+	MemoryUsed           int64             `json:"-"`
 	MemoryUsedRatio      string            `json:"memoryUsedRatio,omitempty"`
-	Pod                  float64           `json:"pod"`
-	PodUsed              float64           `json:"-"`
+	Pod                  int64             `json:"pod"`
+	PodUsed              int64             `json:"-"`
 	PodUsedRatio         string            `json:"podUsedRatio,omitempty"`
 }
 
