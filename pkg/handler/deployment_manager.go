@@ -104,25 +104,35 @@ func (m *DeploymentManager) Get(ctx *resttypes.Context) interface{} {
 }
 
 func (m *DeploymentManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	/*
-		cluster := m.clusters.GetClusterForSubResource(ctx.Object)
-		if cluster == nil {
-			return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	deploy := ctx.Object.(*types.Deployment)
+
+	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+		} else {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
 		}
+	}
 
-		namespace := ctx.Object.GetParent().GetID()
-		deploy := ctx.Object.(*types.Deployment)
-
-		k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
+	if int(*k8sDeploy.Spec.Replicas) == deploy.Replicas {
+		return deploy, nil
+	} else {
+		replicas := int32(deploy.Replicas)
+		k8sDeploy.Spec.Replicas = &replicas
+		err := cluster.KubeClient.Update(context.TODO(), k8sDeploy)
 		if err != nil {
-			if apierrors.IsNotFound(err) == false {
-				return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
-			} else {
-				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
-			}
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
+		} else {
+			return deploy, nil
 		}
-	*/
-	return nil, nil
+	}
 }
 
 func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
@@ -167,7 +177,7 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 }
 
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
-	replica := int32(deploy.Replicas)
+	replicas := int32(deploy.Replicas)
 	k8sPodSpec, err := scContainersToK8sPodSpec(deploy.Containers)
 	if err != nil {
 		return err
@@ -192,7 +202,7 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replica,
+			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": deploy.Name},
 			},

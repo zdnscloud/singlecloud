@@ -53,7 +53,7 @@
         }
     },
 
-    "resourceMethods": [ "GET", "DELETE" ],
+    "resourceMethods": [ "GET", "UPDATE", "DELETE" ],
     "collectionMethods": [ "POST", "GET" ],
 
     "postParameters": {
