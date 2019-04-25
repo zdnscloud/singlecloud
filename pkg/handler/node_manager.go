@@ -105,13 +105,13 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 		}
 	}
 
-	cpuAva := status.Allocatable.Cpu().MilliValue()
-	memoryAva := status.Allocatable.Memory().MilliValue()
+	cpuAva := status.Allocatable.Cpu().Value()
+	memoryAva := status.Allocatable.Memory().Value()
 	podAva := status.Allocatable.Pods().Value()
 
 	usageMetrics := nodeMetrics[k8sNode.Name]
-	cpuUsed := usageMetrics.Usage.Cpu().MilliValue()
-	memoryUsed := usageMetrics.Usage.Memory().MilliValue()
+	cpuUsed := usageMetrics.Usage.Cpu().Value()
+	memoryUsed := usageMetrics.Usage.Memory().Value()
 	podUsed := int64(podCountOnNode[k8sNode.Name])
 
 	cpuRatio := fmt.Sprintf("%.2f", float64(cpuUsed)/float64(cpuAva))
