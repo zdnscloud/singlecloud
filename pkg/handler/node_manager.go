@@ -53,11 +53,8 @@ func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	if nodes, err := getNodes(cluster.KubeClient); err != nil {
-		return nodes
-	} else {
-		return nil
-	}
+	nodes, _ := getNodes(cluster.KubeClient)
+	return nodes
 }
 
 func getNodes(cli client.Client) ([]*types.Node, error) {
