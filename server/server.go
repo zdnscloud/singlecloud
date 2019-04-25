@@ -11,10 +11,10 @@ type Server struct {
 	router *gin.Engine
 }
 
-func NewServer() (*Server, error) {
+func NewServer(globaldns string) (*Server, error) {
 	gin.SetMode(gin.ReleaseMode)
 
-	app := handler.NewApp()
+	app := handler.NewApp(globaldns)
 	router := gin.New()
 	router.Use(static.Serve("/", static.LocalFile("/www", false)))
 	router.NoRoute(func(c *gin.Context) {
