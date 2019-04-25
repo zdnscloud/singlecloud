@@ -68,6 +68,7 @@ func (s *Server) registerAgent(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Errorf("add agent failed:%s", err.Error())
 		s.returnError(rw, req, 400, err)
+		return
 	}
 
 	log.Infof("register agent with key %s", agentKey)

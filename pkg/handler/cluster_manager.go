@@ -26,12 +26,12 @@ const (
 )
 
 type Cluster struct {
-	*types.Cluster `json:",inline"`
-
-	KubeClient   client.Client              `json:"-"`
-	Executor     *exec.Executor             `json:"-"`
-	EventWatcher *event.EventWatcher        `json:"-"`
-	ServiceCache *servicecache.ServiceCache `json:"-"`
+	Name         string
+	CreateTime   time.Time
+	KubeClient   client.Client
+	Executor     *exec.Executor
+	EventWatcher *event.EventWatcher
+	ServiceCache *servicecache.ServiceCache
 	AgentManager *clusteragent.AgentManager
 }
 
@@ -61,10 +61,10 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 
 	cluster := &Cluster{
-		Cluster: inner,
+		Name:       inner.Name,
+		CreateTime: time.Now(),
 	}
 
-	cluster.SetID(cluster.Name)
 	k8sconf, err := config.BuildConfig(yamlConf)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("invalid cluster config:%s", err.Error()))
@@ -74,6 +74,7 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
+	cluster.KubeClient = cli
 
 	stop := make(chan struct{})
 	cache, err := cache.New(k8sconf, cache.Options{})
@@ -87,31 +88,6 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
-
-	nodes, err := getNodes(cli)
-	if err != nil {
-		log.Errorf("get nodes failed:%s", err.Error())
-	}
-	cluster.NodesCount = len(nodes)
-	for _, n := range nodes {
-		cluster.Cpu += n.Cpu
-		cluster.CpuUsed += n.CpuUsed
-		cluster.Memory += n.Memory
-		cluster.MemoryUsed += n.MemoryUsed
-		cluster.Pod += n.Pod
-		cluster.PodUsed += n.PodUsed
-	}
-	cluster.CpuUsedRatio = fmt.Sprintf("%.2f", float64(cluster.CpuUsed)/float64(cluster.Cpu))
-	cluster.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(cluster.MemoryUsed)/float64(cluster.Memory))
-	cluster.PodUsedRatio = fmt.Sprintf("%.2f", float64(cluster.PodUsed)/float64(cluster.Pod))
-
-	version, err := cli.ServerVersion()
-	if err != nil {
-		log.Errorf("get version failed:%s", err.Error())
-	} else {
-		cluster.Version = version.GitVersion
-	}
-	cluster.KubeClient = cli
 	cluster.Executor = executor
 
 	eventWatcher, err := event.New(cache, MaxEventCount)
@@ -131,8 +107,43 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
 	}
 
-	cluster.SetCreationTimestamp(time.Now())
 	m.clusters = append(m.clusters, cluster)
+
+	c, err := getClusterInfo(cluster)
+	if err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get cluster info:%s", err.Error()))
+	}
+	return c, nil
+}
+
+func getClusterInfo(c *Cluster) (*types.Cluster, error) {
+	cluster := &types.Cluster{}
+	cluster.SetID(c.Name)
+
+	version, err := c.KubeClient.ServerVersion()
+	if err != nil {
+		return nil, err
+	}
+	cluster.Version = version.GitVersion
+
+	nodes, err := getNodes(c.KubeClient)
+	if err != nil {
+		return nil, err
+	}
+
+	cluster.NodesCount = len(nodes)
+	for _, n := range nodes {
+		cluster.Cpu += n.Cpu
+		cluster.CpuUsed += n.CpuUsed
+		cluster.Memory += n.Memory
+		cluster.MemoryUsed += n.MemoryUsed
+		cluster.Pod += n.Pod
+		cluster.PodUsed += n.PodUsed
+	}
+	cluster.CpuUsedRatio = fmt.Sprintf("%.2f", float64(cluster.CpuUsed)/float64(cluster.Cpu))
+	cluster.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(cluster.MemoryUsed)/float64(cluster.Memory))
+	cluster.PodUsedRatio = fmt.Sprintf("%.2f", float64(cluster.PodUsed)/float64(cluster.Pod))
+	cluster.SetCreationTimestamp(c.CreateTime)
 	return cluster, nil
 }
 
@@ -141,13 +152,22 @@ func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	if hasClusterPermission(getCurrentUser(ctx), target) == false {
 		return nil
 	} else {
-		return m.get(target).Cluster
+		cluster := m.get(target)
+		if cluster == nil {
+			return nil
+		}
+		info, err := getClusterInfo(cluster)
+		if err == nil {
+			return info
+		} else {
+			return nil
+		}
 	}
 }
 
 func (m *ClusterManager) get(id string) *Cluster {
 	for _, c := range m.clusters {
-		if c.GetID() == id {
+		if c.Name == id {
 			return c
 		}
 	}
@@ -159,7 +179,10 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	var clusters []*types.Cluster
 	for _, c := range m.clusters {
 		if hasClusterPermission(user, c.Name) {
-			clusters = append(clusters, c.Cluster)
+			info, err := getClusterInfo(c)
+			if err == nil {
+				clusters = append(clusters, info)
+			}
 		}
 	}
 	return clusters
