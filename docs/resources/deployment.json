@@ -19,9 +19,14 @@
             "configName": {"type": "string"},
             "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-            "env": {"type": "map", "keyType": "string", "valueType": "string"},
+            "env": {"type": "array", "elemType": "envVar"},
             "secretName": {"type": "string"},
             "secretPath": {"type": "string"}
+        },
+
+        "envVar": {
+            "name": {"type": "string"},
+            "value": {"type": "string"}
         },
 
         "deploymentPort": {
@@ -73,9 +78,14 @@
                 "configName": {"type": "string"},
                 "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-                "env": {"type": "map", "keyType": "string", "valueType": "string"},
+                "env": {"type": "array", "elemType": "envVar"},
                 "secretName": {"type": "string"},
                 "secretPath": {"type": "string"}
+            },
+
+            "envVar": {
+                "name": {"type": "string"},
+                "value": {"type": "string"}
             },
 
             "deploymentPort": {
@@ -89,7 +99,7 @@
                 "exposedServices": {"type": "array", "elemType": "exposedService"},
                 "exposedMetric": {"type": "exposedMetric"}
             },
-            
+
             "exposedService": {
                 "name" : {"type": "string"},
                 "port" : {"type": "int"},
@@ -100,7 +110,7 @@
                 "ingressPath" : {"type": "string"},
                 "ingressPort" : {"type": "int"}
             },
-        
+
             "exposedMetric": {
                 "path" : {"type": "string"},
                 "port" : {"type": "int"}
