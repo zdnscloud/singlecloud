@@ -15,6 +15,16 @@ type Cluster struct {
 	Name           string `json:"name,omitempty"`
 	NodesCount     int    `json:"nodeCount,omitempty"`
 	Version        string `json:"version,omitempty"`
+
+	Cpu             float64 `json:"cpu,omitempty"`
+	CpuUsed         float64 `json:"-"`
+	CpuUsedRatio    string  `json:"cpuUsedRatio,omitempty"`
+	Memory          float64 `json:"memory,omitempty"`
+	MemoryUsed      float64 `json:"-"`
+	MemoryUsedRatio string  `json:"memoryUsedRatio,omitempty"`
+	Pod             float64 `json:"pod"`
+	PodUsed         float64 `json:"-"`
+	PodUsedRatio    string  `json:"podUsedRatio,omitempty"`
 }
 
 var ClusterType = types.GetResourceType(Cluster{})

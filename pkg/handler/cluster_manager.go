@@ -92,7 +92,18 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	if err != nil {
 		log.Errorf("get nodes failed:%s", err.Error())
 	}
-	cluster.NodesCount = len(nodes.Items)
+	cluster.NodesCount = len(nodes)
+	for _, n := range nodes {
+		cluster.Cpu += n.Cpu
+		cluster.CpuUsed += n.CpuUsed
+		cluster.Memory += n.Memory
+		cluster.MemoryUsed += n.MemoryUsed
+		cluster.Pod += n.Pod
+		cluster.PodUsed += n.PodUsed
+	}
+	cluster.CpuUsedRatio = fmt.Sprintf("%.2f", cluster.CpuUsed/cluster.Cpu)
+	cluster.MemoryUsedRatio = fmt.Sprintf("%.2f", cluster.MemoryUsed/cluster.Memory)
+	cluster.PodUsedRatio = fmt.Sprintf("%.2f", cluster.PodUsed/cluster.Pod)
 
 	version, err := cli.ServerVersion()
 	if err != nil {
