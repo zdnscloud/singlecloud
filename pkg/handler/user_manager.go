@@ -22,6 +22,10 @@ func newUserManager(secret []byte, tokenValidDuration time.Duration) *UserManage
 }
 
 func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create user")
+	}
+
 	user := ctx.Object.(*types.User)
 	if err := m.impl.AddUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
@@ -33,6 +37,10 @@ func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface
 }
 
 func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
+	if getCurrentUser(ctx).Name != ctx.Object.GetID() {
+		return nil
+	}
+
 	user := m.impl.GetUser(ctx.Object.GetID())
 	if user != nil {
 		return hideUserPassword(user)
@@ -42,6 +50,10 @@ func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
 }
 
 func (m *UserManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete user")
+	}
+
 	if err := m.impl.DeleteUser(ctx.Object.GetID()); err != nil {
 		return resttypes.NewAPIError(resttypes.NotFound, err.Error())
 	}
@@ -49,6 +61,10 @@ func (m *UserManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 }
 
 func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin could update user")
+	}
+
 	user := ctx.Object.(*types.User)
 	if err := m.impl.UpdateUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
@@ -57,7 +73,17 @@ func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.AP
 }
 
 func (m *UserManager) List(ctx *resttypes.Context) interface{} {
-	users := m.impl.GetUsers()
+	currentUser := getCurrentUser(ctx)
+	var users []*types.User
+	if isAdmin(currentUser) {
+		users = m.impl.GetUsers()
+	} else {
+		user := m.impl.GetUser(currentUser.Name)
+		if user != nil {
+			users = []*types.User{user}
+		}
+	}
+
 	var ret []*types.User
 	for _, user := range users {
 		ret = append(ret, hideUserPassword(user))
