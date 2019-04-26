@@ -105,10 +105,8 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	cluster.ServiceCache = serviceCache
 
 	if m.globaldns != "" {
-		if gdns, err := globaldns.New(cache, m.globaldns); err != nil {
+		if err := globaldns.New(cache, m.globaldns); err != nil {
 			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init globaldns failed:%s", err.Error()))
-		} else {
-			go gdns.Run()
 		}
 	}
 
