@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 
 	"github.com/kyokomi/emoji"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 var (
@@ -91,12 +92,62 @@ func createCluster(addr, token, clusterName string, data []byte) error {
 	return errors.New(errInfo.Message)
 }
 
+func deleteZcloudProxyDeployment(addr, token, clusterName string) {
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/zcloud/deployments/zcloud-proxy", addr, clusterName)
+	req, _ := http.NewRequest("DELETE", url, nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+token)
+	client := &http.Client{}
+	_, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("send request failed:%s", err.Error())
+	}
+}
+
+func createZcloudProxyDeployment(addr, token, clusterName, agentKey string) error {
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/zcloud/deployments", addr, clusterName)
+	deployment := types.Deployment{
+		Name:     "zcloud-proxy",
+		Replicas: 1,
+		Containers: []types.Container{
+			types.Container{
+				Name:    "zcloud-proxy",
+				Image:   "zdnscloud/zcloud-proxy:v1.0.0",
+				Command: []string{"agent"},
+				Args:    []string{"-server", addr, "-agentKey", agentKey},
+			},
+		},
+	}
+	requestBody, _ := json.Marshal(deployment)
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+token)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("send request failed:%s", err.Error())
+	}
+
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode == 201 {
+		return nil
+	}
+
+	errInfo := struct {
+		Message string `json:"message"`
+	}{}
+	json.Unmarshal(body, &errInfo)
+	return errors.New(errInfo.Message)
+}
+
 func main() {
-	var addr, k8sconfig, clusterName, adminPassword string
+	var addr, k8sconfig, clusterName, adminPassword, agentKey string
 	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
 	flag.StringVar(&k8sconfig, "k8sconfig", getDefaultConfigPath(), "k8s config file path")
 	flag.StringVar(&clusterName, "name", "local", "import cluster with which name")
 	flag.StringVar(&adminPassword, "passwd", "zdns", "admin password for singlecloud")
+	flag.StringVar(&agentKey, "agentKey", "zcloud#2019", "agent key for zcloud-proxy")
 	flag.Parse()
 
 	f, err := os.Open(k8sconfig)
@@ -120,5 +171,13 @@ func main() {
 		fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "import succeed", reset)
 	} else {
 		fmt.Printf("%s|%s %s: %s %s\n", emoji.Sprint(":broken_heart:"), red, "import failed", err.Error(), reset)
+	}
+
+	deleteZcloudProxyDeployment(addr, token, clusterName)
+	err = createZcloudProxyDeployment(addr, token, clusterName, agentKey)
+	if err == nil {
+		fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "create zcloud-proxy deployment succeed", reset)
+	} else {
+		fmt.Printf("%s|%s %s: %s %s\n", emoji.Sprint(":broken_heart:"), red, "create zcloud-proxy deployment failed", err.Error(), reset)
 	}
 }
