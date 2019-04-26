@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zdnscloud/cement/log"
 	ut "github.com/zdnscloud/cement/unittest"
 
 	restTypes "github.com/zdnscloud/gorest/types"
 
-	"github.com/zdnscloud/singlecloud/pkg/logger"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/server"
 )
@@ -71,9 +71,9 @@ func load(file string, resource interface{}) error {
 }
 
 func runTestServer() {
-	logger.InitLogger()
+	log.InitLogger(log.Debug)
 
-	server, err := server.NewServer()
+	server, err := server.NewServer("")
 	if err != nil {
 		panic("create server failed:" + err.Error())
 	}

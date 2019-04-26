@@ -24,40 +24,40 @@ const (
 	KubeSystemNamespace = "kube-system"
 	FullClusterState    = "full-cluster-state"
 	EdgeNodeLabel       = "node-role.kubernetes.io/edge"
-	True                = "true"
 )
 
 var (
 	GetFullClusterStateOption = k8stypes.NamespacedName{KubeSystemNamespace, FullClusterState}
-	EdgeNodeLabelSelector     = &metav1.LabelSelector{MatchLabels: map[string]string{EdgeNodeLabel: True}}
+	EdgeNodeLabelSelector     = &metav1.LabelSelector{MatchLabels: map[string]string{EdgeNodeLabel: "true"}}
 )
 
 type GlobalDns struct {
-	dnsCache *GlobalDnsCache
-	lock     sync.RWMutex
-	cache    cache.Cache
-	stopCh   chan struct{}
+	dnsSynchronizer *ClusterDNSSynchronizer
+	lock            sync.RWMutex
+	cache           cache.Cache
+	stopCh          chan struct{}
 }
 
-func Init(c cache.Cache, httpCmdAddr string) error {
-	ctrl := controller.New("globalDNSCache", c, scheme.Scheme)
-	ctrl.Watch(&corev1.Node{})
-	ctrl.Watch(&extv1beta1.Ingress{})
-
-	stopCh := make(chan struct{})
+func New(c cache.Cache, httpCmdAddr string) (*GlobalDns, error) {
 	g := &GlobalDns{
-		stopCh: stopCh,
+		stopCh: make(chan struct{}),
 		cache:  c,
 	}
-	if err := g.initDnsCache(httpCmdAddr); err != nil {
-		return err
+	if err := g.initDnsSynchronizer(httpCmdAddr); err != nil {
+		return nil, err
 	}
 
-	go ctrl.Start(stopCh, g, predicate.NewIgnoreUnchangedUpdate())
-	return nil
+	return g, nil
 }
 
-func (g *GlobalDns) initDnsCache(httpCmdAddr string) error {
+func (g *GlobalDns) Run() {
+	ctrl := controller.New("globalDNSCache", g.cache, scheme.Scheme)
+	ctrl.Watch(&corev1.Node{})
+	ctrl.Watch(&extv1beta1.Ingress{})
+	ctrl.Start(g.stopCh, g, predicate.NewIgnoreUnchangedUpdate())
+}
+
+func (g *GlobalDns) initDnsSynchronizer(httpCmdAddr string) error {
 	nodes := &corev1.NodeList{}
 	labels, err := metav1.LabelSelectorAsSelector(EdgeNodeLabelSelector)
 	if err != nil {
@@ -78,15 +78,15 @@ func (g *GlobalDns) initDnsCache(httpCmdAddr string) error {
 		return fmt.Errorf("unmarshal full-cluster-state configmap failed: %s", err.Error())
 	}
 
-	dnsCache, err := newGlobalDnsCache(fullState.DesiredState.ZKEConfig.Services.Kubelet.ClusterDomain, httpCmdAddr)
+	dnsSynchronizer, err := newClusterDNSSynchronizer(fullState.DesiredState.ZKEConfig.Services.Kubelet.ClusterDomain, httpCmdAddr)
 	if err != nil {
 		return fmt.Errorf("init global dns cache failed: %s", err.Error())
 	}
 
 	for _, node := range nodes.Items {
-		dnsCache.OnNewNode(&node)
+		dnsSynchronizer.OnNewNode(&node)
 	}
-	g.dnsCache = dnsCache
+	g.dnsSynchronizer = dnsSynchronizer
 	return nil
 }
 
@@ -96,11 +96,11 @@ func (g *GlobalDns) OnCreate(e event.CreateEvent) (handler.Result, error) {
 
 	switch obj := e.Object.(type) {
 	case *corev1.Node:
-		if obj.Labels[EdgeNodeLabel] == True {
-			g.dnsCache.OnNewNode(obj)
+		if obj.Labels[EdgeNodeLabel] == "true" {
+			g.dnsSynchronizer.OnNewNode(obj)
 		}
 	case *extv1beta1.Ingress:
-		g.dnsCache.OnNewIngress(obj)
+		g.dnsSynchronizer.OnNewIngress(obj)
 	}
 
 	return handler.Result{}, nil
@@ -112,7 +112,7 @@ func (g *GlobalDns) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 
 	switch newObj := e.ObjectNew.(type) {
 	case *extv1beta1.Ingress:
-		g.dnsCache.OnUpdateIngress(e.ObjectOld.(*extv1beta1.Ingress), newObj)
+		g.dnsSynchronizer.OnUpdateIngress(e.ObjectOld.(*extv1beta1.Ingress), newObj)
 	}
 
 	return handler.Result{}, nil
@@ -124,11 +124,11 @@ func (g *GlobalDns) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 
 	switch obj := e.Object.(type) {
 	case *corev1.Node:
-		if obj.Labels[EdgeNodeLabel] == True {
-			g.dnsCache.OnDeleteNode(obj)
+		if obj.Labels[EdgeNodeLabel] == "true" {
+			g.dnsSynchronizer.OnDeleteNode(obj)
 		}
 	case *extv1beta1.Ingress:
-		g.dnsCache.OnDeleteIngress(obj)
+		g.dnsSynchronizer.OnDeleteIngress(obj)
 	}
 
 	return handler.Result{}, nil

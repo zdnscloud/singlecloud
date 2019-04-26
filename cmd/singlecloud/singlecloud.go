@@ -18,7 +18,7 @@ func main() {
 	var globaldns string
 	var showVersion bool
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
-	flag.StringVar(&globaldns, "dns", ":9000", "globaldns cmd server listen address")
+	flag.StringVar(&globaldns, "dns", "", "globaldns cmd server listen address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
 	flag.Parse()
 
