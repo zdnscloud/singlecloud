@@ -11,7 +11,6 @@ import (
 	"github.com/zdnscloud/gok8s/exec"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/event"
 	"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/pkg/servicecache"
@@ -33,7 +32,6 @@ type Cluster struct {
 	Executor     *exec.Executor
 	EventWatcher *event.EventWatcher
 	ServiceCache *servicecache.ServiceCache
-	AgentManager *clusteragent.AgentManager
 }
 
 type ClusterManager struct {
@@ -110,7 +108,6 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		}
 	}
 
-	cluster.AgentManager = clusteragent.New()
 	if err := initCluster(cluster); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
 	}
