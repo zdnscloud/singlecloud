@@ -18,16 +18,21 @@ type DeploymentPort struct {
 }
 
 type Container struct {
-	Name         string            `json:"name"`
-	Image        string            `json:"image"`
-	Command      []string          `json:"command,omitempty"`
-	Args         []string          `json:"args,omitempty"`
-	ConfigName   string            `json:"configName,omitempty"`
-	MountPath    string            `json:"mountPath,omitempty"`
-	ExposedPorts []DeploymentPort  `json:"exposedPorts,omitempty"`
-	Env          map[string]string `json:"env,omitempty"`
-	SecretName   string            `json:"secretName,omitempty"`
-	SecretPath   string            `json:"secretPath,omitempty"`
+	Name         string           `json:"name"`
+	Image        string           `json:"image"`
+	Command      []string         `json:"command,omitempty"`
+	Args         []string         `json:"args,omitempty"`
+	ConfigName   string           `json:"configName,omitempty"`
+	MountPath    string           `json:"mountPath,omitempty"`
+	ExposedPorts []DeploymentPort `json:"exposedPorts,omitempty"`
+	Env          []EnvVar         `json:"env,omitempty"`
+	SecretName   string           `json:"secretName,omitempty"`
+	SecretPath   string           `json:"secretPath,omitempty"`
+}
+
+type EnvVar struct {
+	Name  string `json:"name,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
 type ExposedService struct {

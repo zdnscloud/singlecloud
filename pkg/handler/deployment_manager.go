@@ -281,9 +281,12 @@ func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 			})
 		}
 
-		env := make(map[string]string)
+		var env []types.EnvVar
 		for _, e := range c.Env {
-			env[e.Name] = e.Value
+			env = append(env, types.EnvVar{
+				Name:  e.Name,
+				Value: e.Value,
+			})
 		}
 
 		containers = append(containers, types.Container{
@@ -340,10 +343,10 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			})
 		}
 
-		for k, v := range c.Env {
+		for _, e := range c.Env {
 			env = append(env, corev1.EnvVar{
-				Name:  k,
-				Value: v,
+				Name:  e.Name,
+				Value: e.Value,
 			})
 		}
 

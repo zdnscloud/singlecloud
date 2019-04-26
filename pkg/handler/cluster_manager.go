@@ -127,6 +127,7 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	cluster := &types.Cluster{}
 	cluster.SetID(c.Name)
+	cluster.Name = c.Name
 
 	version, err := c.KubeClient.ServerVersion()
 	if err != nil {
