@@ -92,19 +92,36 @@ func createCluster(addr, token, clusterName string, data []byte) error {
 	return errors.New(errInfo.Message)
 }
 
-func deleteZcloudProxyDeployment(addr, token, clusterName string) {
+func deleteZcloudProxyDeployment(addr, token, clusterName string) error {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/zcloud/deployments/zcloud-proxy", addr, clusterName)
 	req, _ := http.NewRequest("DELETE", url, nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+token)
 	client := &http.Client{}
-	_, err := client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("send request failed:%s", err.Error())
 	}
+
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode == 204 {
+		log.Println("delete exist zcloud-proxy deployment")
+		return nil
+	}
+
+	if resp.StatusCode == 422 {
+		log.Println("not exist zcloud-proxy deployment, this is a new cluster")
+		return nil
+	}
+	errInfo := struct {
+		Message string `json:"message"`
+	}{}
+	json.Unmarshal(body, &errInfo)
+	return errors.New(errInfo.Message)
 }
 
-func createZcloudProxyDeployment(addr, token, clusterName, agentKey string) error {
+func createZcloudProxyDeployment(addr, token, clusterName string) error {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/zcloud/deployments", addr, clusterName)
 	deployment := types.Deployment{
 		Name:     "zcloud-proxy",
@@ -114,7 +131,7 @@ func createZcloudProxyDeployment(addr, token, clusterName, agentKey string) erro
 				Name:    "zcloud-proxy",
 				Image:   "zdnscloud/zcloud-proxy:v1.0.0",
 				Command: []string{"agent"},
-				Args:    []string{"-server", addr, "-agentKey", agentKey},
+				Args:    []string{"-server", addr, "-agentKey", clusterName},
 			},
 		},
 	}
@@ -142,12 +159,11 @@ func createZcloudProxyDeployment(addr, token, clusterName, agentKey string) erro
 }
 
 func main() {
-	var addr, k8sconfig, clusterName, adminPassword, agentKey string
+	var addr, k8sconfig, clusterName, adminPassword string
 	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
 	flag.StringVar(&k8sconfig, "k8sconfig", getDefaultConfigPath(), "k8s config file path")
 	flag.StringVar(&clusterName, "name", "local", "import cluster with which name")
 	flag.StringVar(&adminPassword, "passwd", "zdns", "admin password for singlecloud")
-	flag.StringVar(&agentKey, "agentKey", "zcloud#2019", "agent key for zcloud-proxy")
 	flag.Parse()
 
 	f, err := os.Open(k8sconfig)
@@ -167,17 +183,19 @@ func main() {
 	}
 
 	err = createCluster(addr, token, clusterName, data)
+	if err != nil {
+		log.Fatalf("create cluster failed:%s", err.Error())
+	}
+
+	err = deleteZcloudProxyDeployment(addr, token, clusterName)
+	if err != nil {
+		log.Fatalf("delete zcloud-proxy deployment failed:%s", err.Error())
+	}
+
+	err = createZcloudProxyDeployment(addr, token, clusterName)
 	if err == nil {
 		fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "import succeed", reset)
 	} else {
-		fmt.Printf("%s|%s %s: %s %s\n", emoji.Sprint(":broken_heart:"), red, "import failed", err.Error(), reset)
-	}
-
-	deleteZcloudProxyDeployment(addr, token, clusterName)
-	err = createZcloudProxyDeployment(addr, token, clusterName, agentKey)
-	if err == nil {
-		fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "create zcloud-proxy deployment succeed", reset)
-	} else {
-		fmt.Printf("%s|%s %s: %s %s\n", emoji.Sprint(":broken_heart:"), red, "create zcloud-proxy deployment failed", err.Error(), reset)
+		log.Fatalf("create zcloud-proxy deployment failed:%s", err.Error())
 	}
 }
