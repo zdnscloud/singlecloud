@@ -13,6 +13,7 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/event"
+	"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/pkg/servicecache"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -37,11 +38,12 @@ type Cluster struct {
 
 type ClusterManager struct {
 	api.DefaultHandler
-	clusters []*Cluster
+	clusters  []*Cluster
+	globaldns string
 }
 
-func newClusterManager() *ClusterManager {
-	return &ClusterManager{}
+func newClusterManager(globaldns string) *ClusterManager {
+	return &ClusterManager{globaldns: globaldns}
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
@@ -101,6 +103,12 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service cache failed:%s", err.Error()))
 	}
 	cluster.ServiceCache = serviceCache
+
+	if m.globaldns != "" {
+		if err := globaldns.New(cache, m.globaldns); err != nil {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init globaldns failed:%s", err.Error()))
+		}
+	}
 
 	cluster.AgentManager = clusteragent.New()
 	if err := initCluster(cluster); err != nil {

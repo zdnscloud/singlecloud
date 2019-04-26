@@ -15,8 +15,10 @@ var (
 
 func main() {
 	var addr string
+	var globaldns string
 	var showVersion bool
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
+	flag.StringVar(&globaldns, "dns", "", "globaldns cmd server listen address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
 	flag.Parse()
 
@@ -27,7 +29,7 @@ func main() {
 
 	log.InitLogger(log.Debug)
 
-	server, err := server.NewServer()
+	server, err := server.NewServer(globaldns)
 	if err != nil {
 		log.Fatalf("create server failed:%s", err.Error())
 	}
