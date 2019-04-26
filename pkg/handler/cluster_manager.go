@@ -13,7 +13,6 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/event"
 	"github.com/zdnscloud/singlecloud/pkg/globaldns"
-	"github.com/zdnscloud/singlecloud/pkg/servicecache"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -31,7 +30,6 @@ type Cluster struct {
 	KubeClient   client.Client
 	Executor     *exec.Executor
 	EventWatcher *event.EventWatcher
-	ServiceCache *servicecache.ServiceCache
 }
 
 type ClusterManager struct {
@@ -95,12 +93,6 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
 	}
 	cluster.EventWatcher = eventWatcher
-
-	serviceCache, err := servicecache.New(cache)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service cache failed:%s", err.Error()))
-	}
-	cluster.ServiceCache = serviceCache
 
 	if m.globaldns != "" {
 		if err := globaldns.New(cache, m.globaldns); err != nil {

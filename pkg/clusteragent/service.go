@@ -16,8 +16,8 @@ var (
 		ClusterAgentPrefix + "/clusters/:cluster/servicenetworks",
 		ClusterAgentPrefix + "/clusters/:cluster/storages",
 		ClusterAgentPrefix + "/clusters/:cluster/storages/:storageclass",
-		ClusterAgentPrefix + "/clusters/:cluster/innerservices",
-		ClusterAgentPrefix + "/clusters/:cluster/outerservices",
+		ClusterAgentPrefix + "/clusters/:cluster/namespaces/:namespace/innerservices",
+		ClusterAgentPrefix + "/clusters/:cluster/namespaces/:namespace/outerservices",
 	}
 )
 

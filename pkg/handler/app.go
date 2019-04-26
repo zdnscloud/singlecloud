@@ -57,10 +57,6 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.LimitRange{}, newLimitRangeManager(a.clusterManager), types.SetLimitRangeSchema)
 	schemas.MustImportAndCustomize(&Version, types.ResourceQuota{}, newResourceQuotaManager(a.clusterManager), types.SetResourceQuotaSchema)
 
-	serviceLinkManager := newServiceLinkManager(a.clusterManager)
-	schemas.MustImportAndCustomize(&Version, types.InnerService{}, serviceLinkManager, types.SetInnerServiceSchema)
-	schemas.MustImportAndCustomize(&Version, types.OuterService{}, serviceLinkManager, types.SetOuterServiceSchema)
-
 	userManager := newUserManager(tokenSecret, tokenValidDuration)
 	schemas.MustImportAndCustomize(&Version, types.User{}, userManager, types.SetUserSchema)
 

@@ -3,14 +3,15 @@ package clusteragent
 import (
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/goproxy"
 )
 
 const (
-	AgentKey = "_agent_key"
+	AgentKey                = "_agent_key"
+	ClusterAgentServiceHost = "http://cluster-agent.zcloud.svc.cluster.local"
 )
 
 type AgentManager struct {
@@ -34,11 +35,8 @@ func (m *AgentManager) HandleAgentRegister(agentKey string, r *http.Request, w h
 }
 
 func (m *AgentManager) HandleAgentProxy(cluster string, r *http.Request, w http.ResponseWriter) {
-	url := "http://cluster-agent.zcloud.svc.cluster.local"
-	log.Infof("--> proxy path: %s", r.URL.Path)
-	return
-
-	proxyReq, err := http.NewRequest(r.Method, url, nil)
+	newPath := strings.Replace(r.URL.Path, "/clusters/"+cluster, "", 1)
+	proxyReq, err := http.NewRequest(r.Method, ClusterAgentServiceHost+newPath, nil)
 	proxyReq.Header = make(http.Header)
 	for h, val := range r.Header {
 		proxyReq.Header[h] = val
