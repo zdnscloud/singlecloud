@@ -4,6 +4,8 @@ import (
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 
+	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 )
 
@@ -14,16 +16,19 @@ type Server struct {
 func NewServer(globaldns string) (*Server, error) {
 	gin.SetMode(gin.ReleaseMode)
 
-	app := handler.NewApp(globaldns)
 	router := gin.New()
 	router.Use(static.Serve("/", static.LocalFile("/www", false)))
 	router.NoRoute(func(c *gin.Context) {
 		c.File("/www/index.html")
 	})
 
+	app := handler.NewApp(globaldns)
 	if err := app.RegisterHandler(router); err != nil {
-		panic("register handler failed:" + err.Error())
+		log.Fatalf("register handler failed:%s", err.Error())
 	}
+
+	agent := clusteragent.New()
+	agent.RegisterAgentHandler(router)
 
 	return &Server{
 		router: router,

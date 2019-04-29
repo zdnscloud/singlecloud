@@ -11,10 +11,8 @@ import (
 	"github.com/zdnscloud/gok8s/exec"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/event"
 	"github.com/zdnscloud/singlecloud/pkg/globaldns"
-	"github.com/zdnscloud/singlecloud/pkg/servicecache"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -32,8 +30,6 @@ type Cluster struct {
 	KubeClient   client.Client
 	Executor     *exec.Executor
 	EventWatcher *event.EventWatcher
-	ServiceCache *servicecache.ServiceCache
-	AgentManager *clusteragent.AgentManager
 }
 
 type ClusterManager struct {
@@ -98,19 +94,12 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 	cluster.EventWatcher = eventWatcher
 
-	serviceCache, err := servicecache.New(cache)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service cache failed:%s", err.Error()))
-	}
-	cluster.ServiceCache = serviceCache
-
 	if m.globaldns != "" {
 		if err := globaldns.New(cache, m.globaldns); err != nil {
 			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init globaldns failed:%s", err.Error()))
 		}
 	}
 
-	cluster.AgentManager = clusteragent.New()
 	if err := initCluster(cluster); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
 	}

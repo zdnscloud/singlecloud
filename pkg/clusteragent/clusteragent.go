@@ -1,17 +1,17 @@
 package clusteragent
 
 import (
-	"bytes"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/zdnscloud/goproxy"
 )
 
 const (
-	AgentKey = "_agent_key"
+	AgentKey                = "_agent_key"
+	ClusterAgentServiceHost = "http://cluster-agent.zcloud.svc.cluster.local"
 )
 
 type AgentManager struct {
@@ -34,22 +34,15 @@ func (m *AgentManager) HandleAgentRegister(agentKey string, r *http.Request, w h
 	m.server.ServeHTTP(w, r)
 }
 
-func (m *AgentManager) HandleAgentProxy(agentKey, targetService string, r *http.Request, w http.ResponseWriter) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		w.Write([]byte(err.Error()))
-		w.WriteHeader(500)
-		return
-	}
-
-	url := "http://" + targetService
-	proxyReq, err := http.NewRequest(r.Method, url, bytes.NewReader(body))
+func (m *AgentManager) HandleAgentProxy(cluster string, r *http.Request, w http.ResponseWriter) {
+	newPath := strings.Replace(r.URL.Path, "/clusters/"+cluster, "", 1)
+	proxyReq, err := http.NewRequest(r.Method, ClusterAgentServiceHost+newPath, nil)
 	proxyReq.Header = make(http.Header)
 	for h, val := range r.Header {
 		proxyReq.Header[h] = val
 	}
 
-	dialer := m.server.GetAgentDialer(agentKey, 15*time.Second)
+	dialer := m.server.GetAgentDialer(cluster, 15*time.Second)
 	client := &http.Client{
 		Transport: &http.Transport{
 			Dial: dialer,
