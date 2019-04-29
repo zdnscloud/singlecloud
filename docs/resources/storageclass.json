@@ -1,0 +1,10 @@
+{
+    "resourceType": "storageclass",
+    "collectionName": "storageclasses",
+
+    "resourceFields": {
+        "name": {"type": "string"}
+    },
+
+    "collectionMethods": [ "GET" ]
+}

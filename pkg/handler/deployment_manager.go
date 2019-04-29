@@ -184,15 +184,6 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 	}
 
 	advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
-	templateObjMeta := metav1.ObjectMeta{Labels: map[string]string{"app": deploy.Name}}
-	if deploy.AdvancedOptions.ExposedMetric.Port != 0 && deploy.AdvancedOptions.ExposedMetric.Path != "" {
-		prometheusConf := make(map[string]string)
-		prometheusConf[AnnkeyForPromethusScrape] = "true"
-		prometheusConf[AnnkeyForPromethusPort] = strconv.Itoa(deploy.AdvancedOptions.ExposedMetric.Port)
-		prometheusConf[AnnkeyForPromethusPath] = deploy.AdvancedOptions.ExposedMetric.Path
-		templateObjMeta.Annotations = prometheusConf
-	}
-
 	k8sDeploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploy.Name,
@@ -207,12 +198,24 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 				MatchLabels: map[string]string{"app": deploy.Name},
 			},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: templateObjMeta,
+				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(deploy.Name, deploy.AdvancedOptions.ExposedMetric),
 				Spec:       k8sPodSpec,
 			},
 		},
 	}
 	return cli.Create(context.TODO(), k8sDeploy)
+}
+
+func scExposedMetricToK8sTempateObjectMeta(name string, exposedMetric types.ExposedMetric) metav1.ObjectMeta {
+	templateObjMeta := metav1.ObjectMeta{Labels: map[string]string{"app": name}}
+	if exposedMetric.Port != 0 && exposedMetric.Path != "" {
+		prometheusConf := make(map[string]string)
+		prometheusConf[AnnkeyForPromethusScrape] = "true"
+		prometheusConf[AnnkeyForPromethusPort] = strconv.Itoa(exposedMetric.Port)
+		prometheusConf[AnnkeyForPromethusPath] = exposedMetric.Path
+		templateObjMeta.Annotations = prometheusConf
+	}
+	return templateObjMeta
 }
 
 func deleteDeployment(cli client.Client, namespace, name string) error {
@@ -240,14 +243,19 @@ func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetType(types.DeploymentType)
 	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)
-
-	prometheusConf := k8sDeploy.Spec.Template.Annotations
-	if doScrape, ok := prometheusConf[AnnkeyForPromethusScrape]; ok && doScrape == "true" {
-		port, _ := strconv.Atoi(prometheusConf[AnnkeyForPromethusPort])
-		deploy.AdvancedOptions.ExposedMetric.Port = port
-		deploy.AdvancedOptions.ExposedMetric.Path = prometheusConf[AnnkeyForPromethusPath]
-	}
+	deploy.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDeploy.Spec.Template.Annotations)
 	return deploy
+}
+
+func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.ExposedMetric {
+	if doScrape, ok := annotations[AnnkeyForPromethusScrape]; ok && doScrape == "true" {
+		port, _ := strconv.Atoi(annotations[AnnkeyForPromethusPort])
+		return types.ExposedMetric{
+			Port: port,
+			Path: annotations[AnnkeyForPromethusPath],
+		}
+	}
+	return types.ExposedMetric{}
 }
 
 func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
