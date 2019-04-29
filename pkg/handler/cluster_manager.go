@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
@@ -100,10 +99,6 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		}
 	}
 
-	if err := initCluster(cluster); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
-	}
-
 	m.clusters = append(m.clusters, cluster)
 
 	c, err := getClusterInfo(cluster)
@@ -184,52 +179,4 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 		}
 	}
 	return clusters
-}
-
-func initCluster(cluster *Cluster) error {
-	imported, err := isClusterImportBefore(cluster)
-	if err != nil {
-		return err
-	}
-	if imported {
-		log.Infof("cluster %s has been imported before", cluster.Name)
-		return nil
-	}
-
-	cli := cluster.KubeClient
-	if err := createNamespace(cli, ZCloudNamespace); err != nil {
-		return err
-	}
-
-	if err := createRole(cluster, ZCloudAdmin, ClusterAdmin); err != nil {
-		return err
-	}
-	if err := createRole(cluster, ZCloudReadonly, ClusterAdmin); err != nil {
-		return err
-	}
-	return nil
-}
-
-func isClusterImportBefore(cluster *Cluster) (bool, error) {
-	return hasNamespace(cluster.KubeClient, ZCloudNamespace)
-}
-
-func createRole(cluster *Cluster, roleName string, role ClusterRole) error {
-	cli := cluster.KubeClient
-	if err := createServiceAccount(cli, roleName, ZCloudNamespace); err != nil {
-		log.Errorf("create service account %s failed: %s", roleName, err.Error())
-		return err
-	}
-
-	if err := createClusterRole(cli, roleName, role); err != nil {
-		log.Errorf("create cluster role %s failed: %s", roleName, err.Error())
-		return err
-	}
-
-	if err := createRoleBinding(cli, roleName, roleName, ZCloudNamespace); err != nil {
-		log.Errorf("create clusterRoleBinding %s failed: %s", ZCloudAdmin, err.Error())
-		return err
-	}
-
-	return nil
 }
