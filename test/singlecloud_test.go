@@ -175,6 +175,8 @@ func TestDeployment(t *testing.T) {
 	ut.Equal(t, deploy.Containers[0].Name, "sc-test-containter1")
 	ut.Equal(t, deploy.Containers[0].ConfigName, "sc-test-configmap1")
 	ut.Equal(t, deploy.Containers[0].SecretName, "sc-test-secret1")
+	ut.Equal(t, deploy.Containers[0].Env[0].Name, "TESTENV1")
+	ut.Equal(t, deploy.Containers[0].Env[0].Value, "testenv1")
 
 	serviceResource, err := loadTestResource("service.json")
 	ut.Equal(t, err, nil)
@@ -197,6 +199,23 @@ func TestDeployment(t *testing.T) {
 	ut.Equal(t, ingress.Rules[0].Paths[0].Path, "/etc/scingress")
 	ut.Equal(t, ingress.Rules[0].Paths[0].ServicePort, 22222)
 	ut.Equal(t, ingress.Rules[0].Paths[0].ServiceName, "sc-test-deployment1")
+}
+
+func TestStatefulSet(t *testing.T) {
+	statefulsetResource, err := loadTestResource("statefulset.json")
+	ut.Equal(t, err, nil)
+	var statefulset types.StatefulSet
+	err = testOperatorResource(statefulsetResource, &statefulset)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, statefulset.Name, "sc-test-statefulset1")
+	ut.Equal(t, statefulset.ServiceName, "sc-test-sts-service1")
+	ut.Equal(t, statefulset.Containers[0].Name, "sc-test-containter1")
+	ut.Equal(t, statefulset.Containers[0].ConfigName, "sc-test-configmap1")
+	ut.Equal(t, statefulset.Containers[0].SecretName, "sc-test-secret1")
+	ut.Equal(t, statefulset.Containers[0].Env[0].Name, "TESTENV1")
+	ut.Equal(t, statefulset.Containers[0].Env[0].Value, "testenv1")
+	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageSize, "100Mi")
+	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageClassName, "nfs")
 }
 
 func TestCronJob(t *testing.T) {
@@ -270,7 +289,7 @@ func TestUser(t *testing.T) {
 }
 
 func TestDeleteResource(t *testing.T) {
-	deleteResourceFiles := []string{"deployment.json", "configmap.json", "secret.json", "job.json", "cronjob.json",
+	deleteResourceFiles := []string{"deployment.json", "statefulset.json", "configmap.json", "secret.json", "job.json", "cronjob.json",
 		"limitrange.json", "resourcequota.json", "user.json", "namespace.json"}
 
 	for _, resourceFile := range deleteResourceFiles {
@@ -324,11 +343,11 @@ func getCollectionNum(url string) (int, error) {
 		return 0, err
 	}
 	sliceData := reflect.ValueOf(oldcollection.Data)
-	if sliceData.Kind() != reflect.Slice {
-		return 0, fmt.Errorf("get collection must return slice")
+	if sliceData.Kind() == reflect.Slice {
+		return sliceData.Len(), nil
 	}
 
-	return sliceData.Len(), nil
+	return 0, fmt.Errorf("get collection must return slice")
 }
 
 func testOperatorResource(resource *TestResource, result interface{}) error {
