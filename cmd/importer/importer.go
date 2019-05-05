@@ -129,7 +129,7 @@ func createZcloudProxyDeployment(addr, token, clusterName string) error {
 		Containers: []types.Container{
 			types.Container{
 				Name:    "zcloud-proxy",
-				Image:   "zdnscloud/zcloud-proxy:v1.0.1",
+				Image:   "zdnscloud/zcloud-proxy:v1.0.2",
 				Command: []string{"agent"},
 				Args:    []string{"-server", addr, "-cluster", clusterName},
 			},
