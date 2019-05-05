@@ -11,7 +11,7 @@ import (
 
 const (
 	AgentKey                = "_agent_key"
-	ClusterAgentServiceHost = "http://cluster-agent.zcloud.svc.cluster.local"
+	ClusterAgentServiceHost = "http://cluster-agent.zcloud.svc"
 )
 
 type AgentManager struct {
