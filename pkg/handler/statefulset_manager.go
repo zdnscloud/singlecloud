@@ -21,6 +21,7 @@ import (
 
 const (
 	AnnkeyForStatefulSetAdvancedoption = "zcloud_statefulsetment_advanded_options"
+	StatefulSetPVCNameConnector        = "-pvc"
 )
 
 var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
@@ -159,6 +160,7 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), opts)
 	}
+
 	return nil
 }
 
@@ -181,7 +183,7 @@ func createStatefulSet(cli client.Client, namespace string, statefulset *types.S
 		return err
 	}
 
-	volumeClaimTemplates, err := scVolumeClaimTemplateToK8sVolumeClaimTemplates(statefulset.VolumeClaimTemplate)
+	volumeClaimTemplates, err := scVolumeClaimTemplateToK8sVolumeClaimTemplates(statefulset)
 	if err != nil {
 		return err
 	}
@@ -211,28 +213,33 @@ func createStatefulSet(cli client.Client, namespace string, statefulset *types.S
 	return cli.Create(context.TODO(), k8sStatefulSet)
 }
 
-func scVolumeClaimTemplateToK8sVolumeClaimTemplates(pvc types.VolumeClaimTemplate) ([]corev1.PersistentVolumeClaim, error) {
-	if pvc.StorageClassName == "" {
+func scVolumeClaimTemplateToK8sVolumeClaimTemplates(statefulset *types.StatefulSet) ([]corev1.PersistentVolumeClaim, error) {
+	if statefulset.VolumeClaimTemplate.StorageClassName == "" {
 		return nil, nil
 	}
 
 	var accessModes []corev1.PersistentVolumeAccessMode
-	switch pvc.StorageClassName {
+	switch statefulset.VolumeClaimTemplate.StorageClassName {
 	case types.StorageClassNameLVM:
 		accessModes = append(accessModes, corev1.ReadWriteOnce)
 	case types.StorageClassNameNFS:
 		accessModes = append(accessModes, corev1.ReadWriteMany)
 	default:
-		return nil, fmt.Errorf("statefulset volumeclaimtemplate storageclass %s isn`t supported", pvc.StorageClassName)
+		return nil, fmt.Errorf("statefulset volumeclaimtemplate storageclass %s isn`t supported",
+			statefulset.VolumeClaimTemplate.StorageClassName)
 	}
 
-	k8sQuantity, err := resource.ParseQuantity(pvc.StorageSize)
+	k8sQuantity, err := resource.ParseQuantity(statefulset.VolumeClaimTemplate.StorageSize)
 	if err != nil {
-		return nil, fmt.Errorf("parse statefulset volumeClaimTemplates storage size %s failed: %s", pvc.StorageSize, err.Error())
+		return nil, fmt.Errorf("parse statefulset volumeClaimTemplates storage size %s failed: %s",
+			statefulset.VolumeClaimTemplate.StorageSize, err.Error())
 	}
 
 	var pvcs []corev1.PersistentVolumeClaim
 	pvcs = append(pvcs, corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: statefulset.Name + StatefulSetPVCNameConnector,
+		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: accessModes,
 			Resources: corev1.ResourceRequirements{
@@ -240,7 +247,7 @@ func scVolumeClaimTemplateToK8sVolumeClaimTemplates(pvc types.VolumeClaimTemplat
 					corev1.ResourceStorage: k8sQuantity,
 				},
 			},
-			StorageClassName: &pvc.StorageClassName,
+			StorageClassName: &statefulset.VolumeClaimTemplate.StorageClassName,
 			VolumeMode:       &FilesystemVolumeMode,
 		},
 	})
