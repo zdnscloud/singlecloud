@@ -183,9 +183,17 @@ func createStatefulSet(cli client.Client, namespace string, statefulset *types.S
 		return err
 	}
 
-	volumeClaimTemplates, err := scVolumeClaimTemplateToK8sVolumeClaimTemplates(statefulset)
+	k8sVolumes, k8sVolumeClaimTemplates, err := scPVCToK8sVolumesAndPVCs(statefulset.VolumeClaimTemplate)
 	if err != nil {
 		return err
+	}
+
+	k8sPodSpec.Volumes = append(k8sPodSpec.Volumes, k8sVolumes...)
+	for i, _ := range k8sPodSpec.Containers {
+		k8sPodSpec.Containers[i].VolumeMounts = append(k8sPodSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
+			Name:      statefulset.VolumeClaimTemplate.Name,
+			MountPath: statefulset.VolumeClaimTemplate.MountPath,
+		})
 	}
 
 	advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
@@ -207,52 +215,69 @@ func createStatefulSet(cli client.Client, namespace string, statefulset *types.S
 				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(statefulset.Name, statefulset.AdvancedOptions.ExposedMetric),
 				Spec:       k8sPodSpec,
 			},
-			VolumeClaimTemplates: volumeClaimTemplates,
+			VolumeClaimTemplates: k8sVolumeClaimTemplates,
 		},
 	}
 	return cli.Create(context.TODO(), k8sStatefulSet)
 }
 
-func scVolumeClaimTemplateToK8sVolumeClaimTemplates(statefulset *types.StatefulSet) ([]corev1.PersistentVolumeClaim, error) {
-	if statefulset.VolumeClaimTemplate.StorageClassName == "" {
-		return nil, nil
+func scPVCToK8sVolumesAndPVCs(pvc types.VolumeClaimTemplate) ([]corev1.Volume, []corev1.PersistentVolumeClaim, error) {
+	if pvc.StorageClassName == "" {
+		return nil, nil, nil
+	}
+
+	var k8sQuantity *resource.Quantity
+	if pvc.StorageSize != "" {
+		quantity, err := resource.ParseQuantity(pvc.StorageSize)
+		if err != nil {
+			return nil, nil, fmt.Errorf("parse statefulset storageSize %s failed: %s", pvc.StorageSize, err.Error())
+		}
+		k8sQuantity = &quantity
 	}
 
 	var accessModes []corev1.PersistentVolumeAccessMode
-	switch statefulset.VolumeClaimTemplate.StorageClassName {
+	switch pvc.StorageClassName {
+	case types.StorageClassNameTemp:
+		var k8sVolumes []corev1.Volume
+		k8sVolumes = append(k8sVolumes, corev1.Volume{
+			Name: pvc.Name,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: k8sQuantity,
+				},
+			},
+		})
+		return k8sVolumes, nil, nil
 	case types.StorageClassNameLVM:
 		accessModes = append(accessModes, corev1.ReadWriteOnce)
 	case types.StorageClassNameNFS:
 		accessModes = append(accessModes, corev1.ReadWriteMany)
 	default:
-		return nil, fmt.Errorf("statefulset volumeclaimtemplate storageclass %s isn`t supported",
-			statefulset.VolumeClaimTemplate.StorageClassName)
+		return nil, nil, fmt.Errorf("statefulset volumeclaimtemplate storageclass %s isn`t supported", pvc.StorageClassName)
 	}
 
-	k8sQuantity, err := resource.ParseQuantity(statefulset.VolumeClaimTemplate.StorageSize)
-	if err != nil {
-		return nil, fmt.Errorf("parse statefulset volumeClaimTemplates storage size %s failed: %s",
-			statefulset.VolumeClaimTemplate.StorageSize, err.Error())
+	if k8sQuantity == nil {
+		return nil, nil, fmt.Errorf("statefulset volumeClaimTemplates storageSize must not be zero")
 	}
 
 	var pvcs []corev1.PersistentVolumeClaim
 	pvcs = append(pvcs, corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: statefulset.Name + StatefulSetPVCNameConnector,
+			Name: pvc.Name,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: accessModes,
 			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceStorage: k8sQuantity,
+					corev1.ResourceStorage: *k8sQuantity,
 				},
 			},
-			StorageClassName: &statefulset.VolumeClaimTemplate.StorageClassName,
+			StorageClassName: &pvc.StorageClassName,
 			VolumeMode:       &FilesystemVolumeMode,
 		},
 	})
 
-	return pvcs, nil
+	return nil, pvcs, nil
 }
 
 func deleteStatefulSet(cli client.Client, namespace, name string) error {
@@ -276,10 +301,20 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 		if pvc.Spec.StorageClassName != nil {
 			quantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
 			volumeClaimTemplate = types.VolumeClaimTemplate{
+				Name:             pvc.Name,
 				StorageSize:      quantity.String(),
 				StorageClassName: *pvc.Spec.StorageClassName,
 			}
 			break
+		}
+	}
+
+	for _, container := range k8sStatefulSet.Spec.Template.Spec.Containers {
+		for _, mount := range container.VolumeMounts {
+			if mount.Name == volumeClaimTemplate.Name {
+				volumeClaimTemplate.MountPath = mount.MountPath
+				break
+			}
 		}
 	}
 

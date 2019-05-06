@@ -22,13 +22,16 @@ type StatefulSet struct {
 }
 
 type VolumeClaimTemplate struct {
+	Name             string `json:"name"`
+	MountPath        string `json:"mountPath"`
 	StorageSize      string `json:"storageSize"`
 	StorageClassName string `json:"storageClassName"`
 }
 
 const (
-	StorageClassNameLVM = "lvm"
-	StorageClassNameNFS = "nfs"
+	StorageClassNameLVM  = "lvm"
+	StorageClassNameNFS  = "nfs"
+	StorageClassNameTemp = "temporary"
 )
 
 var StatefulSetType = resttypes.GetResourceType(StatefulSet{})

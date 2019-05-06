@@ -60,8 +60,10 @@
         },
 
         "volumeClaimTemplate": {
+            "name": {"type": "string"},
+            "mountPath": {"type": "string"},
             "storageSize": {"type": "string"},
-            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs"]}
+            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
         }
     },
 
@@ -125,9 +127,11 @@
                 "port" : {"type": "int"}
             },
 
-            "volumeClaimTemplates": {
+            "volumeClaimTemplate": {
+                "name": {"type": "string"},
+                "mountPath": {"type": "string"},
                 "storageSize": {"type": "string"},
-                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs"]}
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
             }
         }
     }
