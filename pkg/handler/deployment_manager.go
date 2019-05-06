@@ -130,7 +130,7 @@ func (m *DeploymentManager) Update(ctx *resttypes.Context) (interface{}, *restty
 		if err != nil {
 			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
 		} else {
-			return deploy, nil
+			return k8sDeployToSCDeploy(k8sDeploy), nil
 		}
 	}
 }
