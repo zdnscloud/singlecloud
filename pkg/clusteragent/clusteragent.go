@@ -12,6 +12,7 @@ import (
 const (
 	AgentKey                = "_agent_key"
 	ClusterAgentServiceHost = "http://cluster-agent.zcloud.svc"
+	ContentTypeKey          = "Content-Type"
 )
 
 type AgentManager struct {
@@ -55,6 +56,7 @@ func (m *AgentManager) HandleAgentProxy(cluster string, r *http.Request, w http.
 		return
 	}
 	defer resp.Body.Close()
+	w.Header().Set(ContentTypeKey, resp.Header.Get(ContentTypeKey))
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 }
