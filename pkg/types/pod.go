@@ -15,6 +15,7 @@ type Pod struct {
 	resttypes.Resource `json:",inline"`
 	Name               string      `json:"name,omitempty"`
 	NodeName           string      `json:"nodeName,omitempty"`
+	State              string      `json:"state"`
 	Containers         []Container `json:"containers"`
 	Status             PodStatus   `json:"status"`
 }
@@ -57,9 +58,9 @@ type ContainerState struct {
 }
 
 const (
-	WaitingState    = "waiting"
-	RunningState    = "running"
-	TerminatedState = "terminated"
+	WaitingState    = "Waiting"
+	RunningState    = "Running"
+	TerminatedState = "Terminated"
 )
 
 var PodType = resttypes.GetResourceType(Pod{})

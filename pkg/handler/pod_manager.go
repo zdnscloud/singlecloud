@@ -152,6 +152,16 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 		})
 	}
 
+	//pod state is the first non-running reason
+	//or running if all container is in running state
+	state := types.RunningState
+	for _, status := range statuses {
+		if status.State.Type != types.RunningState {
+			state = status.State.Reason
+			break
+		}
+	}
+
 	podStatus := types.PodStatus{
 		Phase:             string(k8sPod.Status.Phase),
 		StartTime:         k8sMetaV1TimePtrToISOTime(k8sPod.Status.StartTime),
@@ -164,6 +174,7 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 	pod := &types.Pod{
 		Name:       k8sPod.Name,
 		NodeName:   k8sPod.Spec.NodeName,
+		State:      state,
 		Containers: containers,
 		Status:     podStatus,
 	}
