@@ -4,17 +4,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/exec"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/event"
 	"github.com/zdnscloud/singlecloud/pkg/globaldns"
-	"github.com/zdnscloud/singlecloud/pkg/servicecache"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -32,18 +29,15 @@ type Cluster struct {
 	KubeClient   client.Client
 	Executor     *exec.Executor
 	EventWatcher *event.EventWatcher
-	ServiceCache *servicecache.ServiceCache
-	AgentManager *clusteragent.AgentManager
 }
 
 type ClusterManager struct {
 	api.DefaultHandler
-	clusters  []*Cluster
-	globaldns string
+	clusters []*Cluster
 }
 
-func newClusterManager(globaldns string) *ClusterManager {
-	return &ClusterManager{globaldns: globaldns}
+func newClusterManager() *ClusterManager {
+	return &ClusterManager{}
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
@@ -98,21 +92,10 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 	cluster.EventWatcher = eventWatcher
 
-	serviceCache, err := servicecache.New(cache)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service cache failed:%s", err.Error()))
-	}
-	cluster.ServiceCache = serviceCache
-
-	if m.globaldns != "" {
-		if err := globaldns.New(cache, m.globaldns); err != nil {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init globaldns failed:%s", err.Error()))
+	if gdns := globaldns.GetGlobalDNS(); gdns != nil {
+		if err := gdns.NewClusterDNSSyncer(cluster.Name, cache); err != nil {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("new cluster dns syncer failed:%s", err.Error()))
 		}
-	}
-
-	cluster.AgentManager = clusteragent.New()
-	if err := initCluster(cluster); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init cluster failed:%s", err.Error()))
 	}
 
 	m.clusters = append(m.clusters, cluster)
@@ -195,52 +178,4 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 		}
 	}
 	return clusters
-}
-
-func initCluster(cluster *Cluster) error {
-	imported, err := isClusterImportBefore(cluster)
-	if err != nil {
-		return err
-	}
-	if imported {
-		log.Infof("cluster %s has been imported before", cluster.Name)
-		return nil
-	}
-
-	cli := cluster.KubeClient
-	if err := createNamespace(cli, ZCloudNamespace); err != nil {
-		return err
-	}
-
-	if err := createRole(cluster, ZCloudAdmin, ClusterAdmin); err != nil {
-		return err
-	}
-	if err := createRole(cluster, ZCloudReadonly, ClusterAdmin); err != nil {
-		return err
-	}
-	return nil
-}
-
-func isClusterImportBefore(cluster *Cluster) (bool, error) {
-	return hasNamespace(cluster.KubeClient, ZCloudNamespace)
-}
-
-func createRole(cluster *Cluster, roleName string, role ClusterRole) error {
-	cli := cluster.KubeClient
-	if err := createServiceAccount(cli, roleName, ZCloudNamespace); err != nil {
-		log.Errorf("create service account %s failed: %s", roleName, err.Error())
-		return err
-	}
-
-	if err := createClusterRole(cli, roleName, role); err != nil {
-		log.Errorf("create cluster role %s failed: %s", roleName, err.Error())
-		return err
-	}
-
-	if err := createRoleBinding(cli, roleName, roleName, ZCloudNamespace); err != nil {
-		log.Errorf("create clusterRoleBinding %s failed: %s", ZCloudAdmin, err.Error())
-		return err
-	}
-
-	return nil
 }

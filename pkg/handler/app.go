@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,9 +26,9 @@ type App struct {
 	clusterManager *ClusterManager
 }
 
-func NewApp(globaldns string) *App {
+func NewApp() *App {
 	return &App{
-		clusterManager: newClusterManager(globaldns),
+		clusterManager: newClusterManager(),
 	}
 }
 
@@ -38,7 +37,6 @@ func (a *App) RegisterHandler(router gin.IRoutes) error {
 		return err
 	}
 	a.registerWSHandler(router)
-	a.registerAgentHandler(router)
 	return nil
 }
 
@@ -60,10 +58,6 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.ResourceQuota{}, newResourceQuotaManager(a.clusterManager), types.SetResourceQuotaSchema)
 	schemas.MustImportAndCustomize(&Version, types.StatefulSet{}, newStatefulSetManager(a.clusterManager), types.SetStatefulSetSchema)
 	schemas.MustImportAndCustomize(&Version, types.StorageClass{}, newStorageClassManager(a.clusterManager), types.SetStorageClassSchema)
-
-	serviceLinkManager := newServiceLinkManager(a.clusterManager)
-	schemas.MustImportAndCustomize(&Version, types.InnerService{}, serviceLinkManager, types.SetInnerServiceSchema)
-	schemas.MustImportAndCustomize(&Version, types.OuterService{}, serviceLinkManager, types.SetOuterServiceSchema)
 
 	userManager := newUserManager(tokenSecret, tokenValidDuration)
 	schemas.MustImportAndCustomize(&Version, types.User{}, userManager, types.SetUserSchema)
@@ -99,24 +93,5 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 	podLogPath := fmt.Sprintf(WSPodLogPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
 	router.GET(podLogPath, func(c *gin.Context) {
 		a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
-	})
-}
-
-const (
-	ClusterAgentPrefix           = "/apis/agent.zcloud.cn/v1"
-	ClusterAgentRegisterPathTemp = ClusterAgentPrefix + "/clusters/%s/register/%s"
-	ClusterAgentProxyPathTemp    = ClusterAgentPrefix + "/clusters/%s/proxy/%s"
-)
-
-func (a *App) registerAgentHandler(router gin.IRoutes) {
-	clusterAgentRegisterPath := fmt.Sprintf(ClusterAgentRegisterPathTemp, ":cluster", ":agentKey")
-	router.GET(clusterAgentRegisterPath, func(c *gin.Context) {
-		a.clusterManager.RegisterAgent(c.Param("cluster"), c.Param("agentKey"), c.Request, c.Writer)
-	})
-
-	clusterAgentProxyPath := fmt.Sprintf(ClusterAgentProxyPathTemp, ":cluster", ":agentKey") + "/*targetService"
-	router.Any(clusterAgentProxyPath, func(c *gin.Context) {
-		targetService := strings.TrimPrefix(c.Param("targetService"), "/")
-		a.clusterManager.HandleAgentProxy(c.Param("cluster"), c.Param("agentKey"), targetService, c.Request, c.Writer)
 	})
 }

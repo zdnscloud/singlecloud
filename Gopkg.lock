@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:d6afaeed1502aa28e80a4ed0981d570ad91b2579193404256ce672ed0a609e0d"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  pruneopts = "UT"
+  revision = "4b2b341e8d7715fae06375aa633dbb6e91b3fb46"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -173,6 +181,14 @@
   version = "v0.0.7"
 
 [[projects]]
+  digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
+  name = "github.com/matttproud/golang_protobuf_extensions"
+  packages = ["pbutil"]
+  pruneopts = "UT"
+  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
   name = "github.com/modern-go/concurrent"
   packages = ["."]
@@ -197,12 +213,52 @@
   revision = "53be0d36a84c2a886ca057d34b6aa4468df9ccb4"
 
 [[projects]]
-  digest = "1:0e7775ebbcf00d8dd28ac663614af924411c868dca3d5aa762af0fae3808d852"
+  digest = "1:a8c2725121694dfbf6d552fb86fe6b46e3e7135ea05db580c28695b916162aad"
   name = "github.com/peterbourgon/diskv"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5f041e8faa004a95c88a202771f4cc3e991971e6"
-  version = "v2.0.1"
+  revision = "0be1b92a6df0e4f5cb0a5d15fb7f643d0ad93ce6"
+  version = "v3.0.0"
+
+[[projects]]
+  digest = "1:93a746f1060a8acbcf69344862b2ceced80f854170e1caae089b2834c5fbf7f4"
+  name = "github.com/prometheus/client_golang"
+  packages = [
+    "prometheus",
+    "prometheus/internal",
+    "prometheus/promhttp",
+  ]
+  pruneopts = "UT"
+  revision = "505eaef017263e299324067d40ca2c48f6a2cf50"
+  version = "v0.9.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2d5cd61daa5565187e1d96bae64dbbc6080dacf741448e9629c64fd93203b0d4"
+  name = "github.com/prometheus/client_model"
+  packages = ["go"]
+  pruneopts = "UT"
+  revision = "fd36f4220a901265f90734c3183c5f0c91daa0b8"
+
+[[projects]]
+  digest = "1:35cf6bdf68db765988baa9c4f10cc5d7dda1126a54bd62e252dbcd0b1fc8da90"
+  name = "github.com/prometheus/common"
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "model",
+  ]
+  pruneopts = "UT"
+  revision = "a82f4c12f983cc2649298185f296632953e50d3e"
+  version = "v0.3.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2ea45e71e0198d6b989ed6302cc4f72a83be1e7d6469d08a59e56a2c447aea55"
+  name = "github.com/prometheus/procfs"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "87a4384529e0652f5035fb5cc8095faf73ea9b0b"
 
 [[projects]]
   digest = "1:c1b1102241e7f645bc8e0c22ae352e8f0dc6484b6cb4d132fa9f24174e0119e2"
@@ -222,17 +278,36 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:72c975e6c4b88de1ddc378368b856efe9927d7419f518a0e4cfa4a9d56c72444"
+  digest = "1:2bdcafa7df7475b5aee3203fdfaa70bdf44246b9a647c6484b4d03ddd44fe296"
   name = "github.com/zdnscloud/cement"
   packages = [
+    "configure",
+    "domaintree",
+    "httprouter",
     "log",
     "log/log4go",
+    "netradix",
     "reflector",
+    "rest",
+    "serializer",
     "slice",
+    "stringtool",
     "unittest",
   ]
   pruneopts = "UT"
   revision = "dbe599d3f012f8c64527e2b40affb252bf95afe3"
+
+[[projects]]
+  branch = "master"
+  digest = "1:690cd103a39184f2f7f74240941bcee1eecd45d87528a38fc1f2e4fad67c1762"
+  name = "github.com/zdnscloud/g53"
+  packages = [
+    ".",
+    "domaintree",
+    "util",
+  ]
+  pruneopts = "UT"
+  revision = "bf6c958cc80e5b1c9672b455660471ce8899809b"
 
 [[projects]]
   branch = "master"
@@ -280,15 +355,36 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:67756e2e6a1187e6e612bdab96734ad19dd259e8b5e6d567394d1d725debcda6"
+  name = "github.com/zdnscloud/vanguard"
+  packages = [
+    "acl",
+    "config",
+    "core",
+    "httpcmd",
+    "logger",
+    "metrics",
+    "resolver/auth",
+    "resolver/auth/zone",
+    "resolver/auth/zone/memoryzone",
+    "resolver/chain",
+    "util",
+    "viewselector",
+  ]
+  pruneopts = "UT"
+  revision = "389ec5a14ad81ed530f4cbc1652c08205c8046f9"
+
+[[projects]]
+  branch = "master"
   digest = "1:bbe51412d9915d64ffaa96b51d409e070665efc5194fcf145c4a27d4133107a4"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   pruneopts = "UT"
-  revision = "df01cb2cc480549d72034218dd98bf97671450ac"
+  revision = "a29dc8fdc73485234dbef99ebedb95d2eced08de"
 
 [[projects]]
   branch = "master"
-  digest = "1:8a320ae827e62b4afafc65a60d23382db2bf82327129b4678382b9ebad0941d1"
+  digest = "1:b9bf9ddb713916ca0fe4630b135cc937c81a00378a97083a906c9669d56ab23f"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -299,7 +395,7 @@
     "idna",
   ]
   pruneopts = "UT"
-  revision = "1f3472d942ba824034fb77cab6a6cfc1bc8a2c3c"
+  revision = "4829fb13d2c62012c17688fa7f629f371014946d"
 
 [[projects]]
   branch = "master"
@@ -314,23 +410,25 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e18a5437c48ea1bd6dcd960efdd634d05ae5c2dd033d2d17f73cc20be92895ac"
+  digest = "1:656ce95b4cdf841c00825f4cb94f6e0e1422d7d6faaf3094e94cd18884a32251"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "f0ce4c0180bef7e9c51babed693a6e47fdd8962f"
+  revision = "a129542de9ae0895210abff9c95d67a1f33cb93d"
 
 [[projects]]
-  digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
+  digest = "1:8d8faad6b12a3a4c819a3f9618cb6ee1fa1cfc33253abeeea8b55336721e3405"
   name = "golang.org/x/text"
   packages = [
     "collate",
     "collate/build",
     "internal/colltab",
     "internal/gen",
+    "internal/language",
+    "internal/language/compact",
     "internal/tag",
     "internal/triegen",
     "internal/ucd",
@@ -343,8 +441,8 @@
     "unicode/rangetable",
   ]
   pruneopts = "UT"
-  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
-  version = "v0.3.0"
+  revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
+  version = "v0.3.2"
 
 [[projects]]
   branch = "master"
@@ -616,6 +714,8 @@
     "github.com/zdnscloud/gorest/adaptor",
     "github.com/zdnscloud/gorest/api",
     "github.com/zdnscloud/gorest/types",
+    "github.com/zdnscloud/vanguard/httpcmd",
+    "github.com/zdnscloud/vanguard/resolver/auth",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/batch/v1beta1",

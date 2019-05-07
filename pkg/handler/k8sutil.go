@@ -139,3 +139,19 @@ func scQuotaResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceN
 	}
 	return
 }
+
+func createRole(cli client.Client, roleName string, role ClusterRole, namespace string) error {
+	if err := createServiceAccount(cli, roleName, namespace); err != nil {
+		return err
+	}
+
+	if err := createClusterRole(cli, roleName, role); err != nil {
+		return err
+	}
+
+	if err := createRoleBinding(cli, roleName, roleName, namespace); err != nil {
+		return err
+	}
+
+	return nil
+}
