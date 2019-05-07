@@ -150,8 +150,14 @@ func (c *ClusterDNSSyncer) OnGeneric(e event.GenericEvent) (handler.Result, erro
 
 func (c *ClusterDNSSyncer) OnNewNode(k8snode *corev1.Node) {
 	nodeIP := getK8sNodeIP(k8snode)
+	if nodeIP == "" {
+		log.Warnf("new edge node %s address should not be zero", k8snode.Name)
+		return
+	}
+
 	for _, ip := range c.edgeNodeIPs {
 		if ip == nodeIP {
+			log.Warnf("new edge node %s address %s has exist", k8snode.Name, nodeIP)
 			return
 		}
 	}
@@ -173,19 +179,23 @@ func (c *ClusterDNSSyncer) OnNewNode(k8snode *corev1.Node) {
 }
 
 func getK8sNodeIP(k8snode *corev1.Node) string {
-	var ip string
 	for _, addr := range k8snode.Status.Addresses {
 		if addr.Type == corev1.NodeInternalIP || addr.Type == corev1.NodeExternalIP {
-			if ip == "" {
-				ip = addr.Address
+			if addr.Address != "" {
+				return addr.Address
 			}
 		}
 	}
-	return ip
+	return ""
 }
 
 func (c *ClusterDNSSyncer) OnDeleteNode(k8snode *corev1.Node) {
 	nodeIP := getK8sNodeIP(k8snode)
+	if nodeIP == "" {
+		log.Warnf("old edge node %s address should not be zero", k8snode.Name)
+		return
+	}
+
 	for i, ip := range c.edgeNodeIPs {
 		if ip == nodeIP {
 			c.edgeNodeIPs = append(c.edgeNodeIPs[:i], c.edgeNodeIPs[i+1:]...)
@@ -213,6 +223,9 @@ func (c *ClusterDNSSyncer) OnNewIngress(k8sing *extv1beta1.Ingress) {
 		if strings.HasSuffix(rule.Host, c.zoneName) {
 			newAuthRRs = append(newAuthRRs, c.genAuthRRs(rule.Host, c.edgeNodeIPs)...)
 			c.ingressDomains[rule.Host] = struct{}{}
+			log.Debugf("add new ingress host domain %v to zone %v", rule.Host, c.zoneName)
+		} else {
+			log.Warnf("add new ingress rrset failed: host domain %v not belong to zone %v", rule.Host, c.zoneName)
 		}
 	}
 
@@ -254,6 +267,7 @@ func (c *ClusterDNSSyncer) OnDeleteIngress(k8sing *extv1beta1.Ingress) {
 	for _, rule := range k8sing.Spec.Rules {
 		oldAuthRRs = append(oldAuthRRs, c.genAuthRRs(rule.Host, c.edgeNodeIPs)...)
 		delete(c.ingressDomains, rule.Host)
+		log.Debugf("delete ingress host domain %v from zone %v", rule.Host, c.zoneName)
 	}
 
 	if err := c.proxy.HandleHttpCmd(&auth.DeleteAuthRrs{
