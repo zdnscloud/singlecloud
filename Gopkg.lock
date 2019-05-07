@@ -340,7 +340,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:edf9cda6f066717362c33d0f34fb793e97f6c6aa365c86de0f5d26e2374005b6"
+  digest = "1:c1276334884bb3938d230bebb1637f91f0f2af2a842a7488a3dd93a3ef9554bc"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -351,11 +351,11 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "04792066481ee6ab895d858bc8428de0262d93bb"
+  revision = "9e7ba4c8f8996045ce057ffdf6fd85bdf9dfe78b"
 
 [[projects]]
   branch = "master"
-  digest = "1:67756e2e6a1187e6e612bdab96734ad19dd259e8b5e6d567394d1d725debcda6"
+  digest = "1:9ac38275495920f864e7575ec18fabaf0a68af16bc1e32d1e2d02a9a5b0f8225"
   name = "github.com/zdnscloud/vanguard"
   packages = [
     "acl",
@@ -368,6 +368,7 @@
     "resolver/auth/zone",
     "resolver/auth/zone/memoryzone",
     "resolver/chain",
+    "server",
     "util",
     "viewselector",
   ]
@@ -716,12 +717,14 @@
     "github.com/zdnscloud/gorest/types",
     "github.com/zdnscloud/vanguard/httpcmd",
     "github.com/zdnscloud/vanguard/resolver/auth",
+    "github.com/zdnscloud/vanguard/server",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/batch/v1beta1",
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
+    "k8s.io/api/storage/v1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
