@@ -157,7 +157,6 @@ func (c *ClusterDNSSyncer) OnNewNode(k8snode *corev1.Node) {
 
 	for _, ip := range c.edgeNodeIPs {
 		if ip == nodeIP {
-			log.Warnf("new edge node %s address %s has exist", k8snode.Name, nodeIP)
 			return
 		}
 	}
