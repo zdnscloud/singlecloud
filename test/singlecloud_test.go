@@ -214,6 +214,8 @@ func TestStatefulSet(t *testing.T) {
 	ut.Equal(t, statefulset.Containers[0].SecretName, "sc-test-secret1")
 	ut.Equal(t, statefulset.Containers[0].Env[0].Name, "TESTENV1")
 	ut.Equal(t, statefulset.Containers[0].Env[0].Value, "testenv1")
+	ut.Equal(t, statefulset.VolumeClaimTemplate.Name, "sc-test-nfs-pvc1")
+	ut.Equal(t, statefulset.VolumeClaimTemplate.MountPath, "/etc/scststestpvc1")
 	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageSize, "100Mi")
 	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageClassName, "nfs")
 }

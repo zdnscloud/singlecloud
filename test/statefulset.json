@@ -46,6 +46,8 @@
             ]
         },
         "volumeClaimTemplate": {
+            "name": "sc-test-nfs-pvc1",
+            "mountPath": "/etc/scststestpvc1",
             "storageSize": "100Mi",
             "storageClassName": "nfs"
         }
