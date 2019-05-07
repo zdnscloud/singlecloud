@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/server"
 )
 
@@ -15,10 +16,10 @@ var (
 
 func main() {
 	var addr string
-	var globaldns string
+	var globaldnsAddr string
 	var showVersion bool
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
-	flag.StringVar(&globaldns, "dns", "", "globaldns cmd server listen address")
+	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
 	flag.Parse()
 
@@ -29,7 +30,14 @@ func main() {
 
 	log.InitLogger(log.Debug)
 
-	server, err := server.NewServer(globaldns)
+	if globaldnsAddr != "" {
+		err := globaldns.Init(globaldnsAddr)
+		if err != nil {
+			log.Fatalf("init globaldns failed: %v", err.Error())
+		}
+	}
+
+	server, err := server.NewServer()
 	if err != nil {
 		log.Fatalf("create server failed:%s", err.Error())
 	}

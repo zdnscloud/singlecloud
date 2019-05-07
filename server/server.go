@@ -13,7 +13,7 @@ type Server struct {
 	router *gin.Engine
 }
 
-func NewServer(globaldns string) (*Server, error) {
+func NewServer() (*Server, error) {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.New()
@@ -22,7 +22,7 @@ func NewServer(globaldns string) (*Server, error) {
 		c.File("/www/index.html")
 	})
 
-	app := handler.NewApp(globaldns)
+	app := handler.NewApp()
 	if err := app.RegisterHandler(router); err != nil {
 		log.Fatalf("register handler failed:%s", err.Error())
 	}

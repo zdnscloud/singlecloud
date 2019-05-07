@@ -26,9 +26,9 @@ type App struct {
 	clusterManager *ClusterManager
 }
 
-func NewApp(globaldns string) *App {
+func NewApp() *App {
 	return &App{
-		clusterManager: newClusterManager(globaldns),
+		clusterManager: newClusterManager(),
 	}
 }
 

@@ -33,12 +33,11 @@ type Cluster struct {
 
 type ClusterManager struct {
 	api.DefaultHandler
-	clusters  []*Cluster
-	globaldns string
+	clusters []*Cluster
 }
 
-func newClusterManager(globaldns string) *ClusterManager {
-	return &ClusterManager{globaldns: globaldns}
+func newClusterManager() *ClusterManager {
+	return &ClusterManager{}
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
@@ -93,9 +92,9 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 	cluster.EventWatcher = eventWatcher
 
-	if m.globaldns != "" {
-		if err := globaldns.New(cache, m.globaldns); err != nil {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("init globaldns failed:%s", err.Error()))
+	if gdns := globaldns.GetGlobalDNS(); gdns != nil {
+		if err := gdns.NewClusterDNSSyncer(cluster.Name, cache); err != nil {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("new cluster dns syncer failed:%s", err.Error()))
 		}
 	}
 
