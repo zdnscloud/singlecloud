@@ -73,7 +73,7 @@ func load(file string, resource interface{}) error {
 func runTestServer() {
 	log.InitLogger(log.Debug)
 
-	server, err := server.NewServer("")
+	server, err := server.NewServer()
 	if err != nil {
 		panic("create server failed:" + err.Error())
 	}
