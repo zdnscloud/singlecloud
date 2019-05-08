@@ -137,6 +137,10 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 			return fmt.Errorf("invalid ingress with empty path")
 		}
 
+		if r.Port == 0 {
+			return fmt.Errorf("udp ingress port cann't be zero")
+		}
+
 		if protocol == corev1.ProtocolUDP {
 			if len(r.Paths) != 1 {
 				return fmt.Errorf("for udp protocol, one port can only map to one service")
