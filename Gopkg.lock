@@ -340,7 +340,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c1276334884bb3938d230bebb1637f91f0f2af2a842a7488a3dd93a3ef9554bc"
+  digest = "1:9e221fb1190bab368a23c93a3b160139e98d3f92b1e137535cc1c69ebd3f578e"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -351,7 +351,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "9e7ba4c8f8996045ce057ffdf6fd85bdf9dfe78b"
+  revision = "fbc82a04f45780b1f14fae7bda464135cf3cea9d"
 
 [[projects]]
   branch = "master"
@@ -703,6 +703,7 @@
     "github.com/kyokomi/emoji",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/unittest",
+    "github.com/zdnscloud/g53",
     "github.com/zdnscloud/gok8s/cache",
     "github.com/zdnscloud/gok8s/client",
     "github.com/zdnscloud/gok8s/client/config",
@@ -718,6 +719,7 @@
     "github.com/zdnscloud/vanguard/httpcmd",
     "github.com/zdnscloud/vanguard/resolver/auth",
     "github.com/zdnscloud/vanguard/server",
+    "github.com/zdnscloud/vanguard/viewselector",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/batch/v1beta1",

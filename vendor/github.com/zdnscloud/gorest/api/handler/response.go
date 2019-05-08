@@ -7,17 +7,19 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+const ContentTypeKey = "Content-Type"
+
 func WriteResponse(ctx *types.Context, status int, result interface{}) {
 	resp := ctx.Response
-	resp.WriteHeader(status)
 	var body []byte
 	switch ctx.ResponseFormat {
 	case types.ResponseJSON:
-		resp.Header().Set("content-type", "application/json")
+		resp.Header().Set(ContentTypeKey, "application/json")
 		body, _ = json.Marshal(result)
 	case types.ResponseYAML:
-		resp.Header().Set("content-type", "application/yaml")
+		resp.Header().Set(ContentTypeKey, "application/yaml")
 		body, _ = yaml.Marshal(result)
 	}
+	resp.WriteHeader(status)
 	resp.Write(body)
 }
