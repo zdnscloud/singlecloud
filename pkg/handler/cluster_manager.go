@@ -92,10 +92,8 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 	cluster.EventWatcher = eventWatcher
 
-	if gdns := globaldns.GetGlobalDNS(); gdns != nil {
-		if err := gdns.NewClusterDNSSyncer(cluster.Name, cache); err != nil {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("new cluster dns syncer failed:%s", err.Error()))
-		}
+	if err := globaldns.NewClusterDNSSyncer(cluster.Name, cache); err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("new cluster dns syncer failed:%s", err.Error()))
 	}
 
 	m.clusters = append(m.clusters, cluster)
