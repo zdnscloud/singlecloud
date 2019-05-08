@@ -40,7 +40,8 @@
                     "servicePort": 22222,
                     "autoCreateIngress": true,
                     "ingressDomainName": "sc-test-ingress1",
-                    "ingressPath": "/etc/scingress"
+                    "ingressPath": "/etc/scingress",
+                    "ingressPort": 33333
                 }
             ]
         }

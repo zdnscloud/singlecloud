@@ -5,15 +5,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zdnscloud/g53"
 	"github.com/zdnscloud/vanguard/httpcmd"
 	"github.com/zdnscloud/vanguard/resolver/auth"
 	"github.com/zdnscloud/vanguard/server"
+	view "github.com/zdnscloud/vanguard/viewselector"
 )
 
 const (
 	cmdServiceName = "vanguard_cmd"
-	DefaultView    = "default"
-	RRTypeA        = "A"
 	DefaultTtl     = "3600"
 )
 
@@ -64,14 +64,14 @@ func (d *DnsProxy) handleHttpCmd(command httpcmd.Command) *httpcmd.Error {
 	return d.proxy.HandleTask(task, nil)
 }
 
-func (d *DnsProxy) AddAuthZone(zoneName string) *httpcmd.Error {
-	d.handleHttpCmd(&auth.DeleteAuthZone{View: DefaultView, Name: zoneName})
+func (d *DnsProxy) AddAuthZone(zoneName *g53.Name) *httpcmd.Error {
+	d.handleHttpCmd(&auth.DeleteAuthZone{View: view.DefaultView, Name: zoneName.String(false)})
 	return d.handleHttpCmd(&auth.AddAuthZone{
-		View: DefaultView,
-		Name: zoneName})
+		View: view.DefaultView,
+		Name: zoneName.String(false)})
 }
 
-func (d *DnsProxy) AddAuthRRs(zoneName string, domains []string, ips ...string) *httpcmd.Error {
+func (d *DnsProxy) AddAuthRRs(zoneName *g53.Name, domains []*g53.Name, ips ...string) *httpcmd.Error {
 	if len(domains) == 0 || len(ips) == 0 {
 		return nil
 	}
@@ -79,7 +79,7 @@ func (d *DnsProxy) AddAuthRRs(zoneName string, domains []string, ips ...string) 
 	return d.handleHttpCmd(&auth.AddAuthRrs{Rrs: genAuthRRs(zoneName, domains, ips)})
 }
 
-func (d *DnsProxy) DeleteAuthRRs(zoneName string, domains []string, ips ...string) *httpcmd.Error {
+func (d *DnsProxy) DeleteAuthRRs(zoneName *g53.Name, domains []*g53.Name, ips ...string) *httpcmd.Error {
 	if len(domains) == 0 || len(ips) == 0 {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (d *DnsProxy) DeleteAuthRRs(zoneName string, domains []string, ips ...strin
 	return d.handleHttpCmd(&auth.DeleteAuthRrs{Rrs: genAuthRRs(zoneName, domains, ips)})
 }
 
-func (d *DnsProxy) UpdateAuthRRs(zoneName string, oldDomains, newDomains []string, ips ...string) *httpcmd.Error {
+func (d *DnsProxy) UpdateAuthRRs(zoneName *g53.Name, oldDomains, newDomains []*g53.Name, ips ...string) *httpcmd.Error {
 	if (len(oldDomains) == 0 && len(newDomains) == 0) || len(ips) == 0 {
 		return nil
 	}
@@ -97,16 +97,16 @@ func (d *DnsProxy) UpdateAuthRRs(zoneName string, oldDomains, newDomains []strin
 		NewRrs: genAuthRRs(zoneName, newDomains, ips)})
 }
 
-func genAuthRRs(zoneName string, domains, ips []string) auth.AuthRRs {
+func genAuthRRs(zoneName *g53.Name, domains []*g53.Name, ips []string) auth.AuthRRs {
 	var rrs auth.AuthRRs
 	for _, domain := range domains {
 		for _, ip := range ips {
 			rrs = append(rrs, &auth.AuthRR{
-				View:  DefaultView,
-				Zone:  zoneName,
-				Name:  domain,
+				View:  view.DefaultView,
+				Zone:  zoneName.String(false),
+				Name:  domain.String(false),
 				Ttl:   DefaultTtl,
-				Type:  RRTypeA,
+				Type:  g53.RR_A.String(),
 				Rdata: ip,
 			})
 		}

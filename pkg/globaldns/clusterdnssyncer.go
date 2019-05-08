@@ -3,7 +3,6 @@ package globaldns
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -18,6 +17,7 @@ import (
 	"github.com/zdnscloud/gok8s/predicate"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/g53"
 )
 
 const (
@@ -26,17 +26,18 @@ const (
 
 var (
 	EdgeNodeLabelSelector = &metav1.LabelSelector{MatchLabels: map[string]string{EdgeNodeLabel: "true"}}
+	ErrNotInZone          = fmt.Errorf("domain not belongs to zone")
 )
 
 type ClusterDNSSyncer struct {
-	zoneName       string
+	zoneName       *g53.Name
 	edgeNodeIPs    []string
-	ingressDomains []string
+	ingressDomains []*g53.Name
 
 	proxy *DnsProxy
 }
 
-func newClusterDNSSyncer(zoneName string, c cache.Cache, proxy *DnsProxy) (*ClusterDNSSyncer, error) {
+func newClusterDNSSyncer(zoneName *g53.Name, c cache.Cache, proxy *DnsProxy) (*ClusterDNSSyncer, error) {
 	clusterDNSSyncer := &ClusterDNSSyncer{
 		zoneName: zoneName,
 		proxy:    proxy,
@@ -66,7 +67,7 @@ func (c *ClusterDNSSyncer) initClusterDNSSyncer(cache cache.Cache) error {
 	}
 
 	if err := c.proxy.AddAuthZone(c.zoneName); err != nil {
-		return fmt.Errorf("add zone %s to globaldns failed: %s", c.zoneName, err.Error())
+		return fmt.Errorf("add zone %s to globaldns failed: %s", c.zoneName.String(false), err.Error())
 	}
 
 	for _, node := range nodes.Items {
@@ -76,7 +77,7 @@ func (c *ClusterDNSSyncer) initClusterDNSSyncer(cache cache.Cache) error {
 	return nil
 }
 
-func (c *ClusterDNSSyncer) GetZoneName() string {
+func (c *ClusterDNSSyncer) GetZoneName() *g53.Name {
 	return c.zoneName
 }
 
@@ -169,28 +170,47 @@ func (c *ClusterDNSSyncer) OnDeleteNode(k8snode *corev1.Node) {
 }
 
 func (c *ClusterDNSSyncer) OnNewIngress(k8sing *extv1beta1.Ingress) {
+	var newDomains []*g53.Name
 	for _, rule := range k8sing.Spec.Rules {
-		if strings.HasSuffix(rule.Host, c.zoneName) {
-			if c.hasIngressDomain(rule.Host) {
-				log.Warnf("duplicate ingress host %v with zone %v", rule.Host, c.zoneName)
+		hostDomain, exist, err := c.k8sIngressHostToSCDomain(rule.Host)
+		if err == nil {
+			if exist {
+				log.Warnf("duplicate ingress host %v with zone %v", rule.Host, c.zoneName.String(false))
 				continue
 			}
-
-			c.ingressDomains = append(c.ingressDomains, rule.Host)
-			log.Debugf("add new ingress host domain %v to zone %v", rule.Host, c.zoneName)
+			newDomains = append(newDomains, hostDomain)
+			log.Debugf("add new ingress host domain %v to zone %v", rule.Host, c.zoneName.String(false))
+		} else if err == ErrNotInZone {
+			log.Warnf("add new ingress rrset failed: host domain %v not belong to zone %v", rule.Host, c.zoneName.String(false))
+			continue
 		} else {
-			log.Warnf("add new ingress rrset failed: host domain %v not belong to zone %v", rule.Host, c.zoneName)
+			log.Errorf("add new ingress with host %s failed: %v", rule.Host, err.Error())
+			return
 		}
 	}
 
-	if err := c.proxy.AddAuthRRs(c.zoneName, c.ingressDomains, c.edgeNodeIPs...); err != nil {
+	c.ingressDomains = append(c.ingressDomains, newDomains...)
+	if err := c.proxy.AddAuthRRs(c.zoneName, newDomains, c.edgeNodeIPs...); err != nil {
 		log.Errorf("add new ingress rrsets failed: %v", err.Error())
 	}
 }
 
-func (c *ClusterDNSSyncer) hasIngressDomain(domainName string) bool {
+func (c *ClusterDNSSyncer) k8sIngressHostToSCDomain(host string) (*g53.Name, bool, error) {
+	hostDomain, err := g53.NameFromString(host)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if hostDomain.IsSubDomain(c.zoneName) == false {
+		return nil, false, ErrNotInZone
+	}
+
+	return hostDomain, c.hasIngressDomain(hostDomain), nil
+}
+
+func (c *ClusterDNSSyncer) hasIngressDomain(domainName *g53.Name) bool {
 	for _, domain := range c.ingressDomains {
-		if domain == domainName {
+		if domain.Equals(domainName) {
 			return true
 		}
 	}
@@ -198,8 +218,16 @@ func (c *ClusterDNSSyncer) hasIngressDomain(domainName string) bool {
 }
 
 func (c *ClusterDNSSyncer) OnUpdateIngress(old, new *extv1beta1.Ingress) {
-	oldDomains := diffK8sIngressRules(old.Spec.Rules, new.Spec.Rules)
-	newDomains := diffK8sIngressRules(new.Spec.Rules, old.Spec.Rules)
+	oldDomains, err := c.diffK8sIngressRules(old.Spec.Rules, new.Spec.Rules, true)
+	if err != nil {
+		return
+	}
+
+	newDomains, err := c.diffK8sIngressRules(new.Spec.Rules, old.Spec.Rules, false)
+	if err != nil {
+		return
+	}
+
 	if len(oldDomains) == 0 && len(newDomains) == 0 {
 		return
 	}
@@ -211,10 +239,10 @@ func (c *ClusterDNSSyncer) OnUpdateIngress(old, new *extv1beta1.Ingress) {
 	}
 }
 
-func (c *ClusterDNSSyncer) deleteIngressDomains(domains []string) {
+func (c *ClusterDNSSyncer) deleteIngressDomains(domains []*g53.Name) {
 	for _, domain := range domains {
 		for i, ingressDomain := range c.ingressDomains {
-			if domain == ingressDomain {
+			if domain.Equals(ingressDomain) {
 				c.ingressDomains = append(c.ingressDomains[:i], c.ingressDomains[i+1:]...)
 				break
 			}
@@ -223,10 +251,23 @@ func (c *ClusterDNSSyncer) deleteIngressDomains(domains []string) {
 }
 
 func (c *ClusterDNSSyncer) OnDeleteIngress(k8sing *extv1beta1.Ingress) {
-	var oldDomains []string
+	var oldDomains []*g53.Name
 	for _, rule := range k8sing.Spec.Rules {
-		oldDomains = append(oldDomains, rule.Host)
-		log.Debugf("delete ingress host domain %v from zone %v", rule.Host, c.zoneName)
+		hostDomain, exist, err := c.k8sIngressHostToSCDomain(rule.Host)
+		if err == nil {
+			if exist == false {
+				log.Warnf("no found ingress host %v with zone %v", rule.Host, c.zoneName.String(false))
+				continue
+			}
+			log.Debugf("delete ingress host domain %v from zone %v", rule.Host, c.zoneName.String(false))
+			oldDomains = append(oldDomains, hostDomain)
+		} else if err == ErrNotInZone {
+			log.Warnf("delete ingress rrset failed: host domain %v not belong to zone %v", rule.Host, c.zoneName.String(false))
+			continue
+		} else {
+			log.Errorf("delete ingress with host %s failed: %v", rule.Host, err.Error())
+			return
+		}
 	}
 
 	c.deleteIngressDomains(oldDomains)
@@ -235,8 +276,8 @@ func (c *ClusterDNSSyncer) OnDeleteIngress(k8sing *extv1beta1.Ingress) {
 	}
 }
 
-func diffK8sIngressRules(rules1, rules2 []extv1beta1.IngressRule) []string {
-	var diffHosts []string
+func (c *ClusterDNSSyncer) diffK8sIngressRules(rules1, rules2 []extv1beta1.IngressRule, needExist bool) ([]*g53.Name, error) {
+	var diffHosts []*g53.Name
 	for _, r1 := range rules1 {
 		found := false
 		for _, r2 := range rules2 {
@@ -247,9 +288,29 @@ func diffK8sIngressRules(rules1, rules2 []extv1beta1.IngressRule) []string {
 		}
 
 		if found == false {
-			diffHosts = append(diffHosts, r1.Host)
+			hostDomain, err := g53.NameFromString(r1.Host)
+			if err != nil {
+				log.Errorf("parse ingress host %s failed: %v", r1.Host, err.Error())
+				return nil, err
+			}
+
+			if hostDomain.IsSubDomain(c.zoneName) == false {
+				continue
+			}
+
+			if needExist {
+				if c.hasIngressDomain(hostDomain) == false {
+					continue
+				}
+			} else {
+				if c.hasIngressDomain(hostDomain) {
+					continue
+				}
+			}
+
+			diffHosts = append(diffHosts, hostDomain)
 		}
 	}
 
-	return diffHosts
+	return diffHosts, nil
 }
