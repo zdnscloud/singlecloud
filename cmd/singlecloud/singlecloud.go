@@ -10,6 +10,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
+	"github.com/zdnscloud/singlecloud/pkg/k8sshell"
 	"github.com/zdnscloud/singlecloud/server"
 )
 
@@ -62,6 +63,11 @@ func main() {
 	agent := clusteragent.New()
 	if err := server.RegisterHandler(agent); err != nil {
 		log.Fatalf("register agent failed:%s", err.Error())
+	}
+
+	shellExecutor := k8sshell.New(eventBus)
+	if err := server.RegisterHandler(shellExecutor); err != nil {
+		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
 	if err := server.Run(addr); err != nil {

@@ -2,13 +2,15 @@ package handler
 
 import (
 	"fmt"
+	"sync"
 	"time"
+
+	"k8s.io/client-go/rest"
 
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
-	"github.com/zdnscloud/gok8s/exec"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
@@ -19,8 +21,6 @@ const (
 	ZCloudNamespace = "zcloud"
 	ZCloudAdmin     = "zcloud-cluster-admin"
 	ZCloudReadonly  = "zcloud-cluster-readonly"
-
-	MaxEventCount = 4096
 )
 
 type Cluster struct {
@@ -28,7 +28,9 @@ type Cluster struct {
 	CreateTime time.Time
 	KubeClient client.Client
 	Cache      cache.Cache
-	Executor   *exec.Executor
+	K8sConfig  *rest.Config
+
+	stopCh chan struct{}
 }
 
 type AddCluster struct {
@@ -41,6 +43,8 @@ type DeleteCluster struct {
 
 type ClusterManager struct {
 	api.DefaultHandler
+
+	lock     sync.Mutex
 	clusters []*Cluster
 	eventBus *pubsub.PubSub
 }
@@ -54,6 +58,8 @@ func newClusterManager(eventBus *pubsub.PubSub) *ClusterManager {
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
 	ancestors := resttypes.GetAncestors(obj)
 	clusterID := ancestors[0].GetID()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	return m.get(clusterID)
 }
 
@@ -61,6 +67,9 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
 	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	inner := ctx.Object.(*types.Cluster)
 	if c := m.get(inner.Name); c != nil {
@@ -83,21 +92,17 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 	cluster.KubeClient = cli
 
-	stop := make(chan struct{})
+	stopCh := make(chan struct{})
 	cache, err := cache.New(k8sconf, cache.Options{})
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create cache failed:%s", err.Error()))
 	}
-	go cache.Start(stop)
-	cache.WaitForCacheSync(stop)
-
-	executor, err := exec.New(k8sconf, cli, cache)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
-	}
-	cluster.Executor = executor
+	go cache.Start(stopCh)
+	cache.WaitForCacheSync(stopCh)
 
 	cluster.Cache = cache
+	cluster.K8sConfig = k8sconf
+	cluster.stopCh = stopCh
 	m.clusters = append(m.clusters, cluster)
 
 	c, err := getClusterInfo(cluster)
@@ -146,7 +151,9 @@ func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	if hasClusterPermission(getCurrentUser(ctx), target) == false {
 		return nil
 	} else {
+		m.lock.Lock()
 		cluster := m.get(target)
+		m.lock.Unlock()
 		if cluster == nil {
 			return nil
 		}
@@ -171,6 +178,9 @@ func (m *ClusterManager) get(id string) *Cluster {
 func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	user := getCurrentUser(ctx)
 	var clusters []*types.Cluster
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	for _, c := range m.clusters {
 		if hasClusterPermission(user, c.Name) {
 			info, err := getClusterInfo(c)
@@ -180,4 +190,29 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 		}
 	}
 	return clusters
+}
+
+func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
+	}
+
+	target := ctx.Object.(*types.Cluster).GetID()
+	m.lock.Lock()
+	var cluster *Cluster
+	for i, c := range m.clusters {
+		if c.Name == target {
+			cluster = c
+			m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
+			break
+		}
+	}
+	m.lock.Unlock()
+
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", target))
+	}
+	m.eventBus.Pub(DeleteCluster{Cluster: cluster}, eventbus.ClusterEvent)
+	close(cluster.stopCh)
+	return nil
 }

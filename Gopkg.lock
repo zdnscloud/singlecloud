@@ -312,7 +312,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:70b978ac23f96f85348a5401f351ec320571a907c96bfa3b3deeeb0bbbc2c211"
+  digest = "1:96fc620546faf669c10e287cdacb7fa1cfaac33b10eca625a3902089855c0e51"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -329,7 +329,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "61cf0b25644b9c6e248f43cf6e4662a7cd8a3e14"
+  revision = "40047c6e6b4d5f348771ed9febf259d8afc7b119"
 
 [[projects]]
   branch = "master"
@@ -736,6 +736,7 @@
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/client-go/kubernetes/scheme",
+    "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/remotecommand",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
