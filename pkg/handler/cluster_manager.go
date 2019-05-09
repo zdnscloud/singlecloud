@@ -12,7 +12,6 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
-	"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -97,10 +96,6 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
 	cluster.Executor = executor
-
-	if err := globaldns.NewClusterDNSSyncer(cluster.Name, cache); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("new cluster dns syncer failed:%s", err.Error()))
-	}
 
 	cluster.Cache = cache
 	m.clusters = append(m.clusters, cluster)

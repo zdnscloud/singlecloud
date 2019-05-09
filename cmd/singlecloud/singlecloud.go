@@ -38,7 +38,7 @@ func main() {
 	eventBus := pubsub.New(EventBufLen)
 
 	if globaldnsAddr != "" {
-		err := globaldns.Init(globaldnsAddr)
+		err := globaldns.New(globaldnsAddr, eventBus)
 		if err != nil {
 			log.Fatalf("init globaldns failed: %v", err.Error())
 		}
