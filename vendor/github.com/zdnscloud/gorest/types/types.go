@@ -36,7 +36,7 @@ type Schema struct {
 
 	StructVal reflect.Value `json:"-"`
 	Handler   Handler       `json:"-"`
-	Parent    string        `json:"-"`
+	Parents   []string      `json:"-"`
 }
 
 func (s *Schema) GetType() string {

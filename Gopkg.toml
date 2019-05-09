@@ -34,7 +34,7 @@
   name = "github.com/zdnscloud/cement"
 
 [[constraint]]
-  branch = "master"
+  branch = "add-multiparent"
   name = "github.com/zdnscloud/gorest"
 
 [[constraint]]

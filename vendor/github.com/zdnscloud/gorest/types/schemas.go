@@ -101,33 +101,54 @@ func (s *Schemas) Schema(version *APIVersion, name string) *Schema {
 func (s *Schemas) UrlMethods() map[string][]string {
 	urlMethods := make(map[string][]string)
 	for _, schema := range s.schemas {
-		var parents []string
-		for parent := schema.Parent; parent != ""; {
-			if parentSchema := s.Schema(&schema.Version, util.GuessPluralName(parent)); parentSchema != nil {
-				parents = append(parents, parent)
-				parent = parentSchema.Parent
-			} else {
-				panic(fmt.Sprintf("schema %v is non-exists", parent))
+		urls := map[int][]string{0: []string{schema.GetType()}}
+		childrenUrls := urls
+		children := urls[0]
+		for parents := schema.Parents; len(parents) != 0; {
+			var grandparents []string
+			index := 0
+			for i, child := range children {
+				childSchema := s.Schema(&schema.Version, util.GuessPluralName(child))
+				if childSchema == nil {
+					panic(fmt.Sprintf("no found schema %s", child))
+				}
+
+				childUrl := childrenUrls[i]
+				for _, parent := range childSchema.Parents {
+					if parentSchema := s.Schema(&schema.Version, util.GuessPluralName(parent)); parentSchema != nil {
+						urls[index] = append(childUrl, parent)
+						grandparents = append(grandparents, parentSchema.Parents...)
+						index += 1
+					} else {
+						panic(fmt.Sprintf("no found schema %s", parent))
+					}
+				}
 			}
+
+			children = parents
+			parents = grandparents
+			childrenUrls = urls
 		}
 
-		buffer := bytes.Buffer{}
-		for i := len(parents) - 1; i >= 0; i-- {
-			buffer.WriteString("/")
-			buffer.WriteString(util.GuessPluralName(parents[i]))
-			buffer.WriteString("/:")
-			buffer.WriteString(parents[i])
-			buffer.WriteString("_id")
-		}
+		for _, parents := range urls {
+			buffer := bytes.Buffer{}
+			for i := len(parents) - 1; i > 0; i-- {
+				buffer.WriteString("/")
+				buffer.WriteString(util.GuessPluralName(parents[i]))
+				buffer.WriteString("/:")
+				buffer.WriteString(parents[i])
+				buffer.WriteString("_id")
+			}
 
-		parentUrl := buffer.String()
-		url := path.Join(schema.Version.GetVersionURL(), parentUrl, schema.PluralName)
-		if len(schema.CollectionMethods) != 0 {
-			urlMethods[url] = schema.CollectionMethods
-		}
+			parentUrl := buffer.String()
+			url := path.Join(schema.Version.GetVersionURL(), parentUrl, schema.PluralName)
+			if len(schema.CollectionMethods) != 0 {
+				urlMethods[url] = schema.CollectionMethods
+			}
 
-		if len(schema.ResourceMethods) != 0 {
-			urlMethods[path.Join(url, ":"+schema.GetType()+"_id")] = schema.ResourceMethods
+			if len(schema.ResourceMethods) != 0 {
+				urlMethods[path.Join(url, ":"+schema.GetType()+"_id")] = schema.ResourceMethods
+			}
 		}
 	}
 
@@ -141,12 +162,22 @@ func (s *Schemas) GetChildren(parent string) []string {
 
 	var children []string
 	for _, schema := range s.schemas {
-		if schema.Parent == parent {
+		if IsElemInArray(parent, schema.Parents) {
 			children = append(children, schema.PluralName)
 		}
 	}
 
 	return children
+}
+
+func IsElemInArray(elem string, elems []string) bool {
+	for _, e := range elems {
+		if e == elem {
+			return true
+		}
+	}
+
+	return false
 }
 
 type MultiErrors struct {

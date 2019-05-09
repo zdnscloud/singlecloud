@@ -339,8 +339,8 @@
   revision = "dc4bd46bd9df2073d78a118a85488aed28e8b3c9"
 
 [[projects]]
-  branch = "master"
-  digest = "1:9e221fb1190bab368a23c93a3b160139e98d3f92b1e137535cc1c69ebd3f578e"
+  branch = "add-multiparent"
+  digest = "1:020132a1f037d88b5bddb15082d8cc9f6091cbbb602e78d0f6e6f5784bd58018"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -351,7 +351,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "fbc82a04f45780b1f14fae7bda464135cf3cea9d"
+  revision = "b2c1eb5609f042707f90dd384492fc5bd7af294b"
 
 [[projects]]
   branch = "master"
