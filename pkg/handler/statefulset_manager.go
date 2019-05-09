@@ -43,19 +43,20 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 
 	namespace := ctx.Object.GetParent().GetID()
 	statefulset := ctx.Object.(*types.StatefulSet)
-	err := createStatefulSet(cluster.KubeClient, namespace, statefulset)
-	if err != nil {
+	if err := createServiceAndIngress(statefulset.AdvancedOptions, cluster.KubeClient, namespace, statefulset.Name, true); err != nil {
+		deleteStatefulSet(cluster.KubeClient, namespace, statefulset.Name)
+		return nil, err
+	}
+
+	advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
+	statefulset.SetID(statefulset.Name)
+	if err := createStatefulSet(cluster.KubeClient, namespace, statefulset, string(advancedOpts)); err != nil {
+		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate statefulset name %s", statefulset.Name))
 		} else {
 			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create statefulset failed %s", err.Error()))
 		}
-	}
-
-	statefulset.SetID(statefulset.Name)
-	if err := createServiceAndIngress(statefulset.AdvancedOptions, cluster.KubeClient, namespace, statefulset.ServiceName); err != nil {
-		deleteStatefulSet(cluster.KubeClient, namespace, statefulset.Name)
-		return nil, err
 	}
 
 	return statefulset, nil
@@ -158,7 +159,7 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 
 	opts, ok := k8sStatefulSet.Annotations[AnnkeyForStatefulSetAdvancedoption]
 	if ok {
-		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.ServiceName, opts)
+		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), opts)
 	}
 
 	return nil
@@ -176,7 +177,7 @@ func getStatefulSets(cli client.Client, namespace string) (*appsv1.StatefulSetLi
 	return &statefulsets, err
 }
 
-func createStatefulSet(cli client.Client, namespace string, statefulset *types.StatefulSet) error {
+func createStatefulSet(cli client.Client, namespace string, statefulset *types.StatefulSet, opts string) error {
 	replicas := int32(statefulset.Replicas)
 	k8sPodSpec, err := scContainersToK8sPodSpec(statefulset.Containers)
 	if err != nil {
@@ -196,13 +197,12 @@ func createStatefulSet(cli client.Client, namespace string, statefulset *types.S
 		})
 	}
 
-	advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
 	k8sStatefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      statefulset.Name,
 			Namespace: namespace,
 			Annotations: map[string]string{
-				AnnkeyForStatefulSetAdvancedoption: string(advancedOpts),
+				AnnkeyForStatefulSetAdvancedoption: opts,
 			},
 		},
 		Spec: appsv1.StatefulSetSpec{

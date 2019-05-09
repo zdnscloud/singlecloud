@@ -18,6 +18,10 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
+const (
+	NoneClusterIP = "None"
+)
+
 type ServiceManager struct {
 	api.DefaultHandler
 	clusters *ClusterManager
@@ -35,7 +39,7 @@ func (m *ServiceManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 
 	namespace := ctx.Object.GetParent().GetID()
 	service := ctx.Object.(*types.Service)
-	err := createService(cluster.KubeClient, namespace, service)
+	err := createService(cluster.KubeClient, namespace, service, false)
 	if err == nil {
 		service.SetID(service.Name)
 		return service, nil
@@ -120,7 +124,7 @@ func getServices(cli client.Client, namespace string) (*corev1.ServiceList, erro
 	return &services, err
 }
 
-func createService(cli client.Client, namespace string, service *types.Service) error {
+func createService(cli client.Client, namespace string, service *types.Service, headless bool) error {
 	typ, err := scServiceTypeToK8sServiceType(service.ServiceType)
 	if err != nil {
 		return err
@@ -148,6 +152,10 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 			Ports:    ports,
 			Type:     typ,
 		},
+	}
+
+	if headless {
+		k8sService.Spec.ClusterIP = NoneClusterIP
 	}
 	return cli.Create(context.TODO(), k8sService)
 }

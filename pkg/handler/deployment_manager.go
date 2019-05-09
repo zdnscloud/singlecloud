@@ -54,7 +54,7 @@ func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 	}
 
 	deploy.SetID(deploy.Name)
-	if err := createServiceAndIngress(deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name); err != nil {
+	if err := createServiceAndIngress(deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name, false); err != nil {
 		deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 	}, nil
 }
 
-func createServiceAndIngress(advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string) *resttypes.APIError {
+func createServiceAndIngress(advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string, headless bool) *resttypes.APIError {
 	var servicePorts []types.ServicePort
 	var rules []types.IngressRule
 	for _, s := range advancedOpts.ExposedServices {
@@ -434,7 +434,7 @@ func createServiceAndIngress(advancedOpts types.AdvancedOptions, cli client.Clie
 			ExposedPorts: servicePorts,
 		}
 
-		if err := createService(cli, namespace, service); err != nil {
+		if err := createService(cli, namespace, service, headless); err != nil {
 			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
 		}
 

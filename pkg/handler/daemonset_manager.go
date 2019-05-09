@@ -48,7 +48,7 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 
 	daemonSet.SetID(daemonSet.Name)
-	if err := createServiceAndIngress(daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name); err != nil {
+	if err := createServiceAndIngress(daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
 		deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.Name)
 		return nil, err
 	}
