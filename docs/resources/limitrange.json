@@ -1,7 +1,7 @@
 {
     "resourceType": "limitrange",
     "collectionName": "limitranges",
-    "parentResource": "namespace",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

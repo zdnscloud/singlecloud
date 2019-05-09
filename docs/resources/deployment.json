@@ -1,7 +1,7 @@
 {
     "resourceType": "deployment",
     "collectionName": "deployments",
-    "parentResource": "namespace",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

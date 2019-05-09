@@ -8,7 +8,7 @@ func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
 	schema.ResourceMethods = []string{"GET", "PUT", "DELETE"}
-	schema.Parent = NamespaceType
+	schema.Parents = []string{NamespaceType}
 }
 
 type StatefulSet struct {

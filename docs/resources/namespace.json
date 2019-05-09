@@ -1,7 +1,7 @@
 {
     "resourceType": "namespace",
     "collectionName": "namespaces",
-    "parentResource": "cluster",
+    "parentResources": [ "cluster" ],
 
     "resourceFields": {
         "name": {"type": "string"}

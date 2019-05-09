@@ -8,7 +8,7 @@ func SetNodeSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET"}
 	schema.ResourceMethods = []string{"GET"}
-	schema.Parent = ClusterType
+	schema.Parents = []string{ClusterType}
 }
 
 type Node struct {

@@ -31,9 +31,9 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	deploy := ctx.Object.GetParent().GetID()
 	namespace := ctx.Object.GetParent().GetParent().GetID()
-	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy)
+	selector, err := getPodParentSelector(cluster.KubeClient, namespace,
+		ctx.Object.GetParent().GetType(), ctx.Object.GetParent().GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get deployment info failed:%s", err.Error())
@@ -41,12 +41,12 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	if k8sDeploy.Spec.Selector == nil {
-		log.Warnf("deployment %s has no selector", deploy)
+	if selector == nil {
+		log.Warnf("%s %s has no selector", ctx.Object.GetParent().GetType(), ctx.Object.GetParent().GetID())
 		return nil
 	}
 
-	k8sPods, err := getPods(cluster.KubeClient, namespace, k8sDeploy.Spec.Selector)
+	k8sPods, err := getPods(cluster.KubeClient, namespace, selector)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list pods info failed:%s", err.Error())
@@ -97,6 +97,34 @@ func (m *PodManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		}
 	}
 	return nil
+}
+
+func getPodParentSelector(cli client.Client, namespace string, typ string, name string) (*metav1.LabelSelector, error) {
+	switch typ {
+	case types.DeploymentType:
+		k8sDeploy, err := getDeployment(cli, namespace, name)
+		if err != nil {
+			return nil, err
+		}
+
+		return k8sDeploy.Spec.Selector, nil
+	case types.DaemonSetType:
+		k8sDaemonSet, err := getDaemonSet(cli, namespace, name)
+		if err != nil {
+			return nil, err
+		}
+
+		return k8sDaemonSet.Spec.Selector, nil
+	case types.StatefulSetType:
+		k8sStatefulSet, err := getStatefulSet(cli, namespace, name)
+		if err != nil {
+			return nil, err
+		}
+
+		return k8sStatefulSet.Spec.Selector, nil
+	default:
+		return nil, fmt.Errorf("pod no such parent %v", typ)
+	}
 }
 
 func getPod(cli client.Client, namespace, name string) (*corev1.Pod, error) {

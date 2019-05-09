@@ -1,7 +1,7 @@
 {
     "resourceType": "statefulset",
     "collectionName": "statefulsets",
-    "parentResource": "namespace",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

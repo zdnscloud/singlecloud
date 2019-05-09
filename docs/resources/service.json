@@ -1,7 +1,7 @@
 {
     "resourceType": "service",
     "collectionName": "services",
-    "parentResource": "namespace",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

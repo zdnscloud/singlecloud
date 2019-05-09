@@ -158,7 +158,7 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 
 	opts, ok := k8sStatefulSet.Annotations[AnnkeyForStatefulSetAdvancedoption]
 	if ok {
-		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), opts)
+		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.ServiceName, opts)
 	}
 
 	return nil

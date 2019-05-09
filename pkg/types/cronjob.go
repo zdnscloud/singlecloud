@@ -8,7 +8,7 @@ func SetCronJobSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
 	schema.ResourceMethods = []string{"GET", "DELETE"}
-	schema.Parent = NamespaceType
+	schema.Parents = []string{NamespaceType}
 }
 
 type CronJob struct {

@@ -1,7 +1,7 @@
 {
     "resourceType": "job",
     "collectionName": "jobs",
-    "parentResource": "namespace",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

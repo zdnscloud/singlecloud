@@ -1,7 +1,7 @@
 {
     "resourceType": "node",
     "collectionName": "nodes",
-    "parentResource": "cluster",
+    "parentResources": [ "cluster" ],
 
     "resourceFields": {
         "name": {"type": "string"},

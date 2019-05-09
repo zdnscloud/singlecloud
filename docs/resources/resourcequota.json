@@ -1,7 +1,7 @@
 {
     "resourceType": "resourcequota",
     "collectionName": "resourcequotas",
-    "parentResource": "namespace",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

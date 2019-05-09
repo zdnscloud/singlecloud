@@ -1,7 +1,7 @@
 {
     "resourceType": "configmap",
     "collectionName": "configmaps",
-    "parentResource": "namespace",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

@@ -1,7 +1,7 @@
 {
     "resourceType": "cronjob",
     "collectionName": "cronjobs",
-    "parentResource": "namespace",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

@@ -1,7 +1,7 @@
 {
     "resourceType": "pod",
     "collectionName": "pods",
-    "parentResource": "deployment",
+    "parentResources": [ "deployment", "daemonset", "statefulset" ],
 
     "resourceFields": {
         "name": {"type": "string"},
