@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gok8s/exec"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/event"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -24,20 +25,31 @@ const (
 )
 
 type Cluster struct {
-	Name         string
-	CreateTime   time.Time
-	KubeClient   client.Client
-	Executor     *exec.Executor
-	EventWatcher *event.EventWatcher
+	Name       string
+	CreateTime time.Time
+	KubeClient client.Client
+	Cache      cache.Cache
+	Executor   *exec.Executor
+}
+
+type AddCluster struct {
+	Cluster *Cluster
+}
+
+type DeleteCluster struct {
+	Cluster *Cluster
 }
 
 type ClusterManager struct {
 	api.DefaultHandler
 	clusters []*Cluster
+	eventBus *pubsub.PubSub
 }
 
-func newClusterManager() *ClusterManager {
-	return &ClusterManager{}
+func newClusterManager(eventBus *pubsub.PubSub) *ClusterManager {
+	return &ClusterManager{
+		eventBus: eventBus,
+	}
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
@@ -86,22 +98,19 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 	cluster.Executor = executor
 
-	eventWatcher, err := event.New(cache, MaxEventCount)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("add cluster event watcher:%s", err.Error()))
-	}
-	cluster.EventWatcher = eventWatcher
-
 	if err := globaldns.NewClusterDNSSyncer(cluster.Name, cache); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("new cluster dns syncer failed:%s", err.Error()))
 	}
 
+	cluster.Cache = cache
 	m.clusters = append(m.clusters, cluster)
 
 	c, err := getClusterInfo(cluster)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get cluster info:%s", err.Error()))
 	}
+
+	m.eventBus.Pub(AddCluster{Cluster: cluster}, eventbus.ClusterEvent)
 	return c, nil
 }
 
