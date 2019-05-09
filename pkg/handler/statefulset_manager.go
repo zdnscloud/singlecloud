@@ -297,15 +297,32 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	}
 
 	var volumeClaimTemplate types.VolumeClaimTemplate
-	for _, pvc := range k8sStatefulSet.Spec.VolumeClaimTemplates {
-		if pvc.Spec.StorageClassName != nil {
-			quantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+	isEmptyDir := false
+	for _, volume := range k8sStatefulSet.Spec.Template.Spec.Volumes {
+		if volume.VolumeSource.EmptyDir != nil {
+			isEmptyDir = true
 			volumeClaimTemplate = types.VolumeClaimTemplate{
-				Name:             pvc.Name,
-				StorageSize:      quantity.String(),
-				StorageClassName: *pvc.Spec.StorageClassName,
+				Name:             volume.Name,
+				StorageClassName: types.StorageClassNameTemp,
+			}
+			if volume.VolumeSource.EmptyDir.SizeLimit != nil {
+				volumeClaimTemplate.StorageSize = volume.VolumeSource.EmptyDir.SizeLimit.String()
 			}
 			break
+		}
+	}
+
+	if isEmptyDir == false {
+		for _, pvc := range k8sStatefulSet.Spec.VolumeClaimTemplates {
+			if pvc.Spec.StorageClassName != nil {
+				quantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+				volumeClaimTemplate = types.VolumeClaimTemplate{
+					Name:             pvc.Name,
+					StorageSize:      quantity.String(),
+					StorageClassName: *pvc.Spec.StorageClassName,
+				}
+				break
+			}
 		}
 	}
 
