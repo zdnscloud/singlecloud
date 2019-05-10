@@ -108,6 +108,10 @@ func (c *ClusterDNSSyncer) OnCreate(e event.CreateEvent) (handler.Result, error)
 
 func (c *ClusterDNSSyncer) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	switch newObj := e.ObjectNew.(type) {
+	case *corev1.Node:
+		if newObj.Labels[EdgeNodeLabel] == "true" {
+			c.OnUpdateNode(e.ObjectOld.(*corev1.Node), newObj)
+		}
 	case *extv1beta1.Ingress:
 		c.OnUpdateIngress(e.ObjectOld.(*extv1beta1.Ingress), newObj)
 	}
@@ -133,6 +137,15 @@ func (c *ClusterDNSSyncer) OnGeneric(e event.GenericEvent) (handler.Result, erro
 }
 
 func (c *ClusterDNSSyncer) OnNewNode(k8snode *corev1.Node) {
+	if isNodeReady(k8snode) == false {
+		return
+	}
+
+	c.addNode(k8snode)
+	return
+}
+
+func (c *ClusterDNSSyncer) addNode(k8snode *corev1.Node) {
 	nodeIP := getK8sNodeIP(k8snode)
 	if nodeIP == "" {
 		log.Warnf("new edge node %s address should not be empty", k8snode.Name)
@@ -145,6 +158,7 @@ func (c *ClusterDNSSyncer) OnNewNode(k8snode *corev1.Node) {
 		}
 	}
 
+	log.Debugf("add new edge node %v with ip %v", k8snode.Name, nodeIP)
 	c.edgeNodeIPs = append(c.edgeNodeIPs, nodeIP)
 	if err := c.proxy.AddAuthRRs(c.zoneName, c.ingressDomains, nodeIP); err != nil {
 		log.Errorf("add ingress rrsets when add new edge node %s failed: %v", k8snode.Name, err.Error())
@@ -162,20 +176,57 @@ func getK8sNodeIP(k8snode *corev1.Node) string {
 	return ""
 }
 
+func (c *ClusterDNSSyncer) OnUpdateNode(oldK8snode, newK8snode *corev1.Node) {
+	if newIsReady := isNodeReady(newK8snode); newIsReady != isNodeReady(oldK8snode) {
+		if newIsReady {
+			c.addNode(newK8snode)
+		} else {
+			c.deleteNode(newK8snode)
+		}
+	}
+}
+
+func isNodeReady(k8snode *corev1.Node) bool {
+	for _, cond := range k8snode.Status.Conditions {
+		if cond.Type == corev1.NodeReady &&
+			cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *ClusterDNSSyncer) OnDeleteNode(k8snode *corev1.Node) {
-	nodeIP := getK8sNodeIP(k8snode)
-	if nodeIP == "" {
-		log.Warnf("old edge node %s address should not be empty", k8snode.Name)
+	if isNodeReady(k8snode) == false {
 		return
 	}
 
+	c.deleteNode(k8snode)
+	return
+}
+
+func (c *ClusterDNSSyncer) deleteNode(k8snode *corev1.Node) {
+	nodeIP := getK8sNodeIP(k8snode)
+	if nodeIP == "" {
+		log.Warnf("delete edge node %s address should not be empty", k8snode.Name)
+		return
+	}
+
+	isExist := false
 	for i, ip := range c.edgeNodeIPs {
 		if ip == nodeIP {
 			c.edgeNodeIPs = append(c.edgeNodeIPs[:i], c.edgeNodeIPs[i+1:]...)
+			isExist = true
 			break
 		}
 	}
 
+	if isExist == false {
+		log.Warnf("delete edge node %s with ip %v is unknown", k8snode.Name, nodeIP)
+		return
+	}
+
+	log.Debugf("delete edge node %v with ip %v", k8snode.Name, nodeIP)
 	if err := c.proxy.DeleteAuthRRs(c.zoneName, c.ingressDomains, nodeIP); err != nil {
 		log.Errorf("delete all ingress rrsets with edge node %s failed: %v", k8snode.Name, err.Error())
 	}
