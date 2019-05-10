@@ -1,11 +1,10 @@
 {
     "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/statefulsets",
-    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/statefulsets/sc-test-statefulset1",
+    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/statefulsets/sc-test-statefulset2",
 
     "params": {
-        "name": "sc-test-statefulset1",
+        "name": "sc-test-statefulset2",
         "replicas": 2,
-        "serviceName": "sc-test-sts-service1",
         "containers":      [
             {
                 "name": "sc-test-containter1",
@@ -25,7 +24,7 @@
                 "exposedPorts": [
                     {
                         "name": "sc-test-sts-port1",
-                        "port": 22223,
+                        "port": 22234,
                         "protocol": "tcp"
                     }
                 ]
@@ -35,22 +34,22 @@
             "exposedServiceType": "clusterip",
             "exposedServices": [
                 {
-                    "name": "sc-test-sts-port1",
-                    "port": 22223,
+                    "name": "sc-test-sts-port2",
+                    "port": 22224,
                     "protocol": "tcp",
-                    "servicePort": 22223,
+                    "servicePort": 22224,
                     "autoCreateIngress": true,
-                    "ingressDomainName": "sc-test-sts-ingress1",
+                    "ingressDomainName": "sc-test-sts-ingress2.cluster.chengdu",
                     "ingressPath": "/etc/scstsingress",
-                    "ingressPort": 33334
+                    "ingressPort": 33335
                 }
             ]
         },
         "volumeClaimTemplate": {
-            "name": "sc-test-nfs-pvc1",
-            "mountPath": "/etc/scststestpvc1",
+            "name": "sc-test-emptydir1",
+            "mountPath": "/etc/scststestpvc2",
             "storageSize": "100Mi",
-            "storageClassName": "nfs"
+            "storageClassName": "temporary"
         }
     }
 }

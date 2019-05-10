@@ -15,10 +15,13 @@ import (
 	"time"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/pubsub"
 	ut "github.com/zdnscloud/cement/unittest"
 
 	restTypes "github.com/zdnscloud/gorest/types"
 
+	"github.com/zdnscloud/singlecloud/pkg/globaldns"
+	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/server"
 )
@@ -72,10 +75,20 @@ func load(file string, resource interface{}) error {
 
 func runTestServer() {
 	log.InitLogger(log.Debug)
+	eventBus := pubsub.New(1000)
+
+	if err := globaldns.New("0.0.0.0:8080", eventBus); err != nil {
+		panic("create globaldns failed: " + err.Error())
+	}
 
 	server, err := server.NewServer()
 	if err != nil {
 		panic("create server failed:" + err.Error())
+	}
+
+	app := handler.NewApp(eventBus)
+	if err := server.RegisterHandler(app); err != nil {
+		panic("register resource handler failed:" + err.Error())
 	}
 
 	if err := server.Run("0.0.0.0:1234"); err != nil {
@@ -102,8 +115,7 @@ func importTestCluster(loginResource *TestLogin, clusterResource *TestResource) 
 	}
 
 	var token Token
-	err = sendRequest("POST", loginResource.LoginUrl, parseBodyFromParams(loginResource.LoginParams), &token)
-	if err != nil {
+	if err := sendRequest("POST", loginResource.LoginUrl, parseBodyFromParams(loginResource.LoginParams), &token); err != nil {
 		return fmt.Errorf("login failed:%s", err.Error())
 	}
 	gToken = token.Token
@@ -195,20 +207,19 @@ func TestDeployment(t *testing.T) {
 	err = sendRequest("GET", ingressResource.ResourceUrl, nil, &ingress)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, ingress.Name, "sc-test-deployment1")
-	ut.Equal(t, ingress.Rules[0].Host, "sc-test-ingress1")
+	ut.Equal(t, ingress.Rules[0].Host, "sc-test-ingress1.cluster.chengdu")
 	ut.Equal(t, ingress.Rules[0].Paths[0].Path, "/etc/scingress")
 	ut.Equal(t, ingress.Rules[0].Paths[0].ServicePort, 22222)
 	ut.Equal(t, ingress.Rules[0].Paths[0].ServiceName, "sc-test-deployment1")
 }
 
-func TestStatefulSet(t *testing.T) {
-	statefulsetResource, err := loadTestResource("statefulset.json")
+func TestStatefulSetWithNFS(t *testing.T) {
+	statefulsetResource, err := loadTestResource("statefulset_nfs.json")
 	ut.Equal(t, err, nil)
 	var statefulset types.StatefulSet
 	err = testOperatorResource(statefulsetResource, &statefulset)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, statefulset.Name, "sc-test-statefulset1")
-	ut.Equal(t, statefulset.ServiceName, "sc-test-sts-service1")
 	ut.Equal(t, statefulset.Containers[0].Name, "sc-test-containter1")
 	ut.Equal(t, statefulset.Containers[0].ConfigName, "sc-test-configmap1")
 	ut.Equal(t, statefulset.Containers[0].SecretName, "sc-test-secret1")
@@ -218,6 +229,24 @@ func TestStatefulSet(t *testing.T) {
 	ut.Equal(t, statefulset.VolumeClaimTemplate.MountPath, "/etc/scststestpvc1")
 	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageSize, "100Mi")
 	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageClassName, "nfs")
+}
+
+func TestStatefulSetWithEmptyDir(t *testing.T) {
+	statefulsetResource, err := loadTestResource("statefulset_emptydir.json")
+	ut.Equal(t, err, nil)
+	var statefulset types.StatefulSet
+	err = testOperatorResource(statefulsetResource, &statefulset)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, statefulset.Name, "sc-test-statefulset2")
+	ut.Equal(t, statefulset.Containers[0].Name, "sc-test-containter1")
+	ut.Equal(t, statefulset.Containers[0].ConfigName, "sc-test-configmap1")
+	ut.Equal(t, statefulset.Containers[0].SecretName, "sc-test-secret1")
+	ut.Equal(t, statefulset.Containers[0].Env[0].Name, "TESTENV1")
+	ut.Equal(t, statefulset.Containers[0].Env[0].Value, "testenv1")
+	ut.Equal(t, statefulset.VolumeClaimTemplate.Name, "sc-test-emptydir1")
+	ut.Equal(t, statefulset.VolumeClaimTemplate.MountPath, "/etc/scststestpvc2")
+	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageSize, "100Mi")
+	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageClassName, "temporary")
 }
 
 func TestCronJob(t *testing.T) {
@@ -290,9 +319,48 @@ func TestUser(t *testing.T) {
 	gToken = adminToken
 }
 
+func TestGetPod(t *testing.T) {
+	deployPodResource, err := loadTestResource("deployment_pod.json")
+	ut.Equal(t, err, nil)
+	podNum, err := getCollectionNum(deployPodResource.CollectionUrl)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, podNum, 2)
+	stsPodResource, err := loadTestResource("statefulset_pod.json")
+	ut.Equal(t, err, nil)
+	podNum, err = getCollectionNum(stsPodResource.CollectionUrl)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, podNum != 0, true)
+}
+
+func TestGetStorageClass(t *testing.T) {
+	scResource, err := loadTestResource("storageclass.json")
+	ut.Equal(t, err, nil)
+	var collection restTypes.Collection
+	err = sendRequest("GET", scResource.CollectionUrl, nil, &collection)
+	ut.Equal(t, err, nil)
+	sliceData := reflect.ValueOf(collection.Data)
+	ut.Equal(t, sliceData.Kind(), reflect.Slice)
+	ut.Equal(t, sliceData.Len(), 2)
+	existLVM := false
+	existNFS := false
+	for i := 0; i < sliceData.Len(); i++ {
+		c := sliceData.Index(i).Interface()
+		object, ok := c.(map[string]interface{})
+		ut.Equal(t, ok, true)
+		switch object["name"] {
+		case types.StorageClassNameLVM:
+			existLVM = true
+		case types.StorageClassNameNFS:
+			existNFS = true
+		}
+	}
+
+	ut.Equal(t, existLVM, true)
+	ut.Equal(t, existNFS, true)
+}
+
 func TestDeleteResource(t *testing.T) {
-	deleteResourceFiles := []string{"deployment.json", "statefulset.json", "configmap.json", "secret.json", "job.json", "cronjob.json",
-		"limitrange.json", "resourcequota.json", "user.json", "namespace.json"}
+	deleteResourceFiles := []string{"deployment.json", "statefulset_nfs.json", "statefulset_emptydir.json", "configmap.json", "secret.json", "job.json", "cronjob.json", "limitrange.json", "resourcequota.json", "user.json", "namespace.json", "cluster.json"}
 
 	for _, resourceFile := range deleteResourceFiles {
 		testResource, err := loadTestResource(resourceFile)
@@ -334,7 +402,7 @@ func sendRequest(method, url string, reqBody io.Reader, result interface{}) erro
 			Message string `json:"message"`
 		}{}
 		json.Unmarshal(body, &errInfo)
-		return fmt.Errorf("%s %s failed: %s", method, url, errInfo.Message)
+		return fmt.Errorf("%s %s failed with status %v : %s", method, url, resp.StatusCode, errInfo.Message)
 	}
 }
 
