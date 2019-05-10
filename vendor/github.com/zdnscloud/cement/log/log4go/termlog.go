@@ -9,14 +9,16 @@ import (
 var stdout io.Writer = os.Stdout
 
 type ConsoleLogWriter struct {
-	format string
-	rec    chan *LogRecord
+	format        string
+	rec           chan *LogRecord
+	termCloseSync chan struct{}
 }
 
 func NewConsoleLogWriter(fmt string) *ConsoleLogWriter {
 	w := &ConsoleLogWriter{
-		format: fmt,
-		rec:    make(chan *LogRecord, LogBufferLength),
+		format:        fmt,
+		rec:           make(chan *LogRecord, LogBufferLength),
+		termCloseSync: make(chan struct{}),
 	}
 	go w.run(stdout)
 	return w
@@ -26,6 +28,7 @@ func (w *ConsoleLogWriter) run(out io.Writer) {
 	for {
 		rec, ok := <-w.rec
 		if !ok {
+			close(w.termCloseSync)
 			return
 		}
 
@@ -39,4 +42,5 @@ func (w *ConsoleLogWriter) LogWrite(rec *LogRecord) {
 
 func (w *ConsoleLogWriter) Close() {
 	close(w.rec)
+	<-w.termCloseSync
 }
