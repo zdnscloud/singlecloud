@@ -278,7 +278,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2bdcafa7df7475b5aee3203fdfaa70bdf44246b9a647c6484b4d03ddd44fe296"
+  digest = "1:42339d381fadc95b2cf9ad49ad2f307459e3e9e79faf2b4400fc9c5497ef246a"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -287,6 +287,7 @@
     "log",
     "log/log4go",
     "netradix",
+    "pubsub",
     "reflector",
     "rest",
     "serializer",
@@ -295,7 +296,7 @@
     "unittest",
   ]
   pruneopts = "UT"
-  revision = "dbe599d3f012f8c64527e2b40affb252bf95afe3"
+  revision = "14a5db6162d70cc106dbb675152c06bd064dc2ba"
 
 [[projects]]
   branch = "master"
@@ -311,7 +312,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:70b978ac23f96f85348a5401f351ec320571a907c96bfa3b3deeeb0bbbc2c211"
+  digest = "1:96fc620546faf669c10e287cdacb7fa1cfaac33b10eca625a3902089855c0e51"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -328,7 +329,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "61cf0b25644b9c6e248f43cf6e4662a7cd8a3e14"
+  revision = "40047c6e6b4d5f348771ed9febf259d8afc7b119"
 
 [[projects]]
   branch = "master"
@@ -702,6 +703,7 @@
     "github.com/gorilla/websocket",
     "github.com/kyokomi/emoji",
     "github.com/zdnscloud/cement/log",
+    "github.com/zdnscloud/cement/pubsub",
     "github.com/zdnscloud/cement/unittest",
     "github.com/zdnscloud/g53",
     "github.com/zdnscloud/gok8s/cache",
@@ -734,6 +736,7 @@
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/client-go/kubernetes/scheme",
+    "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/remotecommand",
     "k8s.io/metrics/pkg/apis/metrics",
   ]

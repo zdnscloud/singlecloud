@@ -1,8 +1,7 @@
-package event
+package k8seventwatcher
 
 import (
 	"container/list"
-	//"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"

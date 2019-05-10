@@ -33,14 +33,16 @@ type ClusterDNSSyncer struct {
 	zoneName       *g53.Name
 	edgeNodeIPs    []string
 	ingressDomains []*g53.Name
-
-	proxy *DnsProxy
+	proxy          *DnsProxy
+	stopCh         chan struct{}
 }
 
 func newClusterDNSSyncer(zoneName *g53.Name, c cache.Cache, proxy *DnsProxy) (*ClusterDNSSyncer, error) {
+	stopCh := make(chan struct{})
 	clusterDNSSyncer := &ClusterDNSSyncer{
 		zoneName: zoneName,
 		proxy:    proxy,
+		stopCh:   stopCh,
 	}
 
 	if err := clusterDNSSyncer.initClusterDNSSyncer(c); err != nil {
@@ -50,9 +52,17 @@ func newClusterDNSSyncer(zoneName *g53.Name, c cache.Cache, proxy *DnsProxy) (*C
 	ctrl := controller.New("globalDNSCache", c, scheme.Scheme)
 	ctrl.Watch(&corev1.Node{})
 	ctrl.Watch(&extv1beta1.Ingress{})
-	stopCh := make(chan struct{})
 	go ctrl.Start(stopCh, clusterDNSSyncer, predicate.NewIgnoreUnchangedUpdate())
 	return clusterDNSSyncer, nil
+}
+
+func (c *ClusterDNSSyncer) Stop() {
+	if err := c.proxy.DeleteAuthZone(c.zoneName); err != nil {
+		log.Warnf("delete zone %v from globaldns failed: %v", c.zoneName.String(false), err.Error())
+	} else {
+		log.Debugf("delete zone %v from globaldns", c.zoneName.String(false))
+	}
+	close(c.stopCh)
 }
 
 func (c *ClusterDNSSyncer) initClusterDNSSyncer(cache cache.Cache) error {
@@ -68,6 +78,8 @@ func (c *ClusterDNSSyncer) initClusterDNSSyncer(cache cache.Cache) error {
 
 	if err := c.proxy.AddAuthZone(c.zoneName); err != nil {
 		return fmt.Errorf("add zone %s to globaldns failed: %s", c.zoneName.String(false), err.Error())
+	} else {
+		log.Debugf("add zone %v to globaldns", c.zoneName.String(false))
 	}
 
 	for _, node := range nodes.Items {

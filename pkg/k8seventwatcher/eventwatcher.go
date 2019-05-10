@@ -1,4 +1,4 @@
-package event
+package k8seventwatcher
 
 import (
 	"container/list"
@@ -45,7 +45,7 @@ type EventWatcher struct {
 	stopCh    chan struct{}
 }
 
-func New(cache cache.Cache, size uint) (*EventWatcher, error) {
+func NewEventWatcher(cache cache.Cache, size uint) (*EventWatcher, error) {
 	stop := make(chan struct{})
 	ctrl := controller.New("eventWatcher", cache, scheme.Scheme)
 	ctrl.Watch(&corev1.Event{})
@@ -59,6 +59,10 @@ func New(cache cache.Cache, size uint) (*EventWatcher, error) {
 
 	go ctrl.Start(stop, ew, predicate.NewIgnoreUnchangedUpdate())
 	return ew, nil
+}
+
+func (ew *EventWatcher) Stop() {
+	close(ew.stopCh)
 }
 
 func (ew *EventWatcher) OnCreate(e event.CreateEvent) (handler.Result, error) {

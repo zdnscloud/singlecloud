@@ -1,8 +1,9 @@
-package handler
+package k8sshell
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
 	"time"
@@ -10,8 +11,23 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/exec"
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
+	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"k8s.io/client-go/tools/remotecommand"
 )
+
+const (
+	WSPrefix        = "/apis/ws.zcloud.cn/v1"
+	WSShellPathTemp = WSPrefix + "/clusters/%s/shell"
+)
+
+func (mgr *ExecutorManager) RegisterHandler(router gin.IRoutes) error {
+	shellPath := fmt.Sprintf(WSShellPathTemp, ":cluster") + "/*actions"
+	router.GET(shellPath, func(c *gin.Context) {
+		mgr.OpenConsole(c.Param("cluster"), c.Request, c.Writer)
+	})
+
+	return nil
+}
 
 const (
 	ShellPodName  = "zcloud-shell"
@@ -59,10 +75,13 @@ func (t *ShellConn) Next() *remotecommand.TerminalSize {
 	return <-t.sizeChan
 }
 
-func (m *ClusterManager) OpenConsole(clusterID string, r *http.Request, w http.ResponseWriter) {
-	cluster := m.get(clusterID)
-	if cluster == nil {
-		log.Warnf("cluster %s isn't found to open console", clusterID)
+func (mgr *ExecutorManager) OpenConsole(clusterID string, r *http.Request, w http.ResponseWriter) {
+	mgr.lock.Lock()
+	executor, ok := mgr.executors[clusterID]
+	mgr.lock.Unlock()
+
+	if ok == false {
+		log.Warnf("cluster %s is unknow for shell executor", clusterID)
 		return
 	}
 
@@ -72,14 +91,14 @@ func (m *ClusterManager) OpenConsole(clusterID string, r *http.Request, w http.R
 		}
 
 		pod := exec.Pod{
-			Namespace:          ZCloudNamespace,
+			Namespace:          handler.ZCloudNamespace,
 			Name:               ShellPodName,
 			Image:              ShellPodImage,
-			ServiceAccountName: ZCloudReadonly,
+			ServiceAccountName: handler.ZCloudReadonly,
 		}
 
 		stream := newShellConn(session)
-		err := cluster.Executor.RunCmd(pod, cmd, stream, 30*time.Second)
+		err := executor.RunCmd(pod, cmd, stream, 30*time.Second)
 		if err != nil {
 			log.Errorf("execute cmd failed %s", err.Error())
 		}

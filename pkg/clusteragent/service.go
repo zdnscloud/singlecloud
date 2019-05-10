@@ -21,7 +21,7 @@ var (
 	}
 )
 
-func (m *AgentManager) RegisterAgentHandler(router gin.IRoutes) {
+func (m *AgentManager) RegisterHandler(router gin.IRoutes) error {
 	router.GET(ClusterAgentRegisterPath, func(c *gin.Context) {
 		m.HandleAgentRegister(c.Param("agentKey"), c.Request, c.Writer)
 	})
@@ -31,4 +31,6 @@ func (m *AgentManager) RegisterAgentHandler(router gin.IRoutes) {
 			m.HandleAgentProxy(c.Param("cluster"), c.Request, c.Writer)
 		})
 	}
+
+	return nil
 }

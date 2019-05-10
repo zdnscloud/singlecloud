@@ -1,24 +1,41 @@
-package handler
+package k8seventwatcher
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
 )
 
-func (m *ClusterManager) OpenEvent(clusterID string, r *http.Request, w http.ResponseWriter) {
-	cluster := m.get(clusterID)
-	if cluster == nil {
+const (
+	WSPrefix        = "/apis/ws.zcloud.cn/v1"
+	WSEventPathTemp = WSPrefix + "/clusters/%s/event"
+)
+
+func (mgr *WatcherManager) RegisterHandler(router gin.IRoutes) error {
+	eventPath := fmt.Sprintf(WSEventPathTemp, ":cluster") + "/*actions"
+	router.GET(eventPath, func(c *gin.Context) {
+		mgr.OpenEvent(c.Param("cluster"), c.Request, c.Writer)
+	})
+
+	return nil
+}
+
+func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.ResponseWriter) {
+	mgr.lock.Lock()
+	watcher, ok := mgr.watchers[clusterID]
+	mgr.lock.Unlock()
+
+	if ok == false {
 		log.Warnf("cluster %s isn't found to open console", clusterID)
 		return
 	}
 
 	Sockjshandler := func(session sockjs.Session) {
-		listener := cluster.EventWatcher.AddListener()
-
+		listener := watcher.AddListener()
 		done := make(chan struct{})
 		go func() {
 			<-session.ClosedNotify()

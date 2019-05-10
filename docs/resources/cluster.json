@@ -17,6 +17,13 @@
         "podUsedRatio": {"type": "string"}
     },
 
-    "resourceMethods": [ "GET" ],
-    "collectionMethods": [ "GET" ]
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "yaml_": {"type": "string", "required": true}
+        }
+    },
+     
+    "resourceMethods": [ "GET", "DELETE"],
+    "collectionMethods": [ "GET", "POST" ]
 }

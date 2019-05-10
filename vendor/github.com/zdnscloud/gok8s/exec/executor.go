@@ -68,6 +68,10 @@ type Cmd struct {
 	Args []string
 }
 
+func (e *Executor) Stop() {
+	close(e.stopCh)
+}
+
 func (e *Executor) RunCmd(p Pod, c Cmd, rw ResizeableStream, timeout time.Duration) error {
 	if _, err := e.createPod(p, c); err != nil {
 		return err

@@ -9,8 +9,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/g53"
 	"github.com/zdnscloud/gok8s/cache"
+
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	"github.com/zdnscloud/singlecloud/pkg/handler"
 )
 
 const (
@@ -19,45 +24,60 @@ const (
 )
 
 var (
-	gGlobalDNS                *GlobalDNS
 	GetFullClusterStateOption = k8stypes.NamespacedName{KubeSystemNamespace, FullClusterState}
 )
 
 type GlobalDNS struct {
+	clusterEventCh    <-chan interface{}
 	clusterDNSSyncers map[string]*ClusterDNSSyncer
 	proxy             *DnsProxy
 	lock              sync.Mutex
 }
 
-func Init(httpCmdAddr string) error {
+func New(httpCmdAddr string, eventBus *pubsub.PubSub) error {
 	proxy, err := newDnsProxy(httpCmdAddr)
 	if err != nil {
 		return err
 	}
 
-	gGlobalDNS = &GlobalDNS{
+	gdns := &GlobalDNS{
+		clusterEventCh:    eventBus.Sub(eventbus.ClusterEvent),
 		clusterDNSSyncers: make(map[string]*ClusterDNSSyncer),
 		proxy:             proxy,
 	}
+
+	go gdns.eventLoop()
 	return nil
 }
 
-func GetGlobalDNS() *GlobalDNS {
-	return gGlobalDNS
-}
-
-func NewClusterDNSSyncer(clusterName string, c cache.Cache) error {
-	if gGlobalDNS == nil {
-		return nil
+func (g *GlobalDNS) eventLoop() {
+	for {
+		event := <-g.clusterEventCh
+		switch e := event.(type) {
+		case handler.AddCluster:
+			cluster := e.Cluster
+			g.lock.Lock()
+			err := g.newClusterDNSSyncer(cluster.Name, cluster.Cache)
+			if err != nil {
+				log.Warnf("create globaldns syncer for cluster %s failed: %s", cluster.Name, err.Error())
+			}
+			g.lock.Unlock()
+		case handler.DeleteCluster:
+			cluster := e.Cluster
+			g.lock.Lock()
+			syncer, ok := g.clusterDNSSyncers[cluster.Name]
+			if ok {
+				syncer.Stop()
+				delete(g.clusterDNSSyncers, cluster.Name)
+			} else {
+				log.Warnf("globaldns syncer is unknown cluster %s", cluster.Name)
+			}
+			g.lock.Unlock()
+		}
 	}
-
-	return gGlobalDNS.newClusterDNSSyncer(clusterName, c)
 }
 
 func (g *GlobalDNS) newClusterDNSSyncer(clusterName string, c cache.Cache) error {
-	g.lock.Lock()
-	defer g.lock.Unlock()
-
 	if _, ok := g.clusterDNSSyncers[clusterName]; ok {
 		return fmt.Errorf("duplicate cluster name %s", clusterName)
 	}
