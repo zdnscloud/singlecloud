@@ -57,6 +57,11 @@ func newClusterDNSSyncer(zoneName *g53.Name, c cache.Cache, proxy *DnsProxy) (*C
 }
 
 func (c *ClusterDNSSyncer) Stop() {
+	if err := c.proxy.DeleteAuthZone(c.zoneName); err != nil {
+		log.Warnf("delete zone %v from globaldns failed: %v", c.zoneName.String(false), err.Error())
+	} else {
+		log.Debugf("delete zone %v from globaldns", c.zoneName.String(false))
+	}
 	close(c.stopCh)
 }
 
@@ -73,6 +78,8 @@ func (c *ClusterDNSSyncer) initClusterDNSSyncer(cache cache.Cache) error {
 
 	if err := c.proxy.AddAuthZone(c.zoneName); err != nil {
 		return fmt.Errorf("add zone %s to globaldns failed: %s", c.zoneName.String(false), err.Error())
+	} else {
+		log.Debugf("add zone %v to globaldns", c.zoneName.String(false))
 	}
 
 	for _, node := range nodes.Items {

@@ -71,6 +71,10 @@ func (d *DnsProxy) AddAuthZone(zoneName *g53.Name) *httpcmd.Error {
 		Name: zoneName.String(false)})
 }
 
+func (d *DnsProxy) DeleteAuthZone(zoneName *g53.Name) *httpcmd.Error {
+	return d.handleHttpCmd(&auth.DeleteAuthZone{View: view.DefaultView, Name: zoneName.String(false)})
+}
+
 func (d *DnsProxy) AddAuthRRs(zoneName *g53.Name, domains []*g53.Name, ips ...string) *httpcmd.Error {
 	if len(domains) == 0 || len(ips) == 0 {
 		return nil

@@ -24,7 +24,6 @@ const (
 )
 
 var (
-	gGlobalDNS                *GlobalDNS
 	GetFullClusterStateOption = k8stypes.NamespacedName{KubeSystemNamespace, FullClusterState}
 )
 
@@ -41,18 +40,14 @@ func New(httpCmdAddr string, eventBus *pubsub.PubSub) error {
 		return err
 	}
 
-	gGlobalDNS = &GlobalDNS{
+	gdns := &GlobalDNS{
 		clusterEventCh:    eventBus.Sub(eventbus.ClusterEvent),
 		clusterDNSSyncers: make(map[string]*ClusterDNSSyncer),
 		proxy:             proxy,
 	}
 
-	go gGlobalDNS.eventLoop()
+	go gdns.eventLoop()
 	return nil
-}
-
-func GetGlobalDNS() *GlobalDNS {
-	return gGlobalDNS
 }
 
 func (g *GlobalDNS) eventLoop() {
