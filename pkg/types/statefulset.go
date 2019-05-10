@@ -14,7 +14,6 @@ func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 type StatefulSet struct {
 	resttypes.Resource  `json:",inline"`
 	Name                string              `json:"name,omitempty"`
-	ServiceName         string              `json:"serviceName,omitempty"`
 	Replicas            int                 `json:"replicas"`
 	Containers          []Container         `json:"containers"`
 	AdvancedOptions     AdvancedOptions     `json:"advancedOptions"`

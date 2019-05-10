@@ -39,7 +39,7 @@
                     "protocol": "tcp",
                     "servicePort": 22222,
                     "autoCreateIngress": true,
-                    "ingressDomainName": "sc-test-ingress1",
+                    "ingressDomainName": "sc-test-ingress1.cluster.chengdu",
                     "ingressPath": "/etc/scingress",
                     "ingressPort": 33333
                 }

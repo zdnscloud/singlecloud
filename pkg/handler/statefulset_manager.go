@@ -207,7 +207,7 @@ func createStatefulSet(cli client.Client, namespace string, statefulset *types.S
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
-			ServiceName: statefulset.ServiceName,
+			ServiceName: statefulset.Name,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": statefulset.Name},
 			},
@@ -338,7 +338,6 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	statefulset := &types.StatefulSet{
 		Name:                k8sStatefulSet.Name,
 		Replicas:            int(*k8sStatefulSet.Spec.Replicas),
-		ServiceName:         k8sStatefulSet.Spec.ServiceName,
 		Containers:          containers,
 		AdvancedOptions:     advancedOpts,
 		VolumeClaimTemplate: volumeClaimTemplate,
