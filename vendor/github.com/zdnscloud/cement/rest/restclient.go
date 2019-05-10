@@ -41,7 +41,8 @@ func (client *RestClient) ReConnect() error {
 		client.conn.Close()
 	}
 
-	conn, err := net.Dial("tcp", client.resource.Host)
+	dialer := net.Dialer{Timeout: client.timeout}
+	conn, err := dialer.Dial("tcp", client.resource.Host)
 	if err != nil {
 		return err
 	}

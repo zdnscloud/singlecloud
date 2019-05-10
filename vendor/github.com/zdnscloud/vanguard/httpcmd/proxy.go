@@ -6,13 +6,15 @@ import (
 	"github.com/zdnscloud/cement/rest"
 )
 
+const DefaultTimeout = 20 * time.Second
+
 type HttpCmdProxy struct {
 	protocol *HttpCmdProtocol
 	client   *rest.RestClient
 }
 
 func NewHttpCmdProxy(p *HttpCmdProtocol, e *EndPoint) (*HttpCmdProxy, error) {
-	client, err := rest.NewRestClient(e.GenerateServiceUrl(), time.Minute)
+	client, err := rest.NewRestClient(e.GenerateServiceUrl(), DefaultTimeout)
 	if err != nil {
 		return nil, err
 	}

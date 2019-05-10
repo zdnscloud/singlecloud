@@ -59,7 +59,7 @@ func NewLog4jConsoleLogger(level LogLevel) Logger {
 
 func NewLog4jConsoleLoggerWithFmt(level LogLevel, fmt string) Logger {
 	if fmt == "" {
-		fmt = l4g.FORMAT_ABBREV
+		fmt = l4g.FORMAT_SHORT
 	}
 
 	switch level {
