@@ -154,7 +154,7 @@ func createService(cli client.Client, namespace string, service *types.Service, 
 		},
 	}
 
-	if headless {
+	if typ == corev1.ServiceTypeClusterIP && headless {
 		k8sService.Spec.ClusterIP = NoneClusterIP
 	}
 	return cli.Create(context.TODO(), k8sService)
