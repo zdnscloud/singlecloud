@@ -53,9 +53,10 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 
 			//event id in k8s may duplicate, generate uuid by ourselve
 			id, _ := uuid.Gen()
+			t := e.LastTimestamp
 			event := map[string]string{
 				"id":        id,
-				"time":      e.CreationTimestamp.Format("3:04PM"),
+				"time":      fmt.Sprintf("%d:%d:%d", t.Hour(), t.Minute(), t.Second()),
 				"namespace": e.Namespace,
 				"type":      e.Type,
 				"kind":      e.InvolvedObject.Kind,
