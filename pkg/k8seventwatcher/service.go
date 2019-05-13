@@ -51,7 +51,7 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 			}
 
 			event := map[string]string{
-				"time":      e.FirstTimestamp.Format("3:04PM"),
+				"time":      e.EventTime.Format("3:04PM"),
 				"namespace": e.Namespace,
 				"type":      e.Type,
 				"kind":      e.InvolvedObject.Kind,
