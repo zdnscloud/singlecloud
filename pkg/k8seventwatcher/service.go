@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/uuid"
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
 )
 
@@ -50,8 +51,10 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 				break
 			}
 
+			//event id in k8s may duplicate, generate uuid by ourselve
+			id, _ := uuid.Gen()
 			event := map[string]string{
-				"id":        string(e.UID),
+				"id":        id,
 				"time":      e.CreationTimestamp.Format("3:04PM"),
 				"namespace": e.Namespace,
 				"type":      e.Type,
