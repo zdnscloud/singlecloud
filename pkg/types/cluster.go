@@ -4,6 +4,13 @@ import (
 	"github.com/zdnscloud/gorest/types"
 )
 
+type ClusterStatus string
+
+const (
+	CSRunning     ClusterStatus = "Running"
+	CSUnreachable ClusterStatus = "Unreachable"
+)
+
 func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
@@ -12,9 +19,10 @@ func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 
 type Cluster struct {
 	types.Resource `json:",inline"`
-	Name           string `json:"name"`
-	NodesCount     int    `json:"nodeCount"`
-	Version        string `json:"version"`
+	Name           string        `json:"name"`
+	Status         ClusterStatus `json:"status"`
+	NodesCount     int           `json:"nodeCount"`
+	Version        string        `json:"version"`
 
 	Cpu             int64  `json:"cpu"`
 	CpuUsed         int64  `json:"cpuUsed"`

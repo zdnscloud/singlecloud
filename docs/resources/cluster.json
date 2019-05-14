@@ -4,6 +4,7 @@
 
     "resourceFields": {
         "name": {"type": "string"},
+        "status": {"type": "string"},
         "nodeCount": {"type": "uint32"},
         "version": {"type": "string"},
         "cpu": {"type": "int"},
