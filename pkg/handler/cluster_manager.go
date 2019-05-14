@@ -119,18 +119,19 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	cluster.SetID(c.Name)
 	cluster.SetType(types.ClusterType)
 	cluster.Name = c.Name
+	cluster.Status = types.CSUnreachable
 
 	version, err := c.KubeClient.ServerVersion()
 	if err != nil {
-		return nil, err
+		return cluster, err
 	}
+
 	cluster.Version = version.GitVersion
 
 	nodes, err := getNodes(c.KubeClient)
 	if err != nil {
-		return nil, err
+		return cluster, err
 	}
-
 	cluster.NodesCount = len(nodes)
 	for _, n := range nodes {
 		cluster.Cpu += n.Cpu
@@ -144,6 +145,7 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	cluster.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(cluster.MemoryUsed)/float64(cluster.Memory))
 	cluster.PodUsedRatio = fmt.Sprintf("%.2f", float64(cluster.PodUsed)/float64(cluster.Pod))
 	cluster.SetCreationTimestamp(c.CreateTime)
+	cluster.Status = types.CSRunning
 	return cluster, nil
 }
 
@@ -158,12 +160,8 @@ func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 		if cluster == nil {
 			return nil
 		}
-		info, err := getClusterInfo(cluster)
-		if err == nil {
-			return info
-		} else {
-			return nil
-		}
+		info, _ := getClusterInfo(cluster)
+		return info
 	}
 }
 
@@ -184,10 +182,8 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	defer m.lock.Unlock()
 	for _, c := range m.clusters {
 		if hasClusterPermission(user, c.Name) {
-			info, err := getClusterInfo(c)
-			if err == nil {
-				clusters = append(clusters, info)
-			}
+			info, _ := getClusterInfo(c)
+			clusters = append(clusters, info)
 		}
 	}
 	return clusters
