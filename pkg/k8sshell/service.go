@@ -16,22 +16,31 @@ import (
 )
 
 const (
-	WSPrefix        = "/apis/ws.zcloud.cn/v1"
-	WSShellPathTemp = WSPrefix + "/clusters/%s/shell"
+	WSPrefix                 = "/apis/ws.zcloud.cn/v1"
+	WSClusterShellPathTemp   = WSPrefix + "/clusters/%s/shell"
+	WSContainerShellPathTemp = WSPrefix + "/clusters/%s/namespaces/%s/pods/%s/containers/%s/shell"
+
+	BashPath = "/bin/bash"
+	ShPath   = "/bin/sh"
 )
 
 func (mgr *ExecutorManager) RegisterHandler(router gin.IRoutes) error {
-	shellPath := fmt.Sprintf(WSShellPathTemp, ":cluster") + "/*actions"
-	router.GET(shellPath, func(c *gin.Context) {
-		mgr.OpenConsole(c.Param("cluster"), c.Request, c.Writer)
+	clusterShellPath := fmt.Sprintf(WSClusterShellPathTemp, ":cluster") + "/*actions"
+	router.GET(clusterShellPath, func(c *gin.Context) {
+		mgr.OpenClusterConsole(c.Param("cluster"), c.Request, c.Writer)
+	})
+
+	containerShellPath := fmt.Sprintf(WSClusterShellPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
+	router.GET(containerShellPath, func(c *gin.Context) {
+		mgr.OpenContainerConsole(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
 	})
 
 	return nil
 }
 
 const (
-	ShellPodName  = "zcloud-shell"
-	ShellPodImage = "zdnscloud/kubectl:v1.13.4"
+	ClusterShellPodName  = "zcloud-shell"
+	ClusterShellPodImage = "zdnscloud/kubectl:v1.13.4"
 )
 
 var _ io.ReadWriter = &ShellConn{}
@@ -75,7 +84,7 @@ func (t *ShellConn) Next() *remotecommand.TerminalSize {
 	return <-t.sizeChan
 }
 
-func (mgr *ExecutorManager) OpenConsole(clusterID string, r *http.Request, w http.ResponseWriter) {
+func (mgr *ExecutorManager) OpenClusterConsole(clusterID string, r *http.Request, w http.ResponseWriter) {
 	mgr.lock.Lock()
 	executor, ok := mgr.executors[clusterID]
 	mgr.lock.Unlock()
@@ -87,23 +96,58 @@ func (mgr *ExecutorManager) OpenConsole(clusterID string, r *http.Request, w htt
 
 	Sockjshandler := func(session sockjs.Session) {
 		cmd := exec.Cmd{
-			Path: "/bin/bash",
+			Path: BashPath,
 		}
 
 		pod := exec.Pod{
 			Namespace:          handler.ZCloudNamespace,
-			Name:               ShellPodName,
-			Image:              ShellPodImage,
+			Name:               ClusterShellPodName,
+			Container:          ClusterShellPodName,
+			Image:              ClusterShellPodImage,
 			ServiceAccountName: handler.ZCloudReadonly,
 		}
 
+		if err := executor.CreatePod(pod, cmd, 30*time.Second); err != nil {
+			log.Errorf("execute cmd failed %s", err.Error())
+			return
+		}
+
 		stream := newShellConn(session)
-		err := executor.RunCmd(pod, cmd, stream, 30*time.Second)
+		err := executor.Exec(pod, cmd, stream)
 		if err != nil {
 			log.Errorf("execute cmd failed %s", err.Error())
 		}
 	}
 
-	path := fmt.Sprintf(WSShellPathTemp, clusterID)
+	path := fmt.Sprintf(WSClusterShellPathTemp, clusterID)
+	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+}
+
+func (mgr *ExecutorManager) OpenContainerConsole(clusterID, namespace, pod, container string, r *http.Request, w http.ResponseWriter) {
+	mgr.lock.Lock()
+	executor, ok := mgr.executors[clusterID]
+	mgr.lock.Unlock()
+
+	if ok == false {
+		log.Warnf("cluster %s is unknow for shell executor", clusterID)
+		return
+	}
+
+	Sockjshandler := func(session sockjs.Session) {
+		pod := exec.Pod{
+			Namespace: namespace,
+			Name:      pod,
+			Container: container,
+		}
+
+		stream := newShellConn(session)
+		if err := executor.Exec(pod, exec.Cmd{Path: BashPath}, stream); err != nil {
+			log.Errorf("execute bash failed %s", err.Error())
+		} else if err := executor.Exec(pod, exec.Cmd{Path: ShPath}, stream); err != nil {
+			log.Errorf("execute sh failed %s", err.Error())
+		}
+	}
+
+	path := fmt.Sprintf(WSContainerShellPathTemp, clusterID)
 	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }

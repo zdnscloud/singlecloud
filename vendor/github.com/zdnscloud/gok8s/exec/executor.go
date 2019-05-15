@@ -59,6 +59,7 @@ func New(k8sCfg *rest.Config, client client.Client, cache cache.Cache) (*Executo
 type Pod struct {
 	Namespace          string
 	Name               string
+	Container          string
 	Image              string
 	ServiceAccountName string
 }
@@ -72,16 +73,57 @@ func (e *Executor) Stop() {
 	close(e.stopCh)
 }
 
-func (e *Executor) RunCmd(p Pod, c Cmd, rw ResizeableStream, timeout time.Duration) error {
+func (e *Executor) CreatePod(p Pod, c Cmd, timeout time.Duration) error {
 	if _, err := e.createPod(p, c); err != nil {
 		return err
 	}
 
-	if err := e.waitPodReady(p, timeout); err != nil {
+	return e.waitPodReady(p, timeout)
+}
+
+func (e *Executor) Exec(p Pod, c Cmd, rw ResizeableStream) error {
+	clientset, err := kubernetes.NewForConfig(e.k8sCfg)
+	if err != nil {
 		return err
 	}
 
-	return e.execCmd(p, c, rw)
+	req := clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(p.Name).
+		Namespace(p.Namespace).
+		SubResource("exec").
+		Param("container", p.Container).
+		Param("stdin", "true").
+		Param("stdout", "true").
+		Param("stderr", "true").
+		Param("command", c.Path).
+		Param("tty", "true")
+
+	req.VersionedParams(
+		&corev1.PodExecOptions{
+			Container: p.Name,
+			Command:   []string{},
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		},
+		scheme.ParameterCodec,
+	)
+	executor, err := remotecommand.NewSPDYExecutor(
+		e.k8sCfg, http.MethodPost, req.URL(),
+	)
+	if err != nil {
+		return err
+	} else {
+		return executor.Stream(remotecommand.StreamOptions{
+			Stdin:             rw,
+			Stdout:            rw,
+			Stderr:            rw,
+			Tty:               true,
+			TerminalSizeQueue: rw,
+		})
+	}
 }
 
 func (e *Executor) waitPodReady(p Pod, timeout time.Duration) error {
@@ -117,7 +159,7 @@ func (e *Executor) createPod(p Pod, c Cmd) (*corev1.Pod, error) {
 				{
 					TTY:   false,
 					Stdin: false,
-					Name:  p.Name,
+					Name:  p.Container,
 					Image: p.Image,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged:               &privileged,
@@ -136,48 +178,4 @@ func (e *Executor) createPod(p Pod, c Cmd) (*corev1.Pod, error) {
 		err = nil
 	}
 	return kp, err
-}
-
-func (e *Executor) execCmd(p Pod, c Cmd, rw ResizeableStream) error {
-	clientset, err := kubernetes.NewForConfig(e.k8sCfg)
-	if err != nil {
-		return err
-	}
-
-	req := clientset.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(p.Name).
-		Namespace(p.Namespace).
-		SubResource("exec").
-		Param("container", p.Name).
-		Param("stdin", "true").
-		Param("stdout", "true").
-		Param("stderr", "true").
-		Param("command", c.Path).
-		Param("tty", "true")
-
-	req.VersionedParams(
-		&corev1.PodExecOptions{
-			Container: p.Name,
-			Command:   []string{},
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       true,
-		},
-		scheme.ParameterCodec,
-	)
-	executor, err := remotecommand.NewSPDYExecutor(
-		e.k8sCfg, http.MethodPost, req.URL(),
-	)
-	if err != nil {
-		return err
-	}
-	return executor.Stream(remotecommand.StreamOptions{
-		Stdin:             rw,
-		Stdout:            rw,
-		Stderr:            rw,
-		Tty:               true,
-		TerminalSizeQueue: rw,
-	})
 }
