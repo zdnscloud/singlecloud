@@ -49,6 +49,14 @@
   branch = "release-1.13"
   name = "k8s.io/api"
 
+[[override]]
+  branch = "release-1.13"
+  name = "k8s.io/kubernetes"
+
+[[override]]
+  branch = "release-1.10"
+  name = "k8s.io/kube-openapi"
+
 [[constraint]]
   name = "github.com/dgrijalva/jwt-go"
   version = "3.2.0"

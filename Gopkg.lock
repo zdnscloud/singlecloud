@@ -313,7 +313,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:96fc620546faf669c10e287cdacb7fa1cfaac33b10eca625a3902089855c0e51"
+  digest = "1:ac4bf085f68727f7f0634b761d36422b9a7e47e2a3206d29bf56a22f42a0e1ac"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -326,11 +326,12 @@
     "eventsource",
     "exec",
     "handler",
+    "helper",
     "predicate",
     "util",
   ]
   pruneopts = "UT"
-  revision = "40047c6e6b4d5f348771ed9febf259d8afc7b119"
+  revision = "72c87943e0b91577297b33cceada1241c2e1a7e1"
 
 [[projects]]
   branch = "master"
@@ -537,8 +538,16 @@
   revision = "5cb15d34447165a97c76ed5a60e4e99c8a01ecfe"
 
 [[projects]]
+  branch = "master"
+  digest = "1:a22a82b0b1826c68927308b287962bc076eceb6931cea4fc6d3ca73128a2385c"
+  name = "k8s.io/apiextensions-apiserver"
+  packages = ["pkg/features"]
+  pruneopts = "UT"
+  revision = "2941218286fb0ba5355dcfbb8a8e9a56b6fd2e40"
+
+[[projects]]
   branch = "release-1.13"
-  digest = "1:640f7d31cbb27209d1558d88c2a76faeac615fa5fa633f02fb32cd62c16ff2f9"
+  digest = "1:cf410dba9ef954589769224c479606cffce485660212af71bfafcc161ecd76e8"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -571,22 +580,36 @@
     "pkg/util/httpstream/spdy",
     "pkg/util/intstr",
     "pkg/util/json",
+    "pkg/util/mergepatch",
     "pkg/util/naming",
     "pkg/util/net",
     "pkg/util/remotecommand",
     "pkg/util/runtime",
     "pkg/util/sets",
+    "pkg/util/strategicpatch",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
     "pkg/util/yaml",
     "pkg/version",
     "pkg/watch",
+    "third_party/forked/golang/json",
     "third_party/forked/golang/netutil",
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
   revision = "86fb29eff6288413d76bd8506874fddd9fccdff0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:5fba7349e4638c505db5362b1ffccd974c85624e83c1abcd8ba91794ea4e79a5"
+  name = "k8s.io/apiserver"
+  packages = [
+    "pkg/features",
+    "pkg/util/feature",
+  ]
+  pruneopts = "UT"
+  revision = "23b2cb67e51871d5d71981f3c600900ef5683791"
 
 [[projects]]
   digest = "1:654fac90d3d8642192ce9cc2c87fa703c1ca91dc4730e2880b3a300302ebb974"
@@ -663,12 +686,40 @@
   version = "v10.0.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:661387e3ba412767f773c327c3752e05f13b280677661d77de30345e598ddc01"
+  name = "k8s.io/component-base"
+  packages = ["featuregate"]
+  pruneopts = "UT"
+  revision = "a08481ff1d14b612c257c38ad24963c85b76bdd5"
+
+[[projects]]
   digest = "1:c696379ad201c1e86591785579e16bf6cf886c362e9a7534e8eb0d1028b20582"
   name = "k8s.io/klog"
   packages = ["."]
   pruneopts = "UT"
   revision = "e531227889390a39d9533dde61f590fe9f4b0035"
   version = "v0.3.0"
+
+[[projects]]
+  branch = "release-1.10"
+  digest = "1:e0d6dcb28c42a53c7243bb6380badd17f92fbd8488a075a07e984f91a07c0d23"
+  name = "k8s.io/kube-openapi"
+  packages = ["pkg/util/proto"]
+  pruneopts = "UT"
+  revision = "39cb288412c48cb533ba4be5d6c28620b9a0c1b4"
+
+[[projects]]
+  branch = "release-1.13"
+  digest = "1:3fc7341a7e43fde6f9670d5427409e3359402a258a31105d994b70201f5ab49c"
+  name = "k8s.io/kubernetes"
+  packages = [
+    "pkg/features",
+    "pkg/kubelet/apis",
+    "pkg/util/node",
+  ]
+  pruneopts = "UT"
+  revision = "de38c05974fd21fe4ae301f787639362f5c9beb5"
 
 [[projects]]
   branch = "release-1.13"
@@ -715,6 +766,7 @@
     "github.com/zdnscloud/gok8s/event",
     "github.com/zdnscloud/gok8s/exec",
     "github.com/zdnscloud/gok8s/handler",
+    "github.com/zdnscloud/gok8s/helper",
     "github.com/zdnscloud/gok8s/predicate",
     "github.com/zdnscloud/goproxy",
     "github.com/zdnscloud/gorest/adaptor",
