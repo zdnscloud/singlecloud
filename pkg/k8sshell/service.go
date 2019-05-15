@@ -30,7 +30,7 @@ func (mgr *ExecutorManager) RegisterHandler(router gin.IRoutes) error {
 		mgr.OpenClusterConsole(c.Param("cluster"), c.Request, c.Writer)
 	})
 
-	containerShellPath := fmt.Sprintf(WSClusterShellPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
+	containerShellPath := fmt.Sprintf(WSContainerShellPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
 	router.GET(containerShellPath, func(c *gin.Context) {
 		mgr.OpenContainerConsole(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
 	})
