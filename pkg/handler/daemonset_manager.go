@@ -159,7 +159,7 @@ func createDaemonSet(cli client.Client, namespace string, daemonSet *types.Daemo
 				MatchLabels: map[string]string{"app": daemonSet.Name},
 			},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": daemonSet.Name}},
+				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(daemonSet.Name, daemonSet.AdvancedOptions.ExposedMetric),
 				Spec:       k8sPodSpec,
 			},
 		},
@@ -221,5 +221,6 @@ func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet 
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetType(types.DaemonSetType)
 	daemonSet.SetCreationTimestamp(k8sDaemonSet.CreationTimestamp.Time)
+	daemonSet.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDaemonSet.Spec.Template.Annotations)
 	return daemonSet
 }
