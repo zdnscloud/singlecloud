@@ -195,7 +195,6 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 					},
 				},
 			})
-
 		case types.IngressProtocolUDP:
 			if len(r.Paths) != 1 {
 				return fmt.Errorf("for udp protocol, one port can only map to one service")
