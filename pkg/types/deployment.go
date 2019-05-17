@@ -36,14 +36,14 @@ type EnvVar struct {
 }
 
 type ExposedService struct {
-	Name              string `json:"name"`
-	Port              int    `json:"port"`
-	Protocol          string `json:"protocol"`
-	ServicePort       int    `json:"servicePort"`
-	AutoCreateIngress bool   `json:"autoCreateIngress"`
-	IngressDomainName string `json:"ingressDomainName,omitempty"`
-	IngressPath       string `json:"ingressPath,omitempty"`
-	IngressPort       int    `json:"ingressPort,omitempty"`
+	Name              string          `json:"name"`
+	Port              int             `json:"port"`
+	Protocol          IngressProtocol `json:"protocol"`
+	ServicePort       int             `json:"servicePort"`
+	AutoCreateIngress bool            `json:"autoCreateIngress"`
+	IngressDomainName string          `json:"ingressDomainName,omitempty"`
+	IngressPath       string          `json:"ingressPath,omitempty"`
+	IngressPort       int             `json:"ingressPort,omitempty"`
 }
 
 type AdvancedOptions struct {
