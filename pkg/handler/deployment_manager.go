@@ -408,7 +408,7 @@ func createServiceAndIngress(advancedOpts types.AdvancedOptions, cli client.Clie
 			Name:       s.Name,
 			Port:       s.ServicePort,
 			TargetPort: s.Port,
-			Protocol:   s.Protocol,
+			Protocol:   string(scIngressProtocolToK8SProtocol(s.Protocol)),
 		})
 
 		if s.AutoCreateIngress {

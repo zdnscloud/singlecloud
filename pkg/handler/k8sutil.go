@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 func createServiceAccount(cli client.Client, name, namespace string) error {
@@ -86,6 +87,14 @@ func scProtocolToK8SProtocol(protocol string) (p corev1.Protocol, err error) {
 		err = fmt.Errorf("protocol %s isn't supported", protocol)
 	}
 	return
+}
+
+func scIngressProtocolToK8SProtocol(protocol types.IngressProtocol) corev1.Protocol {
+	if protocol == types.IngressProtocolUDP {
+		return corev1.ProtocolUDP
+	} else {
+		return corev1.ProtocolTCP
+	}
 }
 
 func scServiceTypeToK8sServiceType(typ string) (p corev1.ServiceType, err error) {
