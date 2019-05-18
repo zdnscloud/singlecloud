@@ -60,3 +60,11 @@ type Ingress struct {
 }
 
 var IngressType = resttypes.GetResourceType(Ingress{})
+
+/*
+ing_a ---> host1 ---> path1 --> svc/port
+                      path2 --> svc/port
+	  ---> host2 ---> path1 --> svc/port
+	  ---> udp/port ---> svc/port
+	  ---> tcp/port ---> svc/port
+*/

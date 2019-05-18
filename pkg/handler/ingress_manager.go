@@ -153,17 +153,22 @@ func getIngresss(cli client.Client, namespace string) (*extv1beta1.IngressList, 
 }
 
 func createIngress(cli client.Client, namespace string, ingress *types.Ingress) error {
+	rules := ingress.Rules
+	for _, r := range rules {
+		if err := validateRule(&r); err != nil {
+			return err
+		}
+	}
+	rules, err := mergeIngressRules(rules)
+	if err != nil {
+		return err
+	}
 	var httpRules []extv1beta1.IngressRule
 	hasGrpcService := false
 	udpServices := make(map[int]string)
 	tcpServices := make(map[int]string)
-	for _, r := range ingress.Rules {
-		protocol, err := types.IngressProtocolFromString(string(r.Protocol))
-		if err != nil {
-			return err
-		}
-
-		switch protocol {
+	for _, r := range rules {
+		switch r.Protocol {
 		case types.IngressProtocolGRPC:
 			hasGrpcService = true
 			fallthrough
@@ -420,4 +425,103 @@ func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {
 	ingress.SetType(types.IngressType)
 	ingress.SetCreationTimestamp(k8sIngress.CreationTimestamp.Time)
 	return ingress
+}
+
+func mergeIngressRules(rules []types.IngressRule) ([]types.IngressRule, error) {
+	if len(rules) < 2 {
+		return rules, nil
+	}
+
+	mergedRules := []types.IngressRule{rules[0]}
+	var merged bool
+	var err error
+	for i := 1; i < len(rules); i++ {
+		for j := 0; j < len(mergedRules); j++ {
+			merged, err = mergeIngressRule(&rules[i], &mergedRules[j])
+			if err != nil {
+				return nil, err
+			}
+			if merged {
+				break
+			}
+		}
+		if merged == false {
+			mergedRules = append(mergedRules, rules[i])
+		}
+	}
+	return mergedRules, nil
+}
+
+func mergeIngressRule(a, b *types.IngressRule) (bool, error) {
+	if a.Protocol != b.Protocol {
+		return false, nil
+	}
+
+	switch a.Protocol {
+	case types.IngressProtocolHTTP, types.IngressProtocolGRPC:
+		if a.Host != b.Host {
+			return false, nil
+		}
+		for _, ra := range a.Paths {
+			for _, rb := range b.Paths {
+				if ra.Path == rb.Path {
+					return false, fmt.Errorf("duplicate path %s:%s", a.Host, ra.Path)
+				}
+			}
+		}
+		b.Paths = append(b.Paths, a.Paths...)
+		return true, nil
+	case types.IngressProtocolTCP, types.IngressProtocolUDP:
+		if a.Port != b.Port {
+			return false, nil
+		} else {
+			return false, fmt.Errorf("duplicate port number %d", a.Port)
+		}
+		panic("unknown protocol:" + a.Protocol)
+	}
+
+	return false, nil
+}
+
+func validateRule(r *types.IngressRule) error {
+	switch r.Protocol {
+	case types.IngressProtocolHTTP, types.IngressProtocolGRPC:
+		if r.Host == "" {
+			return fmt.Errorf("http ingress should have host")
+		}
+
+		if r.Port != 0 {
+			return fmt.Errorf("http ingress shouldn't specify port")
+		}
+	case types.IngressProtocolTCP, types.IngressProtocolUDP:
+		if r.Port == 0 {
+			return fmt.Errorf("udp/tcp ingress should has nonzero port")
+		}
+		if r.Host != "" {
+			return fmt.Errorf("udp/tcp ingress shouldn't have host")
+		}
+
+		if len(r.Paths) != 1 || r.Paths[0].Path != "" {
+			return fmt.Errorf("for udp/tcp ingress should have no path and only one backend service")
+		}
+	default:
+		return fmt.Errorf("unsupported ingress protocol:%s", r.Protocol)
+	}
+
+	if len(r.Paths) == 0 {
+		return fmt.Errorf("ingress with empty path")
+	}
+
+	knownPaths := make(map[string]struct{})
+	for _, path := range r.Paths {
+		if path.ServiceName == "" || path.ServicePort == 0 {
+			return fmt.Errorf("service name or port shouldn't empty")
+		}
+		if _, ok := knownPaths[path.Path]; ok {
+			return fmt.Errorf("duplicate path:%s", path.Path)
+		}
+		knownPaths[path.Path] = struct{}{}
+	}
+
+	return nil
 }

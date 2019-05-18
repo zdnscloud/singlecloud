@@ -11,23 +11,23 @@ func SetDeploymentSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Parents = []string{NamespaceType}
 }
 
-type DeploymentPort struct {
+type ContainerPort struct {
 	Name     string `json:"name"`
 	Port     int    `json:"port"`
 	Protocol string `json:"protocol"`
 }
 
 type Container struct {
-	Name         string           `json:"name"`
-	Image        string           `json:"image"`
-	Command      []string         `json:"command,omitempty"`
-	Args         []string         `json:"args,omitempty"`
-	ConfigName   string           `json:"configName,omitempty"`
-	MountPath    string           `json:"mountPath,omitempty"`
-	ExposedPorts []DeploymentPort `json:"exposedPorts,omitempty"`
-	Env          []EnvVar         `json:"env,omitempty"`
-	SecretName   string           `json:"secretName,omitempty"`
-	SecretPath   string           `json:"secretPath,omitempty"`
+	Name         string          `json:"name"`
+	Image        string          `json:"image"`
+	Command      []string        `json:"command,omitempty"`
+	Args         []string        `json:"args,omitempty"`
+	ConfigName   string          `json:"configName,omitempty"`
+	MountPath    string          `json:"mountPath,omitempty"`
+	ExposedPorts []ContainerPort `json:"exposedPorts,omitempty"`
+	Env          []EnvVar        `json:"env,omitempty"`
+	SecretName   string          `json:"secretName,omitempty"`
+	SecretPath   string          `json:"secretPath,omitempty"`
 }
 
 type EnvVar struct {
@@ -36,12 +36,11 @@ type EnvVar struct {
 }
 
 type ExposedService struct {
-	Name              string          `json:"name"`
-	Port              int             `json:"port"`
-	Protocol          IngressProtocol `json:"protocol"`
+	ContainerPortName string          `json:"containerPortName"`
 	ServicePort       int             `json:"servicePort"`
 	AutoCreateIngress bool            `json:"autoCreateIngress"`
-	IngressDomainName string          `json:"ingressDomainName,omitempty"`
+	IngressProtocol   IngressProtocol `json:"ingressProtocol"`
+	IngressHost       string          `json:"ingressHost,omitempty"`
 	IngressPath       string          `json:"ingressPath,omitempty"`
 	IngressPort       int             `json:"ingressPort,omitempty"`
 }

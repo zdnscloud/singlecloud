@@ -43,7 +43,13 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 
 	namespace := ctx.Object.GetParent().GetID()
 	statefulset := ctx.Object.(*types.StatefulSet)
-	if err := createServiceAndIngress(statefulset.AdvancedOptions, cluster.KubeClient, namespace, statefulset.Name, true); err != nil {
+	containerPorts := make(map[string]types.ContainerPort)
+	for _, container := range statefulset.Containers {
+		for _, port := range container.ExposedPorts {
+			containerPorts[port.Name] = port
+		}
+	}
+	if err := createServiceAndIngress(containerPorts, statefulset.AdvancedOptions, cluster.KubeClient, namespace, statefulset.Name, true); err != nil {
 		deleteStatefulSet(cluster.KubeClient, namespace, statefulset.Name)
 		return nil, err
 	}

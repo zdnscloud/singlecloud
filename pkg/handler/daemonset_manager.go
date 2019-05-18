@@ -48,7 +48,13 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 
 	daemonSet.SetID(daemonSet.Name)
-	if err := createServiceAndIngress(daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
+	containerPorts := make(map[string]types.ContainerPort)
+	for _, container := range daemonSet.Containers {
+		for _, port := range container.ExposedPorts {
+			containerPorts[port.Name] = port
+		}
+	}
+	if err := createServiceAndIngress(containerPorts, daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
 		deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.Name)
 		return nil, err
 	}
