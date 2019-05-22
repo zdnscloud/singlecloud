@@ -4,11 +4,28 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
+const (
+	ActionGetHistory = "history"
+	ActionRollback   = "rollback"
+	ActionSetImage   = "setImage"
+)
+
 func SetDeploymentSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "PUT", "DELETE"}
+	schema.ResourceMethods = []string{"GET", "PUT", "DELETE", "POST"}
 	schema.Parents = []string{NamespaceType}
+	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
+		Name: ActionGetHistory,
+	})
+	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
+		Name:  ActionRollback,
+		Input: RollBackVersion{},
+	})
+	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
+		Name:  ActionSetImage,
+		Input: SetImage{},
+	})
 }
 
 type DeploymentPort struct {
@@ -66,3 +83,42 @@ type ExposedMetric struct {
 }
 
 var DeploymentType = resttypes.GetResourceType(Deployment{})
+
+type VersionHistory struct {
+	VersionInfos VersionInfos `json:"history"`
+}
+
+type VersionInfo struct {
+	Name         string      `json:"name"`
+	Namespace    string      `json:"namespace"`
+	Version      int         `json:"version"`
+	ChangeReason string      `json:"changeReason"`
+	Containers   []Container `json:"containers"`
+}
+
+type VersionInfos []VersionInfo
+
+func (vs VersionInfos) Len() int {
+	return len(vs)
+}
+func (vs VersionInfos) Swap(i, j int) {
+	vs[i], vs[j] = vs[j], vs[i]
+}
+func (vs VersionInfos) Less(i, j int) bool {
+	return vs[i].Version < vs[j].Version
+}
+
+type RollBackVersion struct {
+	Version int    `json:"version"`
+	Reason  string `json:"reason"`
+}
+
+type SetImage struct {
+	Reason string           `json:"reason"`
+	Images []ContainerImage `json:"images"`
+}
+
+type ContainerImage struct {
+	Name  string `json:"name"`
+	Image string `json:"image"`
+}

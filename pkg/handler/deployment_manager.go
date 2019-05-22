@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -25,7 +26,24 @@ const (
 	AnnkeyForPromethusScrape          = "prometheus.io/scrape"
 	AnnkeyForPromethusPort            = "prometheus.io/port"
 	AnnkeyForPromethusPath            = "prometheus.io/path"
+
+	ChangeCauseAnnotation       = "kubernetes.io/change-cause"
+	LastAppliedConfigAnnotation = "kubectl.kubernetes.io/last-applied-configuration"
+	RevisionAnnotation          = "deployment.kubernetes.io/revision"
+	RevisionHistoryAnnotation   = "deployment.kubernetes.io/revision-history"
+	DesiredReplicasAnnotation   = "deployment.kubernetes.io/desired-replicas"
+	MaxReplicasAnnotation       = "deployment.kubernetes.io/max-replicas"
+	DeprecatedRollbackTo        = "deprecated.deployment.rollback.to"
 )
+
+var AnnotationsToSkip = map[string]bool{
+	LastAppliedConfigAnnotation: true,
+	RevisionAnnotation:          true,
+	RevisionHistoryAnnotation:   true,
+	DesiredReplicasAnnotation:   true,
+	MaxReplicasAnnotation:       true,
+	DeprecatedRollbackTo:        true,
+}
 
 type DeploymentManager struct {
 	api.DefaultHandler
@@ -162,6 +180,19 @@ func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
 	}
 	return nil
+}
+
+func (m *DeploymentManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	switch ctx.Action.Name {
+	case types.ActionGetHistory:
+		return m.getDeploymentHistory(ctx)
+	case types.ActionRollback:
+		return nil, m.rollback(ctx)
+	case types.ActionSetImage:
+		return nil, m.setImage(ctx)
+	default:
+		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
+	}
 }
 
 func getDeployment(cli client.Client, namespace, name string) (*appsv1.Deployment, error) {
@@ -466,4 +497,221 @@ func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts str
 			}
 		}
 	}
+}
+
+func (m *DeploymentManager) getDeploymentHistory(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	deploy := ctx.Object.(*types.Deployment)
+	_, replicasets, err := getDeploymentAndReplicaSets(cluster.KubeClient, namespace, deploy.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+		} else {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment history failed %s", err.Error()))
+		}
+	}
+
+	var versionInfos types.VersionInfos
+	for _, rs := range replicasets {
+		if v, ok := rs.Annotations[RevisionAnnotation]; ok {
+			version, _ := strconv.Atoi(v)
+			versionInfos = append(versionInfos, types.VersionInfo{
+				Name:         deploy.GetID(),
+				Namespace:    namespace,
+				Version:      version,
+				ChangeReason: rs.Annotations[ChangeCauseAnnotation],
+				Containers:   k8sContainersToScContainers(rs.Spec.Template.Spec.Containers, nil),
+			})
+		}
+	}
+
+	sort.Sort(versionInfos)
+	return &types.VersionHistory{
+		VersionInfos: versionInfos[:len(versionInfos)-1],
+	}, nil
+}
+
+func (m *DeploymentManager) rollback(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+
+	param, ok := ctx.Action.Input.(*types.RollBackVersion)
+	if ok == false || param.Version < 0 {
+		return resttypes.NewAPIError(resttypes.InvalidFormat,
+			fmt.Sprintf("rollback version param is not valid: %v", ctx.Action.Input))
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	deploy := ctx.Object.(*types.Deployment)
+	k8sDeploy, replicasets, err := getDeploymentAndReplicaSets(cluster.KubeClient, namespace, deploy.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed %s", err.Error()))
+		}
+	}
+
+	if k8sDeploy.Spec.Paused {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("cannot rollback a paused deployment"))
+	}
+
+	var rsForVersion *appsv1.ReplicaSet
+	for _, replicaset := range replicasets {
+		if v, ok := replicaset.Annotations[RevisionAnnotation]; ok {
+			if v == strconv.Itoa(param.Version) {
+				rsForVersion = &replicaset
+				break
+			}
+		}
+	}
+
+	if rsForVersion == nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed no found version"))
+	}
+
+	delete(rsForVersion.Spec.Template.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+	annotations := map[string]string{}
+	for k := range AnnotationsToSkip {
+		if v, ok := k8sDeploy.Annotations[k]; ok {
+			annotations[k] = v
+		}
+	}
+	for k, v := range rsForVersion.Annotations {
+		if !AnnotationsToSkip[k] {
+			annotations[k] = v
+		}
+	}
+
+	annotations[ChangeCauseAnnotation] = param.Reason
+	patch, err := marshalPatch(rsForVersion.Spec.Template, annotations)
+	if err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("marshal deployment patch when rollback failed: %v", err.Error()))
+	}
+
+	if err := cluster.KubeClient.Patch(context.TODO(), k8sDeploy, k8stypes.JSONPatchType, patch); err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed: %v", err.Error()))
+	}
+
+	return nil
+}
+
+func (m *DeploymentManager) setImage(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+
+	param, ok := ctx.Action.Input.(*types.SetImage)
+	if ok == false || len(param.Images) == 0 {
+		return resttypes.NewAPIError(resttypes.InvalidFormat, "set image param is not valid")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	deploy := ctx.Object.(*types.Deployment)
+	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+		}
+	}
+
+	patch, err := getSetImagePatch(param, k8sDeploy.Spec.Template, k8sDeploy.Annotations)
+	if err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("get deployment patch when set image failed: %v", err.Error()))
+	}
+
+	if err := cluster.KubeClient.Patch(context.TODO(), k8sDeploy, k8stypes.JSONPatchType, patch); err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment image failed: %v", err.Error()))
+	}
+
+	return nil
+}
+
+func getSetImagePatch(param *types.SetImage, template corev1.PodTemplateSpec, annotations map[string]string) ([]byte, error) {
+	containerFound := false
+	for _, image := range param.Images {
+		for i, container := range template.Spec.Containers {
+			if container.Name == image.Name && container.Image != image.Image {
+				containerFound = true
+				template.Spec.Containers[i].Image = image.Image
+				break
+			}
+		}
+
+		if !containerFound {
+			return nil, fmt.Errorf("no found container %v", image.Name)
+		}
+
+	}
+
+	annotations[ChangeCauseAnnotation] = param.Reason
+	return marshalPatch(template, annotations)
+}
+
+func marshalPatch(template corev1.PodTemplateSpec, annotations map[string]string) ([]byte, error) {
+	return json.Marshal([]interface{}{
+		map[string]interface{}{
+			"op":    "replace",
+			"path":  "/spec/template",
+			"value": template,
+		},
+		map[string]interface{}{
+			"op":    "replace",
+			"path":  "/metadata/annotations",
+			"value": annotations,
+		},
+	})
+}
+
+func getDeploymentAndReplicaSets(cli client.Client, namespace, deployName string) (*appsv1.Deployment, []appsv1.ReplicaSet, error) {
+	k8sDeploy, err := getDeployment(cli, namespace, deployName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if k8sDeploy.Spec.Selector == nil {
+		return nil, nil, fmt.Errorf("deploy %v has no selector", k8sDeploy.Name)
+	}
+
+	replicasets := appsv1.ReplicaSetList{}
+	opts := &client.ListOptions{Namespace: namespace}
+	labels, err := metav1.LabelSelectorAsSelector(k8sDeploy.Spec.Selector)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	opts.LabelSelector = labels
+	if err := cli.List(context.TODO(), opts, &replicasets); err != nil {
+		return nil, nil, err
+	}
+
+	var replicaSetsByDeployControled []appsv1.ReplicaSet
+	for _, item := range replicasets.Items {
+		if isControllerBy(item.OwnerReferences, k8sDeploy.UID) {
+			replicaSetsByDeployControled = append(replicaSetsByDeployControled, item)
+		}
+	}
+
+	return k8sDeploy, replicaSetsByDeployControled, nil
+}
+
+func isControllerBy(ownerRefs []metav1.OwnerReference, uid k8stypes.UID) bool {
+	for _, ref := range ownerRefs {
+		if ref.Controller != nil && *ref.Controller && ref.UID == uid {
+			return true
+		}
+	}
+	return false
 }
