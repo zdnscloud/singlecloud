@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -45,6 +46,23 @@ func (uc *unstructuredClient) Update(_ context.Context, obj runtime.Object) erro
 		return err
 	}
 	i, err := r.Update(u, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	u.Object = i.Object
+	return nil
+}
+
+func (uc *unstructuredClient) Patch(_ context.Context, obj runtime.Object, typ types.PatchType, data []byte) error {
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return fmt.Errorf("unstructured client did not understand object: %T", obj)
+	}
+	r, err := uc.getResourceInterface(u.GroupVersionKind(), u.GetNamespace())
+	if err != nil {
+		return err
+	}
+	i, err := r.Patch(u.GetName(), typ, data, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

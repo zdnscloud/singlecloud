@@ -120,6 +120,7 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	cluster.SetType(types.ClusterType)
 	cluster.Name = c.Name
 	cluster.Status = types.CSUnreachable
+	cluster.SetCreationTimestamp(c.CreateTime)
 
 	version, err := c.KubeClient.ServerVersion()
 	if err != nil {
@@ -144,7 +145,6 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	cluster.CpuUsedRatio = fmt.Sprintf("%.2f", float64(cluster.CpuUsed)/float64(cluster.Cpu))
 	cluster.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(cluster.MemoryUsed)/float64(cluster.Memory))
 	cluster.PodUsedRatio = fmt.Sprintf("%.2f", float64(cluster.PodUsed)/float64(cluster.Pod))
-	cluster.SetCreationTimestamp(c.CreateTime)
 	cluster.Status = types.CSRunning
 	return cluster, nil
 }
