@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -14,6 +15,10 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+)
+
+var (
+	ErrDuplicateKeyInConfigMap = errors.New("duplicate key in configmap")
 )
 
 type ConfigMapManager struct {
@@ -41,6 +46,8 @@ func (m *ConfigMapManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 
 	if apierrors.IsAlreadyExists(err) {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate configmap name %s", cm.Name))
+	} else if err == ErrDuplicateKeyInConfigMap {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate key in configmap %s", cm.Name))
 	} else {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create configmap failed %s", err.Error()))
 	}
@@ -119,23 +126,36 @@ func getConfigMaps(cli client.Client, namespace string) (*corev1.ConfigMapList, 
 }
 
 func createConfigMap(cli client.Client, namespace string, cm *types.ConfigMap) error {
-	return cli.Create(context.TODO(), scConfigMapToK8sConfigMap(cm, namespace))
+	k8sConfigMap, err := scConfigMapToK8sConfigMap(cm, namespace)
+	if err != nil {
+		return err
+	} else {
+		return cli.Create(context.TODO(), k8sConfigMap)
+	}
 }
 
 func updateConfigMap(cli client.Client, namespace string, cm *types.ConfigMap) error {
-	return cli.Update(context.TODO(), scConfigMapToK8sConfigMap(cm, namespace))
+	k8sConfigMap, err := scConfigMapToK8sConfigMap(cm, namespace)
+	if err != nil {
+		return err
+	} else {
+		return cli.Update(context.TODO(), k8sConfigMap)
+	}
 }
 
-func scConfigMapToK8sConfigMap(cm *types.ConfigMap, namespace string) *corev1.ConfigMap {
+func scConfigMapToK8sConfigMap(cm *types.ConfigMap, namespace string) (*corev1.ConfigMap, error) {
 	data := make(map[string]string)
 	for _, c := range cm.Configs {
+		if _, ok := data[c.Name]; ok {
+			return nil, ErrDuplicateKeyInConfigMap
+		}
 		data[c.Name] = c.Data
 	}
 
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: cm.Name, Namespace: namespace},
 		Data:       data,
-	}
+	}, nil
 }
 
 func deleteConfigMap(cli client.Client, namespace, name string) error {

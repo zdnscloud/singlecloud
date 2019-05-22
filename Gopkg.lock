@@ -313,7 +313,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:96fc620546faf669c10e287cdacb7fa1cfaac33b10eca625a3902089855c0e51"
+  digest = "1:4b294287d720e38805925590c3fb4e0dbf776e60090116f38c5ebef0e24bbc2b"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -326,11 +326,12 @@
     "eventsource",
     "exec",
     "handler",
+    "helper",
     "predicate",
     "util",
   ]
   pruneopts = "UT"
-  revision = "40047c6e6b4d5f348771ed9febf259d8afc7b119"
+  revision = "52ab96eecf5321a9d4ee5ef61d1765f5fd4234b6"
 
 [[projects]]
   branch = "master"
@@ -715,6 +716,7 @@
     "github.com/zdnscloud/gok8s/event",
     "github.com/zdnscloud/gok8s/exec",
     "github.com/zdnscloud/gok8s/handler",
+    "github.com/zdnscloud/gok8s/helper",
     "github.com/zdnscloud/gok8s/predicate",
     "github.com/zdnscloud/goproxy",
     "github.com/zdnscloud/gorest/adaptor",

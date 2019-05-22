@@ -32,6 +32,7 @@ type Writer interface {
 	Create(ctx context.Context, obj runtime.Object) error
 	Delete(ctx context.Context, obj runtime.Object, opts ...DeleteOptionFunc) error
 	Update(ctx context.Context, obj runtime.Object) error
+	Patch(ctx context.Context, obj runtime.Object, typ types.PatchType, data []byte) error
 }
 
 type StatusClient interface {

@@ -19,7 +19,9 @@
             "configName": {"type": "string"},
             "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-            "env": {"type": "array", "elemType": "envVar"}
+            "env": {"type": "array", "elemType": "envVar"},
+            "secretName": {"type": "string"},
+            "secretPath": {"type": "string"}
         },
 
         "deploymentPort": {
@@ -35,9 +37,14 @@
 
         "advancedOptions": {
             "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
-            "exposedServices": {"type": "array", "elemType": "exposedService"}
+            "exposedServices": {"type": "array", "elemType": "exposedService"},
+            "exposedMetric": {"type": "exposedMetric"}
         },
 
+        "exposedMetric": {
+            "path" : {"type": "string"},
+            "port" : {"type": "int"}
+        },
         "exposedService": {
             "name" : {"type": "string"},
             "port" : {"type": "int"},
@@ -89,7 +96,9 @@
                 "configName": {"type": "string"},
                 "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-                "env": {"type": "array", "elemType": "envVar"}
+                "env": {"type": "array", "elemType": "envVar"},
+                "secretName": {"type": "string"},
+                "secretPath": {"type": "string"}
             },
 
             "deploymentPort": {
@@ -106,7 +115,13 @@
 
             "advancedOptions": {
                 "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
-                "exposedServices": {"type": "array", "elemType": "exposedService"}
+                "exposedServices": {"type": "array", "elemType": "exposedService"},
+                "exposedMetric": {"type": "exposedMetric"}
+            },
+
+            "exposedMetric": {
+                "path" : {"type": "string"},
+                "port" : {"type": "int"}
             },
 
             "exposedService": {

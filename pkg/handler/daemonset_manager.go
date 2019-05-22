@@ -49,7 +49,13 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 
 	daemonSet.SetID(daemonSet.Name)
-	if err := createServiceAndIngress(daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
+	containerPorts := make(map[string]types.ContainerPort)
+	for _, container := range daemonSet.Containers {
+		for _, port := range container.ExposedPorts {
+			containerPorts[port.Name] = port
+		}
+	}
+	if err := createServiceAndIngress(containerPorts, daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
 		deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.Name)
 		return nil, err
 	}
@@ -173,7 +179,7 @@ func createDaemonSet(cli client.Client, namespace string, daemonSet *types.Daemo
 				MatchLabels: map[string]string{"app": daemonSet.Name},
 			},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": daemonSet.Name}},
+				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(daemonSet.Name, daemonSet.AdvancedOptions.ExposedMetric),
 				Spec:       k8sPodSpec,
 			},
 		},
@@ -235,6 +241,7 @@ func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet 
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetType(types.DaemonSetType)
 	daemonSet.SetCreationTimestamp(k8sDaemonSet.CreationTimestamp.Time)
+	daemonSet.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDaemonSet.Spec.Template.Annotations)
 	return daemonSet
 }
 

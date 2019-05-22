@@ -11,6 +11,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -180,16 +181,6 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 		})
 	}
 
-	//pod state is the first non-running reason
-	//or running if all container is in running state
-	state := types.RunningState
-	for _, status := range statuses {
-		if status.State.Type != types.RunningState {
-			state = status.State.Reason
-			break
-		}
-	}
-
 	podStatus := types.PodStatus{
 		Phase:             string(k8sPod.Status.Phase),
 		StartTime:         k8sMetaV1TimePtrToISOTime(k8sPod.Status.StartTime),
@@ -202,7 +193,7 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 	pod := &types.Pod{
 		Name:       k8sPod.Name,
 		NodeName:   k8sPod.Spec.NodeName,
-		State:      state,
+		State:      helper.GetPodState(k8sPod),
 		Containers: containers,
 		Status:     podStatus,
 	}

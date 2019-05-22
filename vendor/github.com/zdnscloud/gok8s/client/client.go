@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -156,6 +157,15 @@ func (c *client) Update(ctx context.Context, obj runtime.Object) error {
 		return c.typedClient.Update(ctx, obj)
 	} else {
 		return c.unstructuredClient.Update(ctx, obj)
+	}
+}
+
+func (c *client) Patch(ctx context.Context, obj runtime.Object, typ types.PatchType, data []byte) error {
+	_, ok := obj.(*unstructured.Unstructured)
+	if ok == false {
+		return c.typedClient.Patch(ctx, obj, typ, data)
+	} else {
+		return c.unstructuredClient.Patch(ctx, obj, typ, data)
 	}
 }
 

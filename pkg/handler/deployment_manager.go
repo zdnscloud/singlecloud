@@ -72,7 +72,14 @@ func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 	}
 
 	deploy.SetID(deploy.Name)
-	if err := createServiceAndIngress(deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name, false); err != nil {
+	containerPorts := make(map[string]types.ContainerPort)
+	for _, container := range deploy.Containers {
+		for _, port := range container.ExposedPorts {
+			containerPorts[port.Name] = port
+		}
+	}
+
+	if err := createServiceAndIngress(containerPorts, deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name, false); err != nil {
 		deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
 		return nil, err
 	}
@@ -311,9 +318,9 @@ func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 			}
 		}
 
-		var exposedPorts []types.DeploymentPort
+		var exposedPorts []types.ContainerPort
 		for _, p := range c.Ports {
-			exposedPorts = append(exposedPorts, types.DeploymentPort{
+			exposedPorts = append(exposedPorts, types.ContainerPort{
 				Name:     p.Name,
 				Port:     int(p.ContainerPort),
 				Protocol: strings.ToLower(string(p.Protocol)),
@@ -371,11 +378,24 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			usedSecretMap[c.SecretName] = struct{}{}
 		}
 
+		var portNames []string
 		for _, spec := range c.ExposedPorts {
 			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
 			if err != nil {
-				return corev1.PodSpec{}, err
+				return corev1.PodSpec{}, fmt.Errorf("invalid protocol for container port")
 			}
+
+			if spec.Name == "" {
+				return corev1.PodSpec{}, fmt.Errorf("exposed port has no name")
+			}
+
+			for _, pn := range portNames {
+				if pn == spec.Name {
+					return corev1.PodSpec{}, fmt.Errorf("duplicate container port name")
+				}
+			}
+			portNames = append(portNames, spec.Name)
+
 			ports = append(ports, corev1.ContainerPort{
 				ContainerPort: int32(spec.Port),
 				Protocol:      protocol,
@@ -431,22 +451,27 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 	}, nil
 }
 
-func createServiceAndIngress(advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string, headless bool) *resttypes.APIError {
+func createServiceAndIngress(containerPorts map[string]types.ContainerPort, advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string, headless bool) *resttypes.APIError {
 	var servicePorts []types.ServicePort
 	var rules []types.IngressRule
 	for _, s := range advancedOpts.ExposedServices {
+		containerPort, ok := containerPorts[s.ContainerPortName]
+		if ok == false {
+			return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("unknown container port with name:%s", s.ContainerPortName))
+		}
+
 		servicePorts = append(servicePorts, types.ServicePort{
-			Name:       s.Name,
+			Name:       containerPort.Name,
 			Port:       s.ServicePort,
-			TargetPort: s.Port,
-			Protocol:   s.Protocol,
+			TargetPort: containerPort.Port,
+			Protocol:   string(scIngressProtocolToK8SProtocol(s.IngressProtocol)),
 		})
 
 		if s.AutoCreateIngress {
 			rules = append(rules, types.IngressRule{
-				Host:     s.IngressDomainName,
+				Host:     s.IngressHost,
 				Port:     s.IngressPort,
-				Protocol: s.Protocol,
+				Protocol: s.IngressProtocol,
 				Paths: []types.IngressPath{
 					types.IngressPath{
 						Path:        s.IngressPath,
