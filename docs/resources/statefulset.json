@@ -132,5 +132,68 @@
                 "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
             }
         }
-    }
+    },
+
+    "resourceActions":[ 
+        {
+            "name": "history",
+            "output": {
+                "history": {"type": "array", "elemType": "versionInfo"}
+            },
+            "subResource": {
+                "versionInfo": {
+                    "name": {"type": "string"},
+                    "namespace": {"type": "string"},
+                    "version": {"type": "int"},
+                    "changeReason": {"type": "string"},
+                    "containers": {"type": "array", "elemType": "container"}
+                },
+                "container": {
+                    "name": {"type": "string"},
+                    "image": {"type": "string"},
+                    "command": {"type": "array", "elemType": "string"},
+                    "args": {"type": "array", "elemType": "string"},
+                    "configName": {"type": "string"},
+                    "mountPath":{"type": "string"},
+                    "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
+                    "env": {"type": "array", "elemType": "envVar"},
+                    "secretName": {"type": "string"},
+                    "secretPath": {"type": "string"}
+                },
+
+                "envVar": {
+                    "name": {"type": "string"},
+                    "value": {"type": "string"}
+                },
+
+                "deploymentPort": {
+                    "name" : {"type": "string"},
+                    "port" : {"type": "int"},
+                    "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
+                }
+            }
+        },
+
+        {
+            "name": "setImage",
+            "input": {
+                "reason": {"type": "string"},
+                "images": {"type": "array", "elemType": "containerImage"}
+            },
+            "subResources": {
+                "containerImage": {
+                    "name": {"type": "string"},
+                    "image": {"type": "string"}
+                }
+            }
+        },
+
+        {
+            "name": "rollback",
+            "input": {
+                "reason": {"type": "string"},
+                "version": {"type": "int"}
+            }
+        }
+    ]
 }
