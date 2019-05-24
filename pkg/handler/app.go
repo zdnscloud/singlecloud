@@ -63,6 +63,9 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	userManager := newUserManager(tokenSecret, tokenValidDuration)
 	schemas.MustImportAndCustomize(&Version, types.User{}, userManager, types.SetUserSchema)
 
+	schemas.MustImportAndCustomize(&Version, types.PersistentVolumeClaim{}, newPersistentVolumeClaimManager(a.clusterManager), types.SetPersistentVolumeClaimSchema)
+	schemas.MustImportAndCustomize(&Version, types.PersistentVolume{}, newPersistentVolumeManager(a.clusterManager), types.SetPersistentVolumeSchema)
+
 	server := api.NewAPIServer()
 	if err := server.AddSchemas(schemas); err != nil {
 		return err

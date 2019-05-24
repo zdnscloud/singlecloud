@@ -1,0 +1,24 @@
+{
+    "resourceType": "persistentvolume",
+    "collectionName": "persistentvolumes",
+    "parentResources": [ "cluster" ],
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "storageSize": {"type": "string"},
+        "storageClassName": {"type": "string"},
+        "claimRef": {"type": "claimRef"},
+        "status": {"type": "enum", "validValues": ["Pending", "Bound", "Lost"]}
+    },
+
+    "subResources": {
+        "claimRef": {
+            "kind": {"type": "string"},
+            "name": {"type": "string"},
+            "namespace": {"type": "string"}
+        }
+    },
+
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "GET" ]
+}
