@@ -16,12 +16,15 @@
             "image": {"type": "string"},
             "command": {"type": "array", "elemType": "string"},
             "args": {"type": "array", "elemType": "string"},
-            "configName": {"type": "string"},
-            "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "containerPort"},
             "env": {"type": "array", "elemType": "envVar"},
-            "secretName": {"type": "string"},
-            "secretPath": {"type": "string"}
+            "volumeMounts": {"type": "array", "elemType": "volumeMount"}
+        },
+
+        "volumeMount": {
+            "type": {"type": "enum", "validValues": ["configmap", "secret"]},
+            "name": {"type": "string"},
+            "mountPath": {"type": "string"}
         },
 
         "envVar": {
@@ -75,12 +78,15 @@
                 "image": {"type": "string", "required": true},
                 "command": {"type": "array", "elemType": "string"},
                 "args": {"type": "array", "elemType": "string"},
-                "configName": {"type": "string"},
-                "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "containerPort"},
                 "env": {"type": "array", "elemType": "envVar"},
-                "secretName": {"type": "string"},
-                "secretPath": {"type": "string"}
+                "volumeMounts": {"type": "array", "elemType": "volumeMount"}
+            },
+
+            "volumeMount": {
+                "type": {"type": "enum", "validValues": ["configmap", "secret"]},
+                "name": {"type": "string"},
+                "mountPath": {"type": "string"}
             },
 
             "envVar": {

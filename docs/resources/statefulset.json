@@ -17,12 +17,15 @@
             "image": {"type": "string"},
             "command": {"type": "array", "elemType": "string"},
             "args": {"type": "array", "elemType": "string"},
-            "configName": {"type": "string"},
-            "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
             "env": {"type": "array", "elemType": "envVar"},
-            "secretName": {"type": "string"},
-            "secretPath": {"type": "string"}
+            "volumeMounts": {"type": "array", "elemType": "volumeMount"}
+        },
+
+        "volumeMount": {
+            "type": {"type": "enum", "validValues": ["configmap", "secret", "storage"]},
+            "name": {"type": "string"},
+            "mountPath": {"type": "string"}
         },
 
         "envVar": {
@@ -60,7 +63,6 @@
 
         "volumeClaimTemplate": {
             "name": {"type": "string"},
-            "mountPath": {"type": "string"},
             "storageSize": {"type": "string"},
             "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
         }
@@ -84,12 +86,15 @@
                 "image": {"type": "string", "required": true},
                 "command": {"type": "array", "elemType": "string"},
                 "args": {"type": "array", "elemType": "string"},
-                "configName": {"type": "string"},
-                "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
                 "env": {"type": "array", "elemType": "envVar"},
-                "secretName": {"type": "string"},
-                "secretPath": {"type": "string"}
+                "volumeMounts": {"type": "array", "elemType": "volumeMount"}
+            },
+
+            "volumeMount": {
+                "type": {"type": "enum", "validValues": ["configmap", "secret", "storage"]},
+                "name": {"type": "string"},
+                "mountPath": {"type": "string"}
             },
 
             "envVar": {
@@ -127,7 +132,6 @@
 
             "volumeClaimTemplate": {
                 "name": {"type": "string"},
-                "mountPath": {"type": "string"},
                 "storageSize": {"type": "string"},
                 "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
             }
