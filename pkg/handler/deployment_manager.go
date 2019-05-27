@@ -185,7 +185,7 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
 	replicas := int32(deploy.Replicas)
-	k8sPodSpec, err := scContainersToK8sPodSpec(deploy.Containers)
+	k8sPodSpec, err := scContainersToK8sPodSpec(deploy.Containers, nil)
 	if err != nil {
 		return err
 	}
@@ -233,7 +233,8 @@ func deleteDeployment(cli client.Client, namespace, name string) error {
 }
 
 func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
-	containers := k8sContainersToScContainers(k8sDeploy.Spec.Template.Spec.Containers, k8sDeploy.Spec.Template.Spec.Volumes)
+	containers, _ := k8sContainersToScContainersAndPVCTemplate(k8sDeploy.Spec.Template.Spec.Containers,
+		k8sDeploy.Spec.Template.Spec.Volumes)
 
 	var advancedOpts types.AdvancedOptions
 	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
@@ -265,23 +266,46 @@ func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.Expose
 	return types.ExposedMetric{}
 }
 
-func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
+func k8sContainersToScContainersAndPVCTemplate(k8sContainers []corev1.Container, k8sVolumes []corev1.Volume) ([]types.Container, types.VolumeClaimTemplate) {
 	var containers []types.Container
+	var template types.VolumeClaimTemplate
 	for _, c := range k8sContainers {
-		var configName, mountPath, secretName, secretPath string
+		var volumes []types.Volume
 		for _, vm := range c.VolumeMounts {
-			for _, v := range volumes {
-				if v.Name == vm.Name && v.ConfigMap != nil {
-					configName = v.ConfigMap.Name
-					mountPath = vm.MountPath
-					break
-				}
-			}
-
-			for _, v := range volumes {
-				if v.Name == vm.Name && v.Secret != nil {
-					secretName = v.Secret.SecretName
-					secretPath = vm.MountPath
+			for _, v := range k8sVolumes {
+				if v.Name == vm.Name {
+					if v.ConfigMap != nil {
+						volumes = append(volumes, types.Volume{
+							Type:      types.VolumeTypeConfigMap,
+							Name:      v.ConfigMap.Name,
+							MountPath: vm.MountPath,
+						})
+					} else if v.Secret != nil {
+						volumes = append(volumes, types.Volume{
+							Type:      types.VolumeTypeSecret,
+							Name:      v.Secret.SecretName,
+							MountPath: vm.MountPath,
+						})
+					} else if v.PersistentVolumeClaim != nil {
+						volumes = append(volumes, types.Volume{
+							Type:      types.VolumeTypePersistentVolume,
+							Name:      v.PersistentVolumeClaim.ClaimName,
+							MountPath: vm.MountPath,
+						})
+					} else if v.EmptyDir != nil {
+						volumes = append(volumes, types.Volume{
+							Type:      types.VolumeTypePersistentVolume,
+							Name:      v.Name,
+							MountPath: vm.MountPath,
+						})
+						template = types.VolumeClaimTemplate{
+							Name:             v.Name,
+							StorageClassName: types.StorageClassNameTemp,
+						}
+						if v.EmptyDir.SizeLimit != nil {
+							template.Size = v.EmptyDir.SizeLimit.String()
+						}
+					}
 					break
 				}
 			}
@@ -309,42 +333,64 @@ func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []cor
 			Image:        c.Image,
 			Command:      c.Command,
 			Args:         c.Args,
-			ConfigName:   configName,
-			MountPath:    mountPath,
 			ExposedPorts: exposedPorts,
 			Env:          env,
-			SecretName:   secretName,
-			SecretPath:   secretPath,
+			Volumes:      volumes,
 		})
 	}
 
-	return containers
+	return containers, template
 }
 
-func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, error) {
+func scContainersToK8sPodSpec(containers []types.Container, emptyDir *corev1.Volume) (corev1.PodSpec, error) {
 	var k8sContainers []corev1.Container
-	usedConfigMap := make(map[string]struct{})
-	usedSecretMap := make(map[string]struct{})
+	var k8sVolumes []corev1.Volume
 	for _, c := range containers {
 		var mounts []corev1.VolumeMount
 		var ports []corev1.ContainerPort
 		var env []corev1.EnvVar
-		if c.ConfigName != "" {
-			mounts = append(mounts, corev1.VolumeMount{
-				Name:      c.ConfigName,
-				MountPath: c.MountPath,
-				ReadOnly:  true,
-			})
-			usedConfigMap[c.ConfigName] = struct{}{}
-		}
+		for _, volume := range c.Volumes {
+			readOnly := true
+			var volumeSource corev1.VolumeSource
+			switch volume.Type {
+			case types.VolumeTypeConfigMap:
+				volumeSource = corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: volume.Name,
+						},
+					},
+				}
+			case types.VolumeTypeSecret:
+				volumeSource = corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: volume.Name,
+					},
+				}
+			case types.VolumeTypePersistentVolume:
+				readOnly = false
+				if emptyDir != nil && volume.Name == emptyDir.Name {
+					volumeSource = emptyDir.VolumeSource
+				} else {
+					volumeSource = corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: volume.Name,
+						},
+					}
+				}
+			default:
+				return corev1.PodSpec{}, fmt.Errorf("volume type %s is unsupported", volume.Type)
+			}
 
-		if c.SecretName != "" {
-			mounts = append(mounts, corev1.VolumeMount{
-				Name:      c.SecretName,
-				MountPath: c.SecretPath,
-				ReadOnly:  true,
+			k8sVolumes = append(k8sVolumes, corev1.Volume{
+				Name:         volume.Name,
+				VolumeSource: volumeSource,
 			})
-			usedSecretMap[c.SecretName] = struct{}{}
+			mounts = append(mounts, corev1.VolumeMount{
+				Name:      volume.Name,
+				MountPath: volume.MountPath,
+				ReadOnly:  readOnly,
+			})
 		}
 
 		var portNames []string
@@ -386,31 +432,6 @@ func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, err
 			VolumeMounts: mounts,
 			Ports:        ports,
 			Env:          env,
-		})
-	}
-
-	var k8sVolumes []corev1.Volume
-	for n, _ := range usedConfigMap {
-		configMapSource := &corev1.ConfigMapVolumeSource{}
-		configMapSource.Name = n
-		source := corev1.VolumeSource{
-			ConfigMap: configMapSource,
-		}
-		k8sVolumes = append(k8sVolumes, corev1.Volume{
-			Name:         n,
-			VolumeSource: source,
-		})
-	}
-
-	for n, _ := range usedSecretMap {
-		secretMapSource := &corev1.SecretVolumeSource{
-			SecretName: n,
-		}
-		k8sVolumes = append(k8sVolumes, corev1.Volume{
-			Name: n,
-			VolumeSource: corev1.VolumeSource{
-				Secret: secretMapSource,
-			},
 		})
 	}
 

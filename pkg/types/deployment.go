@@ -4,6 +4,12 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
+const (
+	VolumeTypeConfigMap        = "configmap"
+	VolumeTypeSecret           = "secret"
+	VolumeTypePersistentVolume = "persistentVolume"
+)
+
 func SetDeploymentSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
@@ -22,12 +28,15 @@ type Container struct {
 	Image        string          `json:"image"`
 	Command      []string        `json:"command,omitempty"`
 	Args         []string        `json:"args,omitempty"`
-	ConfigName   string          `json:"configName,omitempty"`
-	MountPath    string          `json:"mountPath,omitempty"`
 	ExposedPorts []ContainerPort `json:"exposedPorts,omitempty"`
 	Env          []EnvVar        `json:"env,omitempty"`
-	SecretName   string          `json:"secretName,omitempty"`
-	SecretPath   string          `json:"secretPath,omitempty"`
+	Volumes      []Volume        `json:"volumes,omitempty"`
+}
+
+type Volume struct {
+	Type      string `json:"type"`
+	Name      string `json:"name"`
+	MountPath string `json:"mountPath"`
 }
 
 type EnvVar struct {

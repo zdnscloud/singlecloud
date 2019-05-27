@@ -19,11 +19,11 @@
             "args": {"type": "array", "elemType": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
             "env": {"type": "array", "elemType": "envVar"},
-            "volumeMounts": {"type": "array", "elemType": "volumeMount"}
+            "volumes": {"type": "array", "elemType": "volume"}
         },
 
-        "volumeMount": {
-            "type": {"type": "enum", "validValues": ["configmap", "secret", "storage"]},
+        "volume": {
+            "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
             "name": {"type": "string"},
             "mountPath": {"type": "string"}
         },
@@ -63,8 +63,8 @@
 
         "volumeClaimTemplate": {
             "name": {"type": "string"},
-            "storageSize": {"type": "string"},
-            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
+            "size": {"type": "string"},
+            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "ceph"]}
         }
     },
 
@@ -88,11 +88,11 @@
                 "args": {"type": "array", "elemType": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
                 "env": {"type": "array", "elemType": "envVar"},
-                "volumeMounts": {"type": "array", "elemType": "volumeMount"}
+                "volumes": {"type": "array", "elemType": "volume"}
             },
 
-            "volumeMount": {
-                "type": {"type": "enum", "validValues": ["configmap", "secret", "storage"]},
+            "volume": {
+                "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
                 "name": {"type": "string"},
                 "mountPath": {"type": "string"}
             },
@@ -132,8 +132,8 @@
 
             "volumeClaimTemplate": {
                 "name": {"type": "string"},
-                "storageSize": {"type": "string"},
-                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
+                "size": {"type": "string"},
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "ceph"]}
             }
         }
     }

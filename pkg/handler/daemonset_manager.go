@@ -146,7 +146,7 @@ func getDaemonSets(cli client.Client, namespace string) (*appsv1.DaemonSetList, 
 }
 
 func createDaemonSet(cli client.Client, namespace string, daemonSet *types.DaemonSet) error {
-	k8sPodSpec, err := scContainersToK8sPodSpec(daemonSet.Containers)
+	k8sPodSpec, err := scContainersToK8sPodSpec(daemonSet.Containers, nil)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,8 @@ func deleteDaemonSet(cli client.Client, namespace, name string) error {
 }
 
 func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet {
-	containers := k8sContainersToScContainers(k8sDaemonSet.Spec.Template.Spec.Containers, k8sDaemonSet.Spec.Template.Spec.Volumes)
+	containers, _ := k8sContainersToScContainersAndPVCTemplate(k8sDaemonSet.Spec.Template.Spec.Containers,
+		k8sDaemonSet.Spec.Template.Spec.Volumes)
 
 	var conditions []types.DaemonSetCondition
 	for _, condition := range k8sDaemonSet.Status.Conditions {

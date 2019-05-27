@@ -4,6 +4,13 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
+const (
+	StorageClassNameLVM  = "lvm"
+	StorageClassNameNFS  = "nfs"
+	StorageClassNameCeph = "ceph"
+	StorageClassNameTemp = "temporary"
+)
+
 func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
@@ -22,15 +29,8 @@ type StatefulSet struct {
 
 type VolumeClaimTemplate struct {
 	Name             string `json:"name"`
-	MountPath        string `json:"mountPath"`
-	StorageSize      string `json:"storageSize"`
+	Size             string `json:"size"`
 	StorageClassName string `json:"storageClassName"`
 }
-
-const (
-	StorageClassNameLVM  = "lvm"
-	StorageClassNameNFS  = "nfs"
-	StorageClassNameTemp = "temporary"
-)
 
 var StatefulSetType = resttypes.GetResourceType(StatefulSet{})
