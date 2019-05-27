@@ -46,13 +46,12 @@
         },
 
         "exposedService": {
-            "name" : {"type": "string"},
-            "port" : {"type": "int"},
-            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]},
+            "containerPortName" : {"type": "string"},
             "servicePort" : {"type": "int"},
             "autoCreateIngress" : {"type": "bool"},
-            "ingressDomainName" : {"type": "string"},
+            "ingressHost" : {"type": "string"},
             "ingressPath" : {"type": "string"},
+            "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
             "ingressPort" : {"type": "int"}
         },
 
@@ -115,13 +114,12 @@
             },
 
             "exposedService": {
-                "name" : {"type": "string"},
-                "port" : {"type": "int"},
-                "protocol": {"type": "enum", "validValues": ["tcp", "udp"]},
+                "containerPortName" : {"type": "string"},
                 "servicePort" : {"type": "int"},
                 "autoCreateIngress" : {"type": "bool"},
-                "ingressDomainName" : {"type": "string"},
+                "ingressHost" : {"type": "string"},
                 "ingressPath" : {"type": "string"},
+                "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
                 "ingressPort" : {"type": "int"}
             },
 
