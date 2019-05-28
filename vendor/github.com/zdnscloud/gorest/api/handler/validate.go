@@ -31,8 +31,12 @@ func getStructValue(ctx *types.Context, schema *types.Schema, structVal reflect.
 	for i := 0; i < structVal.NumField(); i++ {
 		field := structTyp.Field(i)
 		fieldJsonName, isAnonymous := types.GetFieldJsonName(field)
+		fieldVal := structVal.FieldByName(field.Name)
+		if fieldVal.IsValid() == false {
+			continue
+		}
+
 		if isAnonymous {
-			fieldVal := structVal.FieldByName(field.Name)
 			if _, err := getStructValue(ctx, ctx.Object.GetSchema(), fieldVal); err != nil {
 				return nil, err
 			}
@@ -43,7 +47,7 @@ func getStructValue(ctx *types.Context, schema *types.Schema, structVal reflect.
 			continue
 		}
 
-		value, err := getFieldValue(ctx, structVal.FieldByName(field.Name))
+		value, err := getFieldValue(ctx, fieldVal)
 		if err != nil {
 			return nil, err
 		}
@@ -85,6 +89,10 @@ func getFieldValue(ctx *types.Context, fieldVal reflect.Value) (interface{}, *ty
 		fieldVal = reflect.Indirect(fieldVal)
 	}
 
+	if fieldVal.IsValid() == false {
+		return nil, nil
+	}
+
 	switch fieldType.Kind() {
 	case reflect.Struct:
 		return getStructValue(ctx, nil, fieldVal)
@@ -93,11 +101,7 @@ func getFieldValue(ctx *types.Context, fieldVal reflect.Value) (interface{}, *ty
 	case reflect.Map:
 		return getMapValue(ctx, fieldVal)
 	default:
-		if fieldVal.IsValid() {
-			return fieldVal.Interface(), nil
-		} else {
-			return nil, nil
-		}
+		return fieldVal.Interface(), nil
 	}
 }
 
