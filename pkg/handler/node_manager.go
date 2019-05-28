@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -120,12 +119,10 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 	osImage := nodeInfo.OSImage
 	dockderVersion := nodeInfo.ContainerRuntimeVersion
 
-	roles := getRoleFromLabels(k8sNode.Labels)
-
 	node := &types.Node{
 		Name:                 host,
 		Address:              address,
-		Role:                 strings.Join(roles, ","),
+		Roles:                getRoleFromLabels(k8sNode.Labels),
 		Labels:               k8sNode.Labels,
 		Annotations:          k8sNode.Annotations,
 		OperatingSystem:      os,

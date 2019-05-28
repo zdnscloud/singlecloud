@@ -16,10 +16,15 @@
             "image": {"type": "string"},
             "command": {"type": "array", "elemType": "string"},
             "args": {"type": "array", "elemType": "string"},
-            "configName": {"type": "string"},
-            "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-            "env": {"type": "array", "elemType": "envVar"}
+            "env": {"type": "array", "elemType": "envVar"},
+            "volumes": {"type": "array", "elemType": "volume"}
+        },
+
+        "volume": {
+            "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+            "name": {"type": "string"},
+            "mountPath": {"type": "string"}
         },
 
         "deploymentPort": {

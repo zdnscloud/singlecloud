@@ -17,12 +17,15 @@
             "image": {"type": "string"},
             "command": {"type": "array", "elemType": "string"},
             "args": {"type": "array", "elemType": "string"},
-            "configName": {"type": "string"},
-            "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
             "env": {"type": "array", "elemType": "envVar"},
-            "secretName": {"type": "string"},
-            "secretPath": {"type": "string"}
+            "volumes": {"type": "array", "elemType": "volume"}
+        },
+
+        "volume": {
+            "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+            "name": {"type": "string"},
+            "mountPath": {"type": "string"}
         },
 
         "envVar": {
@@ -43,13 +46,12 @@
         },
 
         "exposedService": {
-            "name" : {"type": "string"},
-            "port" : {"type": "int"},
-            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]},
+            "containerPortName" : {"type": "string"},
             "servicePort" : {"type": "int"},
             "autoCreateIngress" : {"type": "bool"},
-            "ingressDomainName" : {"type": "string"},
+            "ingressHost" : {"type": "string"},
             "ingressPath" : {"type": "string"},
+            "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
             "ingressPort" : {"type": "int"}
         },
 
@@ -60,9 +62,8 @@
 
         "volumeClaimTemplate": {
             "name": {"type": "string"},
-            "mountPath": {"type": "string"},
-            "storageSize": {"type": "string"},
-            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
+            "size": {"type": "string"},
+            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "ceph"]}
         }
     },
 
@@ -84,12 +85,15 @@
                 "image": {"type": "string", "required": true},
                 "command": {"type": "array", "elemType": "string"},
                 "args": {"type": "array", "elemType": "string"},
-                "configName": {"type": "string"},
-                "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
                 "env": {"type": "array", "elemType": "envVar"},
-                "secretName": {"type": "string"},
-                "secretPath": {"type": "string"}
+                "volumes": {"type": "array", "elemType": "volume"}
+            },
+
+            "volume": {
+                "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+                "name": {"type": "string"},
+                "mountPath": {"type": "string"}
             },
 
             "envVar": {
@@ -110,13 +114,12 @@
             },
 
             "exposedService": {
-                "name" : {"type": "string"},
-                "port" : {"type": "int"},
-                "protocol": {"type": "enum", "validValues": ["tcp", "udp"]},
+                "containerPortName" : {"type": "string"},
                 "servicePort" : {"type": "int"},
                 "autoCreateIngress" : {"type": "bool"},
-                "ingressDomainName" : {"type": "string"},
+                "ingressHost" : {"type": "string"},
                 "ingressPath" : {"type": "string"},
+                "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
                 "ingressPort" : {"type": "int"}
             },
 
@@ -127,9 +130,8 @@
 
             "volumeClaimTemplate": {
                 "name": {"type": "string"},
-                "mountPath": {"type": "string"},
-                "storageSize": {"type": "string"},
-                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
+                "size": {"type": "string"},
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "ceph"]}
             }
         }
     }
