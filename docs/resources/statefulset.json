@@ -8,7 +8,7 @@
         "replicas": {"type": "int"},
         "containers": {"type": "array", "elemType": "container"},
         "advancedOptions": {"type": "advancedOptions"},
-        "volumeClaimTemplate": {"type": "volumeClaimTemplate"}
+        "volumeClaimTemplates": {"type": "array", "elemType": "volumeClaimTemplate"}
     },
 
     "subResources": {

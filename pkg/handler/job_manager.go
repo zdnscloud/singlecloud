@@ -121,7 +121,7 @@ func getJobs(cli client.Client, namespace string) (*batchv1.JobList, error) {
 }
 
 func createJob(cli client.Client, namespace string, job *types.Job) error {
-	k8sPodSpec, err := scContainersToK8sPodSpec(job.Containers, nil)
+	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(job.Containers, nil)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func deleteJob(cli client.Client, namespace, name string) error {
 }
 
 func k8sJobToSCJob(k8sJob *batchv1.Job) *types.Job {
-	containers, _ := k8sContainersToScContainersAndPVCTemplate(k8sJob.Spec.Template.Spec.Containers,
+	containers, _ := k8sPodSpecToScContainersAndVCTemplates(k8sJob.Spec.Template.Spec.Containers,
 		k8sJob.Spec.Template.Spec.Volumes)
 
 	var conditions []types.JobCondition

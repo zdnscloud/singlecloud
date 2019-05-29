@@ -122,7 +122,7 @@ func getCronJobs(cli client.Client, namespace string) (*batchv1beta1.CronJobList
 }
 
 func createCronJob(cli client.Client, namespace string, cronJob *types.CronJob) error {
-	k8sPodSpec, err := scContainersToK8sPodSpec(cronJob.Containers, nil)
+	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(cronJob.Containers, nil)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func deleteCronJob(cli client.Client, namespace, name string) error {
 }
 
 func k8sCronJobToScCronJob(k8sCronJob *batchv1beta1.CronJob) *types.CronJob {
-	containers, _ := k8sContainersToScContainersAndPVCTemplate(k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Containers,
+	containers, _ := k8sPodSpecToScContainersAndVCTemplates(k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Containers,
 		k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Volumes)
 
 	var objectReferences []types.ObjectReference

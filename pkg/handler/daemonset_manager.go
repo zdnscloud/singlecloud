@@ -48,13 +48,7 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 
 	daemonSet.SetID(daemonSet.Name)
-	containerPorts := make(map[string]types.ContainerPort)
-	for _, container := range daemonSet.Containers {
-		for _, port := range container.ExposedPorts {
-			containerPorts[port.Name] = port
-		}
-	}
-	if err := createServiceAndIngress(containerPorts, daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
+	if err := createServiceAndIngress(daemonSet.Containers, daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
 		deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.Name)
 		return nil, err
 	}
@@ -79,7 +73,12 @@ func (m *DaemonSetManager) List(ctx *resttypes.Context) interface{} {
 
 	var daemonSets []*types.DaemonSet
 	for _, item := range k8sDaemonSets.Items {
-		daemonSets = append(daemonSets, k8sDaemonSetToSCDaemonSet(&item))
+		daemonset, err := k8sDaemonSetToSCDaemonSet(cluster.KubeClient, &item)
+		if err != nil {
+			log.Warnf("list daemonSet info failed:%s", err.Error())
+			return nil
+		}
+		daemonSets = append(daemonSets, daemonset)
 	}
 	return daemonSets
 }
@@ -100,7 +99,12 @@ func (m *DaemonSetManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	return k8sDaemonSetToSCDaemonSet(k8sDaemonSet)
+	if daemonset, err := k8sDaemonSetToSCDaemonSet(cluster.KubeClient, k8sDaemonSet); err != nil {
+		log.Warnf("get daemonSet info failed:%s", err.Error())
+		return nil
+	} else {
+		return daemonset
+	}
 }
 
 func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
@@ -146,8 +150,12 @@ func getDaemonSets(cli client.Client, namespace string) (*appsv1.DaemonSetList, 
 }
 
 func createDaemonSet(cli client.Client, namespace string, daemonSet *types.DaemonSet) error {
-	k8sPodSpec, err := scContainersToK8sPodSpec(daemonSet.Containers, nil)
+	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(daemonSet.Containers, daemonSet.VolumeClaimTemplates)
 	if err != nil {
+		return err
+	}
+
+	if err := createPVCs(cli, namespace, k8sPVCs); err != nil {
 		return err
 	}
 
@@ -180,9 +188,14 @@ func deleteDaemonSet(cli client.Client, namespace, name string) error {
 	return cli.Delete(context.TODO(), daemonSet)
 }
 
-func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet {
-	containers, _ := k8sContainersToScContainersAndPVCTemplate(k8sDaemonSet.Spec.Template.Spec.Containers,
+func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet) (*types.DaemonSet, error) {
+	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sDaemonSet.Spec.Template.Spec.Containers,
 		k8sDaemonSet.Spec.Template.Spec.Volumes)
+
+	volumeClaimTemplates, err := getPVCs(cli, k8sDaemonSet.Namespace, templates)
+	if err != nil {
+		return nil, err
+	}
 
 	var conditions []types.DaemonSetCondition
 	for _, condition := range k8sDaemonSet.Status.Conditions {
@@ -220,14 +233,15 @@ func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet 
 	}
 
 	daemonSet := &types.DaemonSet{
-		Name:            k8sDaemonSet.Name,
-		Containers:      containers,
-		AdvancedOptions: advancedOpts,
-		Status:          daemonSetStatus,
+		Name:                 k8sDaemonSet.Name,
+		Containers:           containers,
+		AdvancedOptions:      advancedOpts,
+		VolumeClaimTemplates: volumeClaimTemplates,
+		Status:               daemonSetStatus,
 	}
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetType(types.DaemonSetType)
 	daemonSet.SetCreationTimestamp(k8sDaemonSet.CreationTimestamp.Time)
 	daemonSet.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDaemonSet.Spec.Template.Annotations)
-	return daemonSet
+	return daemonSet, nil
 }

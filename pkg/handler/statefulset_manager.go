@@ -8,7 +8,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
@@ -21,7 +20,6 @@ import (
 
 const (
 	AnnkeyForStatefulSetAdvancedoption = "zcloud_statefulsetment_advanded_options"
-	StatefulSetPVCNameConnector        = "-pvc"
 )
 
 var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
@@ -43,13 +41,7 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 
 	namespace := ctx.Object.GetParent().GetID()
 	statefulset := ctx.Object.(*types.StatefulSet)
-	containerPorts := make(map[string]types.ContainerPort)
-	for _, container := range statefulset.Containers {
-		for _, port := range container.ExposedPorts {
-			containerPorts[port.Name] = port
-		}
-	}
-	if err := createServiceAndIngress(containerPorts, statefulset.AdvancedOptions, cluster.KubeClient, namespace, statefulset.Name, true); err != nil {
+	if err := createServiceAndIngress(statefulset.Containers, statefulset.AdvancedOptions, cluster.KubeClient, namespace, statefulset.Name, true); err != nil {
 		deleteStatefulSet(cluster.KubeClient, namespace, statefulset.Name)
 		return nil, err
 	}
@@ -184,12 +176,7 @@ func getStatefulSets(cli client.Client, namespace string) (*appsv1.StatefulSetLi
 }
 
 func createStatefulSet(cli client.Client, namespace string, statefulset *types.StatefulSet, opts string) error {
-	k8sVolume, k8sVolumeClaimTemplates, err := scPVCToK8sVolumeAndPVCs(statefulset.VolumeClaimTemplate)
-	if err != nil {
-		return err
-	}
-
-	k8sPodSpec, err := scContainersToK8sPodSpec(statefulset.Containers, k8sVolume)
+	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(statefulset.Containers, statefulset.VolumeClaimTemplates)
 	if err != nil {
 		return err
 	}
@@ -213,69 +200,10 @@ func createStatefulSet(cli client.Client, namespace string, statefulset *types.S
 				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(statefulset.Name, statefulset.AdvancedOptions.ExposedMetric),
 				Spec:       k8sPodSpec,
 			},
-			VolumeClaimTemplates: k8sVolumeClaimTemplates,
+			VolumeClaimTemplates: k8sPVCs,
 		},
 	}
 	return cli.Create(context.TODO(), k8sStatefulSet)
-}
-
-func scPVCToK8sVolumeAndPVCs(pvc types.VolumeClaimTemplate) (*corev1.Volume, []corev1.PersistentVolumeClaim, error) {
-	if pvc.StorageClassName == "" {
-		return nil, nil, nil
-	}
-
-	var k8sQuantity *resource.Quantity
-	if pvc.Size != "" {
-		quantity, err := resource.ParseQuantity(pvc.Size)
-		if err != nil {
-			return nil, nil, fmt.Errorf("parse statefulset storageSize %s failed: %s", pvc.Size, err.Error())
-		}
-		k8sQuantity = &quantity
-	}
-
-	var accessModes []corev1.PersistentVolumeAccessMode
-	switch pvc.StorageClassName {
-	case types.StorageClassNameTemp:
-		return &corev1.Volume{
-			Name: pvc.Name,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: k8sQuantity,
-				},
-			},
-		}, nil, nil
-	case types.StorageClassNameLVM:
-		accessModes = append(accessModes, corev1.ReadWriteOnce)
-	case types.StorageClassNameNFS:
-		fallthrough
-	case types.StorageClassNameCeph:
-		accessModes = append(accessModes, corev1.ReadWriteMany)
-	default:
-		return nil, nil, fmt.Errorf("statefulset volumeclaimtemplate storageclass %s isn`t supported", pvc.StorageClassName)
-	}
-
-	if k8sQuantity == nil {
-		return nil, nil, fmt.Errorf("statefulset volumeClaimTemplates storageSize must not be zero")
-	}
-
-	var pvcs []corev1.PersistentVolumeClaim
-	pvcs = append(pvcs, corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: pvc.Name,
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: accessModes,
-			Resources: corev1.ResourceRequirements{
-				Requests: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceStorage: *k8sQuantity,
-				},
-			},
-			StorageClassName: &pvc.StorageClassName,
-			VolumeMode:       &FilesystemVolumeMode,
-		},
-	})
-
-	return nil, pvcs, nil
 }
 
 func deleteStatefulSet(cli client.Client, namespace, name string) error {
@@ -292,29 +220,33 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}
 
-	containers, volumeClaimTemplate := k8sContainersToScContainersAndPVCTemplate(k8sStatefulSet.Spec.Template.Spec.Containers,
+	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sStatefulSet.Spec.Template.Spec.Containers,
 		k8sStatefulSet.Spec.Template.Spec.Volumes)
 
-	if volumeClaimTemplate.StorageClassName == "" {
-		for _, pvc := range k8sStatefulSet.Spec.VolumeClaimTemplates {
-			if pvc.Spec.StorageClassName != nil {
-				quantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
-				volumeClaimTemplate = types.VolumeClaimTemplate{
-					Name:             pvc.Name,
-					Size:             quantity.String(),
-					StorageClassName: *pvc.Spec.StorageClassName,
-				}
-				break
-			}
+	var volumeClaimTemplates []types.VolumeClaimTemplate
+	for _, template := range templates {
+		if template.StorageClassName == types.StorageClassNameTemp {
+			volumeClaimTemplates = append(volumeClaimTemplates, template)
+		}
+	}
+
+	for _, pvc := range k8sStatefulSet.Spec.VolumeClaimTemplates {
+		if pvc.Spec.StorageClassName != nil {
+			quantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+			volumeClaimTemplates = append(volumeClaimTemplates, types.VolumeClaimTemplate{
+				Name:             pvc.Name,
+				Size:             quantity.String(),
+				StorageClassName: *pvc.Spec.StorageClassName,
+			})
 		}
 	}
 
 	statefulset := &types.StatefulSet{
-		Name:                k8sStatefulSet.Name,
-		Replicas:            int(*k8sStatefulSet.Spec.Replicas),
-		Containers:          containers,
-		AdvancedOptions:     advancedOpts,
-		VolumeClaimTemplate: volumeClaimTemplate,
+		Name:                 k8sStatefulSet.Name,
+		Replicas:             int(*k8sStatefulSet.Spec.Replicas),
+		Containers:           containers,
+		AdvancedOptions:      advancedOpts,
+		VolumeClaimTemplates: volumeClaimTemplates,
 	}
 	statefulset.SetID(k8sStatefulSet.Name)
 	statefulset.SetType(types.StatefulSetType)
