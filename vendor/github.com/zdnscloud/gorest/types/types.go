@@ -66,10 +66,6 @@ type Action struct {
 	Output string      `json:"output,omitempty"`
 }
 
-type Input struct {
-	Data []byte `json:"data,omitempty"`
-}
-
 type ActionHandler func(request *Context, action *Action) *APIError
 
 type RequestHandler func(request *Context) *APIError

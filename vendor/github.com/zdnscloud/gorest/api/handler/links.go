@@ -13,7 +13,9 @@ import (
 func addLinks(ctx *types.Context, schema *types.Schema, obj types.Object) {
 	links := make(map[string]string)
 	self := genResourceLink(ctx.Request, obj.GetID())
-	links["self"] = self
+	if util.ContainsString(schema.ResourceMethods, http.MethodGet) {
+		links["self"] = self
+	}
 
 	if util.ContainsString(schema.ResourceMethods, http.MethodPut) {
 		links["update"] = self
