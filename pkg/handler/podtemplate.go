@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/gok8s/client"
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -36,24 +35,14 @@ func getPVCs(cli client.Client, namespace string, templates []types.VolumeClaimT
 	var vcTemplates []types.VolumeClaimTemplate
 	for _, template := range templates {
 		if template.StorageClassName != types.StorageClassNameTemp {
-			pvc := corev1.PersistentVolumeClaim{}
-			if err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, template.Name}, &pvc); err != nil {
+			if k8sPVC, err := getPersistentVolumeClaim(cli, namespace, template.Name); err != nil {
 				return nil, err
 			} else {
-				var storageClassName string
-				if pvc.Spec.StorageClassName != nil {
-					storageClassName = *pvc.Spec.StorageClassName
-				}
-
-				var size string
-				if quantity, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
-					size = quantity.String()
-				}
-
+				pvc := k8sPVCToSCPVC(k8sPVC)
 				vcTemplates = append(vcTemplates, types.VolumeClaimTemplate{
 					Name:             pvc.Name,
-					Size:             size,
-					StorageClassName: storageClassName,
+					Size:             pvc.RequestStorageSize,
+					StorageClassName: pvc.StorageClassName,
 				})
 			}
 		}
