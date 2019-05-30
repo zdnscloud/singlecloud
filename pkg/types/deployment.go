@@ -55,9 +55,10 @@ type ExposedService struct {
 }
 
 type AdvancedOptions struct {
-	ExposedServiceType string           `json:"exposedServiceType"`
-	ExposedServices    []ExposedService `json:"exposedServices"`
-	ExposedMetric      ExposedMetric    `json:"exposedMetric"`
+	ExposedServiceType     string           `json:"exposedServiceType"`
+	ExposedServices        []ExposedService `json:"exposedServices"`
+	ExposedMetric          ExposedMetric    `json:"exposedMetric"`
+	ReloadWhenConfigChange bool             `json:"relaodWhenConfigChange"`
 }
 
 type Deployment struct {

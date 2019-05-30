@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -16,13 +15,6 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-)
-
-const (
-	AnnkeyForDeploymentAdvancedoption = "zcloud_deployment_advanded_options"
-	AnnkeyForPromethusScrape          = "prometheus.io/scrape"
-	AnnkeyForPromethusPort            = "prometheus.io/port"
-	AnnkeyForPromethusPath            = "prometheus.io/path"
 )
 
 type DeploymentManager struct {
@@ -189,34 +181,20 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 }
 
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
-	replicas := int32(deploy.Replicas)
-	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(deploy.Containers, deploy.VolumeClaimTemplates)
+	podTemplate, _, err := createPodTempateSpec(namespace, deploy, cli)
 	if err != nil {
 		return err
 	}
 
-	if err := createPVCs(cli, namespace, k8sPVCs); err != nil {
-		return err
-	}
-
-	advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
+	replicas := int32(deploy.Replicas)
 	k8sDeploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      deploy.Name,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				AnnkeyForDeploymentAdvancedoption: string(advancedOpts),
-			},
-		},
+		ObjectMeta: generatePodOwnerObjectMeta(namespace, deploy),
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": deploy.Name},
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(deploy.Name, deploy.AdvancedOptions.ExposedMetric),
-				Spec:       k8sPodSpec,
-			},
+			Template: *podTemplate,
 		},
 	}
 	return cli.Create(context.TODO(), k8sDeploy)

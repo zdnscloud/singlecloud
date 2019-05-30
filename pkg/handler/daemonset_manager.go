@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -150,32 +149,18 @@ func getDaemonSets(cli client.Client, namespace string) (*appsv1.DaemonSetList, 
 }
 
 func createDaemonSet(cli client.Client, namespace string, daemonSet *types.DaemonSet) error {
-	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(daemonSet.Containers, daemonSet.VolumeClaimTemplates)
+	podTemplate, _, err := createPodTempateSpec(namespace, daemonSet, cli)
 	if err != nil {
 		return err
 	}
 
-	if err := createPVCs(cli, namespace, k8sPVCs); err != nil {
-		return err
-	}
-
-	advancedOpts, _ := json.Marshal(daemonSet.AdvancedOptions)
 	k8sDaemonSet := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      daemonSet.Name,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				AnnkeyForDaemonSetAdvancedoption: string(advancedOpts),
-			},
-		},
+		ObjectMeta: generatePodOwnerObjectMeta(namespace, daemonSet),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": daemonSet.Name},
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(daemonSet.Name, daemonSet.AdvancedOptions.ExposedMetric),
-				Spec:       k8sPodSpec,
-			},
+			Template: *podTemplate,
 		},
 	}
 	return cli.Create(context.TODO(), k8sDaemonSet)

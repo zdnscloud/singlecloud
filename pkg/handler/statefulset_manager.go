@@ -46,9 +46,9 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 		return nil, err
 	}
 
-	advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
 	statefulset.SetID(statefulset.Name)
-	if err := createStatefulSet(cluster.KubeClient, namespace, statefulset, string(advancedOpts)); err != nil {
+	if err := createStatefulSet(cluster.KubeClient, namespace, statefulset); err != nil {
+		advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
 		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate statefulset name %s", statefulset.Name))
@@ -175,31 +175,22 @@ func getStatefulSets(cli client.Client, namespace string) (*appsv1.StatefulSetLi
 	return &statefulsets, err
 }
 
-func createStatefulSet(cli client.Client, namespace string, statefulset *types.StatefulSet, opts string) error {
-	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(statefulset.Containers, statefulset.VolumeClaimTemplates)
+func createStatefulSet(cli client.Client, namespace string, statefulset *types.StatefulSet) error {
+	podTemplate, k8sPVCs, err := createPodTempateSpec(namespace, statefulset, cli)
 	if err != nil {
 		return err
 	}
 
 	replicas := int32(statefulset.Replicas)
 	k8sStatefulSet := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      statefulset.Name,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				AnnkeyForStatefulSetAdvancedoption: opts,
-			},
-		},
+		ObjectMeta: generatePodOwnerObjectMeta(namespace, statefulset),
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:    &replicas,
 			ServiceName: statefulset.Name,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": statefulset.Name},
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(statefulset.Name, statefulset.AdvancedOptions.ExposedMetric),
-				Spec:       k8sPodSpec,
-			},
+			Template:             *podTemplate,
 			VolumeClaimTemplates: k8sPVCs,
 		},
 	}

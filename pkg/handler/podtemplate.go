@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -17,8 +18,60 @@ import (
 )
 
 const (
-	VolumeNamePrefix = "vol"
+	VolumeNamePrefix                  = "vol"
+	AnnkeyForDeploymentAdvancedoption = "zcloud_deployment_advanded_options"
+	AnnkeyForPromethusScrape          = "prometheus.io/scrape"
+	AnnkeyForPromethusPort            = "prometheus.io/port"
+	AnnkeyForPromethusPath            = "prometheus.io/path"
+	AnnKeyForReloadWhenConfigChange   = "zcloud.cn/update-on-config-change"
+	AnnKeyForConfigHashAnnotation     = "zcloud.cn/config-hash"
 )
+
+func createPodTempateSpec(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {
+	structVal := reflect.ValueOf(podOwner).Elem()
+	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
+	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
+	pvcs := structVal.FieldByName("VolumeClaimTemplates").Interface().([]types.VolumeClaimTemplate)
+
+	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvcs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if _, ok := podOwner.(*types.StatefulSet); ok == false {
+		if err := createPVCs(cli, namespace, k8sPVCs); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	name := structVal.FieldByName("Name").String()
+	meta, err := createPodTempateObjectMeta(name, namespace, cli, advancedOpts, containers)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &corev1.PodTemplateSpec{
+		ObjectMeta: meta,
+		Spec:       k8sPodSpec,
+	}, k8sPVCs, nil
+}
+
+func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.ObjectMeta {
+	structVal := reflect.ValueOf(podOwner).Elem()
+	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
+	opts, _ := json.Marshal(advancedOpts)
+	annotations := map[string]string{
+		AnnkeyForStatefulSetAdvancedoption: string(opts),
+	}
+	if advancedOpts.ReloadWhenConfigChange {
+		annotations[AnnKeyForReloadWhenConfigChange] = "true"
+	}
+	return metav1.ObjectMeta{
+		Name:        structVal.FieldByName("Name").String(),
+		Namespace:   namespace,
+		Annotations: annotations,
+	}
+}
 
 func createPVCs(cli client.Client, namespace string, k8sPVCs []corev1.PersistentVolumeClaim) error {
 	for _, pvc := range k8sPVCs {
@@ -328,16 +381,34 @@ func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8
 	return containers, templates
 }
 
-func scExposedMetricToK8sTempateObjectMeta(name string, exposedMetric types.ExposedMetric) metav1.ObjectMeta {
-	templateObjMeta := metav1.ObjectMeta{Labels: map[string]string{"app": name}}
+func createPodTempateObjectMeta(name, namespace string, cli client.Client, advancedOpts types.AdvancedOptions, containers []types.Container) (metav1.ObjectMeta, error) {
+	meta := metav1.ObjectMeta{Labels: map[string]string{"app": name}}
+
+	exposedMetric := advancedOpts.ExposedMetric
 	if exposedMetric.Port != 0 && exposedMetric.Path != "" {
 		prometheusConf := make(map[string]string)
 		prometheusConf[AnnkeyForPromethusScrape] = "true"
 		prometheusConf[AnnkeyForPromethusPort] = strconv.Itoa(exposedMetric.Port)
 		prometheusConf[AnnkeyForPromethusPath] = exposedMetric.Path
-		templateObjMeta.Annotations = prometheusConf
+		meta.Annotations = prometheusConf
 	}
-	return templateObjMeta
+
+	if advancedOpts.ReloadWhenConfigChange {
+		configs, err := getConfigmapAndSecretContainersUse(namespace, cli, containers)
+		if err != nil {
+			return meta, err
+		}
+
+		if len(configs) > 0 {
+			hash, err := calculateConfigHash(configs)
+			if err != nil {
+				return meta, err
+			}
+			meta.Annotations[AnnKeyForConfigHashAnnotation] = hash
+		}
+	}
+
+	return meta, nil
 }
 
 func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.ExposedMetric {
@@ -429,4 +500,9 @@ func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts str
 			}
 		}
 	}
+}
+
+func getPodOwnerAttributes(podOwner interface{}) (types.AdvancedOptions, []types.Container, []types.VolumeClaimTemplate) {
+	opts := reflect.ValueOf(podOwner).Elem().FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
+	return opts, nil, nil
 }
