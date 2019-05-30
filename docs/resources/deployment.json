@@ -7,7 +7,8 @@
         "name": {"type": "string"},
         "replicas": {"type": "int"},
         "containers": {"type": "array", "elemType": "container"},
-        "advancedOptions": {"type": "advancedOptions"}
+        "advancedOptions": {"type": "advancedOptions"},
+        "volumeClaimTemplates": {"type": "array", "elemType": "volumeClaimTemplate"}
     },
 
     "subResources": {
@@ -57,6 +58,12 @@
         "exposedMetric": {
             "path" : {"type": "string"},
             "port" : {"type": "int"}
+        },
+
+        "volumeClaimTemplate": {
+            "name": {"type": "string"},
+            "size": {"type": "string"},
+            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "ceph"]}
         }
     },
 
@@ -68,7 +75,8 @@
             "name": {"type": "string", "required": true},
             "replicas": {"type": "int", "required": true},
             "containers":  {"type": "array", "elemType": "container", "required": true},
-            "advancedOptions": {"type": "advancedOptions"}
+            "advancedOptions": {"type": "advancedOptions"},
+            "volumeClaimTemplates": {"type": "array", "elemType": "volumeClaimTemplate"}
         },
 
         "subResources": {
@@ -118,6 +126,12 @@
             "exposedMetric": {
                 "path" : {"type": "string"},
                 "port" : {"type": "int"}
+            },
+
+            "volumeClaimTemplate": {
+                "name": {"type": "string"},
+                "size": {"type": "string"},
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "ceph"]}
             }
         }
     }

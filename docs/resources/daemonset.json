@@ -7,6 +7,7 @@
         "name": {"type": "string"},
         "containers": {"type": "array", "elemType": "container"},
         "advancedOptions": {"type": "advancedOptions"},
+        "volumeClaimTemplates": {"type": "array", "elemType": "volumeClaimTemplate"},
         "status": {"type": "daemonsetStatus"}
     },
 
@@ -78,6 +79,12 @@
             "lastTransitionTime": {"type": "date"},
             "reason": {"type": "string"},
             "message": {"type": "string"}
+        },
+
+        "volumeClaimTemplate": {
+            "name": {"type": "string"},
+            "size": {"type": "string"},
+            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "ceph"]}
         }
     },
 
@@ -88,6 +95,7 @@
         "fields": {
             "name": {"type": "string", "required": true},
             "advancedOptions": {"type": "advancedOptions"},
+            "volumeClaimTemplates": {"type": "array", "elemType": "volumeClaimTemplate"},
             "containers": {"type": "array", "elemType": "container", "required": true}
         },
 
@@ -139,6 +147,12 @@
                 "ingressPath" : {"type": "string"},
                 "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
                 "ingressPort" : {"type": "int"}
+            },
+
+            "volumeClaimTemplate": {
+                "name": {"type": "string"},
+                "size": {"type": "string"},
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "ceph"]}
             }
         }
     }
