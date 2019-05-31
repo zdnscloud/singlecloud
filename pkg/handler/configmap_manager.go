@@ -53,6 +53,21 @@ func (m *ConfigMapManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 }
 
+func (m *ConfigMapManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	cm := ctx.Object.(*types.ConfigMap)
+	if err := updateConfigMap(cluster.KubeClient, namespace, cm); err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update configmap failed %s", err.Error()))
+	} else {
+		return cm, nil
+	}
+}
+
 func (m *ConfigMapManager) List(ctx *resttypes.Context) interface{} {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {

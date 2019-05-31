@@ -40,6 +40,7 @@
         },
 
         "advancedOptions": {
+            "relaodWhenConfigChange": {"type": "bool"},
             "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
             "exposedServices": {"type": "array", "elemType": "exposedService"},
             "exposedMetric": {"type": "exposedMetric"}
@@ -129,6 +130,7 @@
 
 
             "advancedOptions": {
+                "relaodWhenConfigChange": {"type": "bool"},
                 "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
                 "exposedServices": {"type": "array", "elemType": "exposedService"},
                 "exposedMetric": {"type": "exposedMetric"}

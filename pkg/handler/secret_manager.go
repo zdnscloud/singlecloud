@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -14,6 +15,10 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+)
+
+var (
+	ErrDuplicateKeyInSecret = errors.New("duplicate key in secret")
 )
 
 type SecretManager struct {
@@ -43,6 +48,21 @@ func (m *SecretManager) Create(ctx *resttypes.Context, yamlConf []byte) (interfa
 
 	secret.SetID(secret.Name)
 	return secret, nil
+}
+
+func (m *SecretManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	secret := ctx.Object.(*types.Secret)
+	if err := updateSecret(cluster.KubeClient, namespace, secret); err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update secret failed %s", err.Error()))
+	} else {
+		return secret, nil
+	}
 }
 
 func (m *SecretManager) List(ctx *resttypes.Context) interface{} {
@@ -118,24 +138,44 @@ func getSecrets(cli client.Client, namespace string) (*corev1.SecretList, error)
 }
 
 func createSecret(cli client.Client, namespace string, secret *types.Secret) error {
-	data := make(map[string][]byte)
-	for k, v := range secret.Data {
-		data[k] = []byte(v)
+	k8sSecret, err := scSecretToK8sSecret(secret, namespace)
+	if err != nil {
+		return err
+	} else {
+		return cli.Create(context.TODO(), k8sSecret)
 	}
+}
 
-	k8sSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: secret.Name, Namespace: namespace},
-		Data:       data,
-		Type:       corev1.SecretTypeOpaque,
+func updateSecret(cli client.Client, namespace string, secret *types.Secret) error {
+	k8sSecret, err := scSecretToK8sSecret(secret, namespace)
+	if err != nil {
+		return err
+	} else {
+		return cli.Update(context.TODO(), k8sSecret)
 	}
-	return cli.Create(context.TODO(), k8sSecret)
 }
 
 func deleteSecret(cli client.Client, namespace, name string) error {
-	secret := &corev1.Secret{
+	k8sSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}
-	return cli.Delete(context.TODO(), secret)
+	return cli.Delete(context.TODO(), k8sSecret)
+}
+
+func scSecretToK8sSecret(secret *types.Secret, namespace string) (*corev1.Secret, error) {
+	data := make(map[string][]byte)
+	for k, v := range secret.Data {
+		if _, ok := data[k]; ok {
+			return nil, ErrDuplicateKeyInSecret
+		}
+		data[k] = []byte(v)
+	}
+
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: secret.Name, Namespace: namespace},
+		Data:       data,
+		Type:       corev1.SecretTypeOpaque,
+	}, nil
 }
 
 func k8sSecretToSCSecret(k8sSecret *corev1.Secret) *types.Secret {
