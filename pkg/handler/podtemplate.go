@@ -382,15 +382,15 @@ func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8
 }
 
 func createPodTempateObjectMeta(name, namespace string, cli client.Client, advancedOpts types.AdvancedOptions, containers []types.Container) (metav1.ObjectMeta, error) {
-	meta := metav1.ObjectMeta{Labels: map[string]string{"app": name}}
+	meta := metav1.ObjectMeta{
+		Labels:      map[string]string{"app": name},
+		Annotations: make(map[string]string)}
 
 	exposedMetric := advancedOpts.ExposedMetric
 	if exposedMetric.Port != 0 && exposedMetric.Path != "" {
-		prometheusConf := make(map[string]string)
-		prometheusConf[AnnkeyForPromethusScrape] = "true"
-		prometheusConf[AnnkeyForPromethusPort] = strconv.Itoa(exposedMetric.Port)
-		prometheusConf[AnnkeyForPromethusPath] = exposedMetric.Path
-		meta.Annotations = prometheusConf
+		meta.Annotations[AnnkeyForPromethusScrape] = "true"
+		meta.Annotations[AnnkeyForPromethusPort] = strconv.Itoa(exposedMetric.Port)
+		meta.Annotations[AnnkeyForPromethusPath] = exposedMetric.Path
 	}
 
 	if advancedOpts.ReloadWhenConfigChange {
