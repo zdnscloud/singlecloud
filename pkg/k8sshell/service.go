@@ -40,7 +40,7 @@ func (mgr *ExecutorManager) RegisterHandler(router gin.IRoutes) error {
 
 const (
 	ClusterShellPodName  = "zcloud-shell"
-	ClusterShellPodImage = "zdnscloud/kubectl:v1.13.4"
+	ClusterShellPodImage = "zdnscloud/kubectl:v1.13.1"
 )
 
 var _ io.ReadWriter = &ShellConn{}
