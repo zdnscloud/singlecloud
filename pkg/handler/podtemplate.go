@@ -18,13 +18,13 @@ import (
 )
 
 const (
-	VolumeNamePrefix                  = "vol"
-	AnnkeyForDeploymentAdvancedoption = "zcloud_deployment_advanded_options"
-	AnnkeyForPromethusScrape          = "prometheus.io/scrape"
-	AnnkeyForPromethusPort            = "prometheus.io/port"
-	AnnkeyForPromethusPath            = "prometheus.io/path"
-	AnnKeyForReloadWhenConfigChange   = "zcloud.cn/update-on-config-change"
-	AnnKeyForConfigHashAnnotation     = "zcloud.cn/config-hash"
+	VolumeNamePrefix                = "vol"
+	AnnkeyForWordloadAdvancedoption = "zcloud_workload_advanded_options"
+	AnnkeyForPromethusScrape        = "prometheus.io/scrape"
+	AnnkeyForPromethusPort          = "prometheus.io/port"
+	AnnkeyForPromethusPath          = "prometheus.io/path"
+	AnnKeyForReloadWhenConfigChange = "zcloud.cn/update-on-config-change"
+	AnnKeyForConfigHashAnnotation   = "zcloud.cn/config-hash"
 )
 
 func createPodTempateSpec(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {
@@ -61,7 +61,7 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
 	opts, _ := json.Marshal(advancedOpts)
 	annotations := map[string]string{
-		AnnkeyForStatefulSetAdvancedoption: string(opts),
+		AnnkeyForWordloadAdvancedoption: string(opts),
 	}
 	if advancedOpts.ReloadWhenConfigChange {
 		annotations[AnnKeyForReloadWhenConfigChange] = "true"
