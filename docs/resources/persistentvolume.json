@@ -8,7 +8,7 @@
         "storageSize": {"type": "string"},
         "storageClassName": {"type": "string"},
         "claimRef": {"type": "claimRef"},
-        "status": {"type": "enum", "validValues": ["Pending", "Bound", "Lost"]}
+        "status": {"type": "enum", "validValues": ["Pending", "Bound", "Available", "Released", "Failed"]}
     },
 
     "subResources": {
