@@ -161,7 +161,7 @@ func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
 	}
 
-	opts, ok := k8sDeploy.Annotations[AnnkeyForWorkloadAdvancedoption]
+	opts, ok := k8sDeploy.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
 	}
@@ -223,7 +223,7 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	}
 
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sDeploy.Annotations[AnnkeyForWorkloadAdvancedoption]
+	opts, ok := k8sDeploy.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}

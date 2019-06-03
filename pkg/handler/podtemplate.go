@@ -20,7 +20,7 @@ import (
 
 const (
 	VolumeNamePrefix                = "vol"
-	AnnkeyForWorkloadAdvancedoption = "zcloud_workload_advanded_options"
+	AnnkeyForWordloadAdvancedoption = "zcloud_workload_advanded_options"
 	AnnkeyForPromethusScrape        = "prometheus.io/scrape"
 	AnnkeyForPromethusPort          = "prometheus.io/port"
 	AnnkeyForPromethusPath          = "prometheus.io/path"
@@ -62,7 +62,7 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
 	opts, _ := json.Marshal(advancedOpts)
 	annotations := map[string]string{
-		AnnkeyForWorkloadAdvancedoption: string(opts),
+		AnnkeyForWordloadAdvancedoption: string(opts),
 	}
 	if advancedOpts.ReloadWhenConfigChange {
 		annotations[AnnKeyForReloadWhenConfigChange] = "true"

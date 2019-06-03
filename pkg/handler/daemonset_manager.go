@@ -125,7 +125,7 @@ func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete daemonSet failed %s", err.Error()))
 	}
 
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWorkloadAdvancedoption]
+	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.GetID(), opts)
 	}
@@ -214,7 +214,7 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	}
 
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWorkloadAdvancedoption]
+	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}
