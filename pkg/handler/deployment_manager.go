@@ -161,7 +161,7 @@ func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
 	}
 
-	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
+	opts, ok := k8sDeploy.Annotations[AnnkeyForWorkloadAdvancedoption]
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
 	}
@@ -181,7 +181,7 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 }
 
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
-	podTemplate, _, err := createPodTempateSpec(namespace, deploy, cli)
+	podTemplate, k8sPVCs, err := createPodTempateSpec(namespace, deploy, cli)
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,13 @@ func createDeployment(cli client.Client, namespace string, deploy *types.Deploym
 			Template: *podTemplate,
 		},
 	}
-	return cli.Create(context.TODO(), k8sDeploy)
+
+	if err := cli.Create(context.TODO(), k8sDeploy); err != nil {
+		deletePVCs(cli, namespace, k8sPVCs)
+		return err
+	}
+
+	return nil
 }
 
 func deleteDeployment(cli client.Client, namespace, name string) error {
@@ -217,7 +223,7 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	}
 
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
+	opts, ok := k8sDeploy.Annotations[AnnkeyForWorkloadAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}

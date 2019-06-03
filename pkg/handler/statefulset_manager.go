@@ -18,10 +18,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-const (
-	AnnkeyForStatefulSetAdvancedoption = "zcloud_statefulsetment_advanded_options"
-)
-
 var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
 
 type StatefulSetManager struct {
@@ -155,7 +151,7 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete statefulset failed %s", err.Error()))
 	}
 
-	opts, ok := k8sStatefulSet.Annotations[AnnkeyForStatefulSetAdvancedoption]
+	opts, ok := k8sStatefulSet.Annotations[AnnkeyForWorkloadAdvancedoption]
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), opts)
 	}
@@ -206,7 +202,7 @@ func deleteStatefulSet(cli client.Client, namespace, name string) error {
 
 func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.StatefulSet {
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sStatefulSet.Annotations[AnnkeyForStatefulSetAdvancedoption]
+	opts, ok := k8sStatefulSet.Annotations[AnnkeyForWorkloadAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}

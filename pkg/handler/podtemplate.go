@@ -12,19 +12,20 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
-	VolumeNamePrefix                  = "vol"
-	AnnkeyForDeploymentAdvancedoption = "zcloud_deployment_advanded_options"
-	AnnkeyForPromethusScrape          = "prometheus.io/scrape"
-	AnnkeyForPromethusPort            = "prometheus.io/port"
-	AnnkeyForPromethusPath            = "prometheus.io/path"
-	AnnKeyForReloadWhenConfigChange   = "zcloud.cn/update-on-config-change"
-	AnnKeyForConfigHashAnnotation     = "zcloud.cn/config-hash"
+	VolumeNamePrefix                = "vol"
+	AnnkeyForWorkloadAdvancedoption = "zcloud_workload_advanded_options"
+	AnnkeyForPromethusScrape        = "prometheus.io/scrape"
+	AnnkeyForPromethusPort          = "prometheus.io/port"
+	AnnkeyForPromethusPath          = "prometheus.io/path"
+	AnnKeyForReloadWhenConfigChange = "zcloud.cn/update-on-config-change"
+	AnnKeyForConfigHashAnnotation   = "zcloud.cn/config-hash"
 )
 
 func createPodTempateSpec(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {
@@ -38,16 +39,16 @@ func createPodTempateSpec(namespace string, podOwner interface{}, cli client.Cli
 		return nil, nil, err
 	}
 
-	if _, ok := podOwner.(*types.StatefulSet); ok == false {
-		if err := createPVCs(cli, namespace, k8sPVCs); err != nil {
-			return nil, nil, err
-		}
-	}
-
 	name := structVal.FieldByName("Name").String()
 	meta, err := createPodTempateObjectMeta(name, namespace, cli, advancedOpts, containers)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if _, ok := podOwner.(*types.StatefulSet); ok == false {
+		if err := createPVCs(cli, namespace, k8sPVCs); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return &corev1.PodTemplateSpec{
@@ -61,7 +62,7 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
 	opts, _ := json.Marshal(advancedOpts)
 	annotations := map[string]string{
-		AnnkeyForStatefulSetAdvancedoption: string(opts),
+		AnnkeyForWorkloadAdvancedoption: string(opts),
 	}
 	if advancedOpts.ReloadWhenConfigChange {
 		annotations[AnnKeyForReloadWhenConfigChange] = "true"
@@ -102,6 +103,26 @@ func getPVCs(cli client.Client, namespace string, templates []types.VolumeClaimT
 	}
 
 	return vcTemplates, nil
+}
+
+func deletePVCs(cli client.Client, namespace string, k8sPVCs []corev1.PersistentVolumeClaim) {
+	for _, pvc := range k8sPVCs {
+		k8sPVC, err := getPersistentVolumeClaim(cli, namespace, pvc.Name)
+		if err != nil {
+			log.Warnf("get persistentvolumeclaim %s failed:%s", pvc.Name, err.Error())
+			continue
+		}
+
+		if err := deletePersistentVolumeClaim(cli, namespace, k8sPVC.Name); err != nil {
+			log.Warnf("delete persistentvolumeclaim %s failed:%s", k8sPVC.Name, err.Error())
+		}
+
+		if volumeName := k8sPVC.Spec.VolumeName; volumeName != "" {
+			if err := deletePersistentVolume(cli, volumeName); err != nil {
+				log.Warnf("delete persistentvolume %s failed:%s", volumeName, err.Error())
+			}
+		}
+	}
 }
 
 func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvcs []types.VolumeClaimTemplate) (corev1.PodSpec, []corev1.PersistentVolumeClaim, error) {
@@ -500,9 +521,4 @@ func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts str
 			}
 		}
 	}
-}
-
-func getPodOwnerAttributes(podOwner interface{}) (types.AdvancedOptions, []types.Container, []types.VolumeClaimTemplate) {
-	opts := reflect.ValueOf(podOwner).Elem().FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
-	return opts, nil, nil
 }

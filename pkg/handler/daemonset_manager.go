@@ -17,10 +17,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-const (
-	AnnkeyForDaemonSetAdvancedoption = "zcloud_daemonset_advanded_options"
-)
-
 type DaemonSetManager struct {
 	api.DefaultHandler
 	clusters *ClusterManager
@@ -129,7 +125,7 @@ func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete daemonSet failed %s", err.Error()))
 	}
 
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForDaemonSetAdvancedoption]
+	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWorkloadAdvancedoption]
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.GetID(), opts)
 	}
@@ -149,7 +145,7 @@ func getDaemonSets(cli client.Client, namespace string) (*appsv1.DaemonSetList, 
 }
 
 func createDaemonSet(cli client.Client, namespace string, daemonSet *types.DaemonSet) error {
-	podTemplate, _, err := createPodTempateSpec(namespace, daemonSet, cli)
+	podTemplate, k8sPVCs, err := createPodTempateSpec(namespace, daemonSet, cli)
 	if err != nil {
 		return err
 	}
@@ -163,7 +159,13 @@ func createDaemonSet(cli client.Client, namespace string, daemonSet *types.Daemo
 			Template: *podTemplate,
 		},
 	}
-	return cli.Create(context.TODO(), k8sDaemonSet)
+
+	if err := cli.Create(context.TODO(), k8sDaemonSet); err != nil {
+		deletePVCs(cli, namespace, k8sPVCs)
+		return err
+	}
+
+	return nil
 }
 
 func deleteDaemonSet(cli client.Client, namespace, name string) error {
@@ -212,7 +214,7 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	}
 
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForDaemonSetAdvancedoption]
+	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWorkloadAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}
