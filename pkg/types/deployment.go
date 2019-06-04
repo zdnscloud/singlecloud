@@ -8,6 +8,10 @@ const (
 	ActionGetHistory = "history"
 	ActionRollback   = "rollback"
 	ActionSetImage   = "setImage"
+
+	VolumeTypeConfigMap        = "configmap"
+	VolumeTypeSecret           = "secret"
+	VolumeTypePersistentVolume = "persistentVolume"
 )
 
 func SetDeploymentSchema(schema *resttypes.Schema, handler resttypes.Handler) {
@@ -39,12 +43,15 @@ type Container struct {
 	Image        string          `json:"image"`
 	Command      []string        `json:"command,omitempty"`
 	Args         []string        `json:"args,omitempty"`
-	ConfigName   string          `json:"configName,omitempty"`
-	MountPath    string          `json:"mountPath,omitempty"`
 	ExposedPorts []ContainerPort `json:"exposedPorts,omitempty"`
 	Env          []EnvVar        `json:"env,omitempty"`
-	SecretName   string          `json:"secretName,omitempty"`
-	SecretPath   string          `json:"secretPath,omitempty"`
+	Volumes      []Volume        `json:"volumes,omitempty"`
+}
+
+type Volume struct {
+	Type      string `json:"type"`
+	Name      string `json:"name"`
+	MountPath string `json:"mountPath"`
 }
 
 type EnvVar struct {
@@ -63,17 +70,19 @@ type ExposedService struct {
 }
 
 type AdvancedOptions struct {
-	ExposedServiceType string           `json:"exposedServiceType"`
-	ExposedServices    []ExposedService `json:"exposedServices"`
-	ExposedMetric      ExposedMetric    `json:"exposedMetric"`
+	ExposedServiceType     string           `json:"exposedServiceType"`
+	ExposedServices        []ExposedService `json:"exposedServices"`
+	ExposedMetric          ExposedMetric    `json:"exposedMetric"`
+	ReloadWhenConfigChange bool             `json:"relaodWhenConfigChange"`
 }
 
 type Deployment struct {
-	resttypes.Resource `json:",inline"`
-	Name               string          `json:"name,omitempty"`
-	Replicas           int             `json:"replicas"`
-	Containers         []Container     `json:"containers"`
-	AdvancedOptions    AdvancedOptions `json:"advancedOptions"`
+	resttypes.Resource     `json:",inline"`
+	Name                   string                  `json:"name,omitempty"`
+	Replicas               int                     `json:"replicas"`
+	Containers             []Container             `json:"containers"`
+	AdvancedOptions        AdvancedOptions         `json:"advancedOptions"`
+	PersistentClaimVolumes []PersistentClaimVolume `json:"persistentClaimVolumes"`
 }
 
 type ExposedMetric struct {

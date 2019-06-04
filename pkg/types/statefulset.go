@@ -4,6 +4,13 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
+const (
+	StorageClassNameLVM  = "lvm"
+	StorageClassNameNFS  = "nfs"
+	StorageClassNameCeph = "cephfs"
+	StorageClassNameTemp = "temporary"
+)
+
 func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
@@ -23,25 +30,18 @@ func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 }
 
 type StatefulSet struct {
-	resttypes.Resource  `json:",inline"`
-	Name                string              `json:"name,omitempty"`
-	Replicas            int                 `json:"replicas"`
-	Containers          []Container         `json:"containers"`
-	AdvancedOptions     AdvancedOptions     `json:"advancedOptions"`
-	VolumeClaimTemplate VolumeClaimTemplate `json:"volumeClaimTemplate"`
+	resttypes.Resource     `json:",inline"`
+	Name                   string                  `json:"name,omitempty"`
+	Replicas               int                     `json:"replicas"`
+	Containers             []Container             `json:"containers"`
+	AdvancedOptions        AdvancedOptions         `json:"advancedOptions"`
+	PersistentClaimVolumes []PersistentClaimVolume `json:"persistentClaimVolumes"`
 }
 
-type VolumeClaimTemplate struct {
+type PersistentClaimVolume struct {
 	Name             string `json:"name"`
-	MountPath        string `json:"mountPath"`
-	StorageSize      string `json:"storageSize"`
+	Size             string `json:"size"`
 	StorageClassName string `json:"storageClassName"`
 }
-
-const (
-	StorageClassNameLVM  = "lvm"
-	StorageClassNameNFS  = "nfs"
-	StorageClassNameTemp = "temporary"
-)
 
 var StatefulSetType = resttypes.GetResourceType(StatefulSet{})

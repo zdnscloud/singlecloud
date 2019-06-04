@@ -40,7 +40,7 @@ func (mgr *ExecutorManager) RegisterHandler(router gin.IRoutes) error {
 
 const (
 	ClusterShellPodName  = "zcloud-shell"
-	ClusterShellPodImage = "zdnscloud/kubectl:v1.13.4"
+	ClusterShellPodImage = "zdnscloud/kubectl:v1.13.1"
 )
 
 var _ io.ReadWriter = &ShellConn{}
@@ -141,13 +141,11 @@ func (mgr *ExecutorManager) OpenContainerConsole(clusterID, namespace, pod, cont
 		}
 
 		stream := newShellConn(session)
-		if err := executor.Exec(pod, exec.Cmd{Path: BashPath}, stream); err != nil {
+		if err := executor.Exec(pod, exec.Cmd{Path: ShPath}, stream); err != nil {
 			log.Errorf("execute bash failed %s", err.Error())
-		} else if err := executor.Exec(pod, exec.Cmd{Path: ShPath}, stream); err != nil {
-			log.Errorf("execute sh failed %s", err.Error())
 		}
 	}
 
-	path := fmt.Sprintf(WSContainerShellPathTemp, clusterID)
+	path := fmt.Sprintf(WSContainerShellPathTemp, clusterID, namespace, pod, container)
 	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }

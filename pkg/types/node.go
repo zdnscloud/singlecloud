@@ -15,7 +15,7 @@ type Node struct {
 	resttypes.Resource   `json:",inline"`
 	Name                 string            `json:"name,omitempty"`
 	Address              string            `json:"address,omitempty"`
-	Role                 string            `json:"role,omitempty"`
+	Roles                []string          `json:"roles,omitempty"`
 	Labels               map[string]string `json:"labels,omitempty"`
 	Annotations          map[string]string `json:"annotations,omitempty"`
 	OperatingSystem      string            `json:"operatingSystem,omitempty"`

@@ -2,13 +2,17 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/zdnscloud/cement/set"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -163,4 +167,63 @@ func createRole(cli client.Client, roleName string, role ClusterRole, namespace 
 	}
 
 	return nil
+}
+
+func getConfigmapAndSecretContainersUse(namespace string, cli client.Client, containers []types.Container) ([]runtime.Object, error) {
+	configmaps := set.NewStringSet()
+	secrets := set.NewStringSet()
+	var results []runtime.Object
+	for _, container := range containers {
+		for _, volume := range container.Volumes {
+			if volume.Type == types.VolumeTypeConfigMap {
+				if configmaps.Member(volume.Name) == false {
+					configmaps.Add(volume.Name)
+					cm, err := getConfigMap(cli, namespace, volume.Name)
+					if err != nil {
+						return nil, err
+					}
+					results = append(results, cm)
+				}
+			} else if volume.Type == types.VolumeTypeSecret {
+				if secrets.Member(volume.Name) == false {
+					secrets.Add(volume.Name)
+					secret, err := getSecret(cli, namespace, volume.Name)
+					if err != nil {
+						return nil, err
+					}
+					results = append(results, secret)
+				}
+			}
+		}
+	}
+	return results, nil
+}
+
+func calculateConfigHash(objects []runtime.Object) (string, error) {
+	hashSource := struct {
+		ConfigMaps map[string]map[string]string `json:"configMaps"`
+		Secrets    map[string]map[string][]byte `json:"secrets"`
+	}{
+		ConfigMaps: make(map[string]map[string]string),
+		Secrets:    make(map[string]map[string][]byte),
+	}
+
+	for _, obj := range objects {
+		switch o := obj.(type) {
+		case *corev1.ConfigMap:
+			hashSource.ConfigMaps[o.Name] = o.Data
+		case *corev1.Secret:
+			hashSource.Secrets[o.Name] = o.Data
+		default:
+			return "", fmt.Errorf("unknown config type %v", obj)
+		}
+	}
+
+	jsonData, err := json.Marshal(hashSource)
+	if err != nil {
+		return "", fmt.Errorf("unable to marshal JSON: %v", err)
+	}
+
+	hashBytes := sha256.Sum256(jsonData)
+	return fmt.Sprintf("%x", hashBytes), nil
 }

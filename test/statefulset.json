@@ -1,11 +1,11 @@
 {
-    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/deployments",
-    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/deployments/sc-test-deployment1",
+    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/statefulsets",
+    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/statefulsets/sc-test-statefulset1",
 
     "params": {
-		"name":            "sc-test-deployment1",
-		"replicas":        2,
-		"containers":      [
+        "name": "sc-test-statefulset1",
+        "replicas": 2,
+        "containers":      [
             {
                 "name": "sc-test-containter1",
                 "image": "redis",
@@ -19,8 +19,8 @@
                 ],
                 "exposedPorts": [
                     {
-                        "name": "sc-test-port1",
-                        "port": 22222,
+                        "name": "sc-test-sts-port1",
+                        "port": 22223,
                         "protocol": "TCP"
                     }
                 ],
@@ -39,16 +39,28 @@
                     {
                         "type": "persistentVolume",
                         "name": "sc-test-emptydir1",
-                        "mountPath": "/etc/scdmtestpvc11"
+                        "mountPath": "/etc/scststestpvc21"
                     },
                     {
                         "type": "persistentVolume",
-                        "name": "sc-test-lvm-pvc1",
-                        "mountPath": "/etc/scdmtestpvc12"
+                        "name": "sc-test-lvm-pvc2",
+                        "mountPath": "/etc/scststestpvc22"
                     }
                 ]
             }
         ],
+        "advancedOptions": {
+            "exposedServiceType": "clusterip",
+            "exposedServices": [
+                {
+                    "containerPortName": "sc-test-sts-port1",
+                    "servicePort": 22223,
+                    "autoCreateIngress": true,
+                    "ingressProtocol": "TCP",
+                    "ingressPort": 33334
+                }
+            ]
+        },
 
         "persistentClaimVolumes": [
             {
@@ -57,23 +69,10 @@
                 "storageClassName": "temporary"
             },
             {
-                "name": "sc-test-lvm-pvc1",
+                "name": "sc-test-lvm-pvc2",
                 "size": "200Mi",
                 "storageClassName": "lvm"
             }
-        ],
-
-		"advancedOptions": {
-            "exposedServiceType": "clusterip",
-            "exposedServices": [
-                {
-                    "containerPortName": "sc-test-port1",
-                    "servicePort": 22222,
-                    "autoCreateIngress": true,
-                    "ingressProtocol": "TCP",
-                    "ingressPort": 33333
-                }
-            ]
-        }
+        ]
     }
 }

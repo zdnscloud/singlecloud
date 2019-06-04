@@ -31,3 +31,7 @@ func Fatalf(fmt string, args ...interface{}) {
 	gLogger.Close()
 	os.Exit(1)
 }
+
+func CloseLogger() {
+	gLogger.Close()
+}

@@ -7,7 +7,7 @@ import (
 func SetConfigMapSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE"}
+	schema.ResourceMethods = []string{"GET", "PUT", "DELETE"}
 	schema.Parents = []string{NamespaceType}
 }
 

@@ -155,7 +155,7 @@ func deletePod(cli client.Client, namespace, name string) error {
 }
 
 func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
-	containers := k8sContainersToScContainers(k8sPod.Spec.Containers, k8sPod.Spec.Volumes)
+	containers, _ := k8sPodSpecToScContainersAndVCTemplates(k8sPod.Spec.Containers, k8sPod.Spec.Volumes)
 
 	var conditions []types.PodCondition
 	for _, condition := range k8sPod.Status.Conditions {

@@ -278,7 +278,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:62f28bf1ebb4546627aecc585c702efc90601cdf9cfda464704008dfd9192883"
+  digest = "1:460b5791f1a7e0bfeb65384b9e5607d403340a9ce76aba3a6109b34883449a68"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -291,13 +291,14 @@
     "reflector",
     "rest",
     "serializer",
+    "set",
     "slice",
     "stringtool",
     "unittest",
     "uuid",
   ]
   pruneopts = "UT"
-  revision = "62c37a539f2035178d4b185e53c4778da8ca8c8e"
+  revision = "4e659246475c1b00f2644fc6860e49c0c3cdf2b9"
 
 [[projects]]
   branch = "master"
@@ -343,7 +344,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:020132a1f037d88b5bddb15082d8cc9f6091cbbb602e78d0f6e6f5784bd58018"
+  digest = "1:4b5e7d41a4d283b8ac5557af62bbf3f9c72de291866af490b27b2d60a8db44ee"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -354,7 +355,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "b2c1eb5609f042707f90dd384492fc5bd7af294b"
+  revision = "35c1b2df83a5c3e4a83158a1abc33fb7eedcf486"
 
 [[projects]]
   branch = "master"
@@ -706,6 +707,7 @@
     "github.com/kyokomi/emoji",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",
+    "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/unittest",
     "github.com/zdnscloud/cement/uuid",
     "github.com/zdnscloud/g53",
@@ -737,6 +739,7 @@
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",
+    "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/client-go/kubernetes/scheme",

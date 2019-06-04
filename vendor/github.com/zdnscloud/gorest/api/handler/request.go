@@ -109,13 +109,15 @@ func ActionHandler(ctx *types.Context) *types.APIError {
 		return types.NewAPIError(types.NotFound, "no handler for action")
 	}
 
-	val := createRuntimeActionInput(ctx)
-	if err := decodeBody(ctx.Request, val); err != nil {
-		return err
-	}
+	if ctx.Action.Input != nil {
+		val := createRuntimeActionInput(ctx)
+		if err := decodeBody(ctx.Request, val); err != nil {
+			return err
+		}
 
+		setRuntimeActionInput(ctx, val)
+	}
 	setRuntimeObject(ctx, createRuntimeObject(ctx))
-	setRuntimeActionInput(ctx, val)
 	result, err := handler.Action(ctx)
 	if err != nil {
 		return err

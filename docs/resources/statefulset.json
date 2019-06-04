@@ -8,7 +8,7 @@
         "replicas": {"type": "int"},
         "containers": {"type": "array", "elemType": "container"},
         "advancedOptions": {"type": "advancedOptions"},
-        "volumeClaimTemplate": {"type": "volumeClaimTemplate"}
+        "persistentClaimVolumes": {"type": "array", "elemType": "persistentClaimVolume"}
     },
 
     "subResources": {
@@ -17,12 +17,15 @@
             "image": {"type": "string"},
             "command": {"type": "array", "elemType": "string"},
             "args": {"type": "array", "elemType": "string"},
-            "configName": {"type": "string"},
-            "mountPath":{"type": "string"},
             "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
             "env": {"type": "array", "elemType": "envVar"},
-            "secretName": {"type": "string"},
-            "secretPath": {"type": "string"}
+            "volumes": {"type": "array", "elemType": "volume"}
+        },
+
+        "volume": {
+            "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+            "name": {"type": "string"},
+            "mountPath": {"type": "string"}
         },
 
         "envVar": {
@@ -37,19 +40,19 @@
         },
 
         "advancedOptions": {
+            "relaodWhenConfigChange": {"type": "bool"},
             "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
             "exposedServices": {"type": "array", "elemType": "exposedService"},
             "exposedMetric": {"type": "exposedMetric"}
         },
 
         "exposedService": {
-            "name" : {"type": "string"},
-            "port" : {"type": "int"},
-            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]},
+            "containerPortName" : {"type": "string"},
             "servicePort" : {"type": "int"},
             "autoCreateIngress" : {"type": "bool"},
-            "ingressDomainName" : {"type": "string"},
+            "ingressHost" : {"type": "string"},
             "ingressPath" : {"type": "string"},
+            "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
             "ingressPort" : {"type": "int"}
         },
 
@@ -58,11 +61,10 @@
             "port" : {"type": "int"}
         },
 
-        "volumeClaimTemplate": {
+        "persistentClaimVolume": {
             "name": {"type": "string"},
-            "mountPath": {"type": "string"},
-            "storageSize": {"type": "string"},
-            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
+            "size": {"type": "string"},
+            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
         }
     },
 
@@ -75,7 +77,7 @@
             "replicas": {"type": "int", "required": true},
             "containers":  {"type": "array", "elemType": "container", "required": true},
             "advancedOptions": {"type": "advancedOptions"},
-            "volumeClaimTemplate": {"type": "volumeClaimTemplate"}
+            "persistentClaimVolumes": {"type": "array", "elemType": "persistentClaimVolume"}
         },
 
         "subResources": {
@@ -84,12 +86,15 @@
                 "image": {"type": "string", "required": true},
                 "command": {"type": "array", "elemType": "string"},
                 "args": {"type": "array", "elemType": "string"},
-                "configName": {"type": "string"},
-                "mountPath":{"type": "string"},
                 "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
                 "env": {"type": "array", "elemType": "envVar"},
-                "secretName": {"type": "string"},
-                "secretPath": {"type": "string"}
+                "volumes": {"type": "array", "elemType": "volume"}
+            },
+
+            "volume": {
+                "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+                "name": {"type": "string"},
+                "mountPath": {"type": "string"}
             },
 
             "envVar": {
@@ -104,19 +109,19 @@
             },
 
             "advancedOptions": {
+                "relaodWhenConfigChange": {"type": "bool"},
                 "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
                 "exposedServices": {"type": "array", "elemType": "exposedService"},
                 "exposedMetric": {"type": "exposedMetric"}
             },
 
             "exposedService": {
-                "name" : {"type": "string"},
-                "port" : {"type": "int"},
-                "protocol": {"type": "enum", "validValues": ["tcp", "udp"]},
+                "containerPortName" : {"type": "string"},
                 "servicePort" : {"type": "int"},
                 "autoCreateIngress" : {"type": "bool"},
-                "ingressDomainName" : {"type": "string"},
+                "ingressHost" : {"type": "string"},
                 "ingressPath" : {"type": "string"},
+                "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
                 "ingressPort" : {"type": "int"}
             },
 
@@ -125,11 +130,10 @@
                 "port" : {"type": "int"}
             },
 
-            "volumeClaimTemplate": {
+            "persistentClaimVolume": {
                 "name": {"type": "string"},
-                "mountPath": {"type": "string"},
-                "storageSize": {"type": "string"},
-                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary"]}
+                "size": {"type": "string"},
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
             }
         }
     },

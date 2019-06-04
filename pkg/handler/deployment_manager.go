@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,11 +21,6 @@ import (
 )
 
 const (
-	AnnkeyForDeploymentAdvancedoption = "zcloud_deployment_advanded_options"
-	AnnkeyForPromethusScrape          = "prometheus.io/scrape"
-	AnnkeyForPromethusPort            = "prometheus.io/port"
-	AnnkeyForPromethusPath            = "prometheus.io/path"
-
 	ChangeCauseAnnotation       = "kubernetes.io/change-cause"
 	LastAppliedConfigAnnotation = "kubectl.kubernetes.io/last-applied-configuration"
 	RevisionAnnotation          = "deployment.kubernetes.io/revision"
@@ -72,14 +66,7 @@ func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 	}
 
 	deploy.SetID(deploy.Name)
-	containerPorts := make(map[string]types.ContainerPort)
-	for _, container := range deploy.Containers {
-		for _, port := range container.ExposedPorts {
-			containerPorts[port.Name] = port
-		}
-	}
-
-	if err := createServiceAndIngress(containerPorts, deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name, false); err != nil {
+	if err := createServiceAndIngress(deploy.Containers, deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name, false); err != nil {
 		deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
 		return nil, err
 	}
@@ -104,7 +91,12 @@ func (m *DeploymentManager) List(ctx *resttypes.Context) interface{} {
 
 	var deploys []*types.Deployment
 	for _, ns := range k8sDeploys.Items {
-		deploys = append(deploys, k8sDeployToSCDeploy(&ns))
+		if deploy, err := k8sDeployToSCDeploy(cluster.KubeClient, &ns); err != nil {
+			log.Warnf("list deployment info failed:%s", err.Error())
+			return nil
+		} else {
+			deploys = append(deploys, deploy)
+		}
 	}
 	return deploys
 }
@@ -125,7 +117,12 @@ func (m *DeploymentManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	return k8sDeployToSCDeploy(k8sDeploy)
+	if deploy, err := k8sDeployToSCDeploy(cluster.KubeClient, k8sDeploy); err != nil {
+		log.Warnf("get deployment info failed:%s", err.Error())
+		return nil
+	} else {
+		return deploy
+	}
 }
 
 func (m *DeploymentManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
@@ -151,11 +148,15 @@ func (m *DeploymentManager) Update(ctx *resttypes.Context) (interface{}, *restty
 	} else {
 		replicas := int32(deploy.Replicas)
 		k8sDeploy.Spec.Replicas = &replicas
-		err := cluster.KubeClient.Update(context.TODO(), k8sDeploy)
+		newDeploy, err := k8sDeployToSCDeploy(cluster.KubeClient, k8sDeploy)
 		if err != nil {
 			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
+		}
+
+		if err := cluster.KubeClient.Update(context.TODO(), k8sDeploy); err != nil {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
 		} else {
-			return k8sDeployToSCDeploy(k8sDeploy), nil
+			return newDeploy, nil
 		}
 	}
 }
@@ -182,7 +183,7 @@ func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
 	}
 
-	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
+	opts, ok := k8sDeploy.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
 	}
@@ -215,45 +216,29 @@ func getDeployments(cli client.Client, namespace string) (*appsv1.DeploymentList
 }
 
 func createDeployment(cli client.Client, namespace string, deploy *types.Deployment) error {
-	replicas := int32(deploy.Replicas)
-	k8sPodSpec, err := scContainersToK8sPodSpec(deploy.Containers)
+	podTemplate, k8sPVCs, err := createPodTempateSpec(namespace, deploy, cli)
 	if err != nil {
 		return err
 	}
 
-	advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
+	replicas := int32(deploy.Replicas)
 	k8sDeploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      deploy.Name,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				AnnkeyForDeploymentAdvancedoption: string(advancedOpts),
-			},
-		},
+		ObjectMeta: generatePodOwnerObjectMeta(namespace, deploy),
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": deploy.Name},
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(deploy.Name, deploy.AdvancedOptions.ExposedMetric),
-				Spec:       k8sPodSpec,
-			},
+			Template: *podTemplate,
 		},
 	}
-	return cli.Create(context.TODO(), k8sDeploy)
-}
 
-func scExposedMetricToK8sTempateObjectMeta(name string, exposedMetric types.ExposedMetric) metav1.ObjectMeta {
-	templateObjMeta := metav1.ObjectMeta{Labels: map[string]string{"app": name}}
-	if exposedMetric.Port != 0 && exposedMetric.Path != "" {
-		prometheusConf := make(map[string]string)
-		prometheusConf[AnnkeyForPromethusScrape] = "true"
-		prometheusConf[AnnkeyForPromethusPort] = strconv.Itoa(exposedMetric.Port)
-		prometheusConf[AnnkeyForPromethusPath] = exposedMetric.Path
-		templateObjMeta.Annotations = prometheusConf
+	if err := cli.Create(context.TODO(), k8sDeploy); err != nil {
+		deletePVCs(cli, namespace, k8sPVCs)
+		return err
 	}
-	return templateObjMeta
+
+	return nil
 }
 
 func deleteDeployment(cli client.Client, namespace, name string) error {
@@ -263,265 +248,33 @@ func deleteDeployment(cli client.Client, namespace, name string) error {
 	return cli.Delete(context.TODO(), deploy)
 }
 
-func k8sDeployToSCDeploy(k8sDeploy *appsv1.Deployment) *types.Deployment {
-	containers := k8sContainersToScContainers(k8sDeploy.Spec.Template.Spec.Containers, k8sDeploy.Spec.Template.Spec.Volumes)
+func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*types.Deployment, error) {
+	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sDeploy.Spec.Template.Spec.Containers,
+		k8sDeploy.Spec.Template.Spec.Volumes)
+
+	pvcs, err := getPVCs(cli, k8sDeploy.Namespace, templates)
+	if err != nil {
+		return nil, err
+	}
 
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sDeploy.Annotations[AnnkeyForDeploymentAdvancedoption]
+	opts, ok := k8sDeploy.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}
 
 	deploy := &types.Deployment{
-		Name:            k8sDeploy.Name,
-		Replicas:        int(*k8sDeploy.Spec.Replicas),
-		Containers:      containers,
-		AdvancedOptions: advancedOpts,
+		Name:                   k8sDeploy.Name,
+		Replicas:               int(*k8sDeploy.Spec.Replicas),
+		Containers:             containers,
+		PersistentClaimVolumes: pvcs,
+		AdvancedOptions:        advancedOpts,
 	}
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetType(types.DeploymentType)
 	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)
 	deploy.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDeploy.Spec.Template.Annotations)
-	return deploy
-}
-
-func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.ExposedMetric {
-	if doScrape, ok := annotations[AnnkeyForPromethusScrape]; ok && doScrape == "true" {
-		port, _ := strconv.Atoi(annotations[AnnkeyForPromethusPort])
-		return types.ExposedMetric{
-			Port: port,
-			Path: annotations[AnnkeyForPromethusPath],
-		}
-	}
-	return types.ExposedMetric{}
-}
-
-func k8sContainersToScContainers(k8sContainers []corev1.Container, volumes []corev1.Volume) []types.Container {
-	var containers []types.Container
-	for _, c := range k8sContainers {
-		var configName, mountPath, secretName, secretPath string
-		for _, vm := range c.VolumeMounts {
-			for _, v := range volumes {
-				if v.Name == vm.Name && v.ConfigMap != nil {
-					configName = v.ConfigMap.Name
-					mountPath = vm.MountPath
-					break
-				}
-			}
-
-			for _, v := range volumes {
-				if v.Name == vm.Name && v.Secret != nil {
-					secretName = v.Secret.SecretName
-					secretPath = vm.MountPath
-					break
-				}
-			}
-		}
-
-		var exposedPorts []types.ContainerPort
-		for _, p := range c.Ports {
-			exposedPorts = append(exposedPorts, types.ContainerPort{
-				Name:     p.Name,
-				Port:     int(p.ContainerPort),
-				Protocol: strings.ToLower(string(p.Protocol)),
-			})
-		}
-
-		var env []types.EnvVar
-		for _, e := range c.Env {
-			env = append(env, types.EnvVar{
-				Name:  e.Name,
-				Value: e.Value,
-			})
-		}
-
-		containers = append(containers, types.Container{
-			Name:         c.Name,
-			Image:        c.Image,
-			Command:      c.Command,
-			Args:         c.Args,
-			ConfigName:   configName,
-			MountPath:    mountPath,
-			ExposedPorts: exposedPorts,
-			Env:          env,
-			SecretName:   secretName,
-			SecretPath:   secretPath,
-		})
-	}
-
-	return containers
-}
-
-func scContainersToK8sPodSpec(containers []types.Container) (corev1.PodSpec, error) {
-	var k8sContainers []corev1.Container
-	usedConfigMap := make(map[string]struct{})
-	usedSecretMap := make(map[string]struct{})
-	for _, c := range containers {
-		var mounts []corev1.VolumeMount
-		var ports []corev1.ContainerPort
-		var env []corev1.EnvVar
-		if c.ConfigName != "" {
-			mounts = append(mounts, corev1.VolumeMount{
-				Name:      c.ConfigName,
-				MountPath: c.MountPath,
-				ReadOnly:  true,
-			})
-			usedConfigMap[c.ConfigName] = struct{}{}
-		}
-
-		if c.SecretName != "" {
-			mounts = append(mounts, corev1.VolumeMount{
-				Name:      c.SecretName,
-				MountPath: c.SecretPath,
-				ReadOnly:  true,
-			})
-			usedSecretMap[c.SecretName] = struct{}{}
-		}
-
-		var portNames []string
-		for _, spec := range c.ExposedPorts {
-			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
-			if err != nil {
-				return corev1.PodSpec{}, fmt.Errorf("invalid protocol for container port")
-			}
-
-			if spec.Name == "" {
-				return corev1.PodSpec{}, fmt.Errorf("exposed port has no name")
-			}
-
-			for _, pn := range portNames {
-				if pn == spec.Name {
-					return corev1.PodSpec{}, fmt.Errorf("duplicate container port name")
-				}
-			}
-			portNames = append(portNames, spec.Name)
-
-			ports = append(ports, corev1.ContainerPort{
-				ContainerPort: int32(spec.Port),
-				Protocol:      protocol,
-			})
-		}
-
-		for _, e := range c.Env {
-			env = append(env, corev1.EnvVar{
-				Name:  e.Name,
-				Value: e.Value,
-			})
-		}
-
-		k8sContainers = append(k8sContainers, corev1.Container{
-			Name:         c.Name,
-			Image:        c.Image,
-			Command:      c.Command,
-			Args:         c.Args,
-			VolumeMounts: mounts,
-			Ports:        ports,
-			Env:          env,
-		})
-	}
-
-	var k8sVolumes []corev1.Volume
-	for n, _ := range usedConfigMap {
-		configMapSource := &corev1.ConfigMapVolumeSource{}
-		configMapSource.Name = n
-		source := corev1.VolumeSource{
-			ConfigMap: configMapSource,
-		}
-		k8sVolumes = append(k8sVolumes, corev1.Volume{
-			Name:         n,
-			VolumeSource: source,
-		})
-	}
-
-	for n, _ := range usedSecretMap {
-		secretMapSource := &corev1.SecretVolumeSource{
-			SecretName: n,
-		}
-		k8sVolumes = append(k8sVolumes, corev1.Volume{
-			Name: n,
-			VolumeSource: corev1.VolumeSource{
-				Secret: secretMapSource,
-			},
-		})
-	}
-
-	return corev1.PodSpec{
-		Containers: k8sContainers,
-		Volumes:    k8sVolumes,
-	}, nil
-}
-
-func createServiceAndIngress(containerPorts map[string]types.ContainerPort, advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string, headless bool) *resttypes.APIError {
-	var servicePorts []types.ServicePort
-	var rules []types.IngressRule
-	for _, s := range advancedOpts.ExposedServices {
-		containerPort, ok := containerPorts[s.ContainerPortName]
-		if ok == false {
-			return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("unknown container port with name:%s", s.ContainerPortName))
-		}
-
-		servicePorts = append(servicePorts, types.ServicePort{
-			Name:       containerPort.Name,
-			Port:       s.ServicePort,
-			TargetPort: containerPort.Port,
-			Protocol:   string(scIngressProtocolToK8SProtocol(s.IngressProtocol)),
-		})
-
-		if s.AutoCreateIngress {
-			rules = append(rules, types.IngressRule{
-				Host:     s.IngressHost,
-				Port:     s.IngressPort,
-				Protocol: s.IngressProtocol,
-				Paths: []types.IngressPath{
-					types.IngressPath{
-						Path:        s.IngressPath,
-						ServiceName: serviceName,
-						ServicePort: s.ServicePort,
-					},
-				},
-			})
-		}
-	}
-
-	if len(servicePorts) > 0 {
-		service := &types.Service{
-			Name:         serviceName,
-			ServiceType:  advancedOpts.ExposedServiceType,
-			ExposedPorts: servicePorts,
-		}
-
-		if err := createService(cli, namespace, service, headless); err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
-		}
-
-		if len(rules) > 0 {
-			ingress := &types.Ingress{
-				Name:  serviceName,
-				Rules: rules,
-			}
-
-			if err := createIngress(cli, namespace, ingress); err != nil {
-				deleteService(cli, namespace, serviceName)
-				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
-			}
-		}
-	}
-
-	return nil
-}
-
-func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts string) {
-	var advancedOpts types.AdvancedOptions
-	json.Unmarshal([]byte(opts), &advancedOpts)
-	if len(advancedOpts.ExposedServices) > 0 {
-		deleteService(cli, namespace, serviceName)
-		for _, s := range advancedOpts.ExposedServices {
-			if s.AutoCreateIngress {
-				deleteIngress(cli, namespace, serviceName)
-				break
-			}
-		}
-	}
+	return deploy, nil
 }
 
 func (m *DeploymentManager) getDeploymentHistory(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
@@ -545,12 +298,13 @@ func (m *DeploymentManager) getDeploymentHistory(ctx *resttypes.Context) (interf
 	for _, rs := range replicasets {
 		if v, ok := rs.Annotations[RevisionAnnotation]; ok {
 			version, _ := strconv.Atoi(v)
+			containers, _ := k8sPodSpecToScContainersAndVCTemplates(rs.Spec.Template.Spec.Containers, nil)
 			versionInfos = append(versionInfos, types.VersionInfo{
 				Name:         deploy.GetID(),
 				Namespace:    namespace,
 				Version:      version,
 				ChangeReason: rs.Annotations[ChangeCauseAnnotation],
-				Containers:   k8sContainersToScContainers(rs.Spec.Template.Spec.Containers, nil),
+				Containers:   containers,
 			})
 		}
 	}

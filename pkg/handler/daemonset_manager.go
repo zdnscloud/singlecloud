@@ -7,7 +7,6 @@ import (
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -17,10 +16,6 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-)
-
-const (
-	AnnkeyForDaemonSetAdvancedoption = "zcloud_daemonset_advanded_options"
 )
 
 type DaemonSetManager struct {
@@ -49,13 +44,7 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 
 	daemonSet.SetID(daemonSet.Name)
-	containerPorts := make(map[string]types.ContainerPort)
-	for _, container := range daemonSet.Containers {
-		for _, port := range container.ExposedPorts {
-			containerPorts[port.Name] = port
-		}
-	}
-	if err := createServiceAndIngress(containerPorts, daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
+	if err := createServiceAndIngress(daemonSet.Containers, daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
 		deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.Name)
 		return nil, err
 	}
@@ -80,7 +69,12 @@ func (m *DaemonSetManager) List(ctx *resttypes.Context) interface{} {
 
 	var daemonSets []*types.DaemonSet
 	for _, item := range k8sDaemonSets.Items {
-		daemonSets = append(daemonSets, k8sDaemonSetToSCDaemonSet(&item))
+		daemonset, err := k8sDaemonSetToSCDaemonSet(cluster.KubeClient, &item)
+		if err != nil {
+			log.Warnf("list daemonSet info failed:%s", err.Error())
+			return nil
+		}
+		daemonSets = append(daemonSets, daemonset)
 	}
 	return daemonSets
 }
@@ -101,7 +95,12 @@ func (m *DaemonSetManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	return k8sDaemonSetToSCDaemonSet(k8sDaemonSet)
+	if daemonset, err := k8sDaemonSetToSCDaemonSet(cluster.KubeClient, k8sDaemonSet); err != nil {
+		log.Warnf("get daemonSet info failed:%s", err.Error())
+		return nil
+	} else {
+		return daemonset
+	}
 }
 
 func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
@@ -127,7 +126,7 @@ func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete daemonSet failed %s", err.Error()))
 	}
 
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForDaemonSetAdvancedoption]
+	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.GetID(), opts)
 	}
@@ -160,31 +159,27 @@ func getDaemonSets(cli client.Client, namespace string) (*appsv1.DaemonSetList, 
 }
 
 func createDaemonSet(cli client.Client, namespace string, daemonSet *types.DaemonSet) error {
-	k8sPodSpec, err := scContainersToK8sPodSpec(daemonSet.Containers)
+	podTemplate, k8sPVCs, err := createPodTempateSpec(namespace, daemonSet, cli)
 	if err != nil {
 		return err
 	}
 
-	advancedOpts, _ := json.Marshal(daemonSet.AdvancedOptions)
 	k8sDaemonSet := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      daemonSet.Name,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				AnnkeyForDaemonSetAdvancedoption: string(advancedOpts),
-			},
-		},
+		ObjectMeta: generatePodOwnerObjectMeta(namespace, daemonSet),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": daemonSet.Name},
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: scExposedMetricToK8sTempateObjectMeta(daemonSet.Name, daemonSet.AdvancedOptions.ExposedMetric),
-				Spec:       k8sPodSpec,
-			},
+			Template: *podTemplate,
 		},
 	}
-	return cli.Create(context.TODO(), k8sDaemonSet)
+
+	if err := cli.Create(context.TODO(), k8sDaemonSet); err != nil {
+		deletePVCs(cli, namespace, k8sPVCs)
+		return err
+	}
+
+	return nil
 }
 
 func deleteDaemonSet(cli client.Client, namespace, name string) error {
@@ -194,8 +189,14 @@ func deleteDaemonSet(cli client.Client, namespace, name string) error {
 	return cli.Delete(context.TODO(), daemonSet)
 }
 
-func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet {
-	containers := k8sContainersToScContainers(k8sDaemonSet.Spec.Template.Spec.Containers, k8sDaemonSet.Spec.Template.Spec.Volumes)
+func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet) (*types.DaemonSet, error) {
+	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sDaemonSet.Spec.Template.Spec.Containers,
+		k8sDaemonSet.Spec.Template.Spec.Volumes)
+
+	pvcs, err := getPVCs(cli, k8sDaemonSet.Namespace, templates)
+	if err != nil {
+		return nil, err
+	}
 
 	var conditions []types.DaemonSetCondition
 	for _, condition := range k8sDaemonSet.Status.Conditions {
@@ -227,22 +228,23 @@ func k8sDaemonSetToSCDaemonSet(k8sDaemonSet *appsv1.DaemonSet) *types.DaemonSet 
 	}
 
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForDaemonSetAdvancedoption]
+	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}
 
 	daemonSet := &types.DaemonSet{
-		Name:            k8sDaemonSet.Name,
-		Containers:      containers,
-		AdvancedOptions: advancedOpts,
-		Status:          daemonSetStatus,
+		Name:                   k8sDaemonSet.Name,
+		Containers:             containers,
+		AdvancedOptions:        advancedOpts,
+		PersistentClaimVolumes: pvcs,
+		Status:                 daemonSetStatus,
 	}
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetType(types.DaemonSetType)
 	daemonSet.SetCreationTimestamp(k8sDaemonSet.CreationTimestamp.Time)
 	daemonSet.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDaemonSet.Spec.Template.Annotations)
-	return daemonSet
+	return daemonSet, nil
 }
 
 func (m *DaemonSetManager) getDaemonsetHistory(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
@@ -270,12 +272,14 @@ func (m *DaemonSetManager) getDaemonsetHistory(ctx *resttypes.Context) (interfac
 			return nil, resttypes.NewAPIError(resttypes.InvalidFormat,
 				fmt.Sprintf("unmarshal controllerrevision data failed: %v", err.Error()))
 		}
+
+		containers, _ := k8sPodSpecToScContainersAndVCTemplates(oldK8sDaemonSet.Spec.Template.Spec.Containers, nil)
 		versionInfos = append(versionInfos, types.VersionInfo{
 			Name:         daemonset.GetID(),
 			Namespace:    namespace,
 			Version:      int(cr.Revision),
 			ChangeReason: cr.Annotations[ChangeCauseAnnotation],
-			Containers:   k8sContainersToScContainers(oldK8sDaemonSet.Spec.Template.Spec.Containers, nil),
+			Containers:   containers,
 		})
 	}
 
