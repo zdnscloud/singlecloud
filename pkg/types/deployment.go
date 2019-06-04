@@ -62,12 +62,12 @@ type AdvancedOptions struct {
 }
 
 type Deployment struct {
-	resttypes.Resource   `json:",inline"`
-	Name                 string                `json:"name,omitempty"`
-	Replicas             int                   `json:"replicas"`
-	Containers           []Container           `json:"containers"`
-	AdvancedOptions      AdvancedOptions       `json:"advancedOptions"`
-	VolumeClaimTemplates []VolumeClaimTemplate `json:"volumeClaimTemplates"`
+	resttypes.Resource     `json:",inline"`
+	Name                   string                  `json:"name,omitempty"`
+	Replicas               int                     `json:"replicas"`
+	Containers             []Container             `json:"containers"`
+	AdvancedOptions        AdvancedOptions         `json:"advancedOptions"`
+	PersistentClaimVolumes []PersistentClaimVolume `json:"persistentClaimVolumes"`
 }
 
 type ExposedMetric struct {

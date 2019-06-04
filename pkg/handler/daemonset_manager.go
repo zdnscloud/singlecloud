@@ -179,7 +179,7 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sDaemonSet.Spec.Template.Spec.Containers,
 		k8sDaemonSet.Spec.Template.Spec.Volumes)
 
-	volumeClaimTemplates, err := getPVCs(cli, k8sDaemonSet.Namespace, templates)
+	pvcs, err := getPVCs(cli, k8sDaemonSet.Namespace, templates)
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +220,11 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	}
 
 	daemonSet := &types.DaemonSet{
-		Name:                 k8sDaemonSet.Name,
-		Containers:           containers,
-		AdvancedOptions:      advancedOpts,
-		VolumeClaimTemplates: volumeClaimTemplates,
-		Status:               daemonSetStatus,
+		Name:                   k8sDaemonSet.Name,
+		Containers:             containers,
+		AdvancedOptions:        advancedOpts,
+		PersistentClaimVolumes: pvcs,
+		Status:                 daemonSetStatus,
 	}
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetType(types.DaemonSetType)

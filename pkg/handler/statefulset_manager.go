@@ -210,17 +210,17 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sStatefulSet.Spec.Template.Spec.Containers,
 		k8sStatefulSet.Spec.Template.Spec.Volumes)
 
-	var volumeClaimTemplates []types.VolumeClaimTemplate
+	var pvcs []types.PersistentClaimVolume
 	for _, template := range templates {
 		if template.StorageClassName == types.StorageClassNameTemp {
-			volumeClaimTemplates = append(volumeClaimTemplates, template)
+			pvcs = append(pvcs, template)
 		}
 	}
 
 	for _, pvc := range k8sStatefulSet.Spec.VolumeClaimTemplates {
 		if pvc.Spec.StorageClassName != nil {
 			quantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
-			volumeClaimTemplates = append(volumeClaimTemplates, types.VolumeClaimTemplate{
+			pvcs = append(pvcs, types.PersistentClaimVolume{
 				Name:             pvc.Name,
 				Size:             quantity.String(),
 				StorageClassName: *pvc.Spec.StorageClassName,
@@ -229,11 +229,11 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	}
 
 	statefulset := &types.StatefulSet{
-		Name:                 k8sStatefulSet.Name,
-		Replicas:             int(*k8sStatefulSet.Spec.Replicas),
-		Containers:           containers,
-		AdvancedOptions:      advancedOpts,
-		VolumeClaimTemplates: volumeClaimTemplates,
+		Name:                   k8sStatefulSet.Name,
+		Replicas:               int(*k8sStatefulSet.Spec.Replicas),
+		Containers:             containers,
+		AdvancedOptions:        advancedOpts,
+		PersistentClaimVolumes: pvcs,
 	}
 	statefulset.SetID(k8sStatefulSet.Name)
 	statefulset.SetType(types.StatefulSetType)

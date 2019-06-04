@@ -185,10 +185,37 @@ func TestDeployment(t *testing.T) {
 	ut.Equal(t, err, nil)
 	ut.Equal(t, deploy.Name, "sc-test-deployment1")
 	ut.Equal(t, deploy.Containers[0].Name, "sc-test-containter1")
-	ut.Equal(t, deploy.Containers[0].ConfigName, "sc-test-configmap1")
-	ut.Equal(t, deploy.Containers[0].SecretName, "sc-test-secret1")
 	ut.Equal(t, deploy.Containers[0].Env[0].Name, "TESTENV1")
 	ut.Equal(t, deploy.Containers[0].Env[0].Value, "testenv1")
+
+	ut.Equal(t, len(deploy.Containers[0].Volumes), 4)
+	for _, volume := range deploy.Containers[0].Volumes {
+		switch volume.Type {
+		case "configmap":
+			ut.Equal(t, volume.Name, "sc-test-configmap1")
+			ut.Equal(t, volume.MountPath, "/etc/scconfig")
+		case "secret":
+			ut.Equal(t, volume.Name, "sc-test-secret1")
+			ut.Equal(t, volume.MountPath, "/etc/scsecret")
+		case "persistentVolume":
+			if volume.Name == "sc-test-emptydir1" {
+				ut.Equal(t, volume.MountPath, "/etc/scdmtestpvc11")
+			} else {
+				ut.Equal(t, volume.Name, "sc-test-lvm-pvc1")
+				ut.Equal(t, volume.MountPath, "/etc/scdmtestpvc12")
+			}
+		}
+
+	}
+
+	pvcResource, err := loadTestResource("deployment_pvc.json")
+	ut.Equal(t, err, nil)
+	var pvc types.PersistentVolumeClaim
+	err = sendRequest("GET", pvcResource.ResourceUrl, nil, &pvc)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, pvc.Name, "sc-test-lvm-pvc1")
+	ut.Equal(t, pvc.RequestStorageSize, "200Mi")
+	ut.Equal(t, pvc.StorageClassName, "lvm")
 
 	serviceResource, err := loadTestResource("service.json")
 	ut.Equal(t, err, nil)
@@ -206,47 +233,55 @@ func TestDeployment(t *testing.T) {
 	var ingress types.Ingress
 	err = sendRequest("GET", ingressResource.ResourceUrl, nil, &ingress)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, ingress.Name, "sc-test-deployment1")
-	ut.Equal(t, ingress.Rules[0].Host, "sc-test-ingress1.cluster.chengdu")
-	ut.Equal(t, ingress.Rules[0].Paths[0].Path, "/etc/scingress")
+	ut.Equal(t, ingress.Rules[0].Port, 33333)
+	ut.Equal(t, string(ingress.Rules[0].Protocol), "TCP")
 	ut.Equal(t, ingress.Rules[0].Paths[0].ServicePort, 22222)
 	ut.Equal(t, ingress.Rules[0].Paths[0].ServiceName, "sc-test-deployment1")
 }
 
-func TestStatefulSetWithNFS(t *testing.T) {
-	statefulsetResource, err := loadTestResource("statefulset_nfs.json")
+func TestStatefulSet(t *testing.T) {
+	statefulsetResource, err := loadTestResource("statefulset.json")
 	ut.Equal(t, err, nil)
 	var statefulset types.StatefulSet
 	err = testOperatorResource(statefulsetResource, &statefulset)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, statefulset.Name, "sc-test-statefulset1")
 	ut.Equal(t, statefulset.Containers[0].Name, "sc-test-containter1")
-	ut.Equal(t, statefulset.Containers[0].ConfigName, "sc-test-configmap1")
-	ut.Equal(t, statefulset.Containers[0].SecretName, "sc-test-secret1")
 	ut.Equal(t, statefulset.Containers[0].Env[0].Name, "TESTENV1")
 	ut.Equal(t, statefulset.Containers[0].Env[0].Value, "testenv1")
-	ut.Equal(t, statefulset.VolumeClaimTemplate.Name, "sc-test-nfs-pvc1")
-	ut.Equal(t, statefulset.VolumeClaimTemplate.MountPath, "/etc/scststestpvc1")
-	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageSize, "100Mi")
-	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageClassName, "nfs")
-}
+	ut.Equal(t, len(statefulset.Containers[0].Volumes), 4)
+	ut.Equal(t, len(statefulset.PersistentClaimVolumes), 2)
 
-func TestStatefulSetWithEmptyDir(t *testing.T) {
-	statefulsetResource, err := loadTestResource("statefulset_emptydir.json")
-	ut.Equal(t, err, nil)
-	var statefulset types.StatefulSet
-	err = testOperatorResource(statefulsetResource, &statefulset)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, statefulset.Name, "sc-test-statefulset2")
-	ut.Equal(t, statefulset.Containers[0].Name, "sc-test-containter1")
-	ut.Equal(t, statefulset.Containers[0].ConfigName, "sc-test-configmap1")
-	ut.Equal(t, statefulset.Containers[0].SecretName, "sc-test-secret1")
-	ut.Equal(t, statefulset.Containers[0].Env[0].Name, "TESTENV1")
-	ut.Equal(t, statefulset.Containers[0].Env[0].Value, "testenv1")
-	ut.Equal(t, statefulset.VolumeClaimTemplate.Name, "sc-test-emptydir1")
-	ut.Equal(t, statefulset.VolumeClaimTemplate.MountPath, "/etc/scststestpvc2")
-	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageSize, "100Mi")
-	ut.Equal(t, statefulset.VolumeClaimTemplate.StorageClassName, "temporary")
+	for _, volume := range statefulset.Containers[0].Volumes {
+		switch volume.Type {
+		case "configmap":
+			ut.Equal(t, volume.Name, "sc-test-configmap1")
+			ut.Equal(t, volume.MountPath, "/etc/scconfig")
+		case "secret":
+			ut.Equal(t, volume.Name, "sc-test-secret1")
+			ut.Equal(t, volume.MountPath, "/etc/scsecret")
+		case "persistentVolume":
+			if volume.Name == "sc-test-emptydir1" {
+				ut.Equal(t, volume.MountPath, "/etc/scststestpvc21")
+			} else {
+				ut.Equal(t, volume.Name, "sc-test-lvm-pvc2")
+				ut.Equal(t, volume.MountPath, "/etc/scststestpvc22")
+			}
+		}
+	}
+
+	for _, template := range statefulset.PersistentClaimVolumes {
+		switch template.StorageClassName {
+		case types.StorageClassNameTemp:
+			ut.Equal(t, template.Name, "sc-test-emptydir1")
+			ut.Equal(t, template.Size, "100Mi")
+		case types.StorageClassNameLVM:
+			ut.Equal(t, template.Name, "sc-test-lvm-pvc2")
+			ut.Equal(t, template.Size, "200Mi")
+		case types.StorageClassNameNFS:
+		case types.StorageClassNameCeph:
+		}
+	}
 }
 
 func TestCronJob(t *testing.T) {
@@ -343,6 +378,7 @@ func TestGetStorageClass(t *testing.T) {
 	ut.Equal(t, sliceData.Len(), 2)
 	existLVM := false
 	existNFS := false
+	existCephNFS := false
 	for i := 0; i < sliceData.Len(); i++ {
 		c := sliceData.Index(i).Interface()
 		object, ok := c.(map[string]interface{})
@@ -352,15 +388,16 @@ func TestGetStorageClass(t *testing.T) {
 			existLVM = true
 		case types.StorageClassNameNFS:
 			existNFS = true
+		case types.StorageClassNameCeph:
+			existCephNFS = true
 		}
 	}
 
-	ut.Equal(t, existLVM, true)
-	ut.Equal(t, existNFS, true)
+	ut.Equal(t, existLVM || existNFS || existCephNFS, true)
 }
 
 func TestDeleteResource(t *testing.T) {
-	deleteResourceFiles := []string{"deployment.json", "statefulset_nfs.json", "statefulset_emptydir.json", "configmap.json", "secret.json", "job.json", "cronjob.json", "limitrange.json", "resourcequota.json", "user.json", "namespace.json", "cluster.json"}
+	deleteResourceFiles := []string{"deployment.json", "statefulset.json", "configmap.json", "secret.json", "job.json", "cronjob.json", "limitrange.json", "resourcequota.json", "user.json", "namespace.json", "cluster.json"}
 
 	for _, resourceFile := range deleteResourceFiles {
 		testResource, err := loadTestResource(resourceFile)

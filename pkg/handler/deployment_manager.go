@@ -217,7 +217,7 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sDeploy.Spec.Template.Spec.Containers,
 		k8sDeploy.Spec.Template.Spec.Volumes)
 
-	volumeClaimTemplates, err := getPVCs(cli, k8sDeploy.Namespace, templates)
+	pvcs, err := getPVCs(cli, k8sDeploy.Namespace, templates)
 	if err != nil {
 		return nil, err
 	}
@@ -229,11 +229,11 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	}
 
 	deploy := &types.Deployment{
-		Name:                 k8sDeploy.Name,
-		Replicas:             int(*k8sDeploy.Spec.Replicas),
-		Containers:           containers,
-		VolumeClaimTemplates: volumeClaimTemplates,
-		AdvancedOptions:      advancedOpts,
+		Name:                   k8sDeploy.Name,
+		Replicas:               int(*k8sDeploy.Spec.Replicas),
+		Containers:             containers,
+		PersistentClaimVolumes: pvcs,
+		AdvancedOptions:        advancedOpts,
 	}
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetType(types.DeploymentType)

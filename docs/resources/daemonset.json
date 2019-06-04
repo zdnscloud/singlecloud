@@ -7,7 +7,7 @@
         "name": {"type": "string"},
         "containers": {"type": "array", "elemType": "container"},
         "advancedOptions": {"type": "advancedOptions"},
-        "volumeClaimTemplates": {"type": "array", "elemType": "volumeClaimTemplate"},
+        "persistentClaimVolumes": {"type": "array", "elemType": "persistentClaimVolume"},
         "status": {"type": "daemonsetStatus"}
     },
 
@@ -82,7 +82,7 @@
             "message": {"type": "string"}
         },
 
-        "volumeClaimTemplate": {
+        "persistentClaimVolume": {
             "name": {"type": "string"},
             "size": {"type": "string"},
             "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
@@ -96,7 +96,7 @@
         "fields": {
             "name": {"type": "string", "required": true},
             "advancedOptions": {"type": "advancedOptions"},
-            "volumeClaimTemplates": {"type": "array", "elemType": "volumeClaimTemplate"},
+            "persistentClaimVolumes": {"type": "array", "elemType": "persistentClaimVolume"},
             "containers": {"type": "array", "elemType": "container", "required": true}
         },
 
@@ -151,7 +151,7 @@
                 "ingressPort" : {"type": "int"}
             },
 
-            "volumeClaimTemplate": {
+            "persistentClaimVolume": {
                 "name": {"type": "string"},
                 "size": {"type": "string"},
                 "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
