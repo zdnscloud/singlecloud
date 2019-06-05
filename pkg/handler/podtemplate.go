@@ -18,6 +18,8 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
+var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
+
 const (
 	VolumeNamePrefix                = "vol"
 	AnnkeyForWordloadAdvancedoption = "zcloud_workload_advanded_options"

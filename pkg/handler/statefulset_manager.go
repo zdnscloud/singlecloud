@@ -19,8 +19,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
-
 type StatefulSetManager struct {
 	api.DefaultHandler
 	clusters *ClusterManager

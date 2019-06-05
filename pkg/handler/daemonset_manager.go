@@ -303,28 +303,6 @@ func getDaemonSetAndControllerRevisions(cli client.Client, namespace, name strin
 	return k8sDaemonSet, controllerRevisions, err
 }
 
-func getControllerRevisions(cli client.Client, namespace string, selector *metav1.LabelSelector, uid k8stypes.UID) ([]appsv1.ControllerRevision, error) {
-	controllerRevisionList := appsv1.ControllerRevisionList{}
-	opts := &client.ListOptions{Namespace: namespace}
-	labels, err := metav1.LabelSelectorAsSelector(selector)
-	if err != nil {
-		return nil, err
-	}
-
-	opts.LabelSelector = labels
-	if err := cli.List(context.TODO(), opts, &controllerRevisionList); err != nil {
-		return nil, err
-	}
-
-	var controllerRevisions []appsv1.ControllerRevision
-	for _, item := range controllerRevisionList.Items {
-		if isControllerBy(item.OwnerReferences, uid) {
-			controllerRevisions = append(controllerRevisions, item)
-		}
-	}
-	return controllerRevisions, nil
-}
-
 func (m *DaemonSetManager) rollback(ctx *resttypes.Context) *resttypes.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {

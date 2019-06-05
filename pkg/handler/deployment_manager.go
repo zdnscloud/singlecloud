@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -418,42 +417,6 @@ func (m *DeploymentManager) setImage(ctx *resttypes.Context) *resttypes.APIError
 	return nil
 }
 
-func getSetImagePatch(param *types.SetImage, template corev1.PodTemplateSpec, annotations map[string]string) ([]byte, error) {
-	containerFound := false
-	for _, image := range param.Images {
-		for i, container := range template.Spec.Containers {
-			if container.Name == image.Name && container.Image != image.Image {
-				containerFound = true
-				template.Spec.Containers[i].Image = image.Image
-				break
-			}
-		}
-
-		if !containerFound {
-			return nil, fmt.Errorf("no found container %v", image.Name)
-		}
-
-	}
-
-	annotations[ChangeCauseAnnotation] = param.Reason
-	return marshalPatch(template, annotations)
-}
-
-func marshalPatch(template corev1.PodTemplateSpec, annotations map[string]string) ([]byte, error) {
-	return json.Marshal([]interface{}{
-		map[string]interface{}{
-			"op":    "replace",
-			"path":  "/spec/template",
-			"value": template,
-		},
-		map[string]interface{}{
-			"op":    "replace",
-			"path":  "/metadata/annotations",
-			"value": annotations,
-		},
-	})
-}
-
 func getDeploymentAndReplicaSets(cli client.Client, namespace, deployName string) (*appsv1.Deployment, []appsv1.ReplicaSet, error) {
 	k8sDeploy, err := getDeployment(cli, namespace, deployName)
 	if err != nil {
@@ -484,13 +447,4 @@ func getDeploymentAndReplicaSets(cli client.Client, namespace, deployName string
 	}
 
 	return k8sDeploy, replicaSetsByDeployControled, nil
-}
-
-func isControllerBy(ownerRefs []metav1.OwnerReference, uid k8stypes.UID) bool {
-	for _, ref := range ownerRefs {
-		if ref.Controller != nil && *ref.Controller && ref.UID == uid {
-			return true
-		}
-	}
-	return false
 }
