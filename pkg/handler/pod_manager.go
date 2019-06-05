@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -143,15 +142,16 @@ func filterPodBasedOnOwner(pods *corev1.PodList, typ string, name string) {
 	switch typ {
 	case types.DeploymentType:
 		for _, pod := range pods.Items {
+			rsHash, ok := pod.Labels["pod-template-hash"]
+			if ok == false {
+				continue
+			}
 			if len(pod.OwnerReferences) != 1 {
 				continue
 			}
 			owner := pod.OwnerReferences[0]
-			if owner.Kind == OwnerKindReplicaset {
-				deployNameAndHash := strings.Split(owner.Name, "-")
-				if len(deployNameAndHash) == 2 && deployNameAndHash[0] == name {
-					results = append(results, pod)
-				}
+			if owner.Kind == OwnerKindReplicaset && owner.Name == name+"-"+rsHash {
+				results = append(results, pod)
 			}
 		}
 	case types.DaemonSetType, types.StatefulSetType:
