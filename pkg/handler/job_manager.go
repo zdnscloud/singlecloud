@@ -64,7 +64,9 @@ func (m *JobManager) List(ctx *resttypes.Context) interface{} {
 
 	var jobs []*types.Job
 	for _, item := range k8sJobs.Items {
-		jobs = append(jobs, k8sJobToSCJob(&item))
+		if len(item.OwnerReferences) == 0 {
+			jobs = append(jobs, k8sJobToSCJob(&item))
+		}
 	}
 	return jobs
 }
