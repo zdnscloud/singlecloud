@@ -142,8 +142,7 @@ func createJob(cli client.Client, namespace string, job *types.Job) error {
 				MatchLabels: map[string]string{"job-name": job.Name},
 			},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"job-name": job.Name}},
-				Spec:       k8sPodSpec,
+				Spec: k8sPodSpec,
 			},
 		},
 	}

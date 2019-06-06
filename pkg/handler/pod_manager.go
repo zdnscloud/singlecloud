@@ -7,6 +7,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
@@ -33,17 +35,18 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 	}
 
 	namespace := ctx.Object.GetParent().GetParent().GetID()
-	selector, err := getPodParentSelector(cluster.KubeClient, namespace,
-		ctx.Object.GetParent().GetType(), ctx.Object.GetParent().GetID())
+	parentType := ctx.Object.GetParent().GetType()
+	parentName := ctx.Object.GetParent().GetID()
+	selector, err := getPodParentSelector(cluster.KubeClient, namespace, parentType, parentName)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get deployment info failed:%s", err.Error())
+			log.Warnf("get pod info failed:%s", err.Error())
 		}
 		return nil
 	}
 
 	if selector == nil {
-		log.Warnf("%s %s has no selector", ctx.Object.GetParent().GetType(), ctx.Object.GetParent().GetID())
+		log.Warnf("%s %s has no selector", parentType, parentName)
 		return nil
 	}
 
@@ -100,7 +103,8 @@ func (m *PodManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	return nil
 }
 
-func getPodParentSelector(cli client.Client, namespace string, typ string, name string) (*metav1.LabelSelector, error) {
+func getPodParentSelector(cli client.Client, namespace string, typ string, name string) (labels.Selector, error) {
+	var selector *metav1.LabelSelector
 	switch typ {
 	case types.DeploymentType:
 		k8sDeploy, err := getDeployment(cli, namespace, name)
@@ -108,24 +112,34 @@ func getPodParentSelector(cli client.Client, namespace string, typ string, name 
 			return nil, err
 		}
 
-		return k8sDeploy.Spec.Selector, nil
+		selector = k8sDeploy.Spec.Selector
 	case types.DaemonSetType:
 		k8sDaemonSet, err := getDaemonSet(cli, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 
-		return k8sDaemonSet.Spec.Selector, nil
+		selector = k8sDaemonSet.Spec.Selector
 	case types.StatefulSetType:
 		k8sStatefulSet, err := getStatefulSet(cli, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 
-		return k8sStatefulSet.Spec.Selector, nil
+		selector = k8sStatefulSet.Spec.Selector
+	case types.JobType:
+		return genJobSelector(cli, namespace, name)
+	case types.CronJobType:
+		return genCronJobSelector(cli, namespace, name)
 	default:
 		return nil, fmt.Errorf("pod no such parent %v", typ)
 	}
+
+	if selector == nil {
+		return nil, nil
+	}
+
+	return metav1.LabelSelectorAsSelector(selector)
 }
 
 func getPod(cli client.Client, namespace, name string) (*corev1.Pod, error) {
@@ -134,16 +148,9 @@ func getPod(cli client.Client, namespace, name string) (*corev1.Pod, error) {
 	return &pod, err
 }
 
-func getPods(cli client.Client, namespace string, selector *metav1.LabelSelector) (*corev1.PodList, error) {
+func getPods(cli client.Client, namespace string, selector labels.Selector) (*corev1.PodList, error) {
 	pods := corev1.PodList{}
-	opts := &client.ListOptions{Namespace: namespace}
-	labels, err := metav1.LabelSelectorAsSelector(selector)
-	if err != nil {
-		return nil, err
-	}
-
-	opts.LabelSelector = labels
-	err = cli.List(context.TODO(), opts, &pods)
+	err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace, LabelSelector: selector}, &pods)
 	return &pods, err
 }
 
@@ -228,4 +235,50 @@ func k8sContainerStateToScContainerState(k8sContainerState corev1.ContainerState
 	}
 
 	return state
+}
+
+func genCronJobSelector(cli client.Client, namespace, cronjobName string) (labels.Selector, error) {
+	k8sCronJob, err := getCronJob(cli, namespace, cronjobName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(k8sCronJob.Status.Active) == 0 {
+		return nil, nil
+	}
+
+	var jobUIDs []string
+	for _, ref := range k8sCronJob.Status.Active {
+		jobUIDs = append(jobUIDs, string(ref.UID))
+	}
+
+	requirement, err := labels.NewRequirement("controller-uid", selection.In, jobUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	return labels.Everything().Add(*requirement), nil
+}
+
+func genJobSelector(cli client.Client, namespace, jobName string) (labels.Selector, error) {
+	k8sJob, err := getJob(cli, namespace, jobName)
+	if err != nil {
+		return nil, err
+	}
+
+	requirement, err := labels.NewRequirement("controller-uid", selection.Equals, []string{string(k8sJob.UID)})
+	if err != nil {
+		return nil, err
+	}
+
+	return labels.Everything().Add(*requirement), nil
+}
+
+func isControllerBy(refs []metav1.OwnerReference, parentUID k8stypes.UID) bool {
+	for _, ref := range refs {
+		if ref.Controller != nil && *ref.Controller && ref.UID == parentUID {
+			return true
+		}
+	}
+	return false
 }

@@ -8,7 +8,7 @@ func SetPodSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET"}
 	schema.ResourceMethods = []string{"GET", "DELETE"}
-	schema.Parents = []string{DeploymentType, DaemonSetType, StatefulSetType}
+	schema.Parents = []string{DeploymentType, DaemonSetType, StatefulSetType, JobType, CronJobType}
 }
 
 type Pod struct {

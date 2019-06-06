@@ -22,7 +22,7 @@
         },
 
         "volume": {
-            "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+            "type": {"type": "enum", "validValues": ["configmap", "secret"]},
             "name": {"type": "string"},
             "mountPath": {"type": "string"}
         },
@@ -79,7 +79,7 @@
             },
 
             "volume": {
-                "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+                "type": {"type": "enum", "validValues": ["configmap", "secret"]},
                 "name": {"type": "string"},
                 "mountPath": {"type": "string"}
             },
