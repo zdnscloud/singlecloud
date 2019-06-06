@@ -4,6 +4,13 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
+type NodeStatus string
+
+const (
+	NSReady    NodeStatus = "Ready"
+	NSNotReady NodeStatus = "NotReady"
+)
+
 func SetNodeSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET"}
@@ -14,6 +21,7 @@ func SetNodeSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 type Node struct {
 	resttypes.Resource   `json:",inline"`
 	Name                 string            `json:"name,omitempty"`
+	Status               NodeStatus        `json:"status"`
 	Address              string            `json:"address,omitempty"`
 	Roles                []string          `json:"roles,omitempty"`
 	Labels               map[string]string `json:"labels,omitempty"`
