@@ -19,6 +19,13 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
+const (
+	OwnerKindReplicaset  = "ReplicaSet"
+	OwnerKindDeployment  = "Deployment"
+	OwnerKindStatefulSet = "StatefulSet"
+	OwnerKindDaemonSet   = "DaemonSet"
+)
+
 type PodManager struct {
 	api.DefaultHandler
 	clusters *ClusterManager
@@ -35,9 +42,9 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 	}
 
 	namespace := ctx.Object.GetParent().GetParent().GetID()
-	parentType := ctx.Object.GetParent().GetType()
-	parentName := ctx.Object.GetParent().GetID()
-	selector, err := getPodParentSelector(cluster.KubeClient, namespace, parentType, parentName)
+	ownerType := ctx.Object.GetParent().GetType()
+	ownerName := ctx.Object.GetParent().GetID()
+	selector, err := getPodParentSelector(cluster.KubeClient, namespace, ownerType, ownerName)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get pod info failed:%s", err.Error())
@@ -46,7 +53,7 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 	}
 
 	if selector == nil {
-		log.Warnf("%s %s has no selector", parentType, parentName)
+		log.Warnf("%s %s has no selector", ownerType, ownerName)
 		return nil
 	}
 
@@ -57,6 +64,7 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 		}
 		return nil
 	}
+	filterPodBasedOnOwner(k8sPods, ownerType, ownerName)
 
 	var pods []*types.Pod
 	for _, k8sPod := range k8sPods.Items {
@@ -140,6 +148,44 @@ func getPodParentSelector(cli client.Client, namespace string, typ string, name 
 	}
 
 	return metav1.LabelSelectorAsSelector(selector)
+}
+
+func filterPodBasedOnOwner(pods *corev1.PodList, typ string, name string) {
+	var results []corev1.Pod
+	switch typ {
+	case types.DeploymentType:
+		for _, pod := range pods.Items {
+			rsHash, ok := pod.Labels["pod-template-hash"]
+			if ok == false {
+				continue
+			}
+			if len(pod.OwnerReferences) != 1 {
+				continue
+			}
+			owner := pod.OwnerReferences[0]
+			if owner.Kind == OwnerKindReplicaset && owner.Name == name+"-"+rsHash {
+				results = append(results, pod)
+			}
+		}
+	case types.DaemonSetType, types.StatefulSetType:
+		kind := OwnerKindDaemonSet
+		if typ == types.StatefulSetType {
+			kind = OwnerKindStatefulSet
+		}
+
+		for _, pod := range pods.Items {
+			if len(pod.OwnerReferences) != 1 {
+				continue
+			}
+			owner := pod.OwnerReferences[0]
+			if owner.Name == name && owner.Kind == kind {
+				results = append(results, pod)
+			}
+		}
+	case types.JobType, types.CronJobType:
+		results = pods.Items
+	}
+	pods.Items = results
 }
 
 func getPod(cli client.Client, namespace, name string) (*corev1.Pod, error) {
