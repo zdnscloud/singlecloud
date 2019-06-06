@@ -319,12 +319,3 @@ func genJobSelector(cli client.Client, namespace, jobName string) (labels.Select
 
 	return labels.Everything().Add(*requirement), nil
 }
-
-func isControllerBy(refs []metav1.OwnerReference, parentUID k8stypes.UID) bool {
-	for _, ref := range refs {
-		if ref.Controller != nil && *ref.Controller && ref.UID == parentUID {
-			return true
-		}
-	}
-	return false
-}
