@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
 	metricsV1beta1api "k8s.io/metrics/pkg/apis/metrics/v1beta1"
@@ -44,7 +43,7 @@ func New(config *rest.Config, options Options) (Client, error) {
 
 	// Init a scheme if none provided
 	if options.Scheme == nil {
-		options.Scheme = scheme.Scheme
+		options.Scheme = GetDefaultScheme()
 	}
 
 	// Init a Mapper if none provided

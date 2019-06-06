@@ -12,6 +12,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -118,9 +119,14 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 	os := nodeInfo.OperatingSystem + " " + nodeInfo.KernelVersion
 	osImage := nodeInfo.OSImage
 	dockderVersion := nodeInfo.ContainerRuntimeVersion
+	nodeStatus := types.NSReady
+	if helper.IsNodeReady(k8sNode) == false {
+		nodeStatus = types.NSNotReady
+	}
 
 	node := &types.Node{
 		Name:                 host,
+		Status:               nodeStatus,
 		Address:              address,
 		Roles:                getRoleFromLabels(k8sNode.Labels),
 		Labels:               k8sNode.Labels,
