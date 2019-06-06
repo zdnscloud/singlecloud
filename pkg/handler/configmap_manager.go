@@ -19,6 +19,7 @@ import (
 
 var (
 	ErrDuplicateKeyInConfigMap = errors.New("duplicate key in configmap")
+	ErrUpdateDeletingConfigMap = errors.New("configmap is deleting")
 )
 
 type ConfigMapManager struct {
@@ -150,11 +151,21 @@ func createConfigMap(cli client.Client, namespace string, cm *types.ConfigMap) e
 }
 
 func updateConfigMap(cli client.Client, namespace string, cm *types.ConfigMap) error {
+	target, err := getConfigMap(cli, namespace, cm.GetID())
+	if err != nil {
+		return err
+	}
+
+	if target.GetDeletionTimestamp() != nil {
+		return ErrUpdateDeletingConfigMap
+	}
+
 	k8sConfigMap, err := scConfigMapToK8sConfigMap(cm, namespace)
 	if err != nil {
 		return err
 	} else {
-		return cli.Update(context.TODO(), k8sConfigMap)
+		target.Data = k8sConfigMap.Data
+		return cli.Update(context.TODO(), target)
 	}
 }
 

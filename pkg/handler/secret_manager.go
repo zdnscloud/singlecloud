@@ -19,6 +19,7 @@ import (
 
 var (
 	ErrDuplicateKeyInSecret = errors.New("duplicate key in secret")
+	ErrUpdateDeletingSecret = errors.New("secret is deleting")
 )
 
 type SecretManager struct {
@@ -147,11 +148,22 @@ func createSecret(cli client.Client, namespace string, secret *types.Secret) err
 }
 
 func updateSecret(cli client.Client, namespace string, secret *types.Secret) error {
+	target, err := getSecret(cli, namespace, secret.GetID())
+	if err != nil {
+		return err
+	}
+
+	if target.GetDeletionTimestamp() != nil {
+		return ErrUpdateDeletingSecret
+	}
+
 	k8sSecret, err := scSecretToK8sSecret(secret, namespace)
 	if err != nil {
 		return err
 	} else {
-		return cli.Update(context.TODO(), k8sSecret)
+		target.Data = k8sSecret.Data
+		target.Type = k8sSecret.Type
+		return cli.Update(context.TODO(), target)
 	}
 }
 
