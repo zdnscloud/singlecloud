@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -122,8 +123,14 @@ func deletePVCs(cli client.Client, namespace string, k8sPVCs []corev1.Persistent
 		}
 
 		if volumeName := k8sPVC.Spec.VolumeName; volumeName != "" {
-			if err := deletePersistentVolume(cli, volumeName); err != nil {
-				log.Warnf("delete persistentvolume %s failed:%s", volumeName, err.Error())
+			if _, err := getPersistentVolume(cli, volumeName); err != nil {
+				if apierrors.IsNotFound(err) == false {
+					log.Warnf("get persistentvolume %s failed:%s", volumeName, err.Error())
+				}
+			} else {
+				if err := deletePersistentVolume(cli, volumeName); err != nil {
+					log.Warnf("delete persistentvolume %s failed:%s", volumeName, err.Error())
+				}
 			}
 		}
 	}
