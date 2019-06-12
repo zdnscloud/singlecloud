@@ -19,22 +19,23 @@ import (
 )
 
 const (
-	VolumeNamePrefix                = "vol"
-	AnnkeyForWordloadAdvancedoption = "zcloud_workload_advanded_options"
-	AnnkeyForPromethusScrape        = "prometheus.io/scrape"
-	AnnkeyForPromethusPort          = "prometheus.io/port"
-	AnnkeyForPromethusPath          = "prometheus.io/path"
-	AnnKeyForReloadWhenConfigChange = "zcloud.cn/update-on-config-change"
-	AnnKeyForConfigHashAnnotation   = "zcloud.cn/config-hash"
+	VolumeNamePrefix                     = "vol"
+	AnnkeyForWordloadAdvancedoption      = "zcloud_workload_advanded_options"
+	AnnkeyForPromethusScrape             = "prometheus.io/scrape"
+	AnnkeyForPromethusPort               = "prometheus.io/port"
+	AnnkeyForPromethusPath               = "prometheus.io/path"
+	AnnKeyForReloadWhenConfigChange      = "zcloud.cn/update-on-config-change"
+	AnnKeyForConfigHashAnnotation        = "zcloud.cn/config-hash"
+	AnnkeyForDeletePVsWhenDeleteWorkload = "zcloud_delete_pvs_when_delete_workload"
 )
 
 func createPodTempateSpec(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {
 	structVal := reflect.ValueOf(podOwner).Elem()
 	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
 	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
-	pvcs := structVal.FieldByName("PersistentClaimVolumes").Interface().([]types.PersistentClaimVolume)
+	pvs := structVal.FieldByName("PersistentVolumes").Interface().([]types.PersistentVolumeTemplate)
 
-	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvcs)
+	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -67,6 +68,9 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 	if advancedOpts.ReloadWhenConfigChange {
 		annotations[AnnKeyForReloadWhenConfigChange] = "true"
 	}
+	if advancedOpts.DeletePVsWhenDeleteWorkload {
+		annotations[AnnkeyForDeletePVsWhenDeleteWorkload] = "true"
+	}
 	return metav1.ObjectMeta{
 		Name:        structVal.FieldByName("Name").String(),
 		Namespace:   namespace,
@@ -85,15 +89,15 @@ func createPVCs(cli client.Client, namespace string, k8sPVCs []corev1.Persistent
 	return nil
 }
 
-func getPVCs(cli client.Client, namespace string, templates []types.PersistentClaimVolume) ([]types.PersistentClaimVolume, error) {
-	var vcTemplates []types.PersistentClaimVolume
+func getPVCs(cli client.Client, namespace string, templates []types.PersistentVolumeTemplate) ([]types.PersistentVolumeTemplate, error) {
+	var pvTemplates []types.PersistentVolumeTemplate
 	for _, template := range templates {
 		if template.StorageClassName != types.StorageClassNameTemp {
 			if k8sPVC, err := getPersistentVolumeClaim(cli, namespace, template.Name); err != nil {
 				return nil, err
 			} else {
 				pvc := k8sPVCToSCPVC(k8sPVC)
-				vcTemplates = append(vcTemplates, types.PersistentClaimVolume{
+				pvTemplates = append(pvTemplates, types.PersistentVolumeTemplate{
 					Name:             pvc.Name,
 					Size:             pvc.RequestStorageSize,
 					StorageClassName: pvc.StorageClassName,
@@ -102,7 +106,7 @@ func getPVCs(cli client.Client, namespace string, templates []types.PersistentCl
 		}
 	}
 
-	return vcTemplates, nil
+	return pvTemplates, nil
 }
 
 func deletePVCs(cli client.Client, namespace string, k8sPVCs []corev1.PersistentVolumeClaim) {
@@ -125,9 +129,19 @@ func deletePVCs(cli client.Client, namespace string, k8sPVCs []corev1.Persistent
 	}
 }
 
-func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvcs []types.PersistentClaimVolume) (corev1.PodSpec, []corev1.PersistentVolumeClaim, error) {
+func deleteWorkLoadPVCs(cli client.Client, namespace string, k8sVolumes []corev1.Volume) {
+	for _, volume := range k8sVolumes {
+		if volume.PersistentVolumeClaim != nil {
+			if err := deletePersistentVolumeClaim(cli, namespace, volume.PersistentVolumeClaim.ClaimName); err != nil {
+				log.Warnf("delete persistentvolumeclaim %s failed:%s", volume.PersistentVolumeClaim.ClaimName, err.Error())
+			}
+		}
+	}
+}
+
+func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvs []types.PersistentVolumeTemplate) (corev1.PodSpec, []corev1.PersistentVolumeClaim, error) {
 	var k8sPodSpec corev1.PodSpec
-	k8sEmptyDirs, k8sPVCs, err := scPVCsToK8sVolumesAndPVCs(pvcs)
+	k8sEmptyDirs, k8sPVCs, err := scPVCsToK8sVolumesAndPVCs(pvs)
 	if err != nil {
 		return k8sPodSpec, nil, err
 	}
@@ -136,32 +150,32 @@ func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvcs []types.Per
 	return k8sPodSpec, k8sPVCs, err
 }
 
-func scPVCsToK8sVolumesAndPVCs(pvcs []types.PersistentClaimVolume) ([]corev1.Volume, []corev1.PersistentVolumeClaim, error) {
-	if len(pvcs) == 0 {
+func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.Volume, []corev1.PersistentVolumeClaim, error) {
+	if len(pvs) == 0 {
 		return nil, nil, nil
 	}
 
 	var k8sEmptydirVolumes []corev1.Volume
 	var k8sPVCs []corev1.PersistentVolumeClaim
-	for _, pvc := range pvcs {
-		if pvc.StorageClassName == "" {
-			return nil, nil, fmt.Errorf("pvc storageclass name should not be empty")
+	for _, pv := range pvs {
+		if pv.StorageClassName == "" {
+			return nil, nil, fmt.Errorf("persistent volume storageclass name should not be empty")
 		}
 
 		var k8sQuantity *resource.Quantity
-		if pvc.Size != "" {
-			quantity, err := resource.ParseQuantity(pvc.Size)
+		if pv.Size != "" {
+			quantity, err := resource.ParseQuantity(pv.Size)
 			if err != nil {
-				return nil, nil, fmt.Errorf("parse storage size %s failed: %s", pvc.Size, err.Error())
+				return nil, nil, fmt.Errorf("parse storage size %s failed: %s", pv.Size, err.Error())
 			}
 			k8sQuantity = &quantity
 		}
 
 		var accessModes []corev1.PersistentVolumeAccessMode
-		switch pvc.StorageClassName {
+		switch pv.StorageClassName {
 		case types.StorageClassNameTemp:
 			k8sEmptydirVolumes = append(k8sEmptydirVolumes, corev1.Volume{
-				Name: pvc.Name,
+				Name: pv.Name,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{
 						SizeLimit: k8sQuantity,
@@ -176,7 +190,7 @@ func scPVCsToK8sVolumesAndPVCs(pvcs []types.PersistentClaimVolume) ([]corev1.Vol
 		case types.StorageClassNameCeph:
 			accessModes = append(accessModes, corev1.ReadWriteMany)
 		default:
-			return nil, nil, fmt.Errorf("persistentClaimVolumes storageclass %s isn`t supported", pvc.StorageClassName)
+			return nil, nil, fmt.Errorf("persistent volumes storageclass %s isn`t supported", pv.StorageClassName)
 		}
 
 		if k8sQuantity == nil {
@@ -185,7 +199,7 @@ func scPVCsToK8sVolumesAndPVCs(pvcs []types.PersistentClaimVolume) ([]corev1.Vol
 
 		k8sPVCs = append(k8sPVCs, corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: pvc.Name,
+				Name: pv.Name,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: accessModes,
@@ -194,7 +208,7 @@ func scPVCsToK8sVolumesAndPVCs(pvcs []types.PersistentClaimVolume) ([]corev1.Vol
 						corev1.ResourceStorage: *k8sQuantity,
 					},
 				},
-				StorageClassName: &pvc.StorageClassName,
+				StorageClassName: &pv.StorageClassName,
 				VolumeMode:       &FilesystemVolumeMode,
 			},
 		})
@@ -322,9 +336,9 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 	}, nil
 }
 
-func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8sVolumes []corev1.Volume) ([]types.Container, []types.PersistentClaimVolume) {
+func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8sVolumes []corev1.Volume) ([]types.Container, []types.PersistentVolumeTemplate) {
 	var containers []types.Container
-	var templates []types.PersistentClaimVolume
+	var templates []types.PersistentVolumeTemplate
 	for _, c := range k8sContainers {
 		var volumes []types.Volume
 		for _, vm := range c.VolumeMounts {
@@ -348,7 +362,7 @@ func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8
 							Name:      v.PersistentVolumeClaim.ClaimName,
 							MountPath: vm.MountPath,
 						})
-						templates = append(templates, types.PersistentClaimVolume{
+						templates = append(templates, types.PersistentVolumeTemplate{
 							Name: v.PersistentVolumeClaim.ClaimName,
 						})
 					} else if v.EmptyDir != nil {
@@ -357,7 +371,7 @@ func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8
 							Name:      v.Name,
 							MountPath: vm.MountPath,
 						})
-						template := types.PersistentClaimVolume{
+						template := types.PersistentVolumeTemplate{
 							Name:             v.Name,
 							StorageClassName: types.StorageClassNameTemp,
 						}

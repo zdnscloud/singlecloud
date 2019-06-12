@@ -250,7 +250,7 @@ func TestStatefulSet(t *testing.T) {
 	ut.Equal(t, statefulset.Containers[0].Env[0].Name, "TESTENV1")
 	ut.Equal(t, statefulset.Containers[0].Env[0].Value, "testenv1")
 	ut.Equal(t, len(statefulset.Containers[0].Volumes), 4)
-	ut.Equal(t, len(statefulset.PersistentClaimVolumes), 2)
+	ut.Equal(t, len(statefulset.PersistentVolumes), 2)
 
 	for _, volume := range statefulset.Containers[0].Volumes {
 		switch volume.Type {
@@ -270,7 +270,7 @@ func TestStatefulSet(t *testing.T) {
 		}
 	}
 
-	for _, template := range statefulset.PersistentClaimVolumes {
+	for _, template := range statefulset.PersistentVolumes {
 		switch template.StorageClassName {
 		case types.StorageClassNameTemp:
 			ut.Equal(t, template.Name, "sc-test-emptydir1")

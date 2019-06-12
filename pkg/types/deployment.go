@@ -55,19 +55,20 @@ type ExposedService struct {
 }
 
 type AdvancedOptions struct {
-	ExposedServiceType     string           `json:"exposedServiceType"`
-	ExposedServices        []ExposedService `json:"exposedServices"`
-	ExposedMetric          ExposedMetric    `json:"exposedMetric"`
-	ReloadWhenConfigChange bool             `json:"relaodWhenConfigChange"`
+	ExposedServiceType          string           `json:"exposedServiceType"`
+	ExposedServices             []ExposedService `json:"exposedServices"`
+	ExposedMetric               ExposedMetric    `json:"exposedMetric"`
+	ReloadWhenConfigChange      bool             `json:"relaodWhenConfigChange"`
+	DeletePVsWhenDeleteWorkload bool             `json:"deletePVsWhenDeleteWorkload"`
 }
 
 type Deployment struct {
-	resttypes.Resource     `json:",inline"`
-	Name                   string                  `json:"name,omitempty"`
-	Replicas               int                     `json:"replicas"`
-	Containers             []Container             `json:"containers"`
-	AdvancedOptions        AdvancedOptions         `json:"advancedOptions"`
-	PersistentClaimVolumes []PersistentClaimVolume `json:"persistentClaimVolumes"`
+	resttypes.Resource `json:",inline"`
+	Name               string                     `json:"name,omitempty"`
+	Replicas           int                        `json:"replicas"`
+	Containers         []Container                `json:"containers"`
+	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
+	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
 }
 
 type ExposedMetric struct {

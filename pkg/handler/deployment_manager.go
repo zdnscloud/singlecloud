@@ -165,6 +165,10 @@ func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if ok {
 		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
 	}
+
+	if delete, ok := k8sDeploy.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
+		deleteWorkLoadPVCs(cluster.KubeClient, namespace, k8sDeploy.Spec.Template.Spec.Volumes)
+	}
 	return nil
 }
 
@@ -217,7 +221,7 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sDeploy.Spec.Template.Spec.Containers,
 		k8sDeploy.Spec.Template.Spec.Volumes)
 
-	pvcs, err := getPVCs(cli, k8sDeploy.Namespace, templates)
+	pvs, err := getPVCs(cli, k8sDeploy.Namespace, templates)
 	if err != nil {
 		return nil, err
 	}
@@ -229,11 +233,11 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	}
 
 	deploy := &types.Deployment{
-		Name:                   k8sDeploy.Name,
-		Replicas:               int(*k8sDeploy.Spec.Replicas),
-		Containers:             containers,
-		PersistentClaimVolumes: pvcs,
-		AdvancedOptions:        advancedOpts,
+		Name:              k8sDeploy.Name,
+		Replicas:          int(*k8sDeploy.Spec.Replicas),
+		Containers:        containers,
+		PersistentVolumes: pvs,
+		AdvancedOptions:   advancedOpts,
 	}
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetType(types.DeploymentType)

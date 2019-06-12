@@ -156,6 +156,9 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), opts)
 	}
 
+	if delete, ok := k8sStatefulSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
+		deleteWorkLoadPVCs(cluster.KubeClient, namespace, k8sStatefulSet.Spec.Template.Spec.Volumes)
+	}
 	return nil
 }
 
@@ -210,17 +213,17 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sStatefulSet.Spec.Template.Spec.Containers,
 		k8sStatefulSet.Spec.Template.Spec.Volumes)
 
-	var pvcs []types.PersistentClaimVolume
+	var pvs []types.PersistentVolumeTemplate
 	for _, template := range templates {
 		if template.StorageClassName == types.StorageClassNameTemp {
-			pvcs = append(pvcs, template)
+			pvs = append(pvs, template)
 		}
 	}
 
 	for _, pvc := range k8sStatefulSet.Spec.VolumeClaimTemplates {
 		if pvc.Spec.StorageClassName != nil {
 			quantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
-			pvcs = append(pvcs, types.PersistentClaimVolume{
+			pvs = append(pvs, types.PersistentVolumeTemplate{
 				Name:             pvc.Name,
 				Size:             quantity.String(),
 				StorageClassName: *pvc.Spec.StorageClassName,
@@ -229,11 +232,11 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	}
 
 	statefulset := &types.StatefulSet{
-		Name:                   k8sStatefulSet.Name,
-		Replicas:               int(*k8sStatefulSet.Spec.Replicas),
-		Containers:             containers,
-		AdvancedOptions:        advancedOpts,
-		PersistentClaimVolumes: pvcs,
+		Name:              k8sStatefulSet.Name,
+		Replicas:          int(*k8sStatefulSet.Spec.Replicas),
+		Containers:        containers,
+		AdvancedOptions:   advancedOpts,
+		PersistentVolumes: pvs,
 	}
 	statefulset.SetID(k8sStatefulSet.Name)
 	statefulset.SetType(types.StatefulSetType)

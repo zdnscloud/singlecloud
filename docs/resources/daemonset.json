@@ -7,7 +7,7 @@
         "name": {"type": "string"},
         "containers": {"type": "array", "elemType": "container"},
         "advancedOptions": {"type": "advancedOptions"},
-        "persistentClaimVolumes": {"type": "array", "elemType": "persistentClaimVolume"},
+        "persistentVolumes": {"type": "array", "elemType": "persistentVolume"},
         "status": {"type": "daemonsetStatus"}
     },
 
@@ -40,6 +40,7 @@
         },
 
         "advancedOptions": {
+            "deletePVsWhenDeleteWorkload": {"type": "bool"},
             "relaodWhenConfigChange": {"type": "bool"},
             "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
             "exposedServices": {"type": "array", "elemType": "exposedService"},
@@ -82,7 +83,7 @@
             "message": {"type": "string"}
         },
 
-        "persistentClaimVolume": {
+        "persistentVolume": {
             "name": {"type": "string"},
             "size": {"type": "string"},
             "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
@@ -96,7 +97,7 @@
         "fields": {
             "name": {"type": "string", "required": true},
             "advancedOptions": {"type": "advancedOptions"},
-            "persistentClaimVolumes": {"type": "array", "elemType": "persistentClaimVolume"},
+            "persistentVolumes": {"type": "array", "elemType": "persistentVolume"},
             "containers": {"type": "array", "elemType": "container", "required": true}
         },
 
@@ -130,6 +131,7 @@
 
 
             "advancedOptions": {
+                "deletePVsWhenDeleteWorkload": {"type": "bool"},
                 "relaodWhenConfigChange": {"type": "bool"},
                 "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
                 "exposedServices": {"type": "array", "elemType": "exposedService"},
@@ -151,7 +153,7 @@
                 "ingressPort" : {"type": "int"}
             },
 
-            "persistentClaimVolume": {
+            "persistentVolume": {
                 "name": {"type": "string"},
                 "size": {"type": "string"},
                 "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}

@@ -12,12 +12,12 @@ func SetDaemonSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 }
 
 type DaemonSet struct {
-	resttypes.Resource     `json:",inline"`
-	Name                   string                  `json:"name,omitempty"`
-	Containers             []Container             `json:"containers,omitempty"`
-	AdvancedOptions        AdvancedOptions         `json:"advancedOptions,omitempty"`
-	PersistentClaimVolumes []PersistentClaimVolume `json:"persistentClaimVolumes"`
-	Status                 DaemonSetStatus         `json:"status,omitempty"`
+	resttypes.Resource `json:",inline"`
+	Name               string                     `json:"name,omitempty"`
+	Containers         []Container                `json:"containers,omitempty"`
+	AdvancedOptions    AdvancedOptions            `json:"advancedOptions,omitempty"`
+	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status             DaemonSetStatus            `json:"status,omitempty"`
 }
 
 type DaemonSetStatus struct {
