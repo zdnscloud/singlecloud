@@ -37,12 +37,10 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 
 	namespace := ctx.Object.GetParent().GetID()
 	statefulset := ctx.Object.(*types.StatefulSet)
-	if err := createServiceAndIngress(statefulset.Containers, statefulset.AdvancedOptions, cluster.KubeClient, namespace, statefulset.Name, true); err != nil {
-		deleteStatefulSet(cluster.KubeClient, namespace, statefulset.Name)
+	if err := createServiceAndIngress(cluster.KubeClient, namespace, statefulset); err != nil {
 		return nil, err
 	}
 
-	statefulset.SetID(statefulset.Name)
 	if err := createStatefulSet(cluster.KubeClient, namespace, statefulset); err != nil {
 		advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
 		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), string(advancedOpts))
@@ -53,6 +51,7 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 		}
 	}
 
+	statefulset.SetID(statefulset.Name)
 	return statefulset, nil
 }
 

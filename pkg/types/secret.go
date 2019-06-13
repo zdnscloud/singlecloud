@@ -13,8 +13,13 @@ func SetSecretSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 
 type Secret struct {
 	resttypes.Resource `json:",inline"`
-	Name               string            `json:"name"`
-	Data               map[string]string `json:"data"`
+	Name               string       `json:"name"`
+	Data               []SecretData `json:"data"`
+}
+
+type SecretData struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 var SecretType = resttypes.GetResourceType(Secret{})

@@ -466,7 +466,17 @@ func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.Expose
 	return types.ExposedMetric{}
 }
 
-func createServiceAndIngress(containers []types.Container, advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string, headless bool) *resttypes.APIError {
+func createServiceAndIngress(cli client.Client, namespace string, workload interface{}) *resttypes.APIError {
+	structVal := reflect.ValueOf(workload).Elem()
+	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
+	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
+	serviceName := structVal.FieldByName("Name").String()
+
+	headless := false
+	if _, ok := workload.(*types.StatefulSet); ok {
+		headless = true
+	}
+
 	containerPorts := make(map[string]types.ContainerPort)
 	for _, container := range containers {
 		for _, port := range container.ExposedPorts {

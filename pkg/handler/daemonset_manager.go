@@ -34,7 +34,13 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 
 	namespace := ctx.Object.GetParent().GetID()
 	daemonSet := ctx.Object.(*types.DaemonSet)
+	if err := createServiceAndIngress(cluster.KubeClient, namespace, daemonSet); err != nil {
+		return nil, err
+	}
+
 	if err := createDaemonSet(cluster.KubeClient, namespace, daemonSet); err != nil {
+		advancedOpts, _ := json.Marshal(daemonSet.AdvancedOptions)
+		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.GetID(), string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate daemonSet name %s", daemonSet.Name))
 		} else {
@@ -43,11 +49,6 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 
 	daemonSet.SetID(daemonSet.Name)
-	if err := createServiceAndIngress(daemonSet.Containers, daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
-		deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.Name)
-		return nil, err
-	}
-
 	return daemonSet, nil
 }
 

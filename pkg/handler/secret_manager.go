@@ -176,11 +176,11 @@ func deleteSecret(cli client.Client, namespace, name string) error {
 
 func scSecretToK8sSecret(secret *types.Secret, namespace string) (*corev1.Secret, error) {
 	data := make(map[string][]byte)
-	for k, v := range secret.Data {
-		if _, ok := data[k]; ok {
+	for _, s := range secret.Data {
+		if _, ok := data[s.Key]; ok {
 			return nil, ErrDuplicateKeyInSecret
 		}
-		data[k] = []byte(v)
+		data[s.Key] = []byte(s.Value)
 	}
 
 	return &corev1.Secret{
@@ -191,9 +191,12 @@ func scSecretToK8sSecret(secret *types.Secret, namespace string) (*corev1.Secret
 }
 
 func k8sSecretToSCSecret(k8sSecret *corev1.Secret) *types.Secret {
-	data := make(map[string]string)
+	var data []types.SecretData
 	for k, v := range k8sSecret.Data {
-		data[k] = string(v)
+		data = append(data, types.SecretData{
+			Key:   k,
+			Value: string(v),
+		})
 	}
 
 	secret := &types.Secret{
