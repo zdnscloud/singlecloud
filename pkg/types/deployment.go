@@ -58,7 +58,7 @@ type AdvancedOptions struct {
 	ExposedServiceType          string           `json:"exposedServiceType"`
 	ExposedServices             []ExposedService `json:"exposedServices"`
 	ExposedMetric               ExposedMetric    `json:"exposedMetric"`
-	ReloadWhenConfigChange      bool             `json:"relaodWhenConfigChange"`
+	ReloadWhenConfigChange      bool             `json:"reloadWhenConfigChange"`
 	DeletePVsWhenDeleteWorkload bool             `json:"deletePVsWhenDeleteWorkload"`
 }
 

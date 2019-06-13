@@ -41,7 +41,7 @@
 
         "advancedOptions": {
             "deletePVsWhenDeleteWorkload": {"type": "bool"},
-            "relaodWhenConfigChange": {"type": "bool"},
+            "reloadWhenConfigChange": {"type": "bool"},
             "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
             "exposedServices": {"type": "array", "elemType": "exposedService"},
             "exposedMetric": {"type": "exposedMetric"}
@@ -132,7 +132,7 @@
 
             "advancedOptions": {
                 "deletePVsWhenDeleteWorkload": {"type": "bool"},
-                "relaodWhenConfigChange": {"type": "bool"},
+                "reloadWhenConfigChange": {"type": "bool"},
                 "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
                 "exposedServices": {"type": "array", "elemType": "exposedService"},
                 "exposedMetric": {"type": "exposedMetric"}
