@@ -112,25 +112,29 @@ func getPVCs(cli client.Client, namespace string, templates []types.PersistentVo
 
 func deletePVCs(cli client.Client, namespace string, k8sPVCs []corev1.PersistentVolumeClaim) {
 	for _, pvc := range k8sPVCs {
-		k8sPVC, err := getPersistentVolumeClaim(cli, namespace, pvc.Name)
-		if err != nil {
-			log.Warnf("get persistentvolumeclaim %s failed:%s", pvc.Name, err.Error())
-			continue
-		}
+		deletePVC(cli, namespace, pvc.Name)
+	}
+}
 
-		if err := deletePersistentVolumeClaim(cli, namespace, k8sPVC.Name); err != nil {
-			log.Warnf("delete persistentvolumeclaim %s failed:%s", k8sPVC.Name, err.Error())
-		}
+func deletePVC(cli client.Client, namespace, pvcName string) {
+	k8sPVC, err := getPersistentVolumeClaim(cli, namespace, pvcName)
+	if err != nil {
+		log.Warnf("get persistentvolumeclaim %s failed:%s", pvcName, err.Error())
+		return
+	}
 
-		if volumeName := k8sPVC.Spec.VolumeName; volumeName != "" {
-			if _, err := getPersistentVolume(cli, volumeName); err != nil {
-				if apierrors.IsNotFound(err) == false {
-					log.Warnf("get persistentvolume %s failed:%s", volumeName, err.Error())
-				}
-			} else {
-				if err := deletePersistentVolume(cli, volumeName); err != nil {
-					log.Warnf("delete persistentvolume %s failed:%s", volumeName, err.Error())
-				}
+	if err := deletePersistentVolumeClaim(cli, namespace, pvcName); err != nil {
+		log.Warnf("delete persistentvolumeclaim %s failed:%s", pvcName, err.Error())
+	}
+
+	if volumeName := k8sPVC.Spec.VolumeName; volumeName != "" {
+		if _, err := getPersistentVolume(cli, volumeName); err != nil {
+			if apierrors.IsNotFound(err) == false {
+				log.Warnf("get persistentvolume %s failed:%s", volumeName, err.Error())
+			}
+		} else {
+			if err := deletePersistentVolume(cli, volumeName); err != nil {
+				log.Warnf("delete persistentvolume %s failed:%s", volumeName, err.Error())
 			}
 		}
 	}
@@ -139,9 +143,7 @@ func deletePVCs(cli client.Client, namespace string, k8sPVCs []corev1.Persistent
 func deleteWorkLoadPVCs(cli client.Client, namespace string, k8sVolumes []corev1.Volume) {
 	for _, volume := range k8sVolumes {
 		if volume.PersistentVolumeClaim != nil {
-			if err := deletePersistentVolumeClaim(cli, namespace, volume.PersistentVolumeClaim.ClaimName); err != nil {
-				log.Warnf("delete persistentvolumeclaim %s failed:%s", volume.PersistentVolumeClaim.ClaimName, err.Error())
-			}
+			deletePVC(cli, namespace, volume.PersistentVolumeClaim.ClaimName)
 		}
 	}
 }

@@ -44,27 +44,13 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 	namespace := ctx.Object.GetParent().GetParent().GetID()
 	ownerType := ctx.Object.GetParent().GetType()
 	ownerName := ctx.Object.GetParent().GetID()
-	selector, err := getPodParentSelector(cluster.KubeClient, namespace, ownerType, ownerName)
+	k8sPods, err := getOwnerPods(cluster.KubeClient, namespace, ownerType, ownerName)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get pod info failed:%s", err.Error())
 		}
 		return nil
 	}
-
-	if selector == nil {
-		log.Warnf("%s %s has no selector", ownerType, ownerName)
-		return nil
-	}
-
-	k8sPods, err := getPods(cluster.KubeClient, namespace, selector)
-	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list pods info failed:%s", err.Error())
-		}
-		return nil
-	}
-	filterPodBasedOnOwner(k8sPods, ownerType, ownerName)
 
 	var pods []*types.Pod
 	for _, k8sPod := range k8sPods.Items {
@@ -109,6 +95,25 @@ func (m *PodManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		}
 	}
 	return nil
+}
+
+func getOwnerPods(cli client.Client, namespace, ownerType, ownerName string) (*corev1.PodList, error) {
+	selector, err := getPodParentSelector(cli, namespace, ownerType, ownerName)
+	if err != nil {
+		return nil, err
+	}
+
+	if selector == nil {
+		return nil, fmt.Errorf("%s %s has no selector", ownerType, ownerName)
+	}
+
+	k8sPods, err := getPods(cli, namespace, selector)
+	if err != nil {
+		return nil, err
+	}
+
+	filterPodBasedOnOwner(k8sPods, ownerType, ownerName)
+	return k8sPods, nil
 }
 
 func getPodParentSelector(cli client.Client, namespace string, typ string, name string) (labels.Selector, error) {

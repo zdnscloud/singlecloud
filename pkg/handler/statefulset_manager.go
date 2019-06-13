@@ -147,6 +147,11 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 		}
 	}
 
+	volumes, err := getStatefulSetPodsVolumes(cluster.KubeClient, namespace, k8sStatefulSet)
+	if err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset volumes failed %s", err.Error()))
+	}
+
 	if err := deleteStatefulSet(cluster.KubeClient, namespace, statefulset.GetID()); err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete statefulset failed %s", err.Error()))
 	}
@@ -157,9 +162,23 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 	}
 
 	if delete, ok := k8sStatefulSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
-		deleteWorkLoadPVCs(cluster.KubeClient, namespace, k8sStatefulSet.Spec.Template.Spec.Volumes)
+		deleteWorkLoadPVCs(cluster.KubeClient, namespace, volumes)
 	}
 	return nil
+}
+
+func getStatefulSetPodsVolumes(cli client.Client, namespace string, k8sStatefulSet *appsv1.StatefulSet) ([]corev1.Volume, error) {
+	k8sPods, err := getOwnerPods(cli, namespace, types.StatefulSetType, k8sStatefulSet.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	var volumes []corev1.Volume
+	for _, item := range k8sPods.Items {
+		volumes = append(volumes, item.Spec.Volumes...)
+	}
+
+	return volumes, nil
 }
 
 func getStatefulSet(cli client.Client, namespace, name string) (*appsv1.StatefulSet, error) {
