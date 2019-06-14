@@ -223,6 +223,19 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 		}
 	}
 
+	//rollback when partial succeed
+	var httpIngressCreated, udpIngressCreated, cleanIngress bool
+	defer func() {
+		if cleanIngress {
+			if httpIngressCreated {
+				deleteHTTPIngress(cli, namespace, ingress.Name)
+			}
+			if udpIngressCreated {
+				deleteTransportLayerIngress(cli, namespace, ingress.Name, types.IngressProtocolUDP)
+			}
+		}
+	}()
+
 	if len(httpRules) > 0 {
 		annaotations := map[string]string{
 			annNginxIngressClassKey: annNginxIngressClassValue,
@@ -245,16 +258,22 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 		if err := cli.Create(context.TODO(), k8sIngress); err != nil {
 			return err
 		}
+
+		httpIngressCreated = true
 	}
 
 	if len(udpServices) > 0 {
 		if err := createTransportLayerIngress(cli, udpServices, types.IngressProtocolUDP); err != nil {
+			cleanIngress = true
 			return err
 		}
+
+		udpIngressCreated = true
 	}
 
 	if len(tcpServices) > 0 {
 		if err := createTransportLayerIngress(cli, tcpServices, types.IngressProtocolTCP); err != nil {
+			cleanIngress = true
 			return err
 		}
 	}
