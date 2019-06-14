@@ -40,7 +40,7 @@ func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 
 	if err := createDeployment(cluster.KubeClient, namespace, deploy); err != nil {
 		advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
-		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), string(advancedOpts))
+		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.Name, string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate deploy name %s", deploy.Name))
 		} else {

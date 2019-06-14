@@ -40,7 +40,7 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 
 	if err := createDaemonSet(cluster.KubeClient, namespace, daemonSet); err != nil {
 		advancedOpts, _ := json.Marshal(daemonSet.AdvancedOptions)
-		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.GetID(), string(advancedOpts))
+		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.Name, string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate daemonSet name %s", daemonSet.Name))
 		} else {

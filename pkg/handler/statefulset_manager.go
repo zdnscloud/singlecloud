@@ -43,7 +43,7 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 
 	if err := createStatefulSet(cluster.KubeClient, namespace, statefulset); err != nil {
 		advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
-		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), string(advancedOpts))
+		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.Name, string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate statefulset name %s", statefulset.Name))
 		} else {
