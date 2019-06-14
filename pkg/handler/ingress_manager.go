@@ -324,6 +324,30 @@ func deleteTransportLayerIngress(cli client.Client, namespace, name string, prot
 	return false, nil
 }
 
+func clearTransportLayerIngress(cli client.Client, namespace string, protocol types.IngressProtocol) error {
+	configMapName := configMapForTransportProtocol(protocol)
+	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, configMapName)
+	if err != nil {
+		return err
+	}
+
+	prefix := namespace + "/"
+	cm := k8sConfigMapToSCConfigMap(k8sCM)
+	var newConfigs []types.Config
+	for _, c := range cm.Configs {
+		if strings.HasPrefix(c.Data, prefix) == false {
+			newConfigs = append(newConfigs, c)
+		}
+	}
+
+	if len(newConfigs) != len(cm.Configs) {
+		cm.Configs = newConfigs
+		return updateConfigMap(cli, NginxIngressNamespace, cm)
+	} else {
+		return nil
+	}
+}
+
 func getTransportLayerIngress(cli client.Client, namespace, name string, protocol types.IngressProtocol) (*types.IngressRule, error) {
 	configMapName := configMapForTransportProtocol(protocol)
 	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, configMapName)
