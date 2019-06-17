@@ -223,6 +223,19 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 		}
 	}
 
+	//rollback when partial succeed
+	var httpIngressCreated, udpIngressCreated, cleanIngress bool
+	defer func() {
+		if cleanIngress {
+			if httpIngressCreated {
+				deleteHTTPIngress(cli, namespace, ingress.Name)
+			}
+			if udpIngressCreated {
+				deleteTransportLayerIngress(cli, namespace, ingress.Name, types.IngressProtocolUDP)
+			}
+		}
+	}()
+
 	if len(httpRules) > 0 {
 		annaotations := map[string]string{
 			annNginxIngressClassKey: annNginxIngressClassValue,
@@ -245,16 +258,22 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 		if err := cli.Create(context.TODO(), k8sIngress); err != nil {
 			return err
 		}
+
+		httpIngressCreated = true
 	}
 
 	if len(udpServices) > 0 {
 		if err := createTransportLayerIngress(cli, udpServices, types.IngressProtocolUDP); err != nil {
+			cleanIngress = true
 			return err
 		}
+
+		udpIngressCreated = true
 	}
 
 	if len(tcpServices) > 0 {
 		if err := createTransportLayerIngress(cli, tcpServices, types.IngressProtocolTCP); err != nil {
+			cleanIngress = true
 			return err
 		}
 	}
@@ -303,6 +322,30 @@ func deleteTransportLayerIngress(cli client.Client, namespace, name string, prot
 		}
 	}
 	return false, nil
+}
+
+func clearTransportLayerIngress(cli client.Client, namespace string, protocol types.IngressProtocol) error {
+	configMapName := configMapForTransportProtocol(protocol)
+	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, configMapName)
+	if err != nil {
+		return err
+	}
+
+	prefix := namespace + "/"
+	cm := k8sConfigMapToSCConfigMap(k8sCM)
+	var newConfigs []types.Config
+	for _, c := range cm.Configs {
+		if strings.HasPrefix(c.Data, prefix) == false {
+			newConfigs = append(newConfigs, c)
+		}
+	}
+
+	if len(newConfigs) != len(cm.Configs) {
+		cm.Configs = newConfigs
+		return updateConfigMap(cli, NginxIngressNamespace, cm)
+	} else {
+		return nil
+	}
 }
 
 func getTransportLayerIngress(cli client.Client, namespace, name string, protocol types.IngressProtocol) (*types.IngressRule, error) {
