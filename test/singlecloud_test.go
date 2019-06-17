@@ -278,7 +278,6 @@ func TestStatefulSet(t *testing.T) {
 		case types.StorageClassNameLVM:
 			ut.Equal(t, template.Name, "sc-test-lvm-pvc2")
 			ut.Equal(t, template.Size, "200Mi")
-		case types.StorageClassNameNFS:
 		case types.StorageClassNameCeph:
 		}
 	}
@@ -377,7 +376,6 @@ func TestGetStorageClass(t *testing.T) {
 	ut.Equal(t, sliceData.Kind(), reflect.Slice)
 	ut.Equal(t, sliceData.Len(), 2)
 	existLVM := false
-	existNFS := false
 	existCephNFS := false
 	for i := 0; i < sliceData.Len(); i++ {
 		c := sliceData.Index(i).Interface()
@@ -386,14 +384,12 @@ func TestGetStorageClass(t *testing.T) {
 		switch object["name"] {
 		case types.StorageClassNameLVM:
 			existLVM = true
-		case types.StorageClassNameNFS:
-			existNFS = true
 		case types.StorageClassNameCeph:
 			existCephNFS = true
 		}
 	}
 
-	ut.Equal(t, existLVM || existNFS || existCephNFS, true)
+	ut.Equal(t, existLVM || existCephNFS, true)
 }
 
 func TestDeleteResource(t *testing.T) {

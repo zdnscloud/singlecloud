@@ -6,7 +6,6 @@ import (
 
 const (
 	StorageClassNameLVM  = "lvm"
-	StorageClassNameNFS  = "nfs"
 	StorageClassNameCeph = "cephfs"
 	StorageClassNameTemp = "temporary"
 )

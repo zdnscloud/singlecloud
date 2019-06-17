@@ -194,8 +194,6 @@ func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.V
 			continue
 		case types.StorageClassNameLVM:
 			accessModes = append(accessModes, corev1.ReadWriteOnce)
-		case types.StorageClassNameNFS:
-			fallthrough
 		case types.StorageClassNameCeph:
 			accessModes = append(accessModes, corev1.ReadWriteMany)
 		default:

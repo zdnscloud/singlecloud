@@ -147,6 +147,8 @@ func scQuotaResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceN
 		k8sname = corev1.ResourceLimitsCPU
 	case "limits.memory":
 		k8sname = corev1.ResourceLimitsMemory
+	case "persistentvolumeclaims":
+		k8sname = corev1.ResourcePersistentVolumeClaims
 	default:
 		err = fmt.Errorf("resoucequota resourcename %s isn`t supported", name)
 	}
