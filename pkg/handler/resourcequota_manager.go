@@ -183,7 +183,7 @@ func k8sResourceListToSCQuotaResourceList(k8sResourceList corev1.ResourceList) m
 	for name, quantity := range k8sResourceList {
 		if name == corev1.ResourceRequestsCPU || name == corev1.ResourceRequestsMemory ||
 			name == corev1.ResourceLimitsCPU || name == corev1.ResourceLimitsMemory ||
-			name == corev1.ResourcePersistentVolumeClaims {
+			name == corev1.ResourceRequestsStorage {
 			resourceList[string(name)] = quantity.String()
 		}
 	}

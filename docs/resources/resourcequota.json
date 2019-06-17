@@ -10,7 +10,7 @@
     },
 
     "subResources": {
-        "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory", "persistentvolumeclaims"]},
+        "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory", "requests.storage"]},
         "resourceQuotaStatus": {
             "limits": {"type": "resourceList"},
             "used": {"type": "resourceList"}
@@ -27,7 +27,7 @@
         },
 
         "subResources": {
-            "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory", "persistentvolumeclaims"]}
+            "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory", "requests.storage"]}
         }
     }
 }
