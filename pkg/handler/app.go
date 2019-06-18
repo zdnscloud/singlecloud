@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,9 +17,6 @@ var (
 		Version: "v1",
 		Group:   "zcloud.cn",
 	}
-
-	tokenSecret        = []byte("hello single cloud")
-	tokenValidDuration = 24 * 3600 * time.Second
 )
 
 type App struct {
@@ -60,9 +56,8 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.StatefulSet{}, newStatefulSetManager(a.clusterManager), types.SetStatefulSetSchema)
 	schemas.MustImportAndCustomize(&Version, types.StorageClass{}, newStorageClassManager(a.clusterManager), types.SetStorageClassSchema)
 
-	userManager := newUserManager(tokenSecret, tokenValidDuration)
+	userManager := newUserManager(a.clusterManager)
 	schemas.MustImportAndCustomize(&Version, types.User{}, userManager, types.SetUserSchema)
-
 	schemas.MustImportAndCustomize(&Version, types.PersistentVolumeClaim{}, newPersistentVolumeClaimManager(a.clusterManager), types.SetPersistentVolumeClaimSchema)
 	schemas.MustImportAndCustomize(&Version, types.PersistentVolume{}, newPersistentVolumeManager(a.clusterManager), types.SetPersistentVolumeSchema)
 

@@ -1,4 +1,4 @@
-package authorize
+package jwt
 
 import (
 	"errors"

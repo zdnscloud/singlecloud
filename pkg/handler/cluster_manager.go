@@ -13,6 +13,8 @@ import (
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/singlecloud/pkg/authentication"
+	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -29,8 +31,7 @@ type Cluster struct {
 	KubeClient client.Client
 	Cache      cache.Cache
 	K8sConfig  *rest.Config
-
-	stopCh chan struct{}
+	stopCh     chan struct{}
 }
 
 type AddCluster struct {
@@ -44,14 +45,19 @@ type DeleteCluster struct {
 type ClusterManager struct {
 	api.DefaultHandler
 
-	lock     sync.Mutex
-	clusters []*Cluster
-	eventBus *pubsub.PubSub
+	lock          sync.Mutex
+	clusters      []*Cluster
+	eventBus      *pubsub.PubSub
+	authorizer    *authorization.Authorizer
+	authenticator *authentication.Authenticator
 }
 
 func newClusterManager(eventBus *pubsub.PubSub) *ClusterManager {
+	authenticator, _ := authentication.New("")
 	return &ClusterManager{
-		eventBus: eventBus,
+		authorizer:    authorization.New(),
+		authenticator: authenticator,
+		eventBus:      eventBus,
 	}
 }
 
@@ -151,7 +157,7 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 
 func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	target := ctx.Object.GetID()
-	if hasClusterPermission(getCurrentUser(ctx), target) == false {
+	if m.authorizer.Authorize(getCurrentUser(ctx).Name, target, "") {
 		return nil
 	} else {
 		m.lock.Lock()
@@ -181,7 +187,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	for _, c := range m.clusters {
-		if hasClusterPermission(user, c.Name) {
+		if m.authorizer.Authorize(user.Name, c.Name, "") {
 			info, _ := getClusterInfo(c)
 			clusters = append(clusters, info)
 		}
