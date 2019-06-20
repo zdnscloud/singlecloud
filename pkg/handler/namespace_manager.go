@@ -64,7 +64,7 @@ func (m *NamespaceManager) List(ctx *resttypes.Context) interface{} {
 	user := getCurrentUser(ctx)
 	var namespaces []*types.Namespace
 	for _, ns := range k8sNamespaces.Items {
-		if m.clusters.authorizer.Authorize(user.Name, cluster.Name, ns.Name) {
+		if m.clusters.authorizer.Authorize(user, cluster.Name, ns.Name) {
 			namespaces = append(namespaces, k8sNamespaceToSCNamespace(&ns))
 		}
 	}
@@ -78,7 +78,7 @@ func (m *NamespaceManager) Get(ctx *resttypes.Context) interface{} {
 	}
 
 	namespace := ctx.Object.(*types.Namespace)
-	if m.clusters.authorizer.Authorize(getCurrentUser(ctx).Name, cluster.Name, namespace.GetID()) == false {
+	if m.clusters.authorizer.Authorize(getCurrentUser(ctx), cluster.Name, namespace.GetID()) == false {
 		return nil
 	}
 

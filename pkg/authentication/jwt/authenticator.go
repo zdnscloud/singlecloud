@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/zdnscloud/gorest/types"
 )
 
 var (
@@ -21,13 +23,18 @@ func NewAuthenticator() *Authenticator {
 	}
 }
 
-func (a *Authenticator) Authenticate(_ http.ResponseWriter, req *http.Request) (string, error) {
+func (a *Authenticator) Authenticate(_ http.ResponseWriter, req *http.Request) (string, *types.APIError) {
 	token, ok := getTokenFromRequest(req)
 	if ok == false {
 		return "", nil
 	}
 
-	return a.repo.ParseToken(token)
+	user, err := a.repo.ParseToken(token)
+	if err != nil {
+		return "", types.NewAPIError(types.ServerError, err.Error())
+	} else {
+		return user, nil
+	}
 }
 
 func (a *Authenticator) CreateToken(user string) (string, error) {

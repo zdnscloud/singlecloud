@@ -3,7 +3,8 @@ package cas
 import (
 	"net/http"
 	"net/url"
-	"strings"
+
+	"github.com/zdnscloud/gorest/types"
 )
 
 type Authenticator struct {
@@ -21,32 +22,17 @@ func NewAuthenticator(casServer string) (*Authenticator, error) {
 	}, nil
 }
 
-func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (string, error) {
+func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (string, *types.APIError) {
 	resp, err := a.client.GetAuthResponse(w, r)
 	if err != nil {
-		return "", err
+		return "", types.NewAPIError(types.ServerError, err.Error())
 	} else if resp == nil {
-		a.client.RedirectToLogin(w, r)
 		return "", nil
 	} else {
 		return resp.User, nil
 	}
 }
 
-func getTokenFromRequest(req *http.Request) (string, bool) {
-	reqToken := req.Header.Get("Authorization")
-	if reqToken == "" {
-		return "", false
-	}
-
-	splitToken := strings.Split(reqToken, "Bearer ")
-	if len(splitToken) != 2 {
-		return "", false
-	}
-	token := splitToken[1]
-	if len(token) == 0 {
-		return "", false
-	} else {
-		return token, true
-	}
+func (a *Authenticator) RedirectToLogin(w http.ResponseWriter, r *http.Request, service string) {
+	a.client.RedirectToLogin(w, r, service)
 }

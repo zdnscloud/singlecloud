@@ -34,7 +34,6 @@ func (l *dumbListener) recvEvents(t *testing.T) {
 		if ok == false {
 			return
 		}
-		//fmt.Printf("---> %v\n", e.Count)
 
 		if lastCount != 0 {
 			ut.Equal(t, lastCount+1, e.Count)

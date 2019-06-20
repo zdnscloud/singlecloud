@@ -50,19 +50,20 @@ func requestURL(r *http.Request) (*url.URL, error) {
 	return u, nil
 }
 
-func (c *Client) loginUrlForRequest(r *http.Request) (string, error) {
+func (c *Client) loginUrlForRequest(r *http.Request, service string) (string, error) {
 	u, err := c.casServer.Parse(path.Join(c.casServer.Path, "login"))
 	if err != nil {
 		return "", err
 	}
 
-	service, err := requestURL(r)
+	serviceUrl, err := requestURL(r)
 	if err != nil {
 		return "", err
 	}
+	serviceUrl.Path = service
 
 	q := u.Query()
-	q.Add("service", sanitisedURLString(service))
+	q.Add("service", sanitisedURLString(serviceUrl))
 	u.RawQuery = q.Encode()
 
 	return u.String(), nil
@@ -133,13 +134,14 @@ func (c *Client) RedirectToLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, u, http.StatusFound)
 }
 
-func (c *Client) RedirectToLogin(w http.ResponseWriter, r *http.Request) {
-	u, err := c.loginUrlForRequest(r)
+func (c *Client) RedirectToLogin(w http.ResponseWriter, r *http.Request, service string) {
+	u, err := c.loginUrlForRequest(r, service)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	fmt.Printf("---> redirect to cas with service %s\n", u)
 	http.Redirect(w, r, u, http.StatusFound)
 }
 

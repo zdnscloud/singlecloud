@@ -3,6 +3,7 @@ package authentication
 import (
 	"net/http"
 
+	"github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/cas"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/jwt"
 )
@@ -27,7 +28,7 @@ func New(casServer string) (*Authenticator, error) {
 	return auth, nil
 }
 
-func (a *Authenticator) Authenticate(w http.ResponseWriter, req *http.Request) (string, error) {
+func (a *Authenticator) Authenticate(w http.ResponseWriter, req *http.Request) (string, *types.APIError) {
 	user, err := a.JwtAuth.Authenticate(w, req)
 	if err != nil {
 		return "", err

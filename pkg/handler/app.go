@@ -9,6 +9,8 @@ import (
 	"github.com/zdnscloud/gorest/adaptor"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/singlecloud/pkg/authentication"
+	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -23,9 +25,9 @@ type App struct {
 	clusterManager *ClusterManager
 }
 
-func NewApp(eventBus *pubsub.PubSub) *App {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub) *App {
 	return &App{
-		clusterManager: newClusterManager(eventBus),
+		clusterManager: newClusterManager(authenticator, authorizer, eventBus),
 	}
 }
 
@@ -56,7 +58,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.StatefulSet{}, newStatefulSetManager(a.clusterManager), types.SetStatefulSetSchema)
 	schemas.MustImportAndCustomize(&Version, types.StorageClass{}, newStorageClassManager(a.clusterManager), types.SetStorageClassSchema)
 
-	userManager := newUserManager(a.clusterManager)
+	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.MustImportAndCustomize(&Version, types.User{}, userManager, types.SetUserSchema)
 	schemas.MustImportAndCustomize(&Version, types.PersistentVolumeClaim{}, newPersistentVolumeClaimManager(a.clusterManager), types.SetPersistentVolumeClaimSchema)
 	schemas.MustImportAndCustomize(&Version, types.PersistentVolume{}, newPersistentVolumeManager(a.clusterManager), types.SetPersistentVolumeSchema)
@@ -65,7 +67,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	if err := server.AddSchemas(schemas); err != nil {
 		return err
 	}
-	server.Use(userManager.createAuthenticationHandler())
+	server.Use(a.clusterManager.authorizationHandler())
 	server.Use(api.RestHandler)
 	adaptor.RegisterHandler(router, server, server.Schemas.UrlMethods())
 	return nil

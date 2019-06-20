@@ -52,10 +52,9 @@ type ClusterManager struct {
 	authenticator *authentication.Authenticator
 }
 
-func newClusterManager(eventBus *pubsub.PubSub) *ClusterManager {
-	authenticator, _ := authentication.New("")
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub) *ClusterManager {
 	return &ClusterManager{
-		authorizer:    authorization.New(),
+		authorizer:    authorizer,
 		authenticator: authenticator,
 		eventBus:      eventBus,
 	}
@@ -157,18 +156,18 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 
 func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	target := ctx.Object.GetID()
-	if m.authorizer.Authorize(getCurrentUser(ctx).Name, target, "") {
+	if m.authorizer.Authorize(getCurrentUser(ctx), target, "") == false {
 		return nil
-	} else {
-		m.lock.Lock()
-		cluster := m.get(target)
-		m.lock.Unlock()
-		if cluster == nil {
-			return nil
-		}
-		info, _ := getClusterInfo(cluster)
-		return info
 	}
+
+	m.lock.Lock()
+	cluster := m.get(target)
+	m.lock.Unlock()
+	if cluster == nil {
+		return nil
+	}
+	info, _ := getClusterInfo(cluster)
+	return info
 }
 
 func (m *ClusterManager) get(id string) *Cluster {
@@ -187,7 +186,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	for _, c := range m.clusters {
-		if m.authorizer.Authorize(user.Name, c.Name, "") {
+		if m.authorizer.Authorize(user, c.Name, "") {
 			info, _ := getClusterInfo(c)
 			clusters = append(clusters, info)
 		}
@@ -218,4 +217,29 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	m.eventBus.Pub(DeleteCluster{Cluster: cluster}, eventbus.ClusterEvent)
 	close(cluster.stopCh)
 	return nil
+}
+
+func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
+	return func(ctx *resttypes.Context) *resttypes.APIError {
+		if ctx.Object.GetType() == types.UserType {
+			if ctx.Action != nil && ctx.Action.Name == types.ActionLogin {
+				return nil
+			}
+		}
+
+		ancestors := resttypes.GetAncestors(ctx.Object)
+		if len(ancestors) < 2 {
+			return nil
+		}
+
+		if ancestors[0].GetType() == types.ClusterType && ancestors[1].GetType() == types.NamespaceType {
+			cluster := ancestors[0].GetID()
+			namespace := ancestors[1].GetID()
+			user := getCurrentUser(ctx)
+			if m.authorizer.Authorize(user, cluster, namespace) == false {
+				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on cluster %s namespace %s", user, cluster, namespace))
+			}
+		}
+		return nil
+	}
 }
