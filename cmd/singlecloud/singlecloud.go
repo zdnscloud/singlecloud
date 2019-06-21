@@ -30,7 +30,7 @@ func main() {
 	var showVersion bool
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
-	flag.StringVar(&casServer, "cas", "", "globaldns cmd server listen address")
+	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
 	flag.Parse()
 
