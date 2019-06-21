@@ -73,7 +73,7 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 
 	router.GET(CASLogoutPath, func(c *gin.Context) {
 		if a.CasAuth != nil {
-			a.CasAuth.RedirectToLogout(c.Writer, c.Request)
+			a.CasAuth.RedirectToLogout(c.Writer, c.Request, CASLoginPath)
 		}
 	})
 

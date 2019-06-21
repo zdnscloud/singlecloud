@@ -37,6 +37,6 @@ func (a *Authenticator) RedirectToLogin(w http.ResponseWriter, r *http.Request, 
 	a.client.RedirectToLogin(w, r, service)
 }
 
-func (a *Authenticator) RedirectToLogout(w http.ResponseWriter, r *http.Request) {
-	a.client.RedirectToLogout(w, r)
+func (a *Authenticator) RedirectToLogout(w http.ResponseWriter, r *http.Request, service string) {
+	a.client.RedirectToLogout(w, r, service)
 }

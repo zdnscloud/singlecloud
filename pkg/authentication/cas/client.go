@@ -51,7 +51,15 @@ func requestURL(r *http.Request) (*url.URL, error) {
 }
 
 func (c *Client) loginUrlForRequest(r *http.Request, service string) (string, error) {
-	u, err := c.casServer.Parse(path.Join(c.casServer.Path, "login"))
+	return c.casUrlForRequest(r, "login", service)
+}
+
+func (c *Client) logoutUrlForRequest(r *http.Request, service string) (string, error) {
+	return c.casUrlForRequest(r, "logout", service)
+}
+
+func (c *Client) casUrlForRequest(r *http.Request, target, service string) (string, error) {
+	u, err := c.casServer.Parse(path.Join(c.casServer.Path, target))
 	if err != nil {
 		return "", err
 	}
@@ -66,23 +74,6 @@ func (c *Client) loginUrlForRequest(r *http.Request, service string) (string, er
 	q.Add("service", sanitisedURLString(serviceUrl))
 	u.RawQuery = q.Encode()
 
-	return u.String(), nil
-}
-
-func (c *Client) logoutUrlForRequest(r *http.Request) (string, error) {
-	u, err := c.casServer.Parse(path.Join(c.casServer.Path, "logout"))
-	if err != nil {
-		return "", err
-	}
-
-	service, err := requestURL(r)
-	if err != nil {
-		return "", err
-	}
-
-	q := u.Query()
-	q.Add("service", sanitisedURLString(service))
-	u.RawQuery = q.Encode()
 	return u.String(), nil
 }
 
@@ -123,8 +114,8 @@ func (c *Client) validateUrlForRequest(ticket string, r *http.Request) (string, 
 	return u.String(), nil
 }
 
-func (c *Client) RedirectToLogout(w http.ResponseWriter, r *http.Request) {
-	u, err := c.logoutUrlForRequest(r)
+func (c *Client) RedirectToLogout(w http.ResponseWriter, r *http.Request, service string) {
+	u, err := c.logoutUrlForRequest(r, service)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
