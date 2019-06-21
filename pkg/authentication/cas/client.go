@@ -141,7 +141,6 @@ func (c *Client) RedirectToLogin(w http.ResponseWriter, r *http.Request, service
 		return
 	}
 
-	fmt.Printf("---> redirect to cas with service %s\n", u)
 	http.Redirect(w, r, u, http.StatusFound)
 }
 

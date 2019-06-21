@@ -36,3 +36,7 @@ func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (st
 func (a *Authenticator) RedirectToLogin(w http.ResponseWriter, r *http.Request, service string) {
 	a.client.RedirectToLogin(w, r, service)
 }
+
+func (a *Authenticator) RedirectToLogout(w http.ResponseWriter, r *http.Request) {
+	a.client.RedirectToLogout(w, r)
+}

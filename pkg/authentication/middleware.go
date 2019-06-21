@@ -3,19 +3,20 @@ package authentication
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
 	CASRedirectPath = "/cas/redirect"
 	CASRolePath     = "/cas/role"
+	CASLogoutPath   = "/cas/logout"
 )
 
 func indexPath(r *http.Request, index string) string {
@@ -28,6 +29,13 @@ func indexPath(r *http.Request, index string) string {
 		u.Scheme = "https"
 	}
 	u.Path = index
+
+	q := u.Query()
+	for _, cleanParam := range []string{"ticket", "service"} {
+		q.Del(cleanParam)
+	}
+	u.RawQuery = q.Encode()
+
 	return u.String()
 }
 
@@ -51,6 +59,12 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 			c.Writer.Write(body)
 		}
 	})
+
+	router.GET(CASLogoutPath, func(c *gin.Context) {
+		if a.CasAuth != nil {
+			a.CasAuth.RedirectToLogout(c.Writer, c.Request)
+		}
+	})
 	return nil
 }
 
@@ -62,7 +76,6 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
-		fmt.Printf("----> get [%s] [%s]\n", c.Request.URL.Path, c.Request.URL.RawQuery)
 		doRedirect := true
 		for _, ep := range exceptionalPath {
 			if strings.HasPrefix(path, ep) {
@@ -73,12 +86,13 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 
 		userName, err := a.Authenticate(c.Writer, c.Request)
 		if err != nil {
-			fmt.Printf("--> auth err[%v]\n", err)
+			log.Errorf("cas auth failed:%v", err)
 			return
 		}
 
 		if err == nil && userName == "" {
 			if doRedirect && a.CasAuth != nil {
+				log.Debugf("cas redirect")
 				a.CasAuth.RedirectToLogin(c.Writer, c.Request, CASRedirectPath)
 				c.Abort()
 			}
