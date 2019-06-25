@@ -11,6 +11,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
 	"github.com/zdnscloud/singlecloud/pkg/k8sshell"
+	"github.com/zdnscloud/singlecloud/pkg/model"
 	"github.com/zdnscloud/singlecloud/server"
 )
 
@@ -37,6 +38,10 @@ func main() {
 
 	log.InitLogger(log.Debug)
 	eventBus := pubsub.New(EventBufLen)
+
+	if err := model.InitResourceStore(); err != nil {
+		log.Fatalf("init database failed: %s", err.Error())
+	}
 
 	if globaldnsAddr != "" {
 		if err := globaldns.New(globaldnsAddr, eventBus); err != nil {

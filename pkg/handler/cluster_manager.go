@@ -63,6 +63,12 @@ func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster
 	return m.get(clusterID)
 }
 
+func (m *ClusterManager) GetClusterByName(name string) *Cluster {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.get(name)
+}
+
 func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
