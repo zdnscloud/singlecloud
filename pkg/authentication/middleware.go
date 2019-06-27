@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	CASLoginPath    = "/cas/login"
-	CASLogoutPath   = "/cas/logout"
-	CASRedirectPath = "/index"
-	CASRolePath     = "/cas/role"
+	WebLogoutPath      = "/web/logout"
+	WebLoginPath       = "/web/login"
+	WebRolePath        = "/web/role"
+	WebCASRedirectPath = "/web/casredirect"
 )
 
 func indexPath(r *http.Request, index string) string {
@@ -42,7 +42,7 @@ func indexPath(r *http.Request, index string) string {
 }
 
 func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
-	router.GET(CASRolePath, func(c *gin.Context) {
+	router.GET(WebRolePath, func(c *gin.Context) {
 		if a.CasAuth != nil {
 			user, _ := a.CasAuth.Authenticate(c.Writer, c.Request)
 			body, _ := json.Marshal(map[string]string{
@@ -53,9 +53,19 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 		}
 	})
 
-	router.GET(CASLogoutPath, func(c *gin.Context) {
+	router.GET(WebCASRedirectPath, func(c *gin.Context) {
+		http.Redirect(c.Writer, c.Request, indexPath(c.Request, "/index"), http.StatusFound)
+	})
+
+	router.POST(WebLoginPath, func(c *gin.Context) {
+		a.JwtAuth.Login(c.Writer, c.Request)
+	})
+
+	router.GET(WebLogoutPath, func(c *gin.Context) {
 		if a.CasAuth != nil {
-			a.CasAuth.RedirectToLogout(c.Writer, c.Request, CASLoginPath)
+			a.CasAuth.RedirectToLogout(c.Writer, c.Request, "")
+		} else {
+			a.JwtAuth.Logout(c.Writer, c.Request)
 		}
 	})
 
@@ -95,7 +105,7 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 
 			fmt.Printf("--> do redirect for path %v\n", path)
 			if a.CasAuth != nil {
-				a.CasAuth.RedirectToLogin(c.Writer, c.Request, CASRedirectPath)
+				a.CasAuth.RedirectToLogin(c.Writer, c.Request, WebCASRedirectPath)
 			} else {
 				http.Redirect(c.Writer, c.Request, indexPath(c.Request, "/login"), http.StatusFound)
 			}

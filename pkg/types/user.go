@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	Administrator       string = "admin"
 	CurrentUserKey      string = "_zlcoud_current_user"
 	ActionLogin         string = "login"
 	ActionResetPassword string = "resetPassword"

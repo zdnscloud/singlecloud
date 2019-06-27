@@ -1,13 +1,13 @@
 package cas
 
 import (
-	"crypto/rand"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
-	"sync"
+
+	"github.com/zdnscloud/singlecloud/pkg/authentication/session"
 )
 
 const (
@@ -18,9 +18,7 @@ type Client struct {
 	casServer *url.URL
 	tickets   *MemoryStore
 	client    *http.Client
-
-	mu       sync.Mutex
-	sessions map[string]string
+	sessions  *session.SessionMgr
 }
 
 func NewClient(casServer *url.URL) *Client {
@@ -28,7 +26,7 @@ func NewClient(casServer *url.URL) *Client {
 		casServer: casServer,
 		tickets:   NewMemoryStore(),
 		client:    &http.Client{},
-		sessions:  make(map[string]string),
+		sessions:  session.New(SessionCookieName),
 	}
 }
 
@@ -121,7 +119,7 @@ func (c *Client) RedirectToLogout(w http.ResponseWriter, r *http.Request, servic
 		return
 	}
 
-	c.clearSession(w, r)
+	c.sessions.ClearSession(w, r)
 	http.Redirect(w, r, u, http.StatusFound)
 }
 
@@ -217,88 +215,29 @@ func (c *Client) validateTicketCas1(ticket string, service *http.Request) error 
 }
 
 func (c *Client) GetAuthResponse(w http.ResponseWriter, r *http.Request) (*AuthenticationResponse, error) {
-	cookie := getCookie(w, r)
-	ticket, ok := c.sessions[cookie.Value]
-	if ok == false {
+	ticket := c.sessions.GetSession(r)
+	newTicket := false
+	if ticket == "" {
 		ticket = r.URL.Query().Get("ticket")
 		if ticket == "" {
 			return nil, nil
 		}
-
 		if err := c.validateTicket(ticket, r); err != nil {
 			return nil, err
 		}
-		c.setSession(cookie.Value, ticket)
+		newTicket = true
 	}
 
 	resp := c.tickets.Read(ticket)
 	if resp == nil {
-		clearCookie(w, cookie)
+		if newTicket == false {
+			c.sessions.ClearSession(w, r)
+		}
 		return nil, fmt.Errorf("invalid ticket")
 	} else {
+		if newTicket {
+			c.sessions.AddSession(w, r, ticket)
+		}
 		return resp, nil
-	}
-}
-
-func getCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
-	c, err := r.Cookie(SessionCookieName)
-	if err != nil {
-		c = &http.Cookie{
-			Name:     SessionCookieName,
-			Value:    newSessionId(),
-			MaxAge:   86400,
-			HttpOnly: false,
-		}
-
-		r.AddCookie(c) // so we can find it later if required
-		http.SetCookie(w, c)
-	}
-
-	return c
-}
-
-func newSessionId() string {
-	const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-	bytes := make([]byte, 64)
-	rand.Read(bytes)
-	for k, v := range bytes {
-		bytes[k] = alphabet[v%byte(len(alphabet))]
-	}
-	return string(bytes)
-}
-
-func clearCookie(w http.ResponseWriter, c *http.Cookie) {
-	c.MaxAge = -1
-	http.SetCookie(w, c)
-}
-
-func (c *Client) setSession(id string, ticket string) {
-	c.mu.Lock()
-	c.sessions[id] = ticket
-	c.mu.Unlock()
-}
-
-func (c *Client) clearSession(w http.ResponseWriter, r *http.Request) {
-	cookie := getCookie(w, r)
-	if s, ok := c.sessions[cookie.Value]; ok {
-		c.tickets.Delete(s)
-		c.deleteSession(s)
-	}
-	clearCookie(w, cookie)
-}
-
-func (c *Client) deleteSession(id string) {
-	c.mu.Lock()
-	delete(c.sessions, id)
-	c.mu.Unlock()
-}
-
-func (c *Client) findAndDeleteSessionWithTicket(ticket string) {
-	for s, t := range c.sessions {
-		if t == ticket {
-			c.deleteSession(s)
-			return
-		}
 	}
 }

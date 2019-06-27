@@ -9,15 +9,13 @@ import (
 )
 
 const (
-	Administrator string = "admin"
 	AdminPasswd   string = "6710fc5dd8cd10e010af0083d9573fd327e8e67e" //hex encoding for sha1(zdns)
 	AllNamespaces string = "_all_namespaces"
 	AllClusters   string = "_all_clusters"
 )
 
 var adminUser = &types.User{
-	Name:     Administrator,
-	Password: AdminPasswd,
+	Name: types.Administrator,
 }
 
 type Authorizer struct {
@@ -27,17 +25,17 @@ type Authorizer struct {
 
 func New() *Authorizer {
 	users := make(map[string]*types.User)
-	adminUser.SetID(Administrator)
+	adminUser.SetID(types.Administrator)
 	adminUser.SetType(types.UserType)
 	adminUser.SetCreationTimestamp(time.Now())
-	users[Administrator] = adminUser
+	users[types.Administrator] = adminUser
 	return &Authorizer{
 		users: users,
 	}
 }
 
 func (m *Authorizer) Authorize(userName, cluster, namespace string) bool {
-	if userName == Administrator {
+	if userName == types.Administrator {
 		return true
 	}
 
@@ -107,20 +105,5 @@ func (m *Authorizer) UpdateUser(user *types.User) error {
 	} else {
 		m.users[user.Name] = user
 		return nil
-	}
-}
-
-func (m *Authorizer) ResetPassword(userName string, old, new string) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	if user, ok := m.users[userName]; ok {
-		if user.Password != old {
-			return fmt.Errorf("password isn't correct")
-		}
-		user.Password = new
-		return nil
-	} else {
-		return fmt.Errorf("user %s doesn't exist", userName)
 	}
 }
