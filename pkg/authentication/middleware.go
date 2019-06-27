@@ -43,14 +43,19 @@ func indexPath(r *http.Request, index string) string {
 
 func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 	router.GET(WebRolePath, func(c *gin.Context) {
+		var user string
 		if a.CasAuth != nil {
-			user, _ := a.CasAuth.Authenticate(c.Writer, c.Request)
-			body, _ := json.Marshal(map[string]string{
-				"user": user,
-			})
-			c.Writer.WriteHeader(http.StatusOK)
-			c.Writer.Write(body)
+			user, _ = a.CasAuth.Authenticate(c.Writer, c.Request)
 		}
+		if user == "" {
+			user, _ = a.JwtAuth.Authenticate(c.Writer, c.Request)
+		}
+
+		body, _ := json.Marshal(map[string]string{
+			"user": user,
+		})
+		c.Writer.WriteHeader(http.StatusOK)
+		c.Writer.Write(body)
 	})
 
 	router.GET(WebCASRedirectPath, func(c *gin.Context) {
@@ -77,7 +82,7 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 		"/apis",
 		"/login",
 		"/assets",
-		"/cas",
+		"/web",
 	}
 
 	return func(c *gin.Context) {
