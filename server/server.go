@@ -17,7 +17,7 @@ func NewServer(middlewares ...gin.HandlerFunc) (*Server, error) {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(middlewares...)
-	router.Use(static.Serve("/", static.LocalFile("/www", false)))
+	router.Use(static.Serve("/assets", static.LocalFile("/www", false)))
 	router.NoRoute(func(c *gin.Context) {
 		c.File("/www/index.html")
 	})

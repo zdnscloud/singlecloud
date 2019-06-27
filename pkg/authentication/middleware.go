@@ -3,8 +3,10 @@ package authentication
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -15,7 +17,7 @@ import (
 const (
 	CASLoginPath    = "/cas/login"
 	CASLogoutPath   = "/cas/logout"
-	CASRedirectPath = "/cas/redirect"
+	CASRedirectPath = "/index"
 	CASRolePath     = "/cas/role"
 )
 
@@ -40,26 +42,6 @@ func indexPath(r *http.Request, index string) string {
 }
 
 func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
-	router.GET(CASLoginPath, func(c *gin.Context) {
-		if a.CasAuth != nil {
-			user, err := a.CasAuth.Authenticate(c.Writer, c.Request)
-			if err == nil && user == "" {
-				a.CasAuth.RedirectToLogin(c.Writer, c.Request, CASRedirectPath)
-			}
-		} else {
-			http.Redirect(c.Writer, c.Request, indexPath(c.Request, "/login"), http.StatusFound)
-		}
-	})
-
-	router.GET(CASRedirectPath, func(c *gin.Context) {
-		if a.CasAuth != nil {
-			user, err := a.CasAuth.Authenticate(c.Writer, c.Request)
-			if err == nil && user != "" {
-				http.Redirect(c.Writer, c.Request, indexPath(c.Request, "/"), http.StatusFound)
-			}
-		}
-	})
-
 	router.GET(CASRolePath, func(c *gin.Context) {
 		if a.CasAuth != nil {
 			user, _ := a.CasAuth.Authenticate(c.Writer, c.Request)
@@ -81,6 +63,13 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 }
 
 func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
+	var exceptionalPath = []string{
+		"/apis",
+		"/login",
+		"/assets",
+		"/cas",
+	}
+
 	return func(c *gin.Context) {
 		userName, err := a.Authenticate(c.Writer, c.Request)
 		if err != nil {
@@ -91,6 +80,25 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 		if userName != "" {
 			ctx := context.WithValue(c.Request.Context(), types.CurrentUserKey, userName)
 			c.Request = c.Request.WithContext(ctx)
+		} else {
+			path := c.Request.URL.Path
+			doRedirect := true
+			for _, ep := range exceptionalPath {
+				if strings.HasPrefix(path, ep) {
+					doRedirect = false
+					break
+				}
+			}
+			if doRedirect == false {
+				return
+			}
+
+			fmt.Printf("--> do redirect for path %v\n", path)
+			if a.CasAuth != nil {
+				a.CasAuth.RedirectToLogin(c.Writer, c.Request, CASRedirectPath)
+			} else {
+				http.Redirect(c.Writer, c.Request, indexPath(c.Request, "/login"), http.StatusFound)
+			}
 		}
 	}
 }
