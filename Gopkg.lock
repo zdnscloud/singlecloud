@@ -173,12 +173,32 @@
   version = "v2.1.0"
 
 [[projects]]
+  digest = "1:bdd53b87de8185da386bae179c84d4848854c6870bacacf6a154fe63e2e750f7"
+  name = "github.com/lib/pq"
+  packages = [
+    ".",
+    "oid",
+    "scram",
+  ]
+  pruneopts = "UT"
+  revision = "bc6a3c0594130b1e34005880bc600b6d3f49fa7f"
+  version = "v1.1.1"
+
+[[projects]]
   digest = "1:e150b5fafbd7607e2d638e4e5cf43aa4100124e5593385147b0a74e2733d8b0d"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
   pruneopts = "UT"
   revision = "c2a7a6ca930a4cd0bc33a3f298eb71960732a3a7"
   version = "v0.0.7"
+
+[[projects]]
+  digest = "1:4a49346ca45376a2bba679ca0e83bec949d780d4e927931317904bad482943ec"
+  name = "github.com/mattn/go-sqlite3"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c7c4067b79cc51e6dfdcef5c702e74b1e0fa7c75"
+  version = "v1.10.0"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -278,7 +298,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:66dbb8505b577bae38805cd5703a2dfd7db61106fe29c24c2dc48839a3ac0c06"
+  digest = "1:d8cfe66d9a82937e01e11cbd68bfc6e64c8789284ebf642b0337575c7cf41bd9"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -290,6 +310,7 @@
     "pubsub",
     "reflector",
     "rest",
+    "rstore",
     "serializer",
     "set",
     "slice",
@@ -298,7 +319,7 @@
     "uuid",
   ]
   pruneopts = "UT"
-  revision = "40a39a7baac3ea70e6177714d557fa4221280685"
+  revision = "4d4219fdc6b7240352ec5cc3a4ab9824d5d9e6b0"
 
 [[projects]]
   branch = "master"
@@ -738,6 +759,7 @@
     "github.com/kyokomi/emoji",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",
+    "github.com/zdnscloud/cement/rstore",
     "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/unittest",
     "github.com/zdnscloud/cement/uuid",
