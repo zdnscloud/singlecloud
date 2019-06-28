@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"cement/reflector"
-	"cement/stringtool"
-	"cement/uuid"
+	"github.com/zdnscloud/cement/reflector"
+	"github.com/zdnscloud/cement/stringtool"
+	"github.com/zdnscloud/cement/uuid"
 )
 
 func resourceTableName(typ ResourceType) string {

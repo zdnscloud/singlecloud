@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"strings"
 
-	"cement/reflector"
-	"cement/stringtool"
+	"github.com/zdnscloud/cement/reflector"
+	"github.com/zdnscloud/cement/stringtool"
 )
 
 type Datatype int

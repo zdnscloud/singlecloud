@@ -3,8 +3,8 @@ package rstore
 import (
 	"reflect"
 
-	"cement/reflector"
-	"cement/stringtool"
+	"github.com/zdnscloud/cement/reflector"
+	"github.com/zdnscloud/cement/stringtool"
 )
 
 type ResourceType string
