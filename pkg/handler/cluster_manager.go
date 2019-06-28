@@ -13,6 +13,8 @@ import (
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/singlecloud/pkg/authentication"
+	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -29,8 +31,7 @@ type Cluster struct {
 	KubeClient client.Client
 	Cache      cache.Cache
 	K8sConfig  *rest.Config
-
-	stopCh chan struct{}
+	stopCh     chan struct{}
 }
 
 type AddCluster struct {
@@ -44,14 +45,18 @@ type DeleteCluster struct {
 type ClusterManager struct {
 	api.DefaultHandler
 
-	lock     sync.Mutex
-	clusters []*Cluster
-	eventBus *pubsub.PubSub
+	lock          sync.Mutex
+	clusters      []*Cluster
+	eventBus      *pubsub.PubSub
+	authorizer    *authorization.Authorizer
+	authenticator *authentication.Authenticator
 }
 
-func newClusterManager(eventBus *pubsub.PubSub) *ClusterManager {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub) *ClusterManager {
 	return &ClusterManager{
-		eventBus: eventBus,
+		authorizer:    authorizer,
+		authenticator: authenticator,
+		eventBus:      eventBus,
 	}
 }
 
@@ -157,18 +162,18 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 
 func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	target := ctx.Object.GetID()
-	if hasClusterPermission(getCurrentUser(ctx), target) == false {
+	if m.authorizer.Authorize(getCurrentUser(ctx), target, "") == false {
 		return nil
-	} else {
-		m.lock.Lock()
-		cluster := m.get(target)
-		m.lock.Unlock()
-		if cluster == nil {
-			return nil
-		}
-		info, _ := getClusterInfo(cluster)
-		return info
 	}
+
+	m.lock.Lock()
+	cluster := m.get(target)
+	m.lock.Unlock()
+	if cluster == nil {
+		return nil
+	}
+	info, _ := getClusterInfo(cluster)
+	return info
 }
 
 func (m *ClusterManager) get(id string) *Cluster {
@@ -187,7 +192,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	for _, c := range m.clusters {
-		if hasClusterPermission(user, c.Name) {
+		if m.authorizer.Authorize(user, c.Name, "") {
 			info, _ := getClusterInfo(c)
 			clusters = append(clusters, info)
 		}
@@ -218,4 +223,29 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	m.eventBus.Pub(DeleteCluster{Cluster: cluster}, eventbus.ClusterEvent)
 	close(cluster.stopCh)
 	return nil
+}
+
+func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
+	return func(ctx *resttypes.Context) *resttypes.APIError {
+		if ctx.Object.GetType() == types.UserType {
+			if ctx.Action != nil && ctx.Action.Name == types.ActionLogin {
+				return nil
+			}
+		}
+
+		ancestors := resttypes.GetAncestors(ctx.Object)
+		if len(ancestors) < 2 {
+			return nil
+		}
+
+		if ancestors[0].GetType() == types.ClusterType && ancestors[1].GetType() == types.NamespaceType {
+			cluster := ancestors[0].GetID()
+			namespace := ancestors[1].GetID()
+			user := getCurrentUser(ctx)
+			if m.authorizer.Authorize(user, cluster, namespace) == false {
+				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on cluster %s namespace %s", user, cluster, namespace))
+			}
+		}
+		return nil
+	}
 }

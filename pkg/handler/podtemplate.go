@@ -314,6 +314,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 			portNames = append(portNames, spec.Name)
 
 			ports = append(ports, corev1.ContainerPort{
+				Name:          spec.Name,
 				ContainerPort: int32(spec.Port),
 				Protocol:      protocol,
 			})

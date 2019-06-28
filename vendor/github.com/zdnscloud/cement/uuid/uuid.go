@@ -15,3 +15,11 @@ func Gen() (string, error) {
 	uuid[4] = 0x40
 	return hex.EncodeToString(uuid), nil
 }
+
+func MustGen() string {
+	id, err := Gen()
+	if err != nil {
+		panic("gen uuid failed" + err.Error())
+	}
+	return id
+}
