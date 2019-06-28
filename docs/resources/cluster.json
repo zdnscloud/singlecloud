@@ -3,28 +3,305 @@
     "collectionName": "clusters",
 
     "resourceFields": {
-        "name": {"type": "string"},
-        "status": {"type": "string"},
-        "nodeCount": {"type": "uint32"},
-        "version": {"type": "string"},
-        "cpu": {"type": "int"},
-        "cpuUsed": {"type": "int"},
-        "cpuUsedRatio": {"type": "string"},
-        "memory": { "type": "int"},
-        "memoryUsed": { "type": "int"},
-        "memoryUsedRatio": {"type": "string"},
-        "pod": { "type": "int"},
-        "podUsed": { "type": "int"},
-        "podUsedRatio": {"type": "string"}
+        "name": {
+            "type": "string"
+        },
+        "status": {
+            "type": "string"
+        },
+        "nodeCount": {
+            "type": "uint32"
+        },
+        "version": {
+            "type": "string"
+        },
+        "cpu": {
+            "type": "int"
+        },
+        "cpuUsed": {
+            "type": "int"
+        },
+        "cpuUsedRatio": {
+            "type": "string"
+        },
+        "memory": {
+            "type": "int"
+        },
+        "memoryUsed": {
+            "type": "int"
+        },
+        "memoryUsedRatio": {
+            "type": "string"
+        },
+        "pod": {
+            "type": "int"
+        },
+        "podUsed": {
+            "type": "int"
+        },
+        "podUsedRatio": {
+            "type": "string"
+        },
+        "option": {
+            "type": "zkeConfigOption"
+        },
+        "nodes": {
+            "type": "array",
+            "elemType": "zkeConfigNode"
+        },
+        "network": {
+            "type": "zkeConfigNetwork"
+        },
+        "privateRegistries": {
+            "type": "array",
+            "elemType": "privateRegistry"
+        },
+        "singleCloudAuth": {
+            "type": "singlecloudAuth"
+        }
+    },
+    "subResources": {
+        "zkeConfigOption": {
+            "sshUser": {
+                "type": "string"
+            },
+            "sshPort": {
+                "type": "string"
+            },
+            "sshKey": {
+                "type": "string"
+            },
+            "dockerSocket": {
+                "type": "string"
+            },
+            "kubernetesVersion": {
+                "type": "string"
+            },
+            "ignoreDockerVersion": {
+                "type": "bool"
+            },
+            "clusterCidr": {
+                "type": "string"
+            },
+            "serviceCidr": {
+                "type": "string"
+            },
+            "clusterDomain": {
+                "type": "string"
+            },
+            "clusterDNSServiceIP": {
+                "type": "string"
+            },
+            "clusterUpstreamDNS": {
+                "type": "array",
+                "elemType": "string"
+            },
+            "disablePortCheck": {
+                "type": "bool"
+            }
+        },
+        "zkeConfigNode": {
+            "nodeName": {
+                "type": "string"
+            },
+            "address": {
+                "type": "string"
+            },
+            "internalAddress": {
+                "type": "string"
+            },
+            "roles": {
+                "type": "array",
+                "elemType": "string"
+            },
+            "sshUser": {
+                "type": "string"
+            },
+            "sshPort": {
+                "type": "string"
+            },
+            "sshKey": {
+                "type": "string"
+            },
+            "dockerSocket": {
+                "type": "string"
+            }
+        },
+        "zkeConfigNetwork": {
+            "plugin": {
+                "type": "string"
+            },
+            "iface": {
+                "type": "string"
+            }
+        },
+        "privateRegistry": {
+            "url": {
+                "type": "string"
+            },
+            "user": {
+                "type": "string"
+            },
+            "password": {
+                "type": "string"
+            },
+            "caCert": {
+                "type": "string"
+            }
+        },
+        "singleCloudAuth": {
+            "url": {
+                "type": "string"
+            },
+            "adminToken": {
+                "type": "string"
+            }
+        }
     },
 
     "postParameters": {
         "fields": {
-            "name": {"type": "string", "required": true},
-            "yaml_": {"type": "string", "required": true}
+            "name": {
+                "type": "string",
+                "required": true
+            },
+            "option": {
+                "type": "zkeConfigOption",
+                "required": true
+            },
+            "nodes": {
+                "type": "array",
+                "elemType": "zkeConfigNode",
+                "required": true
+            },
+            "network": {
+                "type": "zkeConfigNetwork",
+                "required": true
+            },
+            "privateRegistries": {
+                "type": "array",
+                "elemType": "privateRegistry"
+            },
+            "singlecloudAuth": {
+                "type": "singlecloudAuth",
+                "required": true
+            }
+        },
+        "subResources": {
+            "zkeConfigOption": {
+                "sshUser": {
+                    "type": "string",
+                    "required": true
+                },
+                "sshPort": {
+                    "type": "string",
+                    "required": true
+                },
+                "sshKey": {
+                    "type": "string",
+                    "required": true
+                },
+                "dockerSocket": {
+                    "type": "string"
+                },
+                "kubernetsVersion": {
+                    "type": "string"
+                },
+                "ignoreDockerVersion": {
+                    "type": "bool"
+                },
+                "clusterCidr": {
+                    "type": "string",
+                    "required": true
+                },
+                "serviceCidr": {
+                    "type": "string",
+                    "required": true
+                },
+                "clusterDomain": {
+                    "type": "string",
+                    "required": true
+                },
+                "clusterDNSServiceIP": {
+                    "type": "string",
+                    "required": true
+                },
+                "clusterUpstreamDNS": {
+                    "type": "array",
+                    "elemType": "string",
+                    "required": true
+                },
+                "disablePortCheck": {
+                    "type": "bool"
+                }
+
+            },
+            "zkeConfigNode": {
+                "name": {
+                    "type": "string",
+                    "required": true
+                },
+                "address": {
+                    "type": "string",
+                    "required": true
+                },
+                "internalAddress": {
+                    "type": "string"
+                },
+                "roles": {
+                    "type": "array",
+                    "elemType": "string",
+                    "required": true
+                },
+                "sshUser": {
+                    "type": "string"
+                },
+                "sshPort": {
+                    "type": "string"
+                },
+                "sshKey": {
+                    "type": "string"
+                },
+                "dockerSocket": {
+                    "type": "string"
+                }
+            },
+            "zkeConfigNetwork": {
+                "plugin": {
+                    "type": "string",
+                    "required": true
+                },
+                "iface": {
+                    "type": "string"
+                }
+            },
+            "privateRegistry": {
+                "url": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "cacert": {
+                    "type": "string"
+                }
+            },
+            "singleCloudAuth": {
+                "url": {
+                    "type": "string",
+                    "required": true
+                },
+                "adminToken": {
+                    "type": "string",
+                    "required": true
+                }
+            }
         }
     },
-     
-    "resourceMethods": [ "GET", "DELETE"],
-    "collectionMethods": [ "GET", "POST" ]
+
+    "resourceMethods": ["GET", "DELETE"],
+    "collectionMethods": ["GET", "POST"]
 }
