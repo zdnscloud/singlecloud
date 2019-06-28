@@ -278,7 +278,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:460b5791f1a7e0bfeb65384b9e5607d403340a9ce76aba3a6109b34883449a68"
+  digest = "1:66dbb8505b577bae38805cd5703a2dfd7db61106fe29c24c2dc48839a3ac0c06"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -298,7 +298,7 @@
     "uuid",
   ]
   pruneopts = "UT"
-  revision = "4e659246475c1b00f2644fc6860e49c0c3cdf2b9"
+  revision = "40a39a7baac3ea70e6177714d557fa4221280685"
 
 [[projects]]
   branch = "master"
@@ -759,6 +759,7 @@
     "github.com/zdnscloud/vanguard/resolver/auth",
     "github.com/zdnscloud/vanguard/server",
     "github.com/zdnscloud/vanguard/viewselector",
+    "gopkg.in/yaml.v2",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/batch/v1beta1",
@@ -771,6 +772,7 @@
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
+    "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/client-go/kubernetes/scheme",

@@ -6,6 +6,8 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
+	"github.com/zdnscloud/singlecloud/pkg/authentication"
+	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/pkg/handler"
@@ -23,10 +25,12 @@ var (
 
 func main() {
 	var addr string
+	var casServer string
 	var globaldnsAddr string
 	var showVersion bool
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
+	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
 	flag.Parse()
 
@@ -44,12 +48,24 @@ func main() {
 		}
 	}
 
-	server, err := server.NewServer()
+	authenticator, err := authentication.New(casServer)
+	if err != nil {
+		log.Fatalf("create authorizer failed:%s", err.Error())
+	}
+
+	authorizer := authorization.New()
+
+	app := handler.NewApp(authenticator, authorizer, eventBus)
+
+	server, err := server.NewServer(authenticator.MiddlewareFunc())
 	if err != nil {
 		log.Fatalf("create server failed:%s", err.Error())
 	}
 
-	app := handler.NewApp(eventBus)
+	if err := server.RegisterHandler(authenticator); err != nil {
+		log.Fatalf("register redirect handler failed:%s", err.Error())
+	}
+
 	if err := server.RegisterHandler(app); err != nil {
 		log.Fatalf("register resource handler failed:%s", err.Error())
 	}

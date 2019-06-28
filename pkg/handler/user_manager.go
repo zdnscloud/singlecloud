@@ -6,18 +6,22 @@ import (
 
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/authorize"
+	"github.com/zdnscloud/singlecloud/pkg/authentication/jwt"
+	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type UserManager struct {
 	api.DefaultHandler
-	impl *authorize.UserManager
+
+	authorizer    *authorization.Authorizer
+	authenticator *jwt.Authenticator
 }
 
-func newUserManager(secret []byte, tokenValidDuration time.Duration) *UserManager {
+func newUserManager(authenticator *jwt.Authenticator, authorizer *authorization.Authorizer) *UserManager {
 	return &UserManager{
-		impl: authorize.NewUserManager(secret, tokenValidDuration),
+		authenticator: authenticator,
+		authorizer:    authorizer,
 	}
 }
 
@@ -27,24 +31,27 @@ func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface
 	}
 
 	user := ctx.Object.(*types.User)
-	if err := m.impl.AddUser(user); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
-	}
 	user.SetID(user.Name)
 	user.SetType(types.UserType)
 	user.SetCreationTimestamp(time.Now())
-	return hideUserPassword(user), nil
+	if err := m.authenticator.AddUser(user); err != nil {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
+	}
+	user.Password = ""
+	if err := m.authorizer.AddUser(user); err != nil {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
+	}
+	return user, nil
 }
 
 func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
 	currentUser := getCurrentUser(ctx)
-	if isAdmin(currentUser) == false && currentUser.Name != ctx.Object.GetID() {
+	if isAdmin(currentUser) == false && currentUser != ctx.Object.GetID() {
 		return nil
 	}
 
-	user := m.impl.GetUser(ctx.Object.GetID())
-	if user != nil {
-		return hideUserPassword(user)
+	if user := m.authorizer.GetUser(currentUser); user != nil {
+		return user
 	} else {
 		return nil
 	}
@@ -55,7 +62,11 @@ func (m *UserManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete user")
 	}
 
-	if err := m.impl.DeleteUser(ctx.Object.GetID()); err != nil {
+	userName := ctx.Object.GetID()
+	if err := m.authenticator.DeleteUser(userName); err != nil {
+		return resttypes.NewAPIError(resttypes.NotFound, err.Error())
+	}
+	if err := m.authorizer.DeleteUser(userName); err != nil {
 		return resttypes.NewAPIError(resttypes.NotFound, err.Error())
 	}
 	return nil
@@ -67,29 +78,23 @@ func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.AP
 	}
 
 	user := ctx.Object.(*types.User)
-	if err := m.impl.UpdateUser(user); err != nil {
+	user.Password = ""
+	if err := m.authorizer.UpdateUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
+	} else {
+		return user, nil
 	}
-	return hideUserPassword(user), nil
 }
 
 func (m *UserManager) List(ctx *resttypes.Context) interface{} {
 	currentUser := getCurrentUser(ctx)
 	var users []*types.User
 	if isAdmin(currentUser) {
-		users = m.impl.GetUsers()
+		users = m.authorizer.ListUser()
 	} else {
-		user := m.impl.GetUser(currentUser.Name)
-		if user != nil {
-			users = []*types.User{user}
-		}
+		users = []*types.User{m.authorizer.GetUser(currentUser)}
 	}
-
-	var ret []*types.User
-	for _, user := range users {
-		ret = append(ret, hideUserPassword(user))
-	}
-	return ret
+	return users
 }
 
 func (m *UserManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
@@ -109,7 +114,8 @@ func (m *UserManager) login(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.InvalidFormat, "login param not valid")
 	}
 
-	token, err := m.impl.CreateToken(ctx.Object.GetID(), up.Password)
+	userName := ctx.Object.GetID()
+	token, err := m.authenticator.CreateToken(userName, up.Password)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
 	} else {
@@ -125,27 +131,25 @@ func (m *UserManager) resetPassword(ctx *resttypes.Context) *resttypes.APIError 
 		return resttypes.NewAPIError(resttypes.InvalidFormat, "reset password param not valid")
 	}
 
-	user := getCurrentUser(ctx)
-	if user.Name != ctx.Object.GetID() {
+	userName := getCurrentUser(ctx)
+	if userName != ctx.Object.GetID() {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, "only user himself could reset his password")
 	}
 
-	err := m.impl.ResetPassword(user.Name, param.OldPassword, param.NewPassword)
-	if err != nil {
+	if err := m.authenticator.ResetPassword(userName, param.OldPassword, param.NewPassword); err != nil {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
-	} else {
-		return nil
 	}
+	return nil
 }
 
-func (m *UserManager) createAuthenticationHandler() api.HandlerFunc {
-	return func(ctx *resttypes.Context) *resttypes.APIError {
-		return m.impl.HandleRequest(ctx)
+func getCurrentUser(ctx *resttypes.Context) string {
+	currentUser := ctx.Request.Context().Value(types.CurrentUserKey)
+	if currentUser == nil {
+		return ""
 	}
+	return currentUser.(string)
 }
 
-func hideUserPassword(user *types.User) *types.User {
-	ret := *user
-	ret.Password = ""
-	return &ret
+func isAdmin(user string) bool {
+	return user == types.Administrator
 }
