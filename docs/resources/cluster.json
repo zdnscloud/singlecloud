@@ -56,8 +56,8 @@
             "type": "array",
             "elemType": "privateRegistry"
         },
-        "singleCloudAuth": {
-            "type": "singlecloudAuth"
+        "singleCloudUrl": {
+            "type": "string"
         }
     },
     "subResources": {
@@ -148,14 +148,6 @@
             "caCert": {
                 "type": "string"
             }
-        },
-        "singleCloudAuth": {
-            "url": {
-                "type": "string"
-            },
-            "adminToken": {
-                "type": "string"
-            }
         }
     },
 
@@ -182,8 +174,8 @@
                 "type": "array",
                 "elemType": "privateRegistry"
             },
-            "singlecloudAuth": {
-                "type": "singlecloudAuth",
+            "singlecloudUrl": {
+                "type": "string",
                 "required": true
             }
         },
@@ -287,16 +279,6 @@
                 },
                 "cacert": {
                     "type": "string"
-                }
-            },
-            "singleCloudAuth": {
-                "url": {
-                    "type": "string",
-                    "required": true
-                },
-                "adminToken": {
-                    "type": "string",
-                    "required": true
                 }
             }
         }
