@@ -25,9 +25,5 @@ func InitResourceStore() error {
 }
 
 func Begin() (rstore.Transaction, error) {
-	if tx, err := gRStore.Begin(); err != nil {
-		return nil, err
-	} else {
-		return tx, nil
-	}
+	return gRStore.Begin()
 }
