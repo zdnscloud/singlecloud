@@ -25,7 +25,7 @@ func newUserQuotaManager(clusters *ClusterManager) *UserQuotaManager {
 }
 
 func (m *UserQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	userName := getCurrentUser(ctx).Name
+	userName := getCurrentUser(ctx)
 	if userName == "" {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, "create user quota failed: user name should not be empty")
 	}
@@ -79,7 +79,7 @@ func (m *UserQuotaManager) Get(ctx *resttypes.Context) interface{} {
 }
 
 func (m *UserQuotaManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	userName := getCurrentUser(ctx).Name
+	userName := getCurrentUser(ctx)
 	if userName == "" {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, "update user quota failed: user name should not be empty")
 	}
@@ -111,8 +111,7 @@ func (m *UserQuotaManager) Update(ctx *resttypes.Context) (interface{}, *resttyp
 }
 
 func (m *UserQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	user := getCurrentUser(ctx)
-	userName := user.Name
+	userName := getCurrentUser(ctx)
 	if userName == "" {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, "update user quota failed: user name should not be empty")
 	}
@@ -124,7 +123,7 @@ func (m *UserQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 			fmt.Sprintf("delete user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
-	if isAdmin(user) == false && userResourceQuota.UserName != userName {
+	if isAdmin(userName) == false && userResourceQuota.UserName != userName {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("user %s can`t delete quota which belong to %s", userName, userResourceQuota.UserName))
 	}
