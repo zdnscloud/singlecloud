@@ -75,6 +75,10 @@ func (a *Authenticator) DeleteUser(userName string) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
+	if userName == types.Administrator {
+		return fmt.Errorf("admin user cann't be deleted")
+	}
+
 	if _, ok := a.users[userName]; ok {
 		delete(a.users, userName)
 		return nil
@@ -145,10 +149,7 @@ func (a *Authenticator) Logout(w http.ResponseWriter, r *http.Request) {
 	if currentUser_ == nil {
 		return
 	}
-
-	user := currentUser_.(string)
 	a.sessions.ClearSession(w, r)
-	a.DeleteUser(user)
 }
 
 func getFromHeader(req *http.Request) string {
