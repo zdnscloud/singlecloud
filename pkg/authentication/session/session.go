@@ -1,7 +1,6 @@
 package session
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 
@@ -24,14 +23,14 @@ func New(key string) *SessionMgr {
 func (mgr *SessionMgr) GetSession(r *http.Request) (string, error) {
 	c, err := r.Cookie(mgr.key)
 	if err != nil {
-		return "", err
+		return "", nil
 	}
 
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 	session, ok := mgr.sessions[c.Value]
 	if ok == false {
-		return "", fmt.Errorf("unknown session key")
+		return "", nil
 	} else {
 		return session, nil
 	}
