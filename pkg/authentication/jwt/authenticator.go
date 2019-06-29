@@ -43,11 +43,7 @@ func NewAuthenticator() *Authenticator {
 }
 
 func (a *Authenticator) Authenticate(_ http.ResponseWriter, req *http.Request) (string, *resttypes.APIError) {
-	token, err := a.sessions.GetSession(req)
-	if err != nil {
-		return "", resttypes.NewAPIError(resttypes.ServerError, err.Error())
-	}
-
+	token, _ := a.sessions.GetSession(req)
 	if token == "" {
 		token = getFromHeader(req)
 		if token == "" {

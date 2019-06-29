@@ -41,7 +41,6 @@ func (a *Authenticator) RedirectToLogout(w http.ResponseWriter, r *http.Request,
 	a.client.RedirectToLogout(w, r, service)
 }
 
-func (a *Authenticator) HandleRedirect(w http.ResponseWriter, r *http.Request) error {
-	_, err := a.client.GetAuthResponse(w, r)
-	return err
+func (a *Authenticator) SaveTicket(w http.ResponseWriter, r *http.Request) error {
+	return a.client.SaveTicket(w, r)
 }

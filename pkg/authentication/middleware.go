@@ -65,7 +65,8 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 
 	router.GET(WebCASRedirectPath, func(c *gin.Context) {
 		if a.CasAuth != nil {
-			if err := a.CasAuth.HandleRedirect(c.Writer, c.Request); err != nil {
+			if err := a.CasAuth.SaveTicket(c.Writer, c.Request); err != nil {
+				c.Writer.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 		}
