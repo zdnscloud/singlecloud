@@ -16,22 +16,31 @@ const (
 
 var adminUser = &types.User{
 	Name: types.Administrator,
+	Projects: []types.Project{
+		types.Project{
+			Cluster:   AllClusters,
+			Namespace: AllNamespaces,
+		},
+	},
 }
 
+type Projects []types.Project
+
 type Authorizer struct {
-	users map[string]*types.User
+	users map[string]Projects
 	lock  sync.RWMutex
 }
 
 func New() *Authorizer {
-	users := make(map[string]*types.User)
+	auth := &Authorizer{
+		users: make(map[string]Projects),
+	}
+
 	adminUser.SetID(types.Administrator)
 	adminUser.SetType(types.UserType)
 	adminUser.SetCreationTimestamp(time.Now())
-	users[types.Administrator] = adminUser
-	return &Authorizer{
-		users: users,
-	}
+	auth.AddUser(adminUser)
+	return auth
 }
 
 func (m *Authorizer) Authorize(userName, cluster, namespace string) bool {
@@ -40,13 +49,13 @@ func (m *Authorizer) Authorize(userName, cluster, namespace string) bool {
 	}
 
 	m.lock.RLock()
-	user, ok := m.users[userName]
+	projects, ok := m.users[userName]
 	m.lock.RUnlock()
 	if ok == false {
 		return false
 	}
 
-	for _, project := range user.Projects {
+	for _, project := range projects {
 		if (project.Cluster == AllClusters || project.Cluster == cluster) &&
 			(namespace == "" || project.Namespace == AllNamespaces || project.Namespace == namespace) {
 			return true
@@ -63,7 +72,7 @@ func (m *Authorizer) AddUser(user *types.User) error {
 	if _, ok := m.users[user.Name]; ok {
 		return fmt.Errorf("user %s already exists", user)
 	} else {
-		m.users[user.Name] = user
+		m.users[user.Name] = user.Projects
 		return nil
 	}
 }
@@ -71,15 +80,25 @@ func (m *Authorizer) AddUser(user *types.User) error {
 func (m *Authorizer) GetUser(userName string) *types.User {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	return m.users[userName]
+	if projects, ok := m.users[userName]; ok {
+		return &types.User{
+			Name:     userName,
+			Projects: projects,
+		}
+	} else {
+		return nil
+	}
 }
 
 func (m *Authorizer) ListUser() []*types.User {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	users := make([]*types.User, 0, len(m.users))
-	for _, user := range m.users {
-		users = append(users, user)
+	for name, projects := range m.users {
+		users = append(users, &types.User{
+			Name:     name,
+			Projects: projects,
+		})
 	}
 	return users
 }
@@ -103,7 +122,7 @@ func (m *Authorizer) UpdateUser(user *types.User) error {
 	if _, ok := m.users[user.Name]; ok == false {
 		return fmt.Errorf("user %s doesn't exist", user)
 	} else {
-		m.users[user.Name] = user
+		m.users[user.Name] = user.Projects
 		return nil
 	}
 }

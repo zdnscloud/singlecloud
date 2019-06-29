@@ -42,16 +42,19 @@ func indexPath(r *http.Request, index string) string {
 
 func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 	router.GET(WebRolePath, func(c *gin.Context) {
-		var user string
+		var user, authBy string
 		if a.CasAuth != nil {
 			user, _ = a.CasAuth.Authenticate(c.Writer, c.Request)
+			authBy = "CAS"
 		}
 		if user == "" {
 			user, _ = a.JwtAuth.Authenticate(c.Writer, c.Request)
+			authBy = "JWT"
 		}
 
 		body, _ := json.Marshal(map[string]string{
-			"user": user,
+			"user":   user,
+			"authBy": authBy,
 		})
 		c.Writer.WriteHeader(http.StatusOK)
 		c.Writer.Write(body)
