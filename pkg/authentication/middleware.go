@@ -91,6 +91,7 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 
 func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 	var authExceptionPaths = []string{
+		"/assets",
 		WebRolePath,
 		WebCASRedirectPath,
 	}
@@ -98,8 +99,7 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 	var jumpExceptionalPaths = []string{
 		"/apis",
 		"/login",
-		"/assets",
-		"/webs",
+		"/web",
 	}
 
 	return func(c *gin.Context) {
