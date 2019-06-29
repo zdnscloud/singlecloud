@@ -3,7 +3,6 @@ package authentication
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -108,10 +107,11 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 				return
 			}
 
-			fmt.Printf("--> do redirect for path %v\n", path)
 			if a.CasAuth != nil {
+				log.Debugf("redirect path %v to cas", path)
 				a.CasAuth.RedirectToLogin(c.Writer, c.Request, WebCASRedirectPath)
 			} else {
+				log.Debugf("redirect path %v to /login", path)
 				http.Redirect(c.Writer, c.Request, indexPath(c.Request, "/login"), http.StatusFound)
 			}
 		}
