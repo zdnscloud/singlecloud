@@ -47,9 +47,12 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 			user, _ = a.CasAuth.Authenticate(c.Writer, c.Request)
 			authBy = "CAS"
 		}
+
 		if user == "" {
 			user, _ = a.JwtAuth.Authenticate(c.Writer, c.Request)
-			authBy = "JWT"
+			if user != "" {
+				authBy = "JWT"
+			}
 		}
 
 		body, _ := json.Marshal(map[string]string{
@@ -61,6 +64,11 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 	})
 
 	router.GET(WebCASRedirectPath, func(c *gin.Context) {
+		if a.CasAuth != nil {
+			if err := a.CasAuth.HandleRedirect(c.Writer, c.Request); err != nil {
+				return
+			}
+		}
 		http.Redirect(c.Writer, c.Request, indexPath(c.Request, "/index"), http.StatusFound)
 	})
 
@@ -80,14 +88,26 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 }
 
 func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
-	var exceptionalPath = []string{
+	var authExceptionPaths = []string{
+		WebRolePath,
+		WebCASRedirectPath,
+	}
+
+	var jumpExceptionalPaths = []string{
 		"/apis",
 		"/login",
 		"/assets",
-		"/web",
+		"/webs",
 	}
 
 	return func(c *gin.Context) {
+		path := c.Request.URL.Path
+		for _, p := range authExceptionPaths {
+			if strings.HasPrefix(path, p) {
+				return
+			}
+		}
+
 		userName, err := a.Authenticate(c.Writer, c.Request)
 		if err != nil {
 			log.Errorf("auth failed:%v", err)
@@ -98,14 +118,15 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 			ctx := context.WithValue(c.Request.Context(), types.CurrentUserKey, userName)
 			c.Request = c.Request.WithContext(ctx)
 		} else {
-			path := c.Request.URL.Path
+			log.Errorf("auth get empty user")
 			doRedirect := true
-			for _, ep := range exceptionalPath {
-				if strings.HasPrefix(path, ep) {
+			for _, p := range jumpExceptionalPaths {
+				if strings.HasPrefix(path, p) {
 					doRedirect = false
 					break
 				}
 			}
+
 			if doRedirect == false {
 				return
 			}

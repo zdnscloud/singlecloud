@@ -20,19 +20,19 @@ func New(key string) *SessionMgr {
 	}
 }
 
-func (mgr *SessionMgr) GetSession(r *http.Request) string {
+func (mgr *SessionMgr) GetSession(r *http.Request) (string, error) {
 	c, err := r.Cookie(mgr.key)
 	if err != nil {
-		return ""
+		return "", nil
 	}
 
 	mgr.lock.Lock()
 	defer mgr.lock.Unlock()
 	session, ok := mgr.sessions[c.Value]
 	if ok == false {
-		return ""
+		return "", nil
 	} else {
-		return session
+		return session, nil
 	}
 }
 
@@ -41,8 +41,8 @@ func (mgr *SessionMgr) AddSession(w http.ResponseWriter, r *http.Request, value 
 	c := &http.Cookie{
 		Name:     mgr.key,
 		Value:    sessionKey,
-		MaxAge:   86400,
-		HttpOnly: false,
+		Path:     "/",
+		HttpOnly: true,
 	}
 	r.AddCookie(c)
 	http.SetCookie(w, c)

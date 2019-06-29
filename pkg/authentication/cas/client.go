@@ -215,7 +215,11 @@ func (c *Client) validateTicketCas1(ticket string, service *http.Request) error 
 }
 
 func (c *Client) GetAuthResponse(w http.ResponseWriter, r *http.Request) (*AuthenticationResponse, error) {
-	ticket := c.sessions.GetSession(r)
+	ticket, err := c.sessions.GetSession(r)
+	if err != nil {
+		return nil, err
+	}
+
 	newTicket := false
 	if ticket == "" {
 		ticket = r.URL.Query().Get("ticket")

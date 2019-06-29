@@ -40,3 +40,8 @@ func (a *Authenticator) RedirectToLogin(w http.ResponseWriter, r *http.Request, 
 func (a *Authenticator) RedirectToLogout(w http.ResponseWriter, r *http.Request, service string) {
 	a.client.RedirectToLogout(w, r, service)
 }
+
+func (a *Authenticator) HandleRedirect(w http.ResponseWriter, r *http.Request) error {
+	_, err := a.client.GetAuthResponse(w, r)
+	return err
+}
