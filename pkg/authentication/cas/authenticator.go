@@ -24,9 +24,7 @@ func NewAuthenticator(casServer string) (*Authenticator, error) {
 
 func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (string, *types.APIError) {
 	resp, err := a.client.GetAuthResponse(w, r)
-	if err != nil {
-		return "", types.NewAPIError(types.ServerError, err.Error())
-	} else if resp == nil {
+	if err != nil || resp == nil {
 		return "", nil
 	} else {
 		return resp.User, nil

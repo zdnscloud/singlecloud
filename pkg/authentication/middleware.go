@@ -59,6 +59,7 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 			"user":   user,
 			"authBy": authBy,
 		})
+		c.Writer.Header().Set("Content-Type", "application/json")
 		c.Writer.WriteHeader(http.StatusOK)
 		c.Writer.Write(body)
 	})
