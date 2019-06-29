@@ -240,3 +240,11 @@ func (c *Client) SaveTicket(w http.ResponseWriter, r *http.Request) error {
 	c.sessions.AddSession(w, r, ticket)
 	return nil
 }
+
+func (c *Client) RemoveTicket(w http.ResponseWriter, r *http.Request) {
+	ticket, _ := c.sessions.GetSession(r)
+	if ticket != "" {
+		c.tickets.Delete(ticket)
+	}
+	c.sessions.ClearSession(w, r)
+}

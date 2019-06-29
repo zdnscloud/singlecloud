@@ -80,7 +80,7 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 
 	router.GET(WebLogoutPath, func(c *gin.Context) {
 		if a.CasAuth != nil {
-			a.CasAuth.RedirectToLogout(c.Writer, c.Request, "")
+			a.CasAuth.Logout(c.Writer, c.Request)
 		} else {
 			a.JwtAuth.Logout(c.Writer, c.Request)
 		}
