@@ -10,13 +10,13 @@ import (
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 const (
@@ -26,12 +26,15 @@ const (
 )
 
 type Cluster struct {
-	Name       string
-	CreateTime time.Time
-	KubeClient client.Client
-	Cache      cache.Cache
-	K8sConfig  *rest.Config
-	stopCh     chan struct{}
+	Name         string
+	CreateTime   time.Time
+	KubeClient   client.Client
+	Cache        cache.Cache
+	K8sConfig    *rest.Config
+	CreateStatus string
+	stopCh       chan struct{}
+	State        string
+	ZKEConfig    string
 }
 
 type AddCluster struct {
@@ -50,14 +53,19 @@ type ClusterManager struct {
 	eventBus      *pubsub.PubSub
 	authorizer    *authorization.Authorizer
 	authenticator *authentication.Authenticator
+	zkeMsgCh      chan zke.ZkeMsg
 }
 
 func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub) *ClusterManager {
-	return &ClusterManager{
+
+	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
 		eventBus:      eventBus,
+		zkeMsgCh:      make(chan zke.ZkeMsg),
 	}
+	go zkeEventLoop(clusterMgr)
+	return clusterMgr
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
@@ -82,41 +90,27 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 
 	cluster := &Cluster{
-		Name:       inner.Name,
-		CreateTime: time.Now(),
+		Name:         inner.Name,
+		CreateTime:   time.Now(),
+		CreateStatus: zke.CreateFailed,
 	}
-
-	k8sconf, err := config.BuildConfig(yamlConf)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("invalid cluster config:%s", err.Error()))
-	}
-
-	cli, err := client.New(k8sconf, client.Options{})
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
-	}
-	cluster.KubeClient = cli
 
 	stopCh := make(chan struct{})
-	cache, err := cache.New(k8sconf, cache.Options{})
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create cache failed:%s", err.Error()))
-	}
-	go cache.Start(stopCh)
-	cache.WaitForCacheSync(stopCh)
-
-	cluster.Cache = cache
-	cluster.K8sConfig = k8sconf
 	cluster.stopCh = stopCh
 	m.clusters = append(m.clusters, cluster)
 
-	c, err := getClusterInfo(cluster)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get cluster info:%s", err.Error()))
-	}
-
 	m.eventBus.Pub(AddCluster{Cluster: cluster}, eventbus.ClusterEvent)
-	return c, nil
+
+	clusterCh := make(chan *types.Cluster)
+	clusterCh <- inner
+
+	go zke.CreateClusterUseZKE("", clusterCh, m.zkeMsgCh)
+
+	inner.SetID(inner.Name)
+	inner.SetType(types.ClusterType)
+	inner.Status = types.CSUnreachable
+	inner.SetCreationTimestamp(cluster.CreateTime)
+	return inner, nil
 }
 
 func getClusterInfo(c *Cluster) (*types.Cluster, error) {
@@ -126,6 +120,10 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	cluster.Name = c.Name
 	cluster.Status = types.CSUnreachable
 	cluster.SetCreationTimestamp(c.CreateTime)
+
+	if c.CreateStatus == zke.CreateFailed {
+		return cluster, fmt.Errorf("cluster %s not yet created", c.Name)
+	}
 
 	version, err := c.KubeClient.ServerVersion()
 	if err != nil {
@@ -203,7 +201,7 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	m.lock.Lock()
 	var cluster *Cluster
 	for i, c := range m.clusters {
-		if c.Name == target {
+		if c.Name == target && c.CreateStatus == zke.CreateSuccess {
 			cluster = c
 			m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
 			break
@@ -242,4 +240,37 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 		}
 		return nil
 	}
+}
+
+func zkeEventLoop(m *ClusterManager) {
+	for {
+		msg := <-m.zkeMsgCh
+		if msg.CreateStatus == zke.CreateSuccess {
+			m.setClusterAfterCreated(msg)
+		}
+	}
+}
+
+func (m *ClusterManager) setClusterAfterCreated(zkeMsg zke.ZkeMsg) error {
+	for _, c := range m.clusters {
+		if c.Name == zkeMsg.ClusterName {
+			m.lock.Lock()
+			defer m.lock.Unlock()
+			c.KubeClient = zkeMsg.KubeClient
+			c.K8sConfig = zkeMsg.KubeConfig
+			c.CreateStatus = zkeMsg.CreateStatus
+			c.ZKEConfig = zkeMsg.ZKEConfig
+			c.State = zkeMsg.ClusterState
+			cache, err := cache.New(c.K8sConfig, cache.Options{})
+			if err != nil {
+				return err
+			}
+			go cache.Start(c.stopCh)
+			cache.WaitForCacheSync(c.stopCh)
+			c.Cache = cache
+			m.eventBus.Pub(AddCluster{Cluster: c}, eventbus.ClusterEvent)
+			return nil
+		}
+	}
+	return nil
 }

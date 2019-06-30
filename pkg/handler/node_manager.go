@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,6 +17,7 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 type NodeManager struct {
@@ -55,6 +57,23 @@ func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
 
 	nodes, _ := getNodes(cluster.KubeClient)
 	return nodes
+}
+
+func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil, nil
+	}
+	inner := ctx.Object.(*types.Node)
+	if len(inner.Address) == 0 || len(inner.Roles) == 0 {
+		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node address and roles can't be null")
+	}
+	nodeCh := make(chan *types.Node)
+	zkeMgsCh := make(chan zke.ZkeMsg)
+	go zke.UpdateClusterUseZKE(cluster.State, cluster.ZKEConfig, "create", nodeCh, zkeMgsCh)
+	inner.SetID(inner.Address)
+	inner.SetCreationTimestamp(time.Now())
+	return inner, nil
 }
 
 func getNodes(cli client.Client) ([]*types.Node, error) {
