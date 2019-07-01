@@ -37,7 +37,6 @@ func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface
 	if err := m.authenticator.AddUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
 	}
-	user.Password = ""
 	if err := m.authorizer.AddUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
 	}
@@ -78,7 +77,6 @@ func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.AP
 	}
 
 	user := ctx.Object.(*types.User)
-	user.Password = ""
 	if err := m.authorizer.UpdateUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
 	} else {
