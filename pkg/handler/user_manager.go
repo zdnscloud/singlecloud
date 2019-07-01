@@ -93,7 +93,7 @@ func (m *UserManager) List(ctx *resttypes.Context) interface{} {
 	} else {
 		user := m.authorizer.GetUser(currentUser)
 		if user != nil {
-			users = []*types.User{}
+			users = []*types.User{user}
 		} else {
 			log.Errorf("user %s is deleted during request", currentUser)
 		}
