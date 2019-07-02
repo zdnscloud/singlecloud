@@ -24,9 +24,7 @@ func NewAuthenticator(casServer string) (*Authenticator, error) {
 
 func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (string, *types.APIError) {
 	resp, err := a.client.GetAuthResponse(w, r)
-	if err != nil {
-		return "", types.NewAPIError(types.ServerError, err.Error())
-	} else if resp == nil {
+	if err != nil || resp == nil {
 		return "", nil
 	} else {
 		return resp.User, nil
@@ -37,6 +35,11 @@ func (a *Authenticator) RedirectToLogin(w http.ResponseWriter, r *http.Request, 
 	a.client.RedirectToLogin(w, r, service)
 }
 
-func (a *Authenticator) RedirectToLogout(w http.ResponseWriter, r *http.Request, service string) {
-	a.client.RedirectToLogout(w, r, service)
+func (a *Authenticator) Logout(w http.ResponseWriter, r *http.Request) {
+	a.client.RemoveTicket(w, r)
+	a.client.RedirectToLogout(w, r, "")
+}
+
+func (a *Authenticator) SaveTicket(w http.ResponseWriter, r *http.Request) error {
+	return a.client.SaveTicket(w, r)
 }

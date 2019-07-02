@@ -215,29 +215,36 @@ func (c *Client) validateTicketCas1(ticket string, service *http.Request) error 
 }
 
 func (c *Client) GetAuthResponse(w http.ResponseWriter, r *http.Request) (*AuthenticationResponse, error) {
-	ticket := c.sessions.GetSession(r)
-	newTicket := false
-	if ticket == "" {
-		ticket = r.URL.Query().Get("ticket")
-		if ticket == "" {
-			return nil, nil
-		}
-		if err := c.validateTicket(ticket, r); err != nil {
-			return nil, err
-		}
-		newTicket = true
+	ticket, err := c.sessions.GetSession(r)
+	if err != nil {
+		return nil, err
 	}
 
 	resp := c.tickets.Read(ticket)
 	if resp == nil {
-		if newTicket == false {
-			c.sessions.ClearSession(w, r)
-		}
+		c.sessions.ClearSession(w, r)
 		return nil, fmt.Errorf("invalid ticket")
 	} else {
-		if newTicket {
-			c.sessions.AddSession(w, r, ticket)
-		}
 		return resp, nil
 	}
+}
+
+func (c *Client) SaveTicket(w http.ResponseWriter, r *http.Request) error {
+	ticket := r.URL.Query().Get("ticket")
+	if ticket == "" {
+		return fmt.Errorf("url has no ticket")
+	}
+	if err := c.validateTicket(ticket, r); err != nil {
+		return err
+	}
+	c.sessions.AddSession(w, r, ticket)
+	return nil
+}
+
+func (c *Client) RemoveTicket(w http.ResponseWriter, r *http.Request) {
+	ticket, _ := c.sessions.GetSession(r)
+	if ticket != "" {
+		c.tickets.Delete(ticket)
+	}
+	c.sessions.ClearSession(w, r)
 }

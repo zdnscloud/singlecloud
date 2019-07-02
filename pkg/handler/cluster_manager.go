@@ -223,6 +223,11 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 			}
 		}
 
+		user := getCurrentUser(ctx)
+		if user == "" {
+			return resttypes.NewAPIError(resttypes.Unauthorized, fmt.Sprintf("user is unknowned"))
+		}
+
 		ancestors := resttypes.GetAncestors(ctx.Object)
 		if len(ancestors) < 2 {
 			return nil
@@ -231,7 +236,6 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 		if ancestors[0].GetType() == types.ClusterType && ancestors[1].GetType() == types.NamespaceType {
 			cluster := ancestors[0].GetID()
 			namespace := ancestors[1].GetID()
-			user := getCurrentUser(ctx)
 			if m.authorizer.Authorize(user, cluster, namespace) == false {
 				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on cluster %s namespace %s", user, cluster, namespace))
 			}
