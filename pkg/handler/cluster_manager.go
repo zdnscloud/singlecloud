@@ -85,6 +85,7 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	defer m.lock.Unlock()
 
 	inner := ctx.Object.(*types.Cluster)
+	fmt.Println(inner.Name)
 	if c := m.get(inner.Name); c != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
 	}

@@ -51,7 +51,7 @@ type ClusterOption struct {
 	ServiceCidr         string   `json:"serviceCidr"`
 	ClusterDomain       string   `json:"clusterDomain"`
 	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty"`
-	ClusterUpstreamDNS  []string `json:"upstreamnameservers"`
+	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS"`
 	DisablePortCheck    bool     `json:"disablePortCheck"`
 }
 

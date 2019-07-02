@@ -98,7 +98,7 @@ func reconcileControl(ctx context.Context, currentCluster, kubeCluster *Cluster,
 	if len(cpToDelete) == len(currentCluster.ControlPlaneHosts) {
 		log.Infof(ctx, "[reconcile] Deleting all current controlplane nodes, skipping deleting from k8s cluster")
 		// rebuilding local admin config to enable saving cluster state
-		if err := rebuildLocalAdminConfig(ctx, kubeCluster); err != nil {
+		if err := RebuildKubeconfigForRest(ctx, kubeCluster); err != nil {
 			return err
 		}
 		return nil
@@ -109,7 +109,7 @@ func reconcileControl(ctx context.Context, currentCluster, kubeCluster *Cluster,
 		}
 	}
 	// rebuilding local admin config to enable saving cluster state
-	if err := rebuildLocalAdminConfig(ctx, kubeCluster); err != nil {
+	if err := RebuildKubeconfigForRest(ctx, kubeCluster); err != nil {
 		return err
 	}
 	return nil

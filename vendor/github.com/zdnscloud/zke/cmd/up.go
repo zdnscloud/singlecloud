@@ -203,7 +203,7 @@ func ClusterUpForRest(ctx context.Context, clusterState *core.FullState, dialers
 	}
 	core.SetUpAuthentication(ctx, kubeCluster, currentCluster, clusterState)
 
-	err = kubeCluster.SetUpHosts(ctx)
+	err = kubeCluster.SetUpHostsForRest(ctx)
 	if err != nil {
 		return clusterState, err
 	}

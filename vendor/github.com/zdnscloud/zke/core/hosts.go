@@ -148,6 +148,34 @@ func (c *Cluster) SetUpHosts(ctx context.Context) error {
 	return nil
 }
 
+func (c *Cluster) SetUpHostsForRest(ctx context.Context) error {
+	if c.AuthnStrategies[AuthnX509Provider] {
+		log.Infof(ctx, "[certificates] Deploying kubernetes certificates to Cluster nodes")
+		forceDeploy := false
+
+		hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
+		_, err := errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
+			return nil, pki.DeployCertificatesOnPlaneHost(ctx, h.(*hosts.Host), c.ZKEConfig, c.Certificates, c.Image.CertDownloader, c.PrivateRegistriesMap, forceDeploy)
+		})
+		if err != nil {
+			return err
+		}
+
+		if err := RebuildKubeconfigForRest(ctx, c); err != nil {
+			return err
+		}
+		log.Infof(ctx, "[certificates] Successfully deployed kubernetes certificates to Cluster nodes")
+
+		if c.Authentication.Webhook != nil {
+			if err := deployFile(ctx, hostList, c.Image.Alpine, c.PrivateRegistriesMap, authnWebhookFileName, c.Authentication.Webhook.ConfigFile); err != nil {
+				return err
+			}
+			log.Infof(ctx, "[%s] Successfully deployed authentication webhook config Cluster nodes", authnWebhookFileName)
+		}
+	}
+	return nil
+}
+
 func CheckEtcdHostsChanged(kubeCluster, currentCluster *Cluster) error {
 	if currentCluster != nil {
 		etcdChanged := hosts.IsHostListChanged(currentCluster.EtcdHosts, kubeCluster.EtcdHosts)
