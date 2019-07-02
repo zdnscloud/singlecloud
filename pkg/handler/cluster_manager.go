@@ -13,6 +13,7 @@ import (
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
@@ -90,8 +91,11 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("invalid cluster config:%s", err.Error()))
 	}
+	var options client.Options
+	options.Scheme = client.GetDefaultScheme()
+	storagev1.AddToScheme(options.Scheme)
 
-	cli, err := client.New(k8sconf, client.Options{})
+	cli, err := client.New(k8sconf, options)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
 	}
