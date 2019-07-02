@@ -65,15 +65,32 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 		return nil, nil
 	}
 	inner := ctx.Object.(*types.Node)
-	if len(inner.Address) == 0 || len(inner.Roles) == 0 {
+	if len(inner.Name) == 0 || len(inner.Roles) == 0 {
 		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node address and roles can't be null")
 	}
 	nodeCh := make(chan *types.Node)
 	zkeMgsCh := make(chan zke.ZkeMsg)
 	go zke.UpdateClusterUseZKE(cluster.State, cluster.ZKEConfig, "create", nodeCh, zkeMgsCh)
-	inner.SetID(inner.Address)
+	nodeCh <- inner
+	inner.SetID(inner.Name)
 	inner.SetCreationTimestamp(time.Now())
 	return inner, nil
+}
+
+func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil
+	}
+	target := ctx.Object.(*types.Node).GetID()
+	nodeCh := make(chan *types.Node)
+	zkeMgsCh := make(chan zke.ZkeMsg)
+	go zke.UpdateClusterUseZKE(cluster.State, cluster.ZKEConfig, "delete", nodeCh, zkeMgsCh)
+	toBeDeleteNode := &types.Node{
+		Name: target,
+	}
+	nodeCh <- toBeDeleteNode
+	return nil
 }
 
 func getNodes(cli client.Client) ([]*types.Node, error) {

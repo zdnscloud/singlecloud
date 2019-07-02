@@ -32,7 +32,7 @@ func CreateClusterUseZKE(clusterState string, clusterCh <-chan *types.Cluster, z
 		ClusterName:  cluster.Name,
 		CreateStatus: CreateFailed,
 	}
-	zkeCluster := generateZKEClusterFromSCCluster(cluster)
+	zkeCluster := scClusterToZKECluster(cluster)
 
 	err := zkecmd.ClusterRemoveFromRest(zkeCluster)
 	if err != nil {
@@ -49,14 +49,16 @@ func CreateClusterUseZKE(clusterState string, clusterCh <-chan *types.Cluster, z
 	k8sconf, err := config.BuildConfig([]byte(kubeConfig))
 	if err != nil {
 		msg.ErrorMsg = err.Error()
+		zkeMsgCh <- msg
 	}
 
 	cli, err := client.New(k8sconf, client.Options{})
 	if err != nil {
 		msg.ErrorMsg = err.Error()
+		zkeMsgCh <- msg
 	}
 
-	err = DeployZcloudProxy(cli, cluster.Name, cluster.SingleCloudUrl)
+	err = DeployZcloudProxy(cli, cluster.Name, cluster.SingleCloudAddress)
 	if err != nil {
 		msg.ErrorMsg = err.Error()
 		zkeMsgCh <- msg
@@ -109,10 +111,10 @@ func UpdateClusterUseZKE(clusterState string, zkeConfigJson, action string, node
 	zkeMsgCh <- msg
 }
 
-func generateZKEClusterFromSCCluster(scCluster *types.Cluster) *zketypes.ZKEConfig {
+func scClusterToZKECluster(scCluster *types.Cluster) *zketypes.ZKEConfig {
 	zkeCluster := &zketypes.ZKEConfig{
 		ClusterName:    scCluster.Name,
-		SingleCloudUrl: scCluster.SingleCloudUrl,
+		SingleCloudUrl: scCluster.SingleCloudAddress,
 	}
 	zkeCluster.Option.SSHUser = scCluster.Option.SSHUser
 	zkeCluster.Option.SSHPort = scCluster.Option.SSHPort
@@ -169,7 +171,7 @@ func updateZKEConfigForNode(zkeConfigJson string, action string, node *types.Nod
 		zkeConfig.Nodes = append(zkeConfig.Nodes, zkeNode)
 	case "delete":
 		for i, n := range zkeConfig.Nodes {
-			if n.Address == zkeNode.Address {
+			if n.NodeName == zkeNode.NodeName {
 				zkeConfig.Nodes = append(zkeConfig.Nodes[:i], zkeConfig.Nodes[i+1:]...)
 			}
 		}

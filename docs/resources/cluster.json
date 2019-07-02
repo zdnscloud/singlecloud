@@ -56,7 +56,7 @@
             "type": "array",
             "elemType": "privateRegistry"
         },
-        "singleCloudUrl": {
+        "singleCloudAddress": {
             "type": "string"
         }
     },
@@ -174,7 +174,7 @@
                 "type": "array",
                 "elemType": "privateRegistry"
             },
-            "singlecloudUrl": {
+            "singlecloudAddress": {
                 "type": "string",
                 "required": true
             }

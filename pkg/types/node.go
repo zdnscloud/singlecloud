@@ -13,17 +13,17 @@ const (
 
 func SetNodeSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.ResourceMethods = []string{"GET"}
+	schema.CollectionMethods = []string{"GET", "POST"}
+	schema.ResourceMethods = []string{"GET", "DELETE"}
 	schema.Parents = []string{ClusterType}
 }
 
 type Node struct {
 	resttypes.Resource   `json:",inline"`
-	Name                 string            `json:"name,omitempty"`
+	Name                 string            `json:"name"`
 	Status               NodeStatus        `json:"status"`
-	Address              string            `json:"address,omitempty"`
-	Roles                []string          `json:"roles,omitempty"`
+	Address              string            `json:"address"`
+	Roles                []string          `json:"roles"`
 	Labels               map[string]string `json:"labels,omitempty"`
 	Annotations          map[string]string `json:"annotations,omitempty"`
 	OperatingSystem      string            `json:"operatingSystem,omitempty"`

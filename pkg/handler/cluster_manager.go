@@ -64,7 +64,7 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 		eventBus:      eventBus,
 		zkeMsgCh:      make(chan zke.ZkeMsg),
 	}
-	go zkeEventLoop(clusterMgr)
+	go clusterMgr.zkeEventLoop()
 	return clusterMgr
 }
 
@@ -99,12 +99,9 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	cluster.stopCh = stopCh
 	m.clusters = append(m.clusters, cluster)
 
-	m.eventBus.Pub(AddCluster{Cluster: cluster}, eventbus.ClusterEvent)
-
 	clusterCh := make(chan *types.Cluster)
-	clusterCh <- inner
-
 	go zke.CreateClusterUseZKE("", clusterCh, m.zkeMsgCh)
+	clusterCh <- inner
 
 	inner.SetID(inner.Name)
 	inner.SetType(types.ClusterType)
@@ -242,7 +239,7 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 	}
 }
 
-func zkeEventLoop(m *ClusterManager) {
+func (m *ClusterManager) zkeEventLoop() {
 	for {
 		msg := <-m.zkeMsgCh
 		if msg.CreateStatus == zke.CreateSuccess {
