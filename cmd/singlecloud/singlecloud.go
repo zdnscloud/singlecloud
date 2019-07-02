@@ -13,8 +13,8 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
 	"github.com/zdnscloud/singlecloud/pkg/k8sshell"
-	"github.com/zdnscloud/singlecloud/pkg/model"
 	"github.com/zdnscloud/singlecloud/server"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const EventBufLen = 1000
@@ -29,10 +29,12 @@ func main() {
 	var casServer string
 	var globaldnsAddr string
 	var showVersion bool
+	var dbFilePath string
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
 	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
+	flag.StringVar(&dbFilePath, "db", "", "db file path")
 	flag.Parse()
 
 	if showVersion {
@@ -43,9 +45,11 @@ func main() {
 	log.InitLogger(log.Debug)
 	eventBus := pubsub.New(EventBufLen)
 
-	if err := model.InitResourceStore(); err != nil {
+	storageManager, err := storage.New(dbFilePath)
+	if err != nil {
 		log.Fatalf("init database failed: %s", err.Error())
 	}
+	defer storageManager.Close()
 
 	if globaldnsAddr != "" {
 		if err := globaldns.New(globaldnsAddr, eventBus); err != nil {
@@ -60,7 +64,7 @@ func main() {
 
 	authorizer := authorization.New()
 
-	app := handler.NewApp(authenticator, authorizer, eventBus)
+	app := handler.NewApp(authenticator, authorizer, eventBus, storageManager)
 
 	server, err := server.NewServer(authenticator.MiddlewareFunc())
 	if err != nil {

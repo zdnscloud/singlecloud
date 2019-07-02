@@ -13,7 +13,6 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/singlecloud/pkg/model"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -105,7 +104,7 @@ func (m *NamespaceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 
 	namespace := ctx.Object.(*types.Namespace)
-	exits, err := model.IsExistsNamespaceInDB(namespace.GetID())
+	exits, err := IsExistsNamespaceInDB(m.clusters.GetStorageManager(), UserQuotaTable, namespace.GetID())
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))

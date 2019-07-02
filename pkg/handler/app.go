@@ -12,6 +12,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 var (
@@ -25,9 +26,9 @@ type App struct {
 	clusterManager *ClusterManager
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub) *App {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, storageManager *storage.StorageManager) *App {
 	return &App{
-		clusterManager: newClusterManager(authenticator, authorizer, eventBus),
+		clusterManager: newClusterManager(authenticator, authorizer, eventBus, storageManager),
 	}
 }
 

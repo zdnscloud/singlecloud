@@ -17,6 +17,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -45,19 +46,29 @@ type DeleteCluster struct {
 type ClusterManager struct {
 	api.DefaultHandler
 
-	lock          sync.Mutex
-	clusters      []*Cluster
-	eventBus      *pubsub.PubSub
-	authorizer    *authorization.Authorizer
-	authenticator *authentication.Authenticator
+	lock           sync.Mutex
+	clusters       []*Cluster
+	eventBus       *pubsub.PubSub
+	authorizer     *authorization.Authorizer
+	authenticator  *authentication.Authenticator
+	storageManager *storage.StorageManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub) *ClusterManager {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, storageManager *storage.StorageManager) *ClusterManager {
 	return &ClusterManager{
-		authorizer:    authorizer,
-		authenticator: authenticator,
-		eventBus:      eventBus,
+		authorizer:     authorizer,
+		authenticator:  authenticator,
+		eventBus:       eventBus,
+		storageManager: storageManager,
 	}
+}
+
+func (m *ClusterManager) GetStorageManager() *storage.StorageManager {
+	return m.storageManager
+}
+
+func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {
+	return m.authorizer
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {

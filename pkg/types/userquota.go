@@ -40,6 +40,7 @@ type Rejection struct {
 
 type UserQuota struct {
 	resttypes.Resource `json:",inline"`
+	Name               string            `json:"name,omitempty"`
 	ClusterName        string            `json:"clusterName,omitempty"`
 	Namespace          string            `json:"namespace"`
 	UserName           string            `json:"userName"`
