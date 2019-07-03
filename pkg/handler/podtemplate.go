@@ -83,8 +83,8 @@ func createPVCs(cli client.Client, namespace string, k8sPVCs []corev1.Persistent
 	var err error
 	for _, pvc := range k8sPVCs {
 		pvc.Namespace = namespace
-		if err := cli.Create(context.TODO(), &pvc); err != nil {
-			err = fmt.Errorf("create pvc %s with namespace %s failed: %s", pvc.Name, namespace, err.Error())
+		if e := cli.Create(context.TODO(), &pvc); e != nil {
+			err = fmt.Errorf("create pvc %s with namespace %s failed: %s", pvc.Name, namespace, e.Error())
 			break
 		}
 	}

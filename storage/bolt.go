@@ -17,8 +17,10 @@ type Storage struct {
 }
 
 func New(filePath string) (DB, error) {
-	if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-		return nil, err
+	if filePath != "" {
+		if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+			return nil, err
+		}
 	}
 
 	db, err := bolt.Open(path.Join(filePath, dbFileName), 0664, nil)
