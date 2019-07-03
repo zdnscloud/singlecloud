@@ -26,9 +26,9 @@ type App struct {
 	clusterManager *ClusterManager
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, storageManager *storage.StorageManager) *App {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, db storage.DB) *App {
 	return &App{
-		clusterManager: newClusterManager(authenticator, authorizer, eventBus, storageManager),
+		clusterManager: newClusterManager(authenticator, authorizer, eventBus, db),
 	}
 }
 

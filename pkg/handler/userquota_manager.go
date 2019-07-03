@@ -47,7 +47,7 @@ func (m *UserQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetStorageManager(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("create user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -69,7 +69,7 @@ func (m *UserQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 
 func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
 	userName := getCurrentUser(ctx)
-	tx, err := BeginTableTransaction(m.clusters.GetStorageManager(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
 	if err != nil {
 		log.Warnf("list user quota info failed: %s", err.Error())
 		return nil
@@ -103,7 +103,7 @@ func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
 func (m *UserQuotaManager) Get(ctx *resttypes.Context) interface{} {
 	userName := getCurrentUser(ctx)
 	userQuota := ctx.Object.(*types.UserQuota)
-	tx, err := BeginTableTransaction(m.clusters.GetStorageManager(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
 	if err != nil {
 		log.Warnf("get user quota info failed: %s", err.Error())
 		return nil
@@ -135,7 +135,7 @@ func (m *UserQuotaManager) Update(ctx *resttypes.Context) (interface{}, *resttyp
 		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetStorageManager(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("update user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -148,10 +148,14 @@ func (m *UserQuotaManager) Update(ctx *resttypes.Context) (interface{}, *resttyp
 			fmt.Sprintf("update user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
-	if quota.UserName != userName || quota.Namespace != userQuota.Namespace {
+	if quota.UserName != userName {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("user %s with namespace %s can`t update quota which belong to %s with namespace %s",
-				userName, userQuota.Namespace, quota.UserName, quota.Namespace))
+			fmt.Sprintf("user %s can`t update quota which belong to %s", userName, quota.UserName))
+	}
+
+	if quota.Namespace != userQuota.Namespace || quota.ClusterName != userQuota.ClusterName {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("can`t update namespace or clusterName for quota"))
 	}
 
 	if quota.Status == types.StatusUserQuotaProcessing {
@@ -186,7 +190,7 @@ func (m *UserQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 
 	userQuota := ctx.Object.(*types.UserQuota)
-	tx, err := BeginTableTransaction(m.clusters.GetStorageManager(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -266,8 +270,13 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 		return resttypes.NewAPIError(resttypes.InvalidFormat, "approval param is not valid")
 	}
 
+	cluster := m.clusters.GetClusterByName(clusterInfo.ClusterName)
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", clusterInfo.ClusterName))
+	}
+
 	userQuotaID := ctx.Object.(*types.UserQuota).GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetStorageManager(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user quota %s failed %s", userQuotaID, err.Error()))
@@ -283,11 +292,6 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 	if quota.Status != types.StatusUserQuotaProcessing {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user quota %s failed: only approval request that status is processing", userQuotaID))
-	}
-
-	cluster := m.clusters.GetClusterByName(clusterInfo.ClusterName)
-	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
 	var k8sResourceQuota *corev1.ResourceQuota
@@ -390,12 +394,12 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 
 func (m *UserQuotaManager) reject(ctx *resttypes.Context) *resttypes.APIError {
 	rejection, ok := ctx.Action.Input.(*types.Rejection)
-	if ok == false {
+	if ok == false || rejection.Reason == "" {
 		return resttypes.NewAPIError(resttypes.InvalidFormat, "rejection param is not valid")
 	}
 
 	userQuotaID := ctx.Object.(*types.UserQuota).GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetStorageManager(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user quota %s failed %s", userQuotaID, err.Error()))
@@ -465,8 +469,8 @@ func storageResourceValueToSCUserQuota(value []byte) (*types.UserQuota, error) {
 	return &userQuota, nil
 }
 
-func BeginTableTransaction(storageManager *storage.StorageManager, tableName string) (storage.Transaction, error) {
-	table, err := storageManager.CreateOrGetTable(tableName)
+func BeginTableTransaction(db storage.DB, tableName string) (storage.Transaction, error) {
+	table, err := db.CreateOrGetTable(tableName)
 	if err != nil {
 		return nil, fmt.Errorf("get table failed: %s", err.Error())
 	}
@@ -488,8 +492,8 @@ func getUserQuotaFromDB(tx storage.Transaction, id string) (*types.UserQuota, er
 	return storageResourceValueToSCUserQuota(value)
 }
 
-func IsExistsNamespaceInDB(storageManager *storage.StorageManager, tableName, namespace string) (bool, error) {
-	tx, err := BeginTableTransaction(storageManager, tableName)
+func IsExistsNamespaceInDB(db storage.DB, tableName, namespace string) (bool, error) {
+	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return false, err
 	}

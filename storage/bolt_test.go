@@ -2,15 +2,13 @@ package storage
 
 import (
 	"os"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/boltdb/bolt"
 	ut "github.com/zdnscloud/cement/unittest"
 )
-
-type TestResource struct {
-	Name string `json:"name"`
-}
 
 const (
 	dbName    = "teststorage.db"
@@ -21,7 +19,7 @@ func TestTable(t *testing.T) {
 	db, err := bolt.Open(dbName, 0666, nil)
 	ut.Equal(t, err, nil)
 
-	m := &StorageManager{db: db}
+	m := &Storage{db: db}
 	defer func() {
 		m.Close()
 		os.Remove(dbName)
@@ -43,7 +41,7 @@ func TestTable(t *testing.T) {
 func TestAddAndGet(t *testing.T) {
 	db, err := bolt.Open(dbName, 0666, nil)
 	ut.Equal(t, err, nil)
-	m := &StorageManager{db: db}
+	m := &Storage{db: db}
 	defer func() {
 		m.Close()
 		os.Remove(dbName)
@@ -70,7 +68,7 @@ func TestAddAndGet(t *testing.T) {
 func TestUpdateAndDelete(t *testing.T) {
 	db, err := bolt.Open(dbName, 0666, nil)
 	ut.Equal(t, err, nil)
-	m := &StorageManager{db: db}
+	m := &Storage{db: db}
 	defer func() {
 		m.Close()
 		os.Remove(dbName)
@@ -108,44 +106,60 @@ func TestUpdateAndDelete(t *testing.T) {
 	ut.Equal(t, err, nil)
 }
 
+func addResource(db DB, key, value string) error {
+	table, err := db.CreateOrGetTable(tableName)
+	if err != nil {
+		return err
+	}
+
+	tx, err := table.Begin()
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Add(key, []byte(value)); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func TestList(t *testing.T) {
 	db, err := bolt.Open(dbName, 0666, nil)
 	ut.Equal(t, err, nil)
 
-	m := &StorageManager{db: db}
+	m := &Storage{db: db}
 	defer func() {
 		m.Close()
 		os.Remove(dbName)
 	}()
 
+	for i := 0; i < 3; i++ {
+		go addResource(m, "k"+strconv.Itoa(i), "v"+strconv.Itoa(i))
+	}
+
+	time.Sleep(3 * time.Second)
+
 	table, err := m.CreateOrGetTable(tableName)
 	ut.Equal(t, err, nil)
-
 	tx, err := table.Begin()
 	ut.Equal(t, err, nil)
-	defer tx.Rollback()
-
-	err = tx.Add("aoo", []byte("ar"))
-	ut.Equal(t, err, nil)
-	err = tx.Add("boo", []byte("br"))
-	ut.Equal(t, err, nil)
-	err = tx.Add("coo", []byte("cr"))
-	ut.Equal(t, err, nil)
-
+	defer tx.Commit()
 	value, err := tx.List()
 	ut.Equal(t, err, nil)
+	ut.Equal(t, len(value), 3)
 
 	for k, v := range value {
 		switch k {
-		case "aoo":
-			ut.Equal(t, string(v), "ar")
-		case "boo":
-			ut.Equal(t, string(v), "br")
-		case "coo":
-			ut.Equal(t, string(v), "cr")
+		case "k0":
+			ut.Equal(t, string(v), "v0")
+		case "k1":
+			ut.Equal(t, string(v), "v1")
+		case "k2":
+			ut.Equal(t, string(v), "v2")
+		default:
+			ut.Equal(t, "no found key "+k, "")
 		}
 	}
-
-	err = tx.Commit()
-	ut.Equal(t, err, nil)
 }

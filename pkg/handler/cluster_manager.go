@@ -46,25 +46,25 @@ type DeleteCluster struct {
 type ClusterManager struct {
 	api.DefaultHandler
 
-	lock           sync.Mutex
-	clusters       []*Cluster
-	eventBus       *pubsub.PubSub
-	authorizer     *authorization.Authorizer
-	authenticator  *authentication.Authenticator
-	storageManager *storage.StorageManager
+	lock          sync.Mutex
+	clusters      []*Cluster
+	eventBus      *pubsub.PubSub
+	authorizer    *authorization.Authorizer
+	authenticator *authentication.Authenticator
+	db            storage.DB
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, storageManager *storage.StorageManager) *ClusterManager {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, db storage.DB) *ClusterManager {
 	return &ClusterManager{
-		authorizer:     authorizer,
-		authenticator:  authenticator,
-		eventBus:       eventBus,
-		storageManager: storageManager,
+		authorizer:    authorizer,
+		authenticator: authenticator,
+		eventBus:      eventBus,
+		db:            db,
 	}
 }
 
-func (m *ClusterManager) GetStorageManager() *storage.StorageManager {
-	return m.storageManager
+func (m *ClusterManager) GetDB() storage.DB {
+	return m.db
 }
 
 func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {

@@ -1,6 +1,6 @@
 package storage
 
-type Storage interface {
+type DB interface {
 	Close() error
 	CreateOrGetTable(string) (Table, error)
 	DeleteTable(string) error

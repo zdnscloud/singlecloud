@@ -45,11 +45,11 @@ func main() {
 	log.InitLogger(log.Debug)
 	eventBus := pubsub.New(EventBufLen)
 
-	storageManager, err := storage.New(dbFilePath)
+	db, err := storage.New(dbFilePath)
 	if err != nil {
 		log.Fatalf("init database failed: %s", err.Error())
 	}
-	defer storageManager.Close()
+	defer db.Close()
 
 	if globaldnsAddr != "" {
 		if err := globaldns.New(globaldnsAddr, eventBus); err != nil {
@@ -64,7 +64,7 @@ func main() {
 
 	authorizer := authorization.New()
 
-	app := handler.NewApp(authenticator, authorizer, eventBus, storageManager)
+	app := handler.NewApp(authenticator, authorizer, eventBus, db)
 
 	server, err := server.NewServer(authenticator.MiddlewareFunc())
 	if err != nil {

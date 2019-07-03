@@ -3,6 +3,7 @@
     "collectionName": "userquotas",
 
     "resourceFields": {
+        "name": {"type": "string"},
         "clusterName": {"type": "string"},
         "namespace": {"type": "string"},
         "userName": {"type": "string"},
@@ -50,13 +51,13 @@
         {
             "name": "approval",
             "input": {
-                "clusterName": {"type": "string"}
+                "clusterName": {"type": "string", "required": "true"}
             } 
         },
         {
             "name": "reject",
             "input": {
-                "reason": {"type": "string"}
+                "reason": {"type": "string", "required": "true"}
             } 
         }
     ]

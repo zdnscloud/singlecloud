@@ -104,7 +104,7 @@ func (m *NamespaceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 
 	namespace := ctx.Object.(*types.Namespace)
-	exits, err := IsExistsNamespaceInDB(m.clusters.GetStorageManager(), UserQuotaTable, namespace.GetID())
+	exits, err := IsExistsNamespaceInDB(m.clusters.GetDB(), UserQuotaTable, namespace.GetID())
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))

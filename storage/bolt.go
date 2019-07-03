@@ -11,40 +11,45 @@ const (
 	dbFileName = "singlecloud.db"
 )
 
-type StorageManager struct {
+type Storage struct {
 	db *bolt.DB
 }
 
-func New(filePath string) (*StorageManager, error) {
+func New(filePath string) (DB, error) {
 	db, err := bolt.Open(path.Join(filePath, dbFileName), 0664, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return &StorageManager{db: db}, nil
+	return &Storage{db: db}, nil
 }
 
-func (m *StorageManager) Close() error {
+func (m *Storage) Close() error {
 	return m.db.Close()
 }
 
-func (m *StorageManager) CreateOrGetTable(tableName string) (Table, error) {
+func (m *Storage) CreateOrGetTable(tableName string) (Table, error) {
 	tx, err := m.db.Begin(true)
 	if err != nil {
 		return nil, err
 	}
 
+	defer tx.Rollback()
 	if _, err := tx.CreateBucketIfNotExists([]byte(tableName)); err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	return &TableManager{
-		Bucket: tx.Bucket([]byte(tableName)),
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &DBTable{
+		name: tableName,
+		db:   m.db,
 	}, nil
 }
 
-func (m *StorageManager) DeleteTable(tableName string) error {
+func (m *Storage) DeleteTable(tableName string) error {
 	tx, err := m.db.Begin(true)
 	if err != nil {
 		return err
@@ -58,58 +63,70 @@ func (m *StorageManager) DeleteTable(tableName string) error {
 	return tx.Commit()
 }
 
-type TableManager struct {
-	Bucket *bolt.Bucket
+type DBTable struct {
+	name string
+	db   *bolt.DB
 }
 
-func (m *TableManager) Begin() (Transaction, error) {
-	return &TransactionManager{
-		Bucket: m.Bucket,
+func (m *DBTable) Begin() (Transaction, error) {
+	tx, err := m.db.Begin(true)
+	if err != nil {
+		return nil, err
+	}
+
+	bucket := tx.Bucket([]byte(m.name))
+	if bucket == nil {
+		tx.Commit()
+		return nil, fmt.Errorf("table %s is non-exists", m.name)
+	}
+
+	return &TableTX{
+		bucket: bucket,
 	}, nil
 }
 
-type TransactionManager struct {
-	Bucket *bolt.Bucket
+type TableTX struct {
+	bucket *bolt.Bucket
 }
 
-func (m *TransactionManager) Rollback() error {
-	return m.Bucket.Tx().Rollback()
+func (m *TableTX) Rollback() error {
+	return m.bucket.Tx().Rollback()
 }
 
-func (m *TransactionManager) Commit() error {
-	return m.Bucket.Tx().Commit()
+func (m *TableTX) Commit() error {
+	return m.bucket.Tx().Commit()
 }
 
-func (m *TransactionManager) Add(key string, value []byte) error {
-	if v := m.Bucket.Get([]byte(key)); v != nil {
+func (m *TableTX) Add(key string, value []byte) error {
+	if v := m.bucket.Get([]byte(key)); v != nil {
 		return fmt.Errorf("duplicate resource %s", key)
 	}
-	return m.Bucket.Put([]byte(key), value)
+	return m.bucket.Put([]byte(key), value)
 }
 
-func (m *TransactionManager) Delete(key string) error {
-	return m.Bucket.Delete([]byte(key))
+func (m *TableTX) Delete(key string) error {
+	return m.bucket.Delete([]byte(key))
 }
 
-func (m *TransactionManager) Update(key string, value []byte) error {
-	if v := m.Bucket.Get([]byte(key)); v == nil {
+func (m *TableTX) Update(key string, value []byte) error {
+	if v := m.bucket.Get([]byte(key)); v == nil {
 		return fmt.Errorf("no found resource by key %s", key)
 	}
 
-	return m.Bucket.Put([]byte(key), value)
+	return m.bucket.Put([]byte(key), value)
 }
 
-func (m *TransactionManager) Get(key string) ([]byte, error) {
-	if v := m.Bucket.Get([]byte(key)); v != nil {
+func (m *TableTX) Get(key string) ([]byte, error) {
+	if v := m.bucket.Get([]byte(key)); v != nil {
 		return v, nil
 	} else {
 		return nil, fmt.Errorf("no found resource by key %s", key)
 	}
 }
 
-func (m *TransactionManager) List() (map[string][]byte, error) {
+func (m *TableTX) List() (map[string][]byte, error) {
 	resourceMap := make(map[string][]byte)
-	if err := m.Bucket.ForEach(func(k, v []byte) error {
+	if err := m.bucket.ForEach(func(k, v []byte) error {
 		resourceMap[string(k)] = v
 		return nil
 	}); err != nil {
