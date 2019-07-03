@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/boltdb/bolt"
@@ -16,6 +17,10 @@ type Storage struct {
 }
 
 func New(filePath string) (DB, error) {
+	if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+		return nil, err
+	}
+
 	db, err := bolt.Open(path.Join(filePath, dbFileName), 0664, nil)
 	if err != nil {
 		return nil, err
