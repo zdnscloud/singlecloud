@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/zdnscloud/boltdb/bolt"
+	"github.com/boltdb/bolt"
 	ut "github.com/zdnscloud/cement/unittest"
 )
 

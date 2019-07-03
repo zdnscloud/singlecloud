@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/zdnscloud/boltdb/bolt"
+	"github.com/boltdb/bolt"
 )
 
 const (
