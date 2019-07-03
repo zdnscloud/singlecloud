@@ -498,9 +498,9 @@ func IsExistsNamespaceInDB(db storage.DB, tableName, namespace string) (bool, er
 		return false, err
 	}
 
-	_, err = tx.Get(namespace)
+	value, _ := tx.Get(namespace)
 	tx.Commit()
-	return err == nil, err
+	return value != nil, nil
 }
 
 var namespaceRegex = regexp.MustCompile("[-a-z0-9]")
