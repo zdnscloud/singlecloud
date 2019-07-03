@@ -62,7 +62,7 @@ func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
 func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
-		return nil, nil
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 	inner := ctx.Object.(*types.Node)
 	if len(inner.Name) == 0 || len(inner.Roles) == 0 {
@@ -90,20 +90,25 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
-		return nil
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 	target := ctx.Object.(*types.Node).GetID()
 
 	zkeEventCh := make(chan zke.ZKEEvent)
 	cluster.Status = zke.ClusterUpateing
 	go zke.UpdateCluster(zkeEventCh, m.clusters.zkeMsgCh)
-	zkeEvent := zke.ZKEEvent{
-		State:  cluster.State,
-		Config: zke.GetNewConfigForDeleteNode(cluster.Config, target),
-	}
-	zkeEventCh <- zkeEvent
 
-	return nil
+	newConfig, isExist := zke.GetNewConfigForDeleteNode(cluster.Config, target)
+	if isExist {
+		zkeEvent := zke.ZKEEvent{
+			State:  cluster.State,
+			Config: newConfig,
+		}
+		zkeEventCh <- zkeEvent
+		return nil
+	} else {
+		return resttypes.NewAPIError(resttypes.NotFound, "node doesn't exist")
+	}
 }
 
 func getNodes(cli client.Client) ([]*types.Node, error) {

@@ -140,10 +140,6 @@
                 "type": "string",
                 "required": true
             },
-            "option": {
-                "type": "zkeConfigOption",
-                "required": true
-            },
             "nodes": {
                 "type": "array",
                 "elemType": "zkeConfigNode",

@@ -190,14 +190,16 @@ func GetNewConfigForAddNode(currentConfig *zketypes.ZKEConfig, node *types.Node)
 	return newConfig, nil
 }
 
-func GetNewConfigForDeleteNode(currentConfig *zketypes.ZKEConfig, nodeName string) *zketypes.ZKEConfig {
+func GetNewConfigForDeleteNode(currentConfig *zketypes.ZKEConfig, nodeName string) (*zketypes.ZKEConfig, bool) {
 	newConfig := currentConfig.DeepCopy()
+	isExist := false
 
 	for i, n := range newConfig.Nodes {
 		if n.NodeName == nodeName {
+			isExist = true
 			newConfig.Nodes = append(newConfig.Nodes[:i], newConfig.Nodes[i+1:]...)
 		}
 	}
 
-	return newConfig
+	return newConfig, isExist
 }

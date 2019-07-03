@@ -10,6 +10,7 @@ import (
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
@@ -86,6 +87,10 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
 	}
 
+	if len(yamlConf) > 0 {
+		return m.importExternalCluster(ctx, yamlConf)
+	}
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -117,6 +122,54 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	inner.Status = types.CSCreateing
 	inner.SetCreationTimestamp(cluster.CreateTime)
 	return inner, nil
+}
+
+func (m *ClusterManager) importExternalCluster(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	inner := ctx.Object.(*types.Cluster)
+	if c := m.get(inner.Name); c != nil {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
+	}
+
+	cluster := &Cluster{
+		Name:       inner.Name,
+		CreateTime: time.Now(),
+		Status:     zke.ClusterCreateComplete,
+	}
+
+	k8sconf, err := config.BuildConfig(yamlConf)
+	if err != nil {
+		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("invalid cluster config:%s", err.Error()))
+	}
+
+	cli, err := client.New(k8sconf, client.Options{})
+	if err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
+	}
+	cluster.KubeClient = cli
+
+	stopCh := make(chan struct{})
+	cache, err := cache.New(k8sconf, cache.Options{})
+	if err != nil {
+		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create cache failed:%s", err.Error()))
+	}
+	go cache.Start(stopCh)
+	cache.WaitForCacheSync(stopCh)
+
+	cluster.Cache = cache
+	cluster.K8sConfig = k8sconf
+	cluster.stopCh = stopCh
+	m.clusters = append(m.clusters, cluster)
+
+	c, err := getClusterInfo(cluster)
+	if err != nil {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get cluster info:%s", err.Error()))
+	}
+
+	m.eventBus.Pub(AddCluster{Cluster: cluster}, eventbus.ClusterEvent)
+	return c, nil
 }
 
 func getClusterInfo(c *Cluster) (*types.Cluster, error) {
@@ -215,10 +268,17 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	m.lock.Lock()
 	var cluster *Cluster
 	for i, c := range m.clusters {
-		if c.Name == target && c.Status != zke.ClusterCreateing {
-			cluster = c
-			m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
-			break
+		if c.Name == target {
+			switch c.Status {
+			case zke.ClusterCreateing:
+				return resttypes.NewAPIError(resttypes.PermissionDenied, "cluster in createing state, please do not delete")
+			case zke.ClusterUpateing:
+				return resttypes.NewAPIError(resttypes.PermissionDenied, "cluster in updateing state, please do not delete")
+			default:
+				cluster = c
+				m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
+				break
+			}
 		}
 	}
 	m.lock.Unlock()
@@ -263,11 +323,11 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 func (m *ClusterManager) zkeEventLoop() {
 	for {
 		msg := <-m.zkeMsgCh
-		m.setClusterAfterCreated(msg)
+		m.setClusterAfterCreatedOrUpdated(msg)
 	}
 }
 
-func (m *ClusterManager) setClusterAfterCreated(zkeMsg zke.ZKEMsg) error {
+func (m *ClusterManager) setClusterAfterCreatedOrUpdated(zkeMsg zke.ZKEMsg) error {
 	for _, c := range m.clusters {
 		if c.Name == zkeMsg.ClusterName {
 			m.lock.Lock()
