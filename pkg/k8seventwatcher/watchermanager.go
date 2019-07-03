@@ -57,6 +57,16 @@ func (mgr *WatcherManager) eventLoop() *EventWatcher {
 				log.Warnf("event watcher unknown cluster %s", cluster.Name)
 			}
 			mgr.lock.Unlock()
+		case handler.UpdateCluster:
+			cluster := e.Cluster
+			mgr.lock.Lock()
+			watcher, err := NewEventWatcher(cluster.Cache, MaxEventCount)
+			if err != nil {
+				log.Warnf("create event watcher for cluster %s failed: %s", cluster.Name, err.Error())
+			} else {
+				mgr.watchers[cluster.Name] = watcher
+			}
+			mgr.lock.Unlock()
 		}
 	}
 }

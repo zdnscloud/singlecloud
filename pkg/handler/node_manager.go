@@ -68,10 +68,20 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 	if len(inner.Name) == 0 || len(inner.Roles) == 0 {
 		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node address and roles can't be null")
 	}
-	nodeCh := make(chan *types.Node)
-	zkeMgsCh := make(chan zke.ZkeMsg)
-	go zke.UpdateClusterUseZKE(cluster.State, cluster.ZKEConfig, "create", nodeCh, zkeMgsCh)
-	nodeCh <- inner
+
+	zkeEventCh := make(chan zke.ZKEEvent)
+	cluster.Status = zke.ClusterUpateing
+	go zke.UpdateCluster(zkeEventCh, m.clusters.zkeMsgCh)
+	newClusterConfig, err := zke.GetNewConfigForAddNode(cluster.Config, inner)
+	if err != nil {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "node name or address duplicate")
+	}
+	zkeEvent := zke.ZKEEvent{
+		State:  cluster.State,
+		Config: newClusterConfig,
+	}
+	zkeEventCh <- zkeEvent
+
 	inner.SetID(inner.Name)
 	inner.SetCreationTimestamp(time.Now())
 	return inner, nil
@@ -83,13 +93,16 @@ func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return nil
 	}
 	target := ctx.Object.(*types.Node).GetID()
-	nodeCh := make(chan *types.Node)
-	zkeMgsCh := make(chan zke.ZkeMsg)
-	go zke.UpdateClusterUseZKE(cluster.State, cluster.ZKEConfig, "delete", nodeCh, zkeMgsCh)
-	toBeDeleteNode := &types.Node{
-		Name: target,
+
+	zkeEventCh := make(chan zke.ZKEEvent)
+	cluster.Status = zke.ClusterUpateing
+	go zke.UpdateCluster(zkeEventCh, m.clusters.zkeMsgCh)
+	zkeEvent := zke.ZKEEvent{
+		State:  cluster.State,
+		Config: zke.GetNewConfigForDeleteNode(cluster.Config, target),
 	}
-	nodeCh <- toBeDeleteNode
+	zkeEventCh <- zkeEvent
+
 	return nil
 }
 

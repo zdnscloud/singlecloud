@@ -1,164 +1,184 @@
 package zke
 
 import (
-	"encoding/json"
+	"fmt"
+
+	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gok8s/client/config"
-	"github.com/zdnscloud/singlecloud/pkg/types"
+	gok8sconfig "github.com/zdnscloud/gok8s/client/config"
 	zkecmd "github.com/zdnscloud/zke/cmd"
+	"github.com/zdnscloud/zke/core"
+	"github.com/zdnscloud/zke/core/pki"
 	zketypes "github.com/zdnscloud/zke/types"
 	"k8s.io/client-go/rest"
 )
 
 const (
-	CreateFailed  = "failed"
-	CreateSuccess = "success"
+	ClusterCreateFailed   = "CreateFailed"
+	ClusterCreateComplete = "CreateComplete"
+	ClusterCreateing      = "Createing"
+	ClusterUpateing       = "updateing"
+	ClusterUpateComplete  = "updated"
+	ClusterUpateFailed    = "updateFailed"
 )
 
-type ZkeMsg struct {
-	ClusterName  string
-	KubeClient   client.Client
-	KubeConfig   *rest.Config
-	ClusterState string
-	CreateStatus string
-	ZKEConfig    string
-	ErrorMsg     string
+type ZKEMsg struct {
+	ClusterName   string
+	ClusterState  *core.FullState
+	ClusterConfig *zketypes.ZKEConfig
+	KubeConfig    *rest.Config
+	KubeClient    client.Client
+	Status        string
+	ErrorMsg      string
 }
 
-func CreateClusterUseZKE(clusterState string, clusterCh <-chan *types.Cluster, zkeMsgCh chan ZkeMsg) {
-	cluster := <-clusterCh
-	var msg = ZkeMsg{
-		ClusterName:  cluster.Name,
-		CreateStatus: CreateFailed,
-	}
-	zkeCluster := scClusterToZKECluster(cluster)
-
-	err := zkecmd.ClusterRemoveFromRest(zkeCluster)
-	if err != nil {
-		msg.ErrorMsg = err.Error()
-		zkeMsgCh <- msg
-	}
-
-	newClusterState, kubeConfig, err := zkecmd.ClusterUpFromRest(zkeCluster, clusterState)
-	if err != nil {
-		msg.ErrorMsg = err.Error()
-		zkeMsgCh <- msg
-	}
-
-	k8sconf, err := config.BuildConfig([]byte(kubeConfig))
-	if err != nil {
-		msg.ErrorMsg = err.Error()
-		zkeMsgCh <- msg
-	}
-
-	cli, err := client.New(k8sconf, client.Options{})
-	if err != nil {
-		msg.ErrorMsg = err.Error()
-		zkeMsgCh <- msg
-	}
-
-	err = DeployZcloudProxy(cli, cluster.Name, cluster.SingleCloudAddress)
-	if err != nil {
-		msg.ErrorMsg = err.Error()
-		zkeMsgCh <- msg
-	}
-
-	zkeConfigJson, err := json.Marshal(zkeCluster)
-	if err != nil {
-		msg.ErrorMsg = err.Error()
-		zkeMsgCh <- msg
-	}
-
-	msg.KubeClient = cli
-	msg.KubeConfig = k8sconf
-	msg.CreateStatus = CreateSuccess
-	msg.ClusterState = newClusterState
-	msg.ZKEConfig = string(zkeConfigJson)
-	zkeMsgCh <- msg
+type ZKEEvent struct {
+	State  *core.FullState
+	Config *zketypes.ZKEConfig
 }
 
-func UpdateClusterUseZKE(clusterState string, zkeConfigJson, action string, nodeCh <-chan *types.Node, zkeMsgCh chan ZkeMsg) {
-	node := <-nodeCh
-	var msg = ZkeMsg{}
-	zkeCluster, err := updateZKEConfigForNode(zkeConfigJson, action, node)
-	if err != nil {
-		msg.ErrorMsg = err.Error()
+func CreateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) {
+	event := <-eventCh
+	var msg = ZKEMsg{
+		ClusterName:   event.Config.ClusterName,
+		ClusterConfig: event.Config.DeepCopy(),
+		Status:        ClusterCreateFailed,
 	}
-	msg.ErrorMsg = zkeCluster.ClusterName
+	defer func(msgCh chan ZKEMsg) {
+		if r := recover(); r != nil {
+			err := fmt.Errorf("zke err: %s", r)
+			msg.ErrorMsg = err.Error()
+			msgCh <- msg
+		}
+	}(msgCh)
 
-	newClusterState, kubeConfig, err := zkecmd.ClusterUpFromRest(zkeCluster, clusterState)
-	if err != nil {
+	if err := zkecmd.ClusterRemoveFromRest(event.Config); err != nil {
 		msg.ErrorMsg = err.Error()
-		zkeMsgCh <- msg
-	}
-
-	k8sconf, err := config.BuildConfig([]byte(kubeConfig))
-	if err != nil {
-		msg.ErrorMsg = err.Error()
-	}
-
-	cli, err := client.New(k8sconf, client.Options{})
-	if err != nil {
-		msg.ErrorMsg = err.Error()
+		msgCh <- msg
 	}
 
-	msg.KubeClient = cli
-	msg.KubeConfig = k8sconf
-	msg.CreateStatus = CreateSuccess
-	msg.ClusterState = newClusterState
-	msg.ZKEConfig = string(zkeConfigJson)
-	zkeMsgCh <- msg
+	state, err := zkecmd.ClusterUpFromRest(event.Config, &core.FullState{})
+	if err != nil {
+		msg.ErrorMsg = err.Error()
+		msgCh <- msg
+	}
+
+	kubeConfigYaml := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
+	kubeConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfigYaml))
+	if err != nil {
+		msg.ErrorMsg = err.Error()
+		msgCh <- msg
+	}
+
+	kubeClient, err := client.New(kubeConfig, client.Options{})
+	if err != nil {
+		msg.ErrorMsg = err.Error()
+		msgCh <- msg
+	}
+
+	if err := deployZcloudProxy(kubeClient, event.Config.ClusterName, event.Config.SingleCloudAddress); err != nil {
+		msg.ErrorMsg = err.Error()
+		msgCh <- msg
+	}
+
+	msg.KubeClient = kubeClient
+	msg.KubeConfig = kubeConfig
+	msg.Status = ClusterCreateComplete
+	msg.ClusterState = state
+	msgCh <- msg
 }
 
-func scClusterToZKECluster(scCluster *types.Cluster) *zketypes.ZKEConfig {
-	zkeCluster := &zketypes.ZKEConfig{
-		ClusterName:    scCluster.Name,
-		SingleCloudUrl: scCluster.SingleCloudAddress,
+func UpdateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) {
+	event := <-eventCh
+	var msg = ZKEMsg{
+		ClusterName:   event.Config.ClusterName,
+		ClusterConfig: event.Config.DeepCopy(),
+		Status:        ClusterUpateFailed,
 	}
-	zkeCluster.Option.SSHUser = scCluster.Option.SSHUser
-	zkeCluster.Option.SSHPort = scCluster.Option.SSHPort
-	zkeCluster.Option.SSHKey = scCluster.Option.SSHKey
-	zkeCluster.Option.ClusterCidr = scCluster.Option.ClusterCidr
-	zkeCluster.Option.ServiceCidr = scCluster.Option.ServiceCidr
-	zkeCluster.Option.ClusterDomain = scCluster.Option.ClusterDomain
-	zkeCluster.Option.ClusterDNSServiceIP = scCluster.Option.ClusterDNSServiceIP
-	zkeCluster.Option.ClusterUpstreamDNS = scCluster.Option.ClusterUpstreamDNS
-	zkeCluster.Network.Plugin = scCluster.Network.Plugin
+	defer func(msgCh chan ZKEMsg) {
+		if r := recover(); r != nil {
+			err := fmt.Errorf("zke err: %s", r)
+			msg.ErrorMsg = err.Error()
+			msgCh <- msg
+		}
+	}(msgCh)
 
-	zkeCluster.Nodes = []zketypes.ZKEConfigNode{}
+	state, err := zkecmd.ClusterUpFromRest(event.Config, event.State)
+	if err != nil {
+		msg.ErrorMsg = err.Error()
+		msgCh <- msg
+	}
 
-	for _, node := range scCluster.Nodes {
+	kubeConfigYaml := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
+	kubeConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfigYaml))
+	if err != nil {
+		msg.ErrorMsg = err.Error()
+		msgCh <- msg
+	}
+
+	kubeClient, err := client.New(kubeConfig, client.Options{})
+	if err != nil {
+		msg.ErrorMsg = err.Error()
+		msgCh <- msg
+	}
+
+	msg.KubeClient = kubeClient
+	msg.KubeConfig = kubeConfig
+	msg.Status = ClusterUpateComplete
+	msg.ClusterState = state
+	msgCh <- msg
+}
+
+func ScClusterToZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
+	config := &zketypes.ZKEConfig{
+		ClusterName:        cluster.Name,
+		SingleCloudAddress: cluster.SingleCloudAddress,
+	}
+	config.Option.SSHUser = cluster.SSHUser
+	config.Option.SSHPort = cluster.SSHPort
+	config.Option.SSHKey = cluster.SSHKey
+	config.Option.ClusterCidr = cluster.ClusterCidr
+	config.Option.ServiceCidr = cluster.ServiceCidr
+	config.Option.ClusterDomain = cluster.ClusterDomain
+	config.Option.ClusterDNSServiceIP = cluster.ClusterDNSServiceIP
+	config.Option.ClusterUpstreamDNS = cluster.ClusterUpstreamDNS
+	config.Network.Plugin = cluster.Network.Plugin
+
+	config.Nodes = []zketypes.ZKEConfigNode{}
+
+	for _, node := range cluster.Nodes {
 		n := zketypes.ZKEConfigNode{
 			NodeName: node.NodeName,
 			Address:  node.Address,
 			Role:     node.Role,
 		}
-		zkeCluster.Nodes = append(zkeCluster.Nodes, n)
+		config.Nodes = append(config.Nodes, n)
 	}
 
-	if scCluster.PrivateRegistrys != nil {
-		zkeCluster.PrivateRegistries = []zketypes.PrivateRegistry{}
-		for _, pr := range scCluster.PrivateRegistrys {
+	if cluster.PrivateRegistrys != nil {
+		config.PrivateRegistries = []zketypes.PrivateRegistry{}
+		for _, pr := range cluster.PrivateRegistrys {
 			npr := zketypes.PrivateRegistry{
 				User:     pr.User,
 				Password: pr.Password,
 				URL:      pr.URL,
 				CAcert:   pr.CAcert,
 			}
-			zkeCluster.PrivateRegistries = append(zkeCluster.PrivateRegistries, npr)
+			config.PrivateRegistries = append(config.PrivateRegistries, npr)
 		}
 	}
-	return zkeCluster
+	return config
 }
 
-func updateZKEConfigForNode(zkeConfigJson string, action string, node *types.Node) (*zketypes.ZKEConfig, error) {
-	zkeConfig := &zketypes.ZKEConfig{}
-
-	err := json.Unmarshal([]byte(zkeConfigJson), zkeConfig)
-	if err != nil {
-		return zkeConfig, err
+func GetNewConfigForAddNode(currentConfig *zketypes.ZKEConfig, node *types.Node) (*zketypes.ZKEConfig, error) {
+	for _, n := range currentConfig.Nodes {
+		if n.NodeName == node.Name || n.Address == node.Address {
+			return currentConfig, fmt.Errorf("duplicate node")
+		}
 	}
+
+	newConfig := currentConfig.DeepCopy()
 
 	zkeNode := zketypes.ZKEConfigNode{
 		NodeName: node.Name,
@@ -166,15 +186,18 @@ func updateZKEConfigForNode(zkeConfigJson string, action string, node *types.Nod
 		Role:     node.Roles,
 	}
 
-	switch action {
-	case "create":
-		zkeConfig.Nodes = append(zkeConfig.Nodes, zkeNode)
-	case "delete":
-		for i, n := range zkeConfig.Nodes {
-			if n.NodeName == zkeNode.NodeName {
-				zkeConfig.Nodes = append(zkeConfig.Nodes[:i], zkeConfig.Nodes[i+1:]...)
-			}
+	newConfig.Nodes = append(newConfig.Nodes, zkeNode)
+	return newConfig, nil
+}
+
+func GetNewConfigForDeleteNode(currentConfig *zketypes.ZKEConfig, nodeName string) *zketypes.ZKEConfig {
+	newConfig := currentConfig.DeepCopy()
+
+	for i, n := range newConfig.Nodes {
+		if n.NodeName == nodeName {
+			newConfig.Nodes = append(newConfig.Nodes[:i], newConfig.Nodes[i+1:]...)
 		}
 	}
-	return zkeConfig, nil
+
+	return newConfig
 }

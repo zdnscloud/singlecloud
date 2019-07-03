@@ -5,7 +5,7 @@ import (
 	"github.com/zdnscloud/gok8s/helper"
 )
 
-func generateZcloudProxyYaml(clusterName string, scURL string) string {
+func getZcloudProxyYaml(clusterName string, scAddress string) string {
 	return `
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -25,7 +25,7 @@ spec:
       containers:
       - args:
         - -server
-        - "` + scURL + `"
+        - "` + scAddress + `"
         - -cluster
         - "` + clusterName + `"
         command:
@@ -38,7 +38,7 @@ spec:
       securityContext: {}`
 }
 
-func DeployZcloudProxy(cli client.Client, clusterName, scURL string) error {
-	yaml := generateZcloudProxyYaml(clusterName, scURL)
+func deployZcloudProxy(cli client.Client, clusterName, scAddress string) error {
+	yaml := getZcloudProxyYaml(clusterName, scAddress)
 	return helper.CreateResourceFromYaml(cli, yaml)
 }

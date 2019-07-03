@@ -7,8 +7,10 @@ import (
 type ClusterStatus string
 
 const (
-	CSRunning     ClusterStatus = "Running"
-	CSUnreachable ClusterStatus = "Unreachable"
+	CSRunning      ClusterStatus = "Running"
+	CSUnreachable  ClusterStatus = "Unreachable"
+	CSCreateing    ClusterStatus = "Createing"
+	CSCreateFailed ClusterStatus = "CreateFailed"
 )
 
 func SetClusterSchema(schema *types.Schema, handler types.Handler) {
@@ -19,7 +21,6 @@ func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 
 type Cluster struct {
 	types.Resource     `json:",inline"`
-	Option             ClusterOption       `json:"option"`
 	Nodes              []ClusterConfigNode `json:"nodes"`
 	Network            ClusterNetwork      `json:"network"`
 	PrivateRegistrys   []PrivateRegistry   `json:"privateRegistrys"`
@@ -38,9 +39,7 @@ type Cluster struct {
 	Pod             int64  `json:"pod"`
 	PodUsed         int64  `json:"podUsed"`
 	PodUsedRatio    string `json:"podUsedRatio"`
-}
 
-type ClusterOption struct {
 	SSHUser             string   `json:"sshUser"`
 	SSHKey              string   `json:"sshKey"`
 	SSHPort             string   `json:"sshPort"`

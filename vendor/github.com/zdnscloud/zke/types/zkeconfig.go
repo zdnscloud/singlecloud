@@ -5,15 +5,15 @@ type ZKEConfig struct {
 	Option      ZKEConfigOption `yaml:"option" json:"option"`
 	Nodes       []ZKEConfigNode `yaml:"nodes" json:"nodes"`
 	// Kubernetes components
-	Core              ZKEConfigCore     `yaml:"core,omitempty" json:"core,omitempty"`
-	Network           ZKEConfigNetwork  `yaml:"network,omitempty" json:"network,omitempty"`
-	Image             ZKEConfigImages   `yaml:"image,omitempty" json:"image,omitempty"`
-	PrivateRegistries []PrivateRegistry `yaml:"private_registries,omitempty" json:"privateRegistries,omitempty"`
-	Authentication    ZKEConfigAuthn    `yaml:"authentication,omitempty" json:"authentication,omitempty"`
-	Authorization     ZKEConfigAuthz    `yaml:"authorization,omitempty" json:"authorization,omitempty"`
-	Monitor           ZKEConfigMonitor  `yaml:"monitor,omitempty" json:"monitor,omitempty"`
-	SingleCloudUrl    string            `yaml:"single_cloud_url,omitempty" json:"singleCloudUrl"`
-	ConfigVersion     string            `yaml:"config_version" json:"configVersion"`
+	Core               ZKEConfigCore     `yaml:"core,omitempty" json:"core,omitempty"`
+	Network            ZKEConfigNetwork  `yaml:"network,omitempty" json:"network,omitempty"`
+	Image              ZKEConfigImages   `yaml:"image,omitempty" json:"image,omitempty"`
+	PrivateRegistries  []PrivateRegistry `yaml:"private_registries,omitempty" json:"privateRegistries,omitempty"`
+	Authentication     ZKEConfigAuthn    `yaml:"authentication,omitempty" json:"authentication,omitempty"`
+	Authorization      ZKEConfigAuthz    `yaml:"authorization,omitempty" json:"authorization,omitempty"`
+	Monitor            ZKEConfigMonitor  `yaml:"monitor,omitempty" json:"monitor,omitempty"`
+	SingleCloudAddress string            `yaml:"single_cloud_address,omitempty" json:"singleCloudAddress"`
+	ConfigVersion      string            `yaml:"config_version" json:"configVersion"`
 }
 
 type ZKEConfigOption struct {

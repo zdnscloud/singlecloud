@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -203,7 +202,7 @@ func ClusterUpForRest(ctx context.Context, clusterState *core.FullState, dialers
 	}
 	core.SetUpAuthentication(ctx, kubeCluster, currentCluster, clusterState)
 
-	err = kubeCluster.SetUpHostsForRest(ctx)
+	err = kubeCluster.SetUpHosts(ctx)
 	if err != nil {
 		return clusterState, err
 	}
@@ -304,26 +303,14 @@ func clusterUpFromCli(ctx *cli.Context) error {
 	return err
 }
 
-func ClusterUpFromRest(zkeConfig *types.ZKEConfig, clusterStateJson string) (string, string, error) {
-	clusterState, err := core.ReadStateJson(context.TODO(), clusterStateJson)
-	if err != nil {
-		return clusterStateJson, "", err
-	}
+func ClusterUpFromRest(zkeConfig *types.ZKEConfig, clusterState *core.FullState) (*core.FullState, error) {
 	newClusterState, err := ClusterInitForRest(context.Background(), zkeConfig, clusterState, hosts.DialersOptions{})
 	if err != nil {
-		return clusterStateJson, "", err
+		return clusterState, err
 	}
 
 	newClusterState, err = ClusterUpForRest(context.Background(), newClusterState, hosts.DialersOptions{})
-
-	newKubeConfig := newClusterState.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
-
-	newClusterStateByte, err := json.MarshalIndent(newClusterState, "", "  ")
-	newClusterStateJson := string(newClusterStateByte)
-	if err != nil {
-		return clusterStateJson, newKubeConfig, err
-	}
-	return newClusterStateJson, newKubeConfig, err
+	return newClusterState, err
 }
 
 func ConfigureCluster(

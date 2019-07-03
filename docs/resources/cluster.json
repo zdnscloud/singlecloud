@@ -58,48 +58,46 @@
         },
         "singleCloudAddress": {
             "type": "string"
+        },
+        "sshUser": {
+            "type": "string"
+        },
+        "sshPort": {
+            "type": "string"
+        },
+        "sshKey": {
+            "type": "string"
+        },
+        "dockerSocket": {
+            "type": "string"
+        },
+        "kubernetesVersion": {
+            "type": "string"
+        },
+        "ignoreDockerVersion": {
+            "type": "bool"
+        },
+        "clusterCidr": {
+            "type": "string"
+        },
+        "serviceCidr": {
+            "type": "string"
+        },
+        "clusterDomain": {
+            "type": "string"
+        },
+        "clusterDNSServiceIP": {
+            "type": "string"
+        },
+        "clusterUpstreamDNS": {
+            "type": "array",
+            "elemType": "string"
+        },
+        "disablePortCheck": {
+            "type": "bool"
         }
     },
     "subResources": {
-        "zkeConfigOption": {
-            "sshUser": {
-                "type": "string"
-            },
-            "sshPort": {
-                "type": "string"
-            },
-            "sshKey": {
-                "type": "string"
-            },
-            "dockerSocket": {
-                "type": "string"
-            },
-            "kubernetesVersion": {
-                "type": "string"
-            },
-            "ignoreDockerVersion": {
-                "type": "bool"
-            },
-            "clusterCidr": {
-                "type": "string"
-            },
-            "serviceCidr": {
-                "type": "string"
-            },
-            "clusterDomain": {
-                "type": "string"
-            },
-            "clusterDNSServiceIP": {
-                "type": "string"
-            },
-            "clusterUpstreamDNS": {
-                "type": "array",
-                "elemType": "string"
-            },
-            "disablePortCheck": {
-                "type": "bool"
-            }
-        },
         "zkeConfigNode": {
             "nodeName": {
                 "type": "string"
@@ -107,24 +105,9 @@
             "address": {
                 "type": "string"
             },
-            "internalAddress": {
-                "type": "string"
-            },
             "roles": {
                 "type": "array",
                 "elemType": "string"
-            },
-            "sshUser": {
-                "type": "string"
-            },
-            "sshPort": {
-                "type": "string"
-            },
-            "sshKey": {
-                "type": "string"
-            },
-            "dockerSocket": {
-                "type": "string"
             }
         },
         "zkeConfigNetwork": {
@@ -177,57 +160,54 @@
             "singlecloudAddress": {
                 "type": "string",
                 "required": true
+            },
+            "sshUser": {
+                "type": "string",
+                "required": true
+            },
+            "sshPort": {
+                "type": "string",
+                "required": true
+            },
+            "sshKey": {
+                "type": "string",
+                "required": true
+            },
+            "dockerSocket": {
+                "type": "string"
+            },
+            "kubernetsVersion": {
+                "type": "string"
+            },
+            "ignoreDockerVersion": {
+                "type": "bool"
+            },
+            "clusterCidr": {
+                "type": "string",
+                "required": true
+            },
+            "serviceCidr": {
+                "type": "string",
+                "required": true
+            },
+            "clusterDomain": {
+                "type": "string",
+                "required": true
+            },
+            "clusterDNSServiceIP": {
+                "type": "string",
+                "required": true
+            },
+            "clusterUpstreamDNS": {
+                "type": "array",
+                "elemType": "string",
+                "required": true
+            },
+            "disablePortCheck": {
+                "type": "bool"
             }
         },
         "subResources": {
-            "zkeConfigOption": {
-                "sshUser": {
-                    "type": "string",
-                    "required": true
-                },
-                "sshPort": {
-                    "type": "string",
-                    "required": true
-                },
-                "sshKey": {
-                    "type": "string",
-                    "required": true
-                },
-                "dockerSocket": {
-                    "type": "string"
-                },
-                "kubernetsVersion": {
-                    "type": "string"
-                },
-                "ignoreDockerVersion": {
-                    "type": "bool"
-                },
-                "clusterCidr": {
-                    "type": "string",
-                    "required": true
-                },
-                "serviceCidr": {
-                    "type": "string",
-                    "required": true
-                },
-                "clusterDomain": {
-                    "type": "string",
-                    "required": true
-                },
-                "clusterDNSServiceIP": {
-                    "type": "string",
-                    "required": true
-                },
-                "clusterUpstreamDNS": {
-                    "type": "array",
-                    "elemType": "string",
-                    "required": true
-                },
-                "disablePortCheck": {
-                    "type": "bool"
-                }
-
-            },
             "zkeConfigNode": {
                 "name": {
                     "type": "string",
@@ -237,25 +217,10 @@
                     "type": "string",
                     "required": true
                 },
-                "internalAddress": {
-                    "type": "string"
-                },
                 "roles": {
                     "type": "array",
                     "elemType": "string",
                     "required": true
-                },
-                "sshUser": {
-                    "type": "string"
-                },
-                "sshPort": {
-                    "type": "string"
-                },
-                "sshKey": {
-                    "type": "string"
-                },
-                "dockerSocket": {
-                    "type": "string"
                 }
             },
             "zkeConfigNetwork": {
