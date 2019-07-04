@@ -1,0 +1,33 @@
+{
+    "resourceType":"storagecluster",
+    "collectionName":"storageclusters",
+    "parentResources":[
+        "namespace"
+    ],
+    "resourceFields":{
+        "name":{"type":"string"},
+        "storagetype":{"type":"string"},
+        "hosts":{"type":"hostspec"},
+        "status":{"type":"string"}
+    },
+    "subResources":{
+        "hostspec":{
+            "nodeName":{"type":"string"},
+            "blockDevices":{"type":"array","elemType":"string"}
+        }
+    },
+    "resourceMethods":["GET","PUT","DELETE"],
+    "collectionMethods":["POST","GET"],
+    "postParameters":{
+        "fields":{
+            "name":{"type":"string"},
+            "storagetype":{"type":"string"},
+            "hosts":{"type":"hostspec"}
+        }
+    },
+    "putParameters":{
+        "fields":{
+            "hosts":{"type":"hostspec"}
+        }
+    }
+}

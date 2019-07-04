@@ -76,13 +76,13 @@ func (m StorageClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIErro
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	//namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Object.GetParent().GetID()
 	storagecluster := ctx.Object.(*types.StorageCluster)
-	err := deleteStorageCluster(cluster.KubeClient, storagecluster.GetID())
+	err := deleteStorageCluster(cluster.KubeClient, namespace, storagecluster.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound,
-				fmt.Sprintf("storagecluster %s with namespace %s doesn't exist", storagecluster.GetID(), StorageClusterNamespace))
+				fmt.Sprintf("storagecluster %s with namespace %s doesn't exist", storagecluster.GetID(), namespace))
 		} else {
 			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete storagecluster failed %s", err.Error()))
 		}
@@ -136,9 +136,9 @@ func getStorageClusters(cli client.Client, namespace string) (*storagev1.Cluster
 	return &storageclusters, err
 }
 
-func deleteStorageCluster(cli client.Client, name string) error {
+func deleteStorageCluster(cli client.Client, namespace, name string) error {
 	storagecluster := &storagev1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: StorageClusterNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}
 	return cli.Delete(context.TODO(), storagecluster)
 }
@@ -197,11 +197,10 @@ func k8sStorageToSCStorage(k8sStorageCluster *storagev1.Cluster) *types.StorageC
 	}
 
 	storagecluster := &types.StorageCluster{
-		Name: k8sStorageCluster.Name,
-		//Namespace:   StorageClusterNamespace,
+		Name:        k8sStorageCluster.Name,
 		StorageType: k8sStorageCluster.Spec.StorageType,
 		Hosts:       hosts,
-		Status:      k8sStorageCluster.Status.CephStatus.Health,
+		Status:      k8sStorageCluster.Status.State,
 	}
 	storagecluster.SetID(k8sStorageCluster.Name)
 	storagecluster.SetType(types.StorageClusterType)

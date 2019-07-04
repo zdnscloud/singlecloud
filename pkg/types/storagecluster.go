@@ -14,7 +14,6 @@ func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler
 type StorageCluster struct {
 	resttypes.Resource `json:",inline"`
 	Name               string     `json:"name"`
-	Namespace          string     `json:"namespace"`
 	StorageType        string     `json:"storagetype"`
 	Hosts              []HostSpec `json:"hosts"`
 	Status             string     `json:"status"`
