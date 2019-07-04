@@ -6,7 +6,7 @@
     ],
     "resourceFields":{
         "name":{"type":"string"},
-        "storagetype":{"type":"string"},
+        "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
         "hosts":{"type":"hostspec"},
         "status":{"type":"string"}
     },
@@ -21,13 +21,25 @@
     "postParameters":{
         "fields":{
             "name":{"type":"string"},
-            "storagetype":{"type":"string"},
+            "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
             "hosts":{"type":"hostspec"}
-        }
+        },
+	"subResources": {
+            "hostspec":{
+                "nodeName":{"type":"string"},
+                "blockDevices":{"type":"array","elemType":"string"}
+            }
+	}
     },
     "putParameters":{
         "fields":{
             "hosts":{"type":"hostspec"}
-        }
+        },
+	"subResources": {
+            "hostspec":{
+                "nodeName":{"type":"string"},
+                "blockDevices":{"type":"array","elemType":"string"}
+            }
+	}
     }
 }
