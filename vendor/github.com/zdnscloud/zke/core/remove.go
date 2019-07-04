@@ -63,11 +63,7 @@ func (c *Cluster) CleanupFiles(ctx context.Context) error {
 }
 
 func (c *Cluster) RemoveOldNodes(ctx context.Context) error {
-	kubeClient, err := k8s.NewClient(pki.KubeAdminConfigName, c.K8sWrapTransport)
-	if err != nil {
-		return err
-	}
-	nodeList, err := k8s.GetNodeList(kubeClient)
+	nodeList, err := k8s.GetNodeList(c.KubeClient)
 	if err != nil {
 		return err
 	}
@@ -79,7 +75,7 @@ func (c *Cluster) RemoveOldNodes(ctx context.Context) error {
 		host := &hosts.Host{}
 		host.NodeName = node.Name
 		if !hosts.IsNodeInList(host, uniqueHosts) {
-			if err := k8s.DeleteNode(kubeClient, node.Name, ""); err != nil {
+			if err := k8s.DeleteNode(c.KubeClient, node.Name, ""); err != nil {
 				log.Warnf(ctx, "Failed to delete old node [%s] from kubernetes")
 			}
 		}

@@ -19,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -69,10 +70,7 @@ func (c *Cluster) GetClusterState(ctx context.Context, fullState *FullState) (*C
 }
 
 func SaveFullStateToKubernetes(ctx context.Context, kubeCluster *Cluster, fullState *FullState) error {
-	k8sClient, err := k8s.NewClient(pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport)
-	if err != nil {
-		return fmt.Errorf("Failed to create Kubernetes Client: %v", err)
-	}
+
 	log.Infof(ctx, "[state] Saving full cluster state to Kubernetes")
 	stateFile, err := json.Marshal(*fullState)
 	if err != nil {
@@ -81,7 +79,7 @@ func SaveFullStateToKubernetes(ctx context.Context, kubeCluster *Cluster, fullSt
 	timeout := make(chan bool, 1)
 	go func() {
 		for {
-			_, err := k8s.UpdateConfigMap(k8sClient, stateFile, FullStateConfigMapName)
+			_, err := k8s.UpdateConfigMap(kubeCluster.KubeClient, stateFile, FullStateConfigMapName)
 			if err != nil {
 				time.Sleep(time.Second * 5)
 				continue
@@ -101,16 +99,14 @@ func SaveFullStateToKubernetes(ctx context.Context, kubeCluster *Cluster, fullSt
 
 func GetStateFromKubernetes(ctx context.Context, kubeCluster *Cluster) (*Cluster, error) {
 	log.Infof(ctx, "[state] Fetching cluster state from Kubernetes")
-	k8sClient, err := k8s.NewClient(pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create Kubernetes Client: %v", err)
-	}
+
+	var err error
 	var cfgMap *v1.ConfigMap
 	var currentCluster Cluster
 	timeout := make(chan bool, 1)
 	go func() {
 		for {
-			cfgMap, err = k8s.GetConfigMap(k8sClient, StateConfigMapName)
+			cfgMap, err = k8s.GetConfigMap(kubeCluster.KubeClient, StateConfigMapName)
 			if err != nil {
 				time.Sleep(time.Second * 5)
 				continue
@@ -134,12 +130,7 @@ func GetStateFromKubernetes(ctx context.Context, kubeCluster *Cluster) (*Cluster
 	}
 }
 
-func GetK8sVersion(localConfigPath string, k8sWrapTransport k8s.WrapTransport) (string, error) {
-	logrus.Debugf("[version] Using %s to connect to Kubernetes cluster..", localConfigPath)
-	k8sClient, err := k8s.NewClient(localConfigPath, k8sWrapTransport)
-	if err != nil {
-		return "", fmt.Errorf("Failed to create Kubernetes Client: %v", err)
-	}
+func GetK8sVersion(k8sClient *kubernetes.Clientset) (string, error) {
 	discoveryClient := k8sClient.DiscoveryClient
 	logrus.Debugf("[version] Getting Kubernetes server version..")
 	serverVersion, err := discoveryClient.ServerVersion()

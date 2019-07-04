@@ -243,7 +243,7 @@ func GenerateKubeAdminCertificate(ctx context.Context, certs map[string]Certific
 			string(cert.EncodeCertPEM(kubeAdminCrt)),
 			string(cert.EncodePrivateKeyPEM(kubeAdminKey)))
 		kubeAdminCertObj.Config = kubeAdminConfig
-		kubeAdminCertObj.ConfigPath = KubeAdminConfigName
+		kubeAdminCertObj.ConfigPath = ""
 	} else {
 		kubeAdminCertObj.Config = ""
 	}

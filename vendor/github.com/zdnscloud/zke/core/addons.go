@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zdnscloud/zke/core/pki"
 	"github.com/zdnscloud/zke/pkg/k8s"
 	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/pkg/templates"
@@ -32,11 +31,8 @@ func (c *Cluster) DoAddonDeploy(ctx context.Context, addonYaml, resourceName str
 		return &AddonError{fmt.Sprintf("Failed to save addon ConfigMap: %v", err), IsCritical}
 	}
 	log.Infof(ctx, "[addons] Executing deploy job %s", resourceName)
-	k8sClient, err := k8s.NewClient(pki.KubeAdminConfigName, c.K8sWrapTransport)
-	if err != nil {
-		return &AddonError{fmt.Sprintf("%v", err), IsCritical}
-	}
-	node, err := k8s.GetNode(k8sClient, c.ControlPlaneHosts[0].NodeName)
+
+	node, err := k8s.GetNode(c.KubeClient, c.ControlPlaneHosts[0].NodeName)
 	if err != nil {
 		return &AddonError{fmt.Sprintf("Failed to get Node [%s]: %v", c.ControlPlaneHosts[0].NodeName, err), IsCritical}
 	}
@@ -53,15 +49,12 @@ func (c *Cluster) DoAddonDeploy(ctx context.Context, addonYaml, resourceName str
 
 func (c *Cluster) StoreAddonConfigMap(ctx context.Context, addonYaml string, addonName string) (bool, error) {
 	log.Infof(ctx, "[addons] Saving ConfigMap for addon %s to Kubernetes", addonName)
+	var err error
 	updated := false
-	kubeClient, err := k8s.NewClient(pki.KubeAdminConfigName, c.K8sWrapTransport)
-	if err != nil {
-		return updated, err
-	}
 	timeout := make(chan bool, 1)
 	go func() {
 		for {
-			updated, err = k8s.UpdateConfigMap(kubeClient, []byte(addonYaml), addonName)
+			updated, err = k8s.UpdateConfigMap(c.KubeClient, []byte(addonYaml), addonName)
 			if err != nil {
 				time.Sleep(time.Second * 5)
 				continue
@@ -80,7 +73,7 @@ func (c *Cluster) StoreAddonConfigMap(ctx context.Context, addonYaml string, add
 }
 
 func (c *Cluster) ApplySystemAddonExecuteJob(addonJob string, addonUpdated bool) error {
-	if err := k8s.ApplyK8sSystemJob(addonJob, pki.KubeAdminConfigName, c.K8sWrapTransport, k8s.DefaultTimeout, addonUpdated); err != nil {
+	if err := k8s.ApplyK8sSystemJob(addonJob, c.KubeClient, k8s.DefaultTimeout, addonUpdated); err != nil {
 		return err
 	}
 	return nil

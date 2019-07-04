@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/client-go/rest"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
@@ -323,6 +324,9 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 func (m *ClusterManager) zkeEventLoop() {
 	for {
 		msg := <-m.zkeMsgCh
+		if msg.Error != nil {
+			log.Errorf("ZKE Error:%s", msg.Error)
+		}
 		m.setClusterAfterCreatedOrUpdated(msg)
 	}
 }

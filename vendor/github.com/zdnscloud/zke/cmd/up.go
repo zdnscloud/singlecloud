@@ -19,6 +19,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"github.com/zdnscloud/gok8s/client/config"
+	"k8s.io/client-go/kubernetes"
 )
 
 func UpCommand() cli.Command {
@@ -42,10 +44,10 @@ func doUpgradeLegacyCluster(ctx context.Context, kubeCluster *core.Cluster, full
 	}
 	// We have a kubeconfig and no current state. This is a legacy cluster or a new cluster with old kubeconfig
 	// let's try to upgrade
-	log.Infof(ctx, "[state] Possible legacy cluster detected, trying to upgrade")
-	if err := core.RebuildKubeconfig(ctx, kubeCluster); err != nil {
-		return err
-	}
+	// log.Infof(ctx, "[state] Possible legacy cluster detected, trying to upgrade")
+	// if err := core.RebuildKubeconfig(ctx, kubeCluster); err != nil {
+	// return err
+	// }
 	recoveredCluster, err := core.GetStateFromKubernetes(ctx, kubeCluster)
 	if err != nil {
 		return err
@@ -105,6 +107,17 @@ func ClusterUp(ctx context.Context, dialersOptions hosts.DialersOptions) error {
 	}
 	core.SetUpAuthentication(ctx, kubeCluster, currentCluster, clusterState)
 
+	kubeConfig, err := config.BuildConfig([]byte(kubeCluster.Certificates[pki.KubeAdminCertName].Config))
+	if err != nil {
+		return err
+	}
+
+	kubeClientSet, err := kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
+		return err
+	}
+	kubeCluster.KubeClient = kubeClientSet
+
 	err = kubeCluster.SetUpHosts(ctx)
 	if err != nil {
 		return err
@@ -124,7 +137,7 @@ func ClusterUp(ctx context.Context, dialersOptions hosts.DialersOptions) error {
 		return err
 	}
 
-	err = core.ApplyAuthzResources(ctx, kubeCluster.ZKEConfig, dialersOptions)
+	err = core.ApplyAuthzResources(ctx, kubeCluster.ZKEConfig, kubeCluster.KubeClient, dialersOptions)
 	if err != nil {
 		return err
 	}
@@ -163,6 +176,11 @@ func ClusterUp(ctx context.Context, dialersOptions hosts.DialersOptions) error {
 	if err != nil {
 		return err
 	}
+
+	if err = pki.DeployAdminConfig(ctx, kubeCluster.Certificates[pki.KubeAdminCertName].Config, pki.KubeAdminConfigName); err != nil {
+		return err
+	}
+
 	log.Infof(ctx, "Finished building Kubernetes cluster successfully")
 	return nil
 }
@@ -202,6 +220,17 @@ func ClusterUpForRest(ctx context.Context, clusterState *core.FullState, dialers
 	}
 	core.SetUpAuthentication(ctx, kubeCluster, currentCluster, clusterState)
 
+	kubeConfig, err := config.BuildConfig([]byte(kubeCluster.Certificates[pki.KubeAdminCertName].Config))
+	if err != nil {
+		return clusterState, err
+	}
+
+	kubeClientSet, err := kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
+		return clusterState, err
+	}
+	kubeCluster.KubeClient = kubeClientSet
+
 	err = kubeCluster.SetUpHosts(ctx)
 	if err != nil {
 		return clusterState, err
@@ -221,7 +250,7 @@ func ClusterUpForRest(ctx context.Context, clusterState *core.FullState, dialers
 		return clusterState, err
 	}
 
-	err = core.ApplyAuthzResources(ctx, kubeCluster.ZKEConfig, dialersOptions)
+	err = core.ApplyAuthzResources(ctx, kubeCluster.ZKEConfig, kubeCluster.KubeClient, dialersOptions)
 	if err != nil {
 		return clusterState, err
 	}

@@ -16,7 +16,7 @@ type JobStatus struct {
 	Created   bool
 }
 
-func ApplyK8sSystemJob(jobYaml, kubeConfigPath string, k8sWrapTransport WrapTransport, timeout int, addonUpdated bool) error {
+func ApplyK8sSystemJob(jobYaml string, k8sClient *kubernetes.Clientset, timeout int, addonUpdated bool) error {
 	job := v1.Job{}
 	if err := decodeYamlResource(&job, jobYaml); err != nil {
 		return err
@@ -24,10 +24,7 @@ func ApplyK8sSystemJob(jobYaml, kubeConfigPath string, k8sWrapTransport WrapTran
 	if job.Namespace == metav1.NamespaceNone {
 		job.Namespace = metav1.NamespaceSystem
 	}
-	k8sClient, err := NewClient(kubeConfigPath, k8sWrapTransport)
-	if err != nil {
-		return err
-	}
+
 	jobStatus, err := GetK8sJobStatus(k8sClient, job.Name, job.Namespace)
 	if err != nil {
 		return err

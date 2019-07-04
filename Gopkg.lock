@@ -536,7 +536,7 @@
 
 [[projects]]
   branch = "node-manager"
-  digest = "1:ac740f12392e5c8bcf0f7fed8c375b3df0dad89f9a3e1862b0a3c918c96b7bbb"
+  digest = "1:e18288ab9cf37d38b10f4daacf29bc8a7ac82d2dd50bac6395281ffce1c3f622"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -563,7 +563,7 @@
     "zcloud/sa",
   ]
   pruneopts = "UT"
-  revision = "6fd10203c251ea73b4db7a88b9b38bcb5f3e7135"
+  revision = "5a778fef3198f1b76d26dc82cdd9bec0432b28a5"
 
 [[projects]]
   branch = "master"

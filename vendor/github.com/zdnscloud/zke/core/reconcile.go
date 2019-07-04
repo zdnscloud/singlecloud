@@ -8,7 +8,6 @@ import (
 	"github.com/zdnscloud/zke/core/services"
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
-	"github.com/zdnscloud/zke/pkg/k8s"
 	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/types"
 
@@ -29,22 +28,18 @@ func ReconcileCluster(ctx context.Context, kubeCluster, currentCluster *Cluster)
 		return nil
 	}
 
-	kubeClient, err := k8s.NewClient(pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport)
-	if err != nil {
-		return fmt.Errorf("Failed to initialize new kubernetes client: %v", err)
-	}
 	// sync node labels to define the toDelete labels
 	syncLabels(ctx, currentCluster, kubeCluster)
 
-	if err := reconcileEtcd(ctx, currentCluster, kubeCluster, kubeClient); err != nil {
+	if err := reconcileEtcd(ctx, currentCluster, kubeCluster, kubeCluster.KubeClient); err != nil {
 		return fmt.Errorf("Failed to reconcile etcd plane: %v", err)
 	}
 
-	if err := reconcileWorker(ctx, currentCluster, kubeCluster, kubeClient); err != nil {
+	if err := reconcileWorker(ctx, currentCluster, kubeCluster, kubeCluster.KubeClient); err != nil {
 		return err
 	}
 
-	if err := reconcileControl(ctx, currentCluster, kubeCluster, kubeClient); err != nil {
+	if err := reconcileControl(ctx, currentCluster, kubeCluster, kubeCluster.KubeClient); err != nil {
 		return err
 	}
 
@@ -83,7 +78,7 @@ func reconcileWorker(ctx context.Context, currentCluster, kubeCluster *Cluster, 
 
 func reconcileControl(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
 	logrus.Debugf("[reconcile] Check Control plane hosts to be deleted")
-	selfDeleteAddress, err := getLocalConfigAddress(pki.KubeAdminConfigName)
+	selfDeleteAddress, err := getLocalConfigAddress(kubeCluster.Certificates[pki.KubeAdminCertName].Config)
 	if err != nil {
 		return err
 	}
@@ -228,14 +223,10 @@ func (c *Cluster) setReadyEtcdHosts() {
 }
 
 func cleanControlNode(ctx context.Context, kubeCluster, currentCluster *Cluster, toDeleteHost *hosts.Host) error {
-	kubeClient, err := k8s.NewClient(pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport)
-	if err != nil {
-		return fmt.Errorf("Failed to initialize new kubernetes client: %v", err)
-	}
 
 	// if I am deleting a node that's already in the config, it's probably being replaced and I shouldn't remove it  from ks8
 	if !hosts.IsNodeInList(toDeleteHost, kubeCluster.ControlPlaneHosts) {
-		if err := hosts.DeleteNode(ctx, toDeleteHost, kubeClient, toDeleteHost.IsWorker); err != nil {
+		if err := hosts.DeleteNode(ctx, toDeleteHost, kubeCluster.KubeClient, toDeleteHost.IsWorker); err != nil {
 			return fmt.Errorf("Failed to delete controlplane node [%s] from cluster: %v", toDeleteHost.Address, err)
 		}
 	}

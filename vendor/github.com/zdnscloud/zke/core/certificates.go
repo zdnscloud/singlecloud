@@ -22,10 +22,6 @@ func SetUpAuthentication(ctx context.Context, kubeCluster, currentCluster *Clust
 func GetClusterCertsFromKubernetes(ctx context.Context, kubeCluster *Cluster) (map[string]pki.CertificatePKI, error) {
 	log.Infof(ctx, "[certificates] Getting Cluster certificates from Kubernetes")
 
-	k8sClient, err := k8s.NewClient(pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create Kubernetes Client: %v", err)
-	}
 	certificatesNames := []string{
 		pki.CACertName,
 		pki.KubeAPICertName,
@@ -46,7 +42,7 @@ func GetClusterCertsFromKubernetes(ctx context.Context, kubeCluster *Cluster) (m
 
 	certMap := make(map[string]pki.CertificatePKI)
 	for _, certName := range certificatesNames {
-		secret, err := k8s.GetSecret(k8sClient, certName)
+		secret, err := k8s.GetSecret(kubeCluster.KubeClient, certName)
 		if err != nil && !strings.HasPrefix(certName, "kube-etcd") &&
 			!strings.Contains(certName, pki.RequestHeaderCACertName) &&
 			!strings.Contains(certName, pki.APIProxyClientCertName) &&

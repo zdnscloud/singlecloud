@@ -30,7 +30,7 @@ type ZKEMsg struct {
 	KubeConfig    *rest.Config
 	KubeClient    client.Client
 	Status        string
-	ErrorMsg      string
+	Error         error
 }
 
 type ZKEEvent struct {
@@ -38,48 +38,54 @@ type ZKEEvent struct {
 	Config *zketypes.ZKEConfig
 }
 
-func CreateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) {
+func CreateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
 	event := <-eventCh
 	var msg = ZKEMsg{
 		ClusterName:   event.Config.ClusterName,
 		ClusterConfig: event.Config.DeepCopy(),
 		Status:        ClusterCreateFailed,
 	}
-	defer func(msgCh chan ZKEMsg) {
+	defer func(msgCh chan ZKEMsg) error {
 		if r := recover(); r != nil {
-			err := fmt.Errorf("zke err: %s", r)
-			msg.ErrorMsg = err.Error()
+			err := fmt.Errorf("pannic info %s", r)
+			msg.Error = err
 			msgCh <- msg
 		}
+		return nil
 	}(msgCh)
 
 	if err := zkecmd.ClusterRemoveFromRest(event.Config); err != nil {
-		msg.ErrorMsg = err.Error()
+		msg.Error = err
 		msgCh <- msg
+		return err
 	}
 
 	state, err := zkecmd.ClusterUpFromRest(event.Config, &core.FullState{})
 	if err != nil {
-		msg.ErrorMsg = err.Error()
+		msg.Error = err
 		msgCh <- msg
+		return err
 	}
 
 	kubeConfigYaml := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
 	kubeConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfigYaml))
 	if err != nil {
-		msg.ErrorMsg = err.Error()
+		msg.Error = err
 		msgCh <- msg
+		return err
 	}
 
 	kubeClient, err := client.New(kubeConfig, client.Options{})
 	if err != nil {
-		msg.ErrorMsg = err.Error()
+		msg.Error = err
 		msgCh <- msg
+		return err
 	}
 
 	if err := deployZcloudProxy(kubeClient, event.Config.ClusterName, event.Config.SingleCloudAddress); err != nil {
-		msg.ErrorMsg = err.Error()
+		msg.Error = err
 		msgCh <- msg
+		return err
 	}
 
 	msg.KubeClient = kubeClient
@@ -87,40 +93,45 @@ func CreateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) {
 	msg.Status = ClusterCreateComplete
 	msg.ClusterState = state
 	msgCh <- msg
+	return nil
 }
 
-func UpdateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) {
+func UpdateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
 	event := <-eventCh
 	var msg = ZKEMsg{
 		ClusterName:   event.Config.ClusterName,
 		ClusterConfig: event.Config.DeepCopy(),
 		Status:        ClusterUpateFailed,
 	}
-	defer func(msgCh chan ZKEMsg) {
+	defer func(msgCh chan ZKEMsg) error {
 		if r := recover(); r != nil {
-			err := fmt.Errorf("zke err: %s", r)
-			msg.ErrorMsg = err.Error()
+			err := fmt.Errorf("pannic info %s", r)
+			msg.Error = err
 			msgCh <- msg
 		}
+		return nil
 	}(msgCh)
 
 	state, err := zkecmd.ClusterUpFromRest(event.Config, event.State)
 	if err != nil {
-		msg.ErrorMsg = err.Error()
+		msg.Error = err
 		msgCh <- msg
+		return err
 	}
 
 	kubeConfigYaml := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
 	kubeConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfigYaml))
 	if err != nil {
-		msg.ErrorMsg = err.Error()
+		msg.Error = err
 		msgCh <- msg
+		return err
 	}
 
 	kubeClient, err := client.New(kubeConfig, client.Options{})
 	if err != nil {
-		msg.ErrorMsg = err.Error()
+		msg.Error = err
 		msgCh <- msg
+		return err
 	}
 
 	msg.KubeClient = kubeClient
@@ -128,6 +139,7 @@ func UpdateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) {
 	msg.Status = ClusterUpateComplete
 	msg.ClusterState = state
 	msgCh <- msg
+	return nil
 }
 
 func ScClusterToZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {

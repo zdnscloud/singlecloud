@@ -65,8 +65,8 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 	inner := ctx.Object.(*types.Node)
-	if len(inner.Name) == 0 || len(inner.Roles) == 0 {
-		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node address and roles can't be null")
+	if len(inner.Name) == 0 || len(inner.Roles) == 0 || len(inner.Address) == 0 {
+		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node name address and roles can't be null")
 	}
 
 	zkeEventCh := make(chan zke.ZKEEvent)

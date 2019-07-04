@@ -20,10 +20,10 @@ import (
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/sirupsen/logrus"
 	"github.com/zdnscloud/cement/errgroup"
+	"github.com/zdnscloud/gok8s/client/config"
 	"gopkg.in/yaml.v2"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/cert"
 )
 
@@ -159,7 +159,7 @@ func (c *Cluster) SetupDialers(ctx context.Context, dailersOptions hosts.Dialers
 	return nil
 }
 
-func RebuildKubeconfig(ctx context.Context, kubeCluster *Cluster) error {
+func RebuildKubeconfig(ctx context.Context, kubeCluster *Cluster, clusterState *FullState) error {
 	return rebuildLocalAdminConfig(ctx, kubeCluster)
 }
 
@@ -172,71 +172,35 @@ func rebuildLocalAdminConfig(ctx context.Context, kubeCluster *Cluster) error {
 	currentKubeConfig := kubeCluster.Certificates[pki.KubeAdminCertName]
 	caCrt := kubeCluster.Certificates[pki.CACertName].Certificate
 	for _, cpHost := range kubeCluster.ControlPlaneHosts {
-		if (currentKubeConfig == pki.CertificatePKI{}) {
-			kubeCluster.Certificates = make(map[string]pki.CertificatePKI)
-			newConfig = getLocalAdminConfigWithNewAddress(pki.KubeAdminConfigName, cpHost.Address, kubeCluster.ClusterName)
-		} else {
-			kubeURL := fmt.Sprintf("https://%s:6443", cpHost.Address)
-			caData := string(cert.EncodeCertPEM(caCrt))
-			crtData := string(cert.EncodeCertPEM(currentKubeConfig.Certificate))
-			keyData := string(cert.EncodePrivateKeyPEM(currentKubeConfig.Key))
-			newConfig = pki.GetKubeConfigX509WithData(kubeURL, kubeCluster.ClusterName, pki.KubeAdminCertName, caData, crtData, keyData)
-		}
-		if err := pki.DeployAdminConfig(ctx, newConfig, pki.KubeAdminConfigName); err != nil {
-			return fmt.Errorf("Failed to redeploy local admin config with new host")
-		}
+		kubeURL := fmt.Sprintf("https://%s:6443", cpHost.Address)
+		caData := string(cert.EncodeCertPEM(caCrt))
+		crtData := string(cert.EncodeCertPEM(currentKubeConfig.Certificate))
+		keyData := string(cert.EncodePrivateKeyPEM(currentKubeConfig.Key))
+		newConfig = pki.GetKubeConfigX509WithData(kubeURL, kubeCluster.ClusterName, pki.KubeAdminCertName, caData, crtData, keyData)
+
 		workingConfig = newConfig
-		if _, err := GetK8sVersion(pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport); err == nil {
+		kubeConfig, err := config.BuildConfig([]byte(newConfig))
+		if err != nil {
+			return err
+		}
+		kubeClientSet, err := kubernetes.NewForConfig(kubeConfig)
+		if err != nil {
+			return err
+		}
+		kubeCluster.KubeClient = kubeClientSet
+		if _, err := GetK8sVersion(kubeClientSet); err == nil {
 			log.Infof(ctx, "[reconcile] host [%s] is active master on the cluster", cpHost.Address)
 			break
 		}
 	}
 	currentKubeConfig.Config = workingConfig
 	kubeCluster.Certificates[pki.KubeAdminCertName] = currentKubeConfig
+
 	return nil
 }
 
-func RebuildKubeconfigForRest(ctx context.Context, kubeCluster *Cluster) error {
-	if len(kubeCluster.ControlPlaneHosts) == 0 {
-		return nil
-	}
-	log.Infof(ctx, "[reconcile] Rebuilding and updating local kube config")
-	var workingConfig, newConfig string
-	currentKubeConfig := kubeCluster.Certificates[pki.KubeAdminCertName]
-	caCrt := kubeCluster.Certificates[pki.CACertName].Certificate
-	for _, cpHost := range kubeCluster.ControlPlaneHosts {
-		if (currentKubeConfig == pki.CertificatePKI{}) {
-			kubeCluster.Certificates = make(map[string]pki.CertificatePKI)
-			newConfig = getLocalAdminConfigWithNewAddress(pki.KubeAdminConfigName, cpHost.Address, kubeCluster.ClusterName)
-		} else {
-			kubeURL := fmt.Sprintf("https://%s:6443", cpHost.Address)
-			caData := string(cert.EncodeCertPEM(caCrt))
-			crtData := string(cert.EncodeCertPEM(currentKubeConfig.Certificate))
-			keyData := string(cert.EncodePrivateKeyPEM(currentKubeConfig.Key))
-			newConfig = pki.GetKubeConfigX509WithData(kubeURL, kubeCluster.ClusterName, pki.KubeAdminCertName, caData, crtData, keyData)
-		}
-
-		workingConfig = newConfig
-		if _, err := GetK8sVersion(pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport); err == nil {
-			log.Infof(ctx, "[reconcile] host [%s] is active master on the cluster", cpHost.Address)
-			break
-		}
-	}
-	currentKubeConfig.Config = workingConfig
-	kubeCluster.Certificates[pki.KubeAdminCertName] = currentKubeConfig
-	return nil
-}
-
-func isLocalConfigWorking(ctx context.Context, localKubeConfigPath string, k8sWrapTransport k8s.WrapTransport) bool {
-	if _, err := GetK8sVersion(localKubeConfigPath, k8sWrapTransport); err != nil {
-		log.Infof(ctx, "[reconcile] Local config is not valid, rebuilding admin config")
-		return false
-	}
-	return true
-}
-
-func getLocalConfigAddress(localConfigPath string) (string, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", localConfigPath)
+func getLocalConfigAddress(kubeConfigYaml string) (string, error) {
+	config, err := config.BuildConfig([]byte(kubeConfigYaml))
 	if err != nil {
 		return "", err
 	}
@@ -245,9 +209,9 @@ func getLocalConfigAddress(localConfigPath string) (string, error) {
 	return address[2:], nil
 }
 
-func getLocalAdminConfigWithNewAddress(localConfigPath, cpAddress string, clusterName string) string {
-	config, _ := clientcmd.BuildConfigFromFlags("", localConfigPath)
-	if config == nil {
+func getLocalAdminConfigWithNewAddress(kubeConfigYaml, cpAddress string, clusterName string) string {
+	config, err := config.BuildConfig([]byte(kubeConfigYaml))
+	if err != nil {
 		return ""
 	}
 	config.Host = fmt.Sprintf("https://%s:6443", cpAddress)
@@ -260,7 +224,7 @@ func getLocalAdminConfigWithNewAddress(localConfigPath, cpAddress string, cluste
 		string(config.KeyData))
 }
 
-func ApplyAuthzResources(ctx context.Context, zkeConfig types.ZKEConfig, dailersOptions hosts.DialersOptions) error {
+func ApplyAuthzResources(ctx context.Context, zkeConfig types.ZKEConfig, k8sClient *kubernetes.Clientset, dailersOptions hosts.DialersOptions) error {
 	// dialer factories are not needed here since we are not uses docker only k8s jobs
 	kubeCluster, err := InitClusterObject(ctx, &zkeConfig)
 	if err != nil {
@@ -272,22 +236,22 @@ func ApplyAuthzResources(ctx context.Context, zkeConfig types.ZKEConfig, dailers
 	if len(kubeCluster.ControlPlaneHosts) == 0 {
 		return nil
 	}
-	if err := authz.ApplyJobDeployerServiceAccount(ctx, pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport); err != nil {
+	if err := authz.ApplyJobDeployerServiceAccount(ctx, k8sClient); err != nil {
 		return fmt.Errorf("Failed to apply the ServiceAccount needed for job execution: %v", err)
 	}
 	if kubeCluster.Authorization.Mode == NoneAuthorizationMode {
 		return nil
 	}
 	if kubeCluster.Authorization.Mode == services.RBACAuthorizationMode {
-		if err := authz.ApplySystemNodeClusterRoleBinding(ctx, pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport); err != nil {
+		if err := authz.ApplySystemNodeClusterRoleBinding(ctx, k8sClient); err != nil {
 			return fmt.Errorf("Failed to apply the ClusterRoleBinding needed for node authorization: %v", err)
 		}
 	}
 	if kubeCluster.Authorization.Mode == services.RBACAuthorizationMode && kubeCluster.Core.KubeAPI.PodSecurityPolicy {
-		if err := authz.ApplyDefaultPodSecurityPolicy(ctx, pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport); err != nil {
+		if err := authz.ApplyDefaultPodSecurityPolicy(ctx, k8sClient); err != nil {
 			return fmt.Errorf("Failed to apply default PodSecurityPolicy: %v", err)
 		}
-		if err := authz.ApplyDefaultPodSecurityPolicyRole(ctx, pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport); err != nil {
+		if err := authz.ApplyDefaultPodSecurityPolicyRole(ctx, k8sClient); err != nil {
 			return fmt.Errorf("Failed to apply default PodSecurityPolicy ClusterRole and ClusterRoleBinding: %v", err)
 		}
 	}
@@ -309,14 +273,10 @@ func (c *Cluster) SyncLabelsAndTaints(ctx context.Context, currentCluster *Clust
 
 	if len(c.ControlPlaneHosts) > 0 {
 		log.Infof(ctx, "[sync] Syncing nodes Labels and Taints")
-		k8sClient, err := k8s.NewClient(pki.KubeAdminConfigName, c.K8sWrapTransport)
-		if err != nil {
-			return fmt.Errorf("Failed to initialize new kubernetes client: %v", err)
-		}
 		hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
-		_, err = errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
+		_, err := errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
 			logrus.Debugf("worker starting sync for node [%s]", h.(*hosts.Host).NodeName)
-			return nil, setNodeAnnotationsLabelsTaints(k8sClient, h.(*hosts.Host))
+			return nil, setNodeAnnotationsLabelsTaints(c.KubeClient, h.(*hosts.Host))
 		})
 
 		if err != nil {
@@ -375,10 +335,7 @@ func (c *Cluster) PrePullK8sImages(ctx context.Context) error {
 func RestartClusterPods(ctx context.Context, kubeCluster *Cluster) error {
 	log.Infof(ctx, "Restarting network, ingress, and metrics pods")
 	// this will remove the pods created by ZKE and let the controller creates them again
-	kubeClient, err := k8s.NewClient(pki.KubeAdminConfigName, kubeCluster.K8sWrapTransport)
-	if err != nil {
-		return fmt.Errorf("Failed to initialize new kubernetes client: %v", err)
-	}
+
 	labelsList := []string{
 		fmt.Sprintf("%s=%s", KubeAppLabel, CalicoNetworkPlugin),
 		fmt.Sprintf("%s=%s", KubeAppLabel, FlannelNetworkPlugin),
@@ -387,15 +344,15 @@ func RestartClusterPods(ctx context.Context, kubeCluster *Cluster) error {
 		fmt.Sprintf("%s=%s", KubeAppLabel, CoreDNSAddonAppName),
 	}
 
-	_, err = errgroup.Batch(labelsList, func(l interface{}) (interface{}, error) {
+	_, err := errgroup.Batch(labelsList, func(l interface{}) (interface{}, error) {
 		runLabel := l.(string)
 		// list pods to be deleted
-		pods, err := k8s.ListPodsByLabel(kubeClient, runLabel)
+		pods, err := k8s.ListPodsByLabel(kubeCluster.KubeClient, runLabel)
 		if err != nil {
 			return nil, err
 		}
 		// delete pods
-		err = k8s.DeletePods(kubeClient, pods)
+		err = k8s.DeletePods(kubeCluster.KubeClient, pods)
 		return nil, err
 	})
 	return err
