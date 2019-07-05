@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 	zkecore "github.com/zdnscloud/zke/core"
+	zkepki "github.com/zdnscloud/zke/core/pki"
 	zketypes "github.com/zdnscloud/zke/types"
 )
 
@@ -138,9 +140,19 @@ func (m *ClusterManager) importExternalCluster(ctx *resttypes.Context, yamlConf 
 		Name:       inner.Name,
 		CreateTime: time.Now(),
 		Status:     zke.ClusterCreateComplete,
+		State:      &zkecore.FullState{},
 	}
 
-	k8sconf, err := config.BuildConfig(yamlConf)
+	if err := json.Unmarshal(yamlConf, cluster.State); err != nil {
+		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("invalid cluster state:%s", err.Error()))
+	}
+	cluster.State.DesiredState.CertificatesBundle = zkepki.TransformPEMToObject(cluster.State.DesiredState.CertificatesBundle)
+	cluster.State.CurrentState.CertificatesBundle = zkepki.TransformPEMToObject(cluster.State.CurrentState.CertificatesBundle)
+
+	cluster.Config = cluster.State.CurrentState.ZKEConfig.DeepCopy()
+	k8sConfYaml := cluster.State.CurrentState.CertificatesBundle[zkepki.KubeAdminCertName].Config
+
+	k8sconf, err := config.BuildConfig([]byte(k8sConfYaml))
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("invalid cluster config:%s", err.Error()))
 	}
@@ -185,6 +197,10 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 		cluster.Status = types.CSCreateing
 	case zke.ClusterCreateFailed:
 		cluster.Status = types.CSCreateFailed
+	case zke.ClusterUpateFailed:
+		cluster.Status = types.CSUpdateFailed
+	case zke.ClusterUpateing:
+		cluster.Status = types.CSUpdateing
 	default:
 		cluster.Status = types.CSUnreachable
 	}

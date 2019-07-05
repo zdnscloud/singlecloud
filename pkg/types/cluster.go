@@ -11,6 +11,8 @@ const (
 	CSUnreachable  ClusterStatus = "Unreachable"
 	CSCreateing    ClusterStatus = "Createing"
 	CSCreateFailed ClusterStatus = "CreateFailed"
+	CSUpdateing    ClusterStatus = "Updateing"
+	CSUpdateFailed ClusterStatus = "UpdateFailed"
 )
 
 func SetClusterSchema(schema *types.Schema, handler types.Handler) {
