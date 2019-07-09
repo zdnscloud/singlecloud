@@ -104,6 +104,6 @@ func clusterRemoveFromCli(ctx *cli.Context) error {
 	return ClusterRemove(context.Background(), zkeConfig, hosts.DialersOptions{})
 }
 
-func ClusterRemoveFromRest(zkeConfig *types.ZKEConfig) error {
-	return ClusterRemoveWithoutCleanFiles(context.Background(), zkeConfig, hosts.DialersOptions{})
+func ClusterRemoveFromRest(ctx context.Context, zkeConfig *types.ZKEConfig) error {
+	return ClusterRemoveWithoutCleanFiles(ctx, zkeConfig, hosts.DialersOptions{})
 }

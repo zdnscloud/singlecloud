@@ -13,12 +13,17 @@ const (
 	CSCreateFailed ClusterStatus = "CreateFailed"
 	CSUpdateing    ClusterStatus = "Updateing"
 	CSUpdateFailed ClusterStatus = "UpdateFailed"
+
+	ClusterCancel = "cancel"
 )
 
 func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE"}
+	schema.ResourceMethods = []string{"GET", "DELETE", "POST"}
+	schema.ResourceActions = append(schema.ResourceActions, types.Action{
+		Name: ClusterCancel,
+	})
 }
 
 type Cluster struct {

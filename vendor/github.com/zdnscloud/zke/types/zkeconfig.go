@@ -93,6 +93,7 @@ type ZKEConfigImages struct {
 	IngressBackend string `yaml:"ingress_backend" json:"ingressBackend"`
 	MetricsServer  string `yaml:"metrics_server" json:"metricsServer"`
 	// Zcloud image
-	ClusterAgent string `yaml:"cluster_agent" json:"clusterAgent"`
-	NodeAgent    string `yaml:"node_agent" json:"nodeAgent"`
+	ClusterAgent    string `yaml:"cluster_agent" json:"clusterAgent"`
+	NodeAgent       string `yaml:"node_agent" json:"nodeAgent"`
+	StorageOperator string `yaml:"storage_operator" json:"storageOperator"`
 }

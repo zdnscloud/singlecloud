@@ -66,18 +66,24 @@ func RunEtcdPlane(
 	clientkey := cert.EncodePrivateKeyPEM(certMap[pki.KubeNodeCertName].Key)
 	var healthy bool
 	var checkTimes = 0
+
 	for {
-		for _, host := range etcdHosts {
-			_, _, healthCheckURL := GetProcessConfig(etcdNodePlanMap[host.Address].Processes[EtcdContainerName])
-			if healthy = isEtcdHealthy(ctx, host, clientCert, clientkey, healthCheckURL); healthy {
-				break
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("cluster build has beed canceled")
+		default:
+			for _, host := range etcdHosts {
+				_, _, healthCheckURL := GetProcessConfig(etcdNodePlanMap[host.Address].Processes[EtcdContainerName])
+				if healthy = isEtcdHealthy(ctx, host, clientCert, clientkey, healthCheckURL); healthy {
+					break
+				}
 			}
-		}
-		if !healthy {
-			checkTimes = checkTimes + 1
-			log.Warnf(ctx, "[Etcd] Etcd Cluster is not healthy, has checked [%s] times!", strconv.Itoa(checkTimes))
-		} else {
-			break
+			if !healthy {
+				checkTimes = checkTimes + 1
+				log.Warnf(ctx, "[Etcd] Etcd Cluster is not healthy, has checked [%s] times!", strconv.Itoa(checkTimes))
+			} else {
+				return nil
+			}
 		}
 	}
 	return nil

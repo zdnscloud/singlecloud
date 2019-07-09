@@ -332,13 +332,13 @@ func clusterUpFromCli(ctx *cli.Context) error {
 	return err
 }
 
-func ClusterUpFromRest(zkeConfig *types.ZKEConfig, clusterState *core.FullState) (*core.FullState, error) {
-	newClusterState, err := ClusterInitForRest(context.Background(), zkeConfig, clusterState, hosts.DialersOptions{})
+func ClusterUpFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState) (*core.FullState, error) {
+	newClusterState, err := ClusterInitForRest(ctx, zkeConfig, clusterState, hosts.DialersOptions{})
 	if err != nil {
 		return clusterState, err
 	}
 
-	newClusterState, err = ClusterUpForRest(context.Background(), newClusterState, hosts.DialersOptions{})
+	newClusterState, err = ClusterUpForRest(ctx, newClusterState, hosts.DialersOptions{})
 	return newClusterState, err
 }
 

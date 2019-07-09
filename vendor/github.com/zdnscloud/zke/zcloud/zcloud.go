@@ -12,6 +12,7 @@ import (
 	clusteragent "github.com/zdnscloud/zke/zcloud/cluster-agent"
 	nodeagent "github.com/zdnscloud/zke/zcloud/node-agent"
 	zcloudsa "github.com/zdnscloud/zke/zcloud/sa"
+	"github.com/zdnscloud/zke/zcloud/storage"
 )
 
 const (
@@ -40,6 +41,9 @@ func DeployZcloudManager(ctx context.Context, c *core.Cluster) error {
 	if err := doNodeAgentDeploy(ctx, c, k8sClient); err != nil {
 		return err
 	}
+	if err := doStorageOperator(ctx, c, k8sClient); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -66,4 +70,12 @@ func doNodeAgentDeploy(ctx context.Context, c *core.Cluster, cli client.Client) 
 		"NodeAgentPort": NodeAgentPort,
 	}
 	return k8s.DoCreateFromTemplate(cli, nodeagent.NodeAgentTemplate, cfg)
+}
+func doStorageOperator(ctx context.Context, c *core.Cluster, cli client.Client) error {
+	log.Infof(ctx, "[zcloud] Setting up storage CRD and operator")
+	cfg := map[string]interface{}{
+		RBACConfig:             c.Authorization.Mode,
+		"StorageOperatorImage": c.Image.StorageOperator,
+	}
+	return k8s.DoCreateFromTemplate(cli, storage.OperatorTemplate, cfg)
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/zdnscloud/zke/types"
 )
 
-const defaultConfigVersion = "v1.0.8"
+const defaultConfigVersion = "v1.0.9"
 
 func validateConfigVersion(zkeConfig *types.ZKEConfig) error {
 	if zkeConfig.ConfigVersion != defaultConfigVersion {

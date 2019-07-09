@@ -71,7 +71,11 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 
 	zkeEventCh := make(chan zke.ZKEEvent)
 	cluster.Status = zke.ClusterUpateing
-	go zke.UpdateCluster(zkeEventCh, m.clusters.zkeMsgCh)
+
+	ctxWithCancel, cancel := context.WithCancel(context.Background())
+	cluster.CancelFunction = cancel
+
+	go zke.UpdateCluster(ctxWithCancel, zkeEventCh, m.clusters.zkeMsgCh)
 	newClusterConfig, err := zke.GetNewConfigForAddNode(cluster.Config, inner)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "node name or address duplicate")
@@ -92,11 +96,18 @@ func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
+	if cluster.Status == zke.ClusterCreateing || cluster.Status == zke.ClusterUpateing {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "cluster is createing or updateing")
+	}
 	target := ctx.Object.(*types.Node).GetID()
 
 	zkeEventCh := make(chan zke.ZKEEvent)
 	cluster.Status = zke.ClusterUpateing
-	go zke.UpdateCluster(zkeEventCh, m.clusters.zkeMsgCh)
+
+	ctxWithCancel, cancel := context.WithCancel(context.Background())
+	cluster.CancelFunction = cancel
+
+	go zke.UpdateCluster(ctxWithCancel, zkeEventCh, m.clusters.zkeMsgCh)
 
 	newConfig, isExist := zke.GetNewConfigForDeleteNode(cluster.Config, target)
 	if isExist {

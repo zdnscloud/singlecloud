@@ -56,15 +56,21 @@ func runHealthcheck(ctx context.Context, host *hosts.Host, serviceName string, u
 	}
 	var checkTimes = 0
 	for {
-		if err = getHealthz(client, serviceName, host.Address, url); err != nil {
-			checkTimes = checkTimes + 1
-			log.Warnf(ctx, "[healthcheck] service [%s] on host [%s] is not healthy,has checked [%s] times", serviceName, host.Address, strconv.Itoa(checkTimes))
-			logrus.Debugf("[healthcheck] %v", err)
-			time.Sleep(5 * time.Second)
-			continue
+		select {
+		case <-ctx.Done():
+			log.Infof(context.TODO(), "cluster build has been canceled")
+			return nil
+		default:
+			if err = getHealthz(client, serviceName, host.Address, url); err != nil {
+				checkTimes = checkTimes + 1
+				log.Warnf(ctx, "[healthcheck] service [%s] on host [%s] is not healthy,has checked [%s] times", serviceName, host.Address, strconv.Itoa(checkTimes))
+				logrus.Debugf("[healthcheck] %v", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			log.Infof(ctx, "[healthcheck] service [%s] on host [%s] is healthy", serviceName, host.Address)
+			return nil
 		}
-		log.Infof(ctx, "[healthcheck] service [%s] on host [%s] is healthy", serviceName, host.Address)
-		return nil
 	}
 	logrus.Debug("Checking container logs")
 	containerLog, _, logserr := docker.GetContainerLogsStdoutStderr(ctx, host.DClient, serviceName, "1", false)

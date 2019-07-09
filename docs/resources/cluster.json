@@ -245,6 +245,10 @@
         }
     },
 
-    "resourceMethods": ["GET", "DELETE"],
-    "collectionMethods": ["GET", "POST"]
+    "resourceMethods": ["GET", "DELETE", "POST"],
+    "collectionMethods": ["GET", "POST"],
+
+    "resourceActions": [{
+        "name": "cancel"
+    }]
 }

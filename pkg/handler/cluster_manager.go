@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -32,15 +33,16 @@ const (
 )
 
 type Cluster struct {
-	Name       string
-	CreateTime time.Time
-	KubeClient client.Client
-	Cache      cache.Cache
-	K8sConfig  *rest.Config
-	Status     string
-	stopCh     chan struct{}
-	State      *zkecore.FullState
-	Config     *zketypes.ZKEConfig
+	Name           string
+	CreateTime     time.Time
+	KubeClient     client.Client
+	Cache          cache.Cache
+	K8sConfig      *rest.Config
+	Status         string
+	stopCh         chan struct{}
+	State          *zkecore.FullState
+	Config         *zketypes.ZKEConfig
+	CancelFunction context.CancelFunc
 }
 
 type AddCluster struct {
@@ -108,14 +110,16 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 		Status:     zke.ClusterCreateing,
 	}
 
+	ctxWithCancel, cancel := context.WithCancel(context.Background())
+	cluster.CancelFunction = cancel
+
 	stopCh := make(chan struct{})
 	cluster.stopCh = stopCh
 	m.clusters = append(m.clusters, cluster)
 
 	zkeEventCh := make(chan zke.ZKEEvent)
-	go zke.CreateCluster(zkeEventCh, m.zkeMsgCh)
+	go zke.CreateCluster(ctxWithCancel, zkeEventCh, m.zkeMsgCh)
 	zkeEvent := zke.ZKEEvent{
-		// State:  &zkecore.FullState{},
 		Config: zke.ScClusterToZKEConfig(inner),
 	}
 	zkeEventCh <- zkeEvent
@@ -286,16 +290,12 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	var cluster *Cluster
 	for i, c := range m.clusters {
 		if c.Name == target {
-			switch c.Status {
-			case zke.ClusterCreateing:
-				return resttypes.NewAPIError(resttypes.PermissionDenied, "cluster in createing state, please do not delete")
-			case zke.ClusterUpateing:
-				return resttypes.NewAPIError(resttypes.PermissionDenied, "cluster in updateing state, please do not delete")
-			default:
-				cluster = c
-				m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
-				break
+			if c.Status == zke.ClusterCreateing || c.Status == zke.ClusterUpateing {
+				c.CancelFunction()
 			}
+			cluster = c
+			m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
+			break
 		}
 	}
 	m.lock.Unlock()
@@ -341,7 +341,7 @@ func (m *ClusterManager) zkeEventLoop() {
 	for {
 		msg := <-m.zkeMsgCh
 		if msg.Error != nil {
-			log.Errorf("ZKE Error:%s", msg.Error)
+			log.Errorf("ZKE:%s", msg.Error)
 		}
 		m.setClusterAfterCreatedOrUpdated(msg)
 	}
@@ -380,4 +380,44 @@ func (m *ClusterManager) setClusterAfterCreatedOrUpdated(zkeMsg zke.ZKEMsg) erro
 		}
 	}
 	return nil
+}
+
+func (m *ClusterManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	if ctx.Action.Name == types.ClusterCancel {
+		return m.cancelBuild(ctx)
+	}
+	return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
+}
+
+func (m *ClusterManager) cancelBuild(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	clusterName := ctx.Object.(*types.Cluster).GetID()
+
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can cancel")
+	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	var cluster *Cluster
+	for _, c := range m.clusters {
+		if c.Name == clusterName {
+			cluster = c
+		}
+		break
+	}
+
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", clusterName))
+	}
+
+	switch cluster.Status {
+	case zke.ClusterCreateing:
+		cluster.CancelFunction()
+	case zke.ClusterUpateing:
+		cluster.CancelFunction()
+	default:
+		return nil, resttypes.NewAPIError(resttypes.InvalidAction, "only cluster createing and updateing state can cancel")
+	}
+
+	return nil, nil
 }

@@ -1,6 +1,7 @@
 package zke
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -38,7 +39,7 @@ type ZKEEvent struct {
 	Config *zketypes.ZKEConfig
 }
 
-func CreateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
+func CreateCluster(ctx context.Context, eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
 	event := <-eventCh
 	var msg = ZKEMsg{
 		ClusterName:   event.Config.ClusterName,
@@ -54,13 +55,13 @@ func CreateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
 		return nil
 	}(msgCh)
 
-	if err := zkecmd.ClusterRemoveFromRest(event.Config); err != nil {
+	if err := zkecmd.ClusterRemoveFromRest(ctx, event.Config); err != nil {
 		msg.Error = err
 		msgCh <- msg
 		return err
 	}
 
-	state, err := zkecmd.ClusterUpFromRest(event.Config, &core.FullState{})
+	state, err := zkecmd.ClusterUpFromRest(ctx, event.Config, &core.FullState{})
 	if err != nil {
 		msg.Error = err
 		msgCh <- msg
@@ -96,7 +97,7 @@ func CreateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
 	return nil
 }
 
-func UpdateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
+func UpdateCluster(ctx context.Context, eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
 	event := <-eventCh
 	var msg = ZKEMsg{
 		ClusterName:   event.Config.ClusterName,
@@ -112,7 +113,7 @@ func UpdateCluster(eventCh chan ZKEEvent, msgCh chan ZKEMsg) error {
 		return nil
 	}(msgCh)
 
-	state, err := zkecmd.ClusterUpFromRest(event.Config, event.State)
+	state, err := zkecmd.ClusterUpFromRest(ctx, event.Config, event.State)
 	if err != nil {
 		msg.Error = err
 		msgCh <- msg

@@ -60,6 +60,7 @@ var (
 			NodeAgent:                 "zdnscloud/node-agent:v1.0",
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.1",
 			ZKERemover:                "zdnscloud/zke-remove:v0.3",
+			StorageOperator:           "zdnscloud/storage-operator:v0.3",
 		},
 	}
 )
