@@ -1,6 +1,8 @@
 package types
 
 import (
+	"time"
+
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
@@ -54,6 +56,22 @@ type UserQuota struct {
 	Telephone          string            `json:"telephone,omitempty"`
 	RejectionReason    string            `json:"rejectionReason,omitempty"`
 	ResponseTimestamp  resttypes.ISOTime `json:"responseTimestamp,omitempty"`
+}
+
+type UserQuotas []UserQuota
+
+func (u UserQuotas) Len() int {
+	return len(u)
+}
+func (u UserQuotas) Swap(i, j int) {
+	u[i], u[j] = u[j], u[i]
+}
+func (u UserQuotas) Less(i, j int) bool {
+	if time.Time(u[i].CreationTimestamp).Equal(time.Time(u[j].CreationTimestamp)) {
+		return u[i].UserName < u[j].UserName
+	} else {
+		return time.Time(u[i].CreationTimestamp).Before(time.Time(u[j].CreationTimestamp))
+	}
 }
 
 var UserQuotaType = resttypes.GetResourceType(UserQuota{})

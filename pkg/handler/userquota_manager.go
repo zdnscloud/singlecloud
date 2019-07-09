@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,7 +41,7 @@ func (m *UserQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
 	}
 
-	setUserQuota(userQuota, userName, types.TypeUserQuotaCreate)
+	setUserQuota(userQuota, userName, types.TypeUserQuotaCreate, time.Now())
 	value, err := json.Marshal(userQuota)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
@@ -82,7 +83,7 @@ func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	var userQuotas []*types.UserQuota
+	var userQuotas types.UserQuotas
 	for _, value := range values {
 		quota, err := storageResourceValueToSCUserQuota(value)
 		if err != nil {
@@ -94,9 +95,10 @@ func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
 			continue
 		}
 
-		userQuotas = append(userQuotas, quota)
+		userQuotas = append(userQuotas, *quota)
 	}
 
+	sort.Sort(userQuotas)
 	return userQuotas
 }
 
@@ -153,17 +155,17 @@ func (m *UserQuotaManager) Update(ctx *resttypes.Context) (interface{}, *resttyp
 			fmt.Sprintf("user %s can`t update quota which belong to %s", userName, quota.UserName))
 	}
 
-	if quota.Namespace != userQuota.Namespace || quota.ClusterName != userQuota.ClusterName {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("can`t update namespace or clusterName for quota"))
-	}
-
 	if quota.Status == types.StatusUserQuotaProcessing {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("can`t update user quota which status is processing"))
 	}
 
-	setUserQuota(userQuota, userName, types.TypeUserQuotaUpdate)
+	if quota.Namespace != userQuota.Namespace || quota.ClusterName != userQuota.ClusterName {
+		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("can`t update namespace or clusterName for quota"))
+	}
+
+	setUserQuota(userQuota, userName, types.TypeUserQuotaUpdate, quota.GetCreationTimestamp())
 	value, err := json.Marshal(userQuota)
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
@@ -438,11 +440,11 @@ func (m *UserQuotaManager) reject(ctx *resttypes.Context) *resttypes.APIError {
 	return nil
 }
 
-func setUserQuota(userQuota *types.UserQuota, userName, requestType string) {
+func setUserQuota(userQuota *types.UserQuota, userName, requestType string, creationTimestamp time.Time) {
 	userQuota.Name = userQuota.Namespace
 	userQuota.SetID(userQuota.Name)
 	userQuota.SetType(types.UserQuotaType)
-	userQuota.SetCreationTimestamp(time.Now())
+	userQuota.SetCreationTimestamp(creationTimestamp)
 	userQuota.Status = types.StatusUserQuotaProcessing
 	userQuota.UserName = userName
 	userQuota.RequestType = requestType
