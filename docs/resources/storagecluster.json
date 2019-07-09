@@ -1,19 +1,46 @@
 {
     "resourceType":"storagecluster",
     "collectionName":"storageclusters",
-    "parentResources":[
-        "namespace"
-    ],
+    "parentResources": [ "cluster" ],
+
     "resourceFields":{
         "name":{"type":"string"},
         "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
         "hosts":{"type":"hostspec"},
-        "status":{"type":"string"}
+        "status":{"type":"storagestatus"}
     },
     "subResources":{
         "hostspec":{
             "nodeName":{"type":"string"},
             "blockDevices":{"type":"array","elemType":"string"}
+        },
+        "storagestatus":{
+            "health":{"type":"string"},
+            "info":{"type":"storageinfo"}
+        },
+        "storageinfo":{
+            "name":{"type":"string"},
+            "size":{"type":"string"},
+            "usedsize":{"type":"string"},
+            "freesize":{"type":"string"},
+            "nodes":{"type":"array","elemType":"storagenode"},
+            "pvs":{"type":"array","elemType":"storagepv"}
+        },
+        "storagenode":{
+            "name":{"type":"string"},
+            "size":{"type":"string"},
+            "usedsize":{"type":"string"},
+            "freesize":{"type":"string"}
+        },
+        "storagepv":{
+            "name":{"type":"string"},
+            "size":{"type":"string"},
+            "usedsize":{"type":"string"},
+            "freesize":{"type":"string"},
+            "pods":{"type":"array","elemType":"storagepod"}
+        },
+        "storagepod":{
+            "name":{"type":"string"}
         }
     },
     "resourceMethods":["GET","PUT","DELETE"],

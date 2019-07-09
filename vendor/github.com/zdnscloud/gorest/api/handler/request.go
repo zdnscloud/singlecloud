@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/util"
 )
 
 func CreateHandler(ctx *types.Context) *types.APIError {
@@ -92,7 +93,7 @@ func ListHandler(ctx *types.Context) *types.APIError {
 		result = collection
 	} else {
 		result = handler.Get(ctx)
-		if result == nil || reflect.ValueOf(result).IsNil() {
+		if util.IsValueNil(result) {
 			return types.NewAPIError(types.NotFound,
 				fmt.Sprintf("%s resource with id %s doesn't exist", ctx.Object.GetType(), ctx.Object.GetID()))
 		}

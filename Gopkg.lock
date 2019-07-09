@@ -304,6 +304,14 @@
   revision = "9279085b6869051d3541ed600b3c35c34dcdf2d6"
 
 [[projects]]
+  digest = "1:8a33df22b239b8585bf6df7edfe8dae9fa6f23168e92e3776fb920213dd9cc7b"
+  name = "github.com/zdnscloud/cluster-agent"
+  packages = ["storage/types"]
+  pruneopts = "UT"
+  revision = "b2c3dac97bf69fc878a32b9f025d72a6e9f9d9c9"
+  version = "v1.0"
+
+[[projects]]
   branch = "master"
   digest = "1:690cd103a39184f2f7f74240941bcee1eecd45d87528a38fc1f2e4fad67c1762"
   name = "github.com/zdnscloud/g53"
@@ -348,7 +356,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4b5e7d41a4d283b8ac5557af62bbf3f9c72de291866af490b27b2d60a8db44ee"
+  digest = "1:9393f7812f6871e98d724f0936cadca862efa4354aa4ed1fdd087745192df91e"
   name = "github.com/zdnscloud/gorest"
   packages = [
     "adaptor",
@@ -359,7 +367,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "35c1b2df83a5c3e4a83158a1abc33fb7eedcf486"
+  revision = "edb68fcca2f73ba5c674e924e4beb8d15ab860f3"
 
 [[projects]]
   branch = "master"
@@ -548,7 +556,7 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "5cb15d34447165a97c76ed5a60e4e99c8a01ecfe"
+  revision = "781da4e7b28a3d23a108ec63be899e68fa745011"
 
 [[projects]]
   branch = "master"
@@ -611,7 +619,7 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
-  revision = "e20a3a656cff908c57d43ba1c2ccec3b269e8ad7"
+  revision = "facf06a8f4b8f4f51bb9016d848d0f698abe9c00"
 
 [[projects]]
   digest = "1:654fac90d3d8642192ce9cc2c87fa703c1ca91dc4730e2880b3a300302ebb974"
@@ -721,7 +729,7 @@
     "pkg/client/clientset/versioned/typed/metrics/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "c06431084adbfe7b6eaf93107cbd993cacca84d6"
+  revision = "0a5b6793b94f4e46b2459e74faf1f34ddb7f137b"
 
 [[projects]]
   branch = "master"
@@ -753,6 +761,7 @@
     "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/unittest",
     "github.com/zdnscloud/cement/uuid",
+    "github.com/zdnscloud/cluster-agent/storage/types",
     "github.com/zdnscloud/g53",
     "github.com/zdnscloud/gok8s/cache",
     "github.com/zdnscloud/gok8s/client",

@@ -25,9 +25,9 @@ type HostSpec struct {
 // ClusterStatus defines the observed state of Cluster
 // +k8s:openapi-gen=true
 type ClusterStatus struct {
-	State    string            `json:"state,omitempty"`
-	Message  string            `json:"message,omitempty"`
-	Capacity map[string]string `json:"capacity,omitempty"`
+	State    string `json:"state,omitempty"`
+	Message  string `json:"message,omitempty"`
+	Capacity `json:"capacity,omitempty"`
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
@@ -53,4 +53,22 @@ type ClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Cluster `json:"items"`
+}
+
+type Capacity struct {
+	Total     Size
+	Instances []Instance
+}
+
+type Instance struct {
+	Host string
+	Dev  string
+	Stat bool
+	Info Size
+}
+
+type Size struct {
+	Total string
+	Used  string
+	Free  string
 }
