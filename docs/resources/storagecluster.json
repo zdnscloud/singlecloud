@@ -49,7 +49,7 @@
         "fields":{
             "name":{"type":"string"},
             "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
-            "hosts":{"type":"hostspec"}
+            "hosts":{"type":"array","elemType":"hostspec"}
         },
 	"subResources": {
             "hostspec":{
@@ -60,7 +60,7 @@
     },
     "putParameters":{
         "fields":{
-            "hosts":{"type":"hostspec"}
+            "hosts":{"type":"array","elemType":"hostspec"}
         },
 	"subResources": {
             "hostspec":{
