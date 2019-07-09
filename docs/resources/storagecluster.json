@@ -6,7 +6,7 @@
     "resourceFields":{
         "name":{"type":"string"},
         "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
-        "hosts":{"type":"hostspec"},
+        "hosts":{"type":"array","elemType":"hostspec"},
         "status":{"type":"storagestatus"}
     },
     "subResources":{
