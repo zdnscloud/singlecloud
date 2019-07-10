@@ -17,7 +17,8 @@
             "parted":{"type":"bool"},
             "filesystem":{"type":"bool"},
             "mount":{"type":"bool"}
-        },
+        }
+    },
 
     "collectionMethods": [ "GET" ]
 }
