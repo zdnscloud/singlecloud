@@ -35,22 +35,29 @@ func (m *BlockDeviceManager) List(ctx *resttypes.Context) interface{} {
 		log.Warnf("get blockdevices info failed:%s", err.Error())
 		return nil
 	}
-	return []*types.BlockDevice{&resp}
+	return &resp
 }
 
-func getBlockDevices(cluster string, agent *clusteragent.AgentManager) (types.BlockDevice, error) {
-	var info types.Data
+func getBlockDevices(cluster string, agent *clusteragent.AgentManager) ([]types.BlockDevice, error) {
+	res := make([]types.BlockDevice, 0)
 	url := "/apis/agent.zcloud.cn/v1/blockinfos"
 	req, err := http.NewRequest("GET", clusteragent.ClusterAgentServiceHost+url, nil)
 	if err != nil {
-		return info.Data[0], err
+		return res, err
 	}
 	resp, err := agent.ProxyRequest(cluster, req)
 	if err != nil {
-		return info.Data[0], err
+		return res, err
 	}
 	defer resp.Body.Close()
+	var info types.Data
 	body, _ := ioutil.ReadAll(resp.Body)
 	json.Unmarshal(body, &info)
-	return info.Data[0], nil
+	for _, h := range info.Data[0].Hosts {
+		blockdevice := types.BlockDevice{
+			Host: h,
+		}
+		res = append(res, blockdevice)
+	}
+	return res, nil
 }

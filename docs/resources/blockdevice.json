@@ -4,9 +4,6 @@
     "parentResources": [ "cluster" ],
 
     "resourceFields": {
-        "hosts": {"type": "array","elemType":"host"}
-    },
-    "subResources":{
         "host":{
             "nodeName":{"type":"string"},
             "blockDevices":{"type":"array","elemType":"blockDevice"}

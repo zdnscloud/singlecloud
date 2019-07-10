@@ -10,14 +10,19 @@ func SetBlockDeviceSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Parents = []string{ClusterType}
 }
 
+type BlockDevice struct {
+	resttypes.Resource `json:",inline"`
+	Host
+}
+
 type Data struct {
 	Type         string            `json:"type"`
 	ResourceType string            `json:"resourceType"`
 	Links        map[string]string `json:"links"`
-	Data         []BlockDevice     `json:"data"`
+	Data         []Info            `json:"data"`
 }
 
-type BlockDevice struct {
+type Info struct {
 	resttypes.Resource `json:",inline"`
 	Hosts              []Host `json:"hosts"`
 }
