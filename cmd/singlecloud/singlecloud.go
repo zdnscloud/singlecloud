@@ -53,9 +53,10 @@ func main() {
 		log.Fatalf("create authorizer failed:%s", err.Error())
 	}
 
+	agent := clusteragent.New()
 	authorizer := authorization.New()
 
-	app := handler.NewApp(authenticator, authorizer, eventBus)
+	app := handler.NewApp(authenticator, authorizer, eventBus, agent)
 
 	server, err := server.NewServer(authenticator.MiddlewareFunc())
 	if err != nil {
@@ -75,7 +76,6 @@ func main() {
 		log.Fatalf("register k8s event watcher failed:%s", err.Error())
 	}
 
-	agent := clusteragent.New()
 	if err := server.RegisterHandler(agent); err != nil {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}

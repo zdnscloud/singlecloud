@@ -3,10 +3,10 @@ package handler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"encoding/json"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -17,16 +17,21 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type StorageClusterManager struct {
 	api.DefaultHandler
 	clusters *ClusterManager
+	agent    *clusteragent.AgentManager
 }
 
-func newStorageClusterManager(clusters *ClusterManager) *StorageClusterManager {
-	return &StorageClusterManager{clusters: clusters}
+func newStorageClusterManager(clusters *ClusterManager, agentmgr *clusteragent.AgentManager) *StorageClusterManager {
+	return &StorageClusterManager{
+		clusters: clusters,
+		agent:    agentmgr,
+	}
 }
 
 func (m *StorageClusterManager) List(ctx *resttypes.Context) interface{} {
@@ -45,7 +50,7 @@ func (m *StorageClusterManager) List(ctx *resttypes.Context) interface{} {
 
 	var storageclusters []*types.StorageCluster
 	for _, item := range k8sStorageClusters.Items {
-		storageclusters = append(storageclusters, k8sStorageToSCStorage(cluster.KubeClient, &item))
+		storageclusters = append(storageclusters, k8sStorageToSCStorage(cluster, m.agent, &item))
 	}
 	return storageclusters
 }
@@ -65,7 +70,7 @@ func (m StorageClusterManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	return k8sStorageToSCStorage(cluster.KubeClient, k8sStorageCluster)
+	return k8sStorageToSCStorage(cluster, m.agent, k8sStorageCluster)
 }
 
 func (m StorageClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
@@ -127,6 +132,8 @@ func getStorageCluster(cli client.Client, name string) (*storagev1.Cluster, erro
 func getStorageClusters(cli client.Client) (*storagev1.ClusterList, error) {
 	storageclusters := storagev1.ClusterList{}
 	err := cli.List(context.TODO(), nil, &storageclusters)
+	fmt.Println("1111")
+	fmt.Println(time.Now().Unix())
 	return &storageclusters, err
 }
 
@@ -179,7 +186,7 @@ func scStorageToK8sStorage(storagecluster *types.StorageCluster) *storagev1.Clus
 	}
 }
 
-func k8sStorageToSCStorage(cli client.Client, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
+func k8sStorageToSCStorage(cluster *Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
 	hosts := make([]types.HostSpec, 0)
 	for _, h := range k8sStorageCluster.Spec.Hosts {
 		host := types.HostSpec{
@@ -189,7 +196,7 @@ func k8sStorageToSCStorage(cli client.Client, k8sStorageCluster *storagev1.Clust
 		hosts = append(hosts, host)
 	}
 
-	info, err := getStatusInfo(cli, k8sStorageCluster.Spec.StorageType)
+	info, err := getStatusInfo(cluster.Name, agent, k8sStorageCluster.Spec.StorageType)
 	if err != nil {
 		log.Warnf("get clusterinfo from clusteragent failed:%s", err.Error())
 	}
@@ -208,20 +215,14 @@ func k8sStorageToSCStorage(cli client.Client, k8sStorageCluster *storagev1.Clust
 	return storagecluster
 }
 
-func getStatusInfo(cli client.Client, storagetype string) (types.Storage, error) {
+func getStatusInfo(cluster string, agent *clusteragent.AgentManager, storagetype string) (types.Storage, error) {
 	var info types.Storage
-	clusterAgentSvc := "cluster-agent"
-	clusterAgentNamespace := "zcloud"
-	service := corev1.Service{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{clusterAgentNamespace, clusterAgentSvc}, &service)
+	url := "/apis/agent.zcloud.cn/v1/storages/"
+	req, err := http.NewRequest("GET", clusteragent.ClusterAgentServiceHost+url+storagetype, nil)
 	if err != nil {
 		return info, err
 	}
-	addr := service.Spec.ClusterIP
-	url := "http://" + addr + "/apis/agent.zcloud.cn/v1/storages/" + storagetype
-	req, err := http.NewRequest("GET", url, nil)
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := agent.ProxyRequest(cluster, req)
 	if err != nil {
 		return info, err
 	}

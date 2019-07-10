@@ -36,6 +36,43 @@ func (m *AgentManager) HandleAgentRegister(agentKey string, r *http.Request, w h
 }
 
 func (m *AgentManager) HandleAgentProxy(cluster string, r *http.Request, w http.ResponseWriter) {
+	resp, err := m.DoRequest(cluster, r)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set(ContentTypeKey, resp.Header.Get(ContentTypeKey))
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+	/*
+		newPath := strings.Replace(r.URL.Path, "/clusters/"+cluster, "", 1)
+		proxyReq, err := http.NewRequest(r.Method, ClusterAgentServiceHost+newPath, nil)
+		proxyReq.Header = make(http.Header)
+		for h, val := range r.Header {
+			proxyReq.Header[h] = val
+		}
+
+		dialer := m.server.GetAgentDialer(cluster, 15*time.Second)
+		client := &http.Client{
+			Transport: &http.Transport{
+				Dial: dialer,
+			},
+		}
+		resp, err := client.Do(proxyReq)
+		if err != nil {
+			w.Write([]byte(err.Error()))
+			w.WriteHeader(500)
+			return
+		}
+		defer resp.Body.Close()
+		w.Header().Set(ContentTypeKey, resp.Header.Get(ContentTypeKey))
+		w.WriteHeader(resp.StatusCode)
+		io.Copy(w, resp.Body)
+	*/
+}
+
+func (m *AgentManager) DoRequest(cluster string, r *http.Request) (*http.Response, error) {
 	newPath := strings.Replace(r.URL.Path, "/clusters/"+cluster, "", 1)
 	proxyReq, err := http.NewRequest(r.Method, ClusterAgentServiceHost+newPath, nil)
 	proxyReq.Header = make(http.Header)
@@ -43,27 +80,13 @@ func (m *AgentManager) HandleAgentProxy(cluster string, r *http.Request, w http.
 		proxyReq.Header[h] = val
 	}
 
-	resp, err := m.ProxyRequest(cluster, r)
-	if err != nil {
-		w.Write([]byte(err.Error()))
-		w.WriteHeader(500)
-		return
-	}
-	defer resp.Body.Close()
-	w.Header().Set(ContentTypeKey, resp.Header.Get(ContentTypeKey))
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
-}
-
-func (m *AgentManager) ProxyRequest(cluster string, req *http.Request) (*http.Response, error) {
 	dialer := m.server.GetAgentDialer(cluster, 15*time.Second)
 	client := &http.Client{
 		Transport: &http.Transport{
 			Dial: dialer,
 		},
 	}
-
-	resp, err := client.Do(req)
+	resp, err := client.Do(proxyReq)
 	//defer resp.Body.Close()
 	return resp, err
 }
