@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"encoding/json"
 	"io/ioutil"
@@ -132,8 +131,6 @@ func getStorageCluster(cli client.Client, name string) (*storagev1.Cluster, erro
 func getStorageClusters(cli client.Client) (*storagev1.ClusterList, error) {
 	storageclusters := storagev1.ClusterList{}
 	err := cli.List(context.TODO(), nil, &storageclusters)
-	fmt.Println("1111")
-	fmt.Println(time.Now().Unix())
 	return &storageclusters, err
 }
 

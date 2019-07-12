@@ -43,7 +43,7 @@ func (m *AgentManager) HandleAgentProxy(cluster string, r *http.Request, w http.
 		proxyReq.Header[h] = val
 	}
 
-	resp, err := m.ProxyRequest(cluster, r)
+	resp, err := m.ProxyRequest(cluster, proxyReq)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 		w.WriteHeader(500)
@@ -64,6 +64,5 @@ func (m *AgentManager) ProxyRequest(cluster string, req *http.Request) (*http.Re
 	}
 
 	resp, err := client.Do(req)
-	//defer resp.Body.Close()
 	return resp, err
 }
