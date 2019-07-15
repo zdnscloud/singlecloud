@@ -201,10 +201,12 @@ func k8sStorageToSCStorage(cluster *Cluster, agent *clusteragent.AgentManager, k
 		Name:        k8sStorageCluster.Name,
 		StorageType: k8sStorageCluster.Spec.StorageType,
 		Hosts:       hosts,
-		Status: types.ClusterInfo{
-			Health: k8sStorageCluster.Status.State,
-			Info:   info,
-		},
+		Health:      k8sStorageCluster.Status.State,
+		Size:        info.Size,
+		UsedSize:    info.UsedSize,
+		FreeSize:    info.FreeSize,
+		Nodes:       info.Nodes,
+		PVs:         info.PVs,
 	}
 	storagecluster.SetID(k8sStorageCluster.Name)
 	storagecluster.SetType(types.StorageClusterType)
