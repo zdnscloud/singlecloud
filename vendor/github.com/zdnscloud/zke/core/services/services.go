@@ -12,7 +12,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -123,7 +122,7 @@ func GetHealthCheckURL(useTLS bool, port int) string {
 }
 
 func createLogLink(ctx context.Context, host *hosts.Host, containerName, plane, image string, prsMap map[string]types.PrivateRegistry) error {
-	logrus.Debugf("[%s] Creating log link for Container [%s] on host [%s]", plane, containerName, host.Address)
+	log.Debugf("[%s] Creating log link for Container [%s] on host [%s]", plane, containerName, host.Address)
 	containerInspect, err := docker.InspectContainer(ctx, host.DClient, host.Address, containerName)
 	if err != nil {
 		return err
@@ -155,6 +154,6 @@ func createLogLink(ctx context.Context, host *hosts.Host, containerName, plane, 
 	if err := docker.DoRemoveContainer(ctx, host.DClient, LogLinkContainerName, host.Address); err != nil {
 		return err
 	}
-	logrus.Debugf("[%s] Successfully created log link for Container [%s] on host [%s]", plane, containerName, host.Address)
+	log.Debugf("[%s] Successfully created log link for Container [%s] on host [%s]", plane, containerName, host.Address)
 	return nil
 }

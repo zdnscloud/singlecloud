@@ -17,7 +17,6 @@ import (
 	"github.com/zdnscloud/zke/types"
 	"github.com/zdnscloud/zke/zcloud"
 
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"github.com/zdnscloud/gok8s/client/config"
 	"k8s.io/client-go/kubernetes"
@@ -34,12 +33,12 @@ func UpCommand() cli.Command {
 func doUpgradeLegacyCluster(ctx context.Context, kubeCluster *core.Cluster, fullState *core.FullState) error {
 	if _, err := os.Stat(pki.KubeAdminConfigName); os.IsNotExist(err) {
 		// there is no kubeconfig. This is a new cluster
-		logrus.Debug("[state] local kubeconfig not found, this is a new cluster")
+		log.Debugf("[state] local kubeconfig not found, this is a new cluster")
 		return nil
 	}
 	if _, err := os.Stat(pki.StateFileName); err == nil {
 		// this cluster has a previous state, I don't need to upgrade!
-		logrus.Debug("[state] previous state found, this is not a legacy cluster")
+		log.Debugf("[state] previous state found, this is not a legacy cluster")
 		return nil
 	}
 	// We have a kubeconfig and no current state. This is a legacy cluster or a new cluster with old kubeconfig
@@ -306,6 +305,7 @@ func checkAllIncluded(cluster *core.Cluster) error {
 
 func clusterUpFromCli(ctx *cli.Context) error {
 	startUPtime := time.Now()
+
 	clusterFile, err := resolveClusterFile(pki.ClusterConfig)
 	if err != nil {
 		return fmt.Errorf("Failed to resolve cluster file: %v", err)
@@ -332,7 +332,9 @@ func clusterUpFromCli(ctx *cli.Context) error {
 	return err
 }
 
-func ClusterUpFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState) (*core.FullState, error) {
+func ClusterUpFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logCh chan string) (*core.FullState, error) {
+	SetRestLogCh(logCh)
+
 	newClusterState, err := ClusterInitForRest(ctx, zkeConfig, clusterState, hosts.DialersOptions{})
 	if err != nil {
 		return clusterState, err

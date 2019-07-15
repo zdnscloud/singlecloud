@@ -12,7 +12,6 @@ import (
 	"github.com/zdnscloud/zke/types"
 
 	dockertypes "github.com/docker/docker/api/types"
-	"github.com/sirupsen/logrus"
 	"github.com/zdnscloud/cement/errgroup"
 )
 
@@ -79,7 +78,7 @@ func (c *Cluster) InvertIndexHosts() error {
 		}
 		newHost.IgnoreDockerVersion = c.Option.IgnoreDockerVersion
 		for _, role := range host.Role {
-			logrus.Debugf("Host: " + host.Address + " has role: " + role)
+			log.Debugf("Host: " + host.Address + " has role: " + role)
 			switch role {
 			case services.ETCDRole:
 				newHost.IsEtcd = true

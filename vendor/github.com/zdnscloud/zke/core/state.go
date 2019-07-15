@@ -16,7 +16,6 @@ import (
 	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/types"
 
-	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -132,7 +131,7 @@ func GetStateFromKubernetes(ctx context.Context, kubeCluster *Cluster) (*Cluster
 
 func GetK8sVersion(k8sClient *kubernetes.Clientset) (string, error) {
 	discoveryClient := k8sClient.DiscoveryClient
-	logrus.Debugf("[version] Getting Kubernetes server version..")
+	log.Debugf("[version] Getting Kubernetes server version..")
 	serverVersion, err := discoveryClient.ServerVersion()
 	if err != nil {
 		return "", fmt.Errorf("Failed to get Kubernetes server version: %v", err)
@@ -172,7 +171,7 @@ func (s *FullState) WriteStateFile(ctx context.Context, statePath string) error 
 	if err != nil {
 		return fmt.Errorf("Failed to Marshal state object: %v", err)
 	}
-	logrus.Debugf("Writing state file: %s", stateFile)
+	log.Debugf("Writing state file: %s", stateFile)
 	if err := ioutil.WriteFile(statePath, stateFile, 0640); err != nil {
 		return fmt.Errorf("Failed to write state file: %v", err)
 	}
@@ -249,7 +248,7 @@ func ReadStateJson(ctx context.Context, stateJson string) (*FullState, error) {
 func removeStateFile(ctx context.Context, statePath string) {
 	log.Infof(ctx, "Removing state file: %s", statePath)
 	if err := os.Remove(statePath); err != nil {
-		logrus.Warningf("Failed to remove state file: %v", err)
+		log.Warnf(ctx, "Failed to remove state file: %v", err)
 		return
 	}
 	log.Infof(ctx, "State file removed successfully")

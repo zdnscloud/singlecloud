@@ -15,12 +15,12 @@ import (
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/k8s"
+	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/pkg/util"
 	"github.com/zdnscloud/zke/types"
 
 	ref "github.com/docker/distribution/reference"
 	dockertypes "github.com/docker/docker/api/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -798,7 +798,7 @@ func (c *Cluster) getZKEToolsEntryPoint() string {
 	v := strings.Split(c.Image.KubernetesServicesSidecar, ":")
 	last := v[len(v)-1]
 
-	logrus.Debugf("Extracted version [%s] from image [%s]", last, c.Image.KubernetesServicesSidecar)
+	log.Debugf("Extracted version [%s] from image [%s]", last, c.Image.KubernetesServicesSidecar)
 
 	sv, err := util.StrToSemVer(last)
 	if err != nil {

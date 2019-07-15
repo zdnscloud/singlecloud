@@ -4,9 +4,9 @@ import (
 	"io/ioutil"
 
 	"github.com/zdnscloud/zke/core/pki"
+	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/types"
 
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 )
@@ -24,7 +24,7 @@ func writeConfig(cluster *types.ZKEConfig, configFile string) error {
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("Deploying cluster configuration file: %s", configFile)
+	log.Debugf("Deploying cluster configuration file: %s", configFile)
 	return ioutil.WriteFile(configFile, yamlConfig, 0640)
 }
 

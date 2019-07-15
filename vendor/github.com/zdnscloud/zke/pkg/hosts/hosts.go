@@ -13,7 +13,6 @@ import (
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 )
@@ -310,7 +309,7 @@ func GetUniqueHostList(etcdHosts, cpHosts, workerHosts, edgeHosts []*Host) []*Ho
 }
 
 func DoRunLogCleaner(ctx context.Context, host *Host, alpineImage string, prsMap map[string]types.PrivateRegistry) error {
-	logrus.Debugf("[cleanup] Starting log link cleanup on host [%s]", host.Address)
+	log.Debugf("[cleanup] Starting log link cleanup on host [%s]", host.Address)
 	imageCfg := &container.Config{
 		Image: alpineImage,
 		Tty:   true,
@@ -335,7 +334,7 @@ func DoRunLogCleaner(ctx context.Context, host *Host, alpineImage string, prsMap
 	if err := docker.DoRemoveContainer(ctx, host.DClient, LogCleanerContainerName, host.Address); err != nil {
 		return err
 	}
-	logrus.Debugf("[cleanup] Successfully cleaned up log links on host [%s]", host.Address)
+	log.Debugf("[cleanup] Successfully cleaned up log links on host [%s]", host.Address)
 	return nil
 }
 

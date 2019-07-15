@@ -12,7 +12,6 @@ import (
 	"github.com/zdnscloud/zke/pkg/util"
 
 	"github.com/docker/docker/client"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -30,7 +29,7 @@ func (h *Host) TunnelUp(ctx context.Context, dialerFactory DialerFactory, cluste
 		return fmt.Errorf("Can't establish dialer connection: %v", err)
 	}
 	// set Docker client
-	logrus.Debugf("Connecting to Docker API for host [%s]", h.Address)
+	log.Debugf("Connecting to Docker API for host [%s]", h.Address)
 	h.DClient, err = client.NewClient("unix:///var/run/docker.sock", DockerAPIVersion, httpClient, nil)
 	if err != nil {
 		return fmt.Errorf("Can't initiate NewClient: %v", err)
@@ -47,7 +46,7 @@ func checkDockerVersion(ctx context.Context, h *Host, clusterVersion string) err
 	if err != nil {
 		return fmt.Errorf("Can't retrieve Docker Info: %v", err)
 	}
-	logrus.Debugf("Docker Info found: %#v", info)
+	log.Debugf("Docker Info found: %#v", info)
 	h.DockerInfo = info
 	K8sSemVer, err := util.StrToSemVer(clusterVersion)
 	if err != nil {

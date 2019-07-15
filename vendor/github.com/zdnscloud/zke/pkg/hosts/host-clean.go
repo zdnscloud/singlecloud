@@ -69,7 +69,8 @@ func CleanHeritageStorge(ctx context.Context, h *Host, removeImage string, prsMa
 
 	_, err := docker.WaitForContainer(ctx, h.DClient, h.Address, "zke-storge-remover")
 	if err != nil {
-		return nil
+		return err
 	}
+
 	return docker.DoRemoveContainer(ctx, h.DClient, "zke-storge-remover", h.Address)
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/types"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/cert"
 )
@@ -49,7 +48,7 @@ func ReconcileCluster(ctx context.Context, kubeCluster, currentCluster *Cluster)
 
 func reconcileWorker(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
 	// worker deleted first to avoid issues when worker+controller on same host
-	logrus.Debugf("[reconcile] Check worker hosts to be deleted")
+	log.Debugf("[reconcile] Check worker hosts to be deleted")
 	wpToDelete := hosts.GetToDeleteHosts(currentCluster.WorkerHosts, kubeCluster.WorkerHosts, kubeCluster.InactiveHosts)
 	for _, toDeleteHost := range wpToDelete {
 		toDeleteHost.IsWorker = false
@@ -77,7 +76,7 @@ func reconcileWorker(ctx context.Context, currentCluster, kubeCluster *Cluster, 
 }
 
 func reconcileControl(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
-	logrus.Debugf("[reconcile] Check Control plane hosts to be deleted")
+	log.Debugf("[reconcile] Check Control plane hosts to be deleted")
 	selfDeleteAddress, err := getLocalConfigAddress(kubeCluster.Certificates[pki.KubeAdminCertName].Config)
 	if err != nil {
 		return err

@@ -28,7 +28,7 @@ type ZKEConfigOption struct {
 	ServiceCidr         string   `yaml:"service_cidr" json:"serviceCidr"`
 	ClusterDomain       string   `yaml:"cluster_domain" json:"clusterDomain"`
 	ClusterDNSServiceIP string   `yaml:"cluster_dns_serviceip,omitempty" json:"clusterDNSServiceIP,omitempty"`
-	ClusterUpstreamDNS  []string `yaml:"upstreamnameservers" json:"upstreamnameservers"`
+	ClusterUpstreamDNS  []string `yaml:"up_stream_name_servers" json:"upStreamNameServers"`
 	DisablePortCheck    bool     `yaml:"disable_port_check" json:"disablePortCheck"`
 	PrefixPath          string   `yaml:"prefix_path,omitempty" json:"prefixPath,omitempty"`
 }

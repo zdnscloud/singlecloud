@@ -1,6 +1,7 @@
 package pki
 
 import (
+	"context"
 	cryptorand "crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -20,9 +21,9 @@ import (
 	"time"
 
 	"github.com/zdnscloud/zke/pkg/hosts"
+	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/types"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/util/cert"
 )
 
@@ -524,7 +525,7 @@ func ReadCSRsAndKeysFromDir(certDir string) (map[string]CertificatePKI, error) {
 	for _, file := range files {
 		if strings.Contains(file.Name(), "-csr.pem") {
 			certName := strings.TrimSuffix(file.Name(), "-csr.pem")
-			logrus.Debugf("[certificates] Loading %s csr from directory [%s]", certName, certDir)
+			log.Debugf("[certificates] Loading %s csr from directory [%s]", certName, certDir)
 			// fetching csr
 			csrASN1, err := getCSRFromFile(certDir, certName+"-csr.pem")
 			if err != nil {
@@ -554,7 +555,7 @@ func ReadCertsAndKeysFromDir(certDir string) (map[string]CertificatePKI, error) 
 	}
 
 	for _, file := range files {
-		logrus.Debugf("[certificates] reading file %s from directory [%s]", file.Name(), certDir)
+		log.Debugf("[certificates] reading file %s from directory [%s]", file.Name(), certDir)
 		// fetching cert
 		cert, err := getCertFromFile(certDir, file.Name())
 		if err != nil {
@@ -641,7 +642,7 @@ func WriteCertificates(certDirPath string, certBundle map[string]CertificatePKI)
 			if err := ioutil.WriteFile(certificatePath, []byte(cert.CertificatePEM), 0640); err != nil {
 				return fmt.Errorf("Failed to write certificate to path %v: %v", certificatePath, err)
 			}
-			logrus.Debugf("Successfully Deployed certificate file at [%s]", certificatePath)
+			log.Debugf("Successfully Deployed certificate file at [%s]", certificatePath)
 		}
 
 		if cert.KeyPEM != "" {
@@ -649,7 +650,7 @@ func WriteCertificates(certDirPath string, certBundle map[string]CertificatePKI)
 			if err := ioutil.WriteFile(keyPath, []byte(cert.KeyPEM), 0640); err != nil {
 				return fmt.Errorf("Failed to write key to path %v: %v", keyPath, err)
 			}
-			logrus.Debugf("Successfully Deployed key file at [%s]", keyPath)
+			log.Debugf("Successfully Deployed key file at [%s]", keyPath)
 		}
 
 		if cert.CSRPEM != "" {
@@ -657,10 +658,10 @@ func WriteCertificates(certDirPath string, certBundle map[string]CertificatePKI)
 			if err := ioutil.WriteFile(csrPath, []byte(cert.CSRPEM), 0640); err != nil {
 				return fmt.Errorf("Failed to write csr to path %v: %v", csrPath, err)
 			}
-			logrus.Debugf("Successfully Deployed csr file at [%s]", csrPath)
+			log.Debugf("Successfully Deployed csr file at [%s]", csrPath)
 		}
 	}
-	logrus.Infof("Successfully Deployed certificates at [%s]", certDirPath)
+	log.Infof(context.TODO(), "Successfully Deployed certificates at [%s]", certDirPath)
 	return nil
 }
 
@@ -671,7 +672,7 @@ func ValidateBundleContent(zkeConfig *types.ZKEConfig, certBundle map[string]Cer
 		return fmt.Errorf("Failed to find master CA certificate")
 	}
 	if certBundle[RequestHeaderCACertName].Certificate == nil {
-		logrus.Warnf("Failed to find RequestHeader CA certificate, using master CA certificate")
+		log.Warnf(context.TODO(), "Failed to find RequestHeader CA certificate, using master CA certificate")
 		certBundle[RequestHeaderCACertName] = ToCertObject(RequestHeaderCACertName, RequestHeaderCACertName, "", certBundle[CACertName].Certificate, nil, nil)
 	}
 	// make sure all components exists

@@ -17,7 +17,6 @@ import (
 	etcdclient "github.com/coreos/etcd/client"
 	"github.com/docker/docker/api/types/container"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/zdnscloud/cement/errgroup"
 	"k8s.io/client-go/util/cert"
 )
@@ -147,12 +146,12 @@ func AddEtcdMember(ctx context.Context, toAddEtcdHost *hosts.Host, etcdHosts []*
 		}
 		etcdClient, err := getEtcdClient(ctx, host, cert, key)
 		if err != nil {
-			logrus.Debugf("Failed to create etcd client for host [%s]: %v", host.Address, err)
+			log.Debugf("Failed to create etcd client for host [%s]: %v", host.Address, err)
 			continue
 		}
 		memAPI := etcdclient.NewMembersAPI(etcdClient)
 		if _, err := memAPI.Add(ctx, peerURL); err != nil {
-			logrus.Debugf("Failed to Add etcd member [%s] from host: %v", host.Address, err)
+			log.Debugf("Failed to Add etcd member [%s] from host: %v", host.Address, err)
 			continue
 		}
 		added = true
@@ -172,13 +171,13 @@ func RemoveEtcdMember(ctx context.Context, etcdHost *hosts.Host, etcdHosts []*ho
 	for _, host := range etcdHosts {
 		etcdClient, err := getEtcdClient(ctx, host, cert, key)
 		if err != nil {
-			logrus.Debugf("Failed to create etcd client for host [%s]: %v", host.Address, err)
+			log.Debugf("Failed to create etcd client for host [%s]: %v", host.Address, err)
 			continue
 		}
 		memAPI := etcdclient.NewMembersAPI(etcdClient)
 		members, err := memAPI.List(ctx)
 		if err != nil {
-			logrus.Debugf("Failed to list etcd members from host [%s]: %v", host.Address, err)
+			log.Debugf("Failed to list etcd members from host [%s]: %v", host.Address, err)
 			continue
 		}
 		for _, member := range members {
@@ -188,7 +187,7 @@ func RemoveEtcdMember(ctx context.Context, etcdHost *hosts.Host, etcdHosts []*ho
 			}
 		}
 		if err := memAPI.Remove(ctx, mID); err != nil {
-			logrus.Debugf("Failed to list etcd members from host [%s]: %v", host.Address, err)
+			log.Debugf("Failed to list etcd members from host [%s]: %v", host.Address, err)
 			continue
 		}
 		removed = true
@@ -233,19 +232,19 @@ func IsEtcdMember(ctx context.Context, etcdHost *hosts.Host, etcdHosts []*hosts.
 		etcdClient, err := getEtcdClient(ctx, host, cert, key)
 		if err != nil {
 			listErr = errors.Wrapf(err, "Failed to create etcd client for host [%s]", host.Address)
-			logrus.Debugf("Failed to create etcd client for host [%s]: %v", host.Address, err)
+			log.Debugf("Failed to create etcd client for host [%s]: %v", host.Address, err)
 			continue
 		}
 		memAPI := etcdclient.NewMembersAPI(etcdClient)
 		members, err := memAPI.List(ctx)
 		if err != nil {
 			listErr = errors.Wrapf(err, "Failed to create etcd client for host [%s]", host.Address)
-			logrus.Debugf("Failed to list etcd cluster members [%s]: %v", etcdHost.Address, err)
+			log.Debugf("Failed to list etcd cluster members [%s]: %v", etcdHost.Address, err)
 			continue
 		}
 		for _, member := range members {
 			if strings.Contains(member.PeerURLs[0], peerURL) {
-				logrus.Infof("[etcd] member [%s] is already part of the etcd cluster", etcdHost.Address)
+				log.Infof(ctx, "[etcd] member [%s] is already part of the etcd cluster", etcdHost.Address)
 				return true, nil
 			}
 		}

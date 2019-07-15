@@ -5,7 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/zdnscloud/zke/pkg/log"
+
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,18 +46,18 @@ func CordonUncordon(k8sClient *kubernetes.Clientset, nodeName string, cordoned b
 	for retries := 0; retries <= 5; retries++ {
 		node, err := GetNode(k8sClient, nodeName)
 		if err != nil {
-			logrus.Debugf("Error getting node %s: %v", nodeName, err)
+			log.Debugf("Error getting node %s: %v", nodeName, err)
 			time.Sleep(time.Second * 5)
 			continue
 		}
 		if node.Spec.Unschedulable == cordoned {
-			logrus.Debugf("Node %s is already cordoned: %v", nodeName, cordoned)
+			log.Debugf("Node %s is already cordoned: %v", nodeName, cordoned)
 			return nil
 		}
 		node.Spec.Unschedulable = cordoned
 		_, err = k8sClient.CoreV1().Nodes().Update(node)
 		if err != nil {
-			logrus.Debugf("Error setting cordoned state for node %s: %v", nodeName, err)
+			log.Debugf("Error setting cordoned state for node %s: %v", nodeName, err)
 			time.Sleep(time.Second * 5)
 			continue
 		}
@@ -86,7 +87,7 @@ func RemoveTaintFromNodeByKey(k8sClient *kubernetes.Clientset, nodeName, taintKe
 		node, err = GetNode(k8sClient, nodeName)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				logrus.Debugf("[hosts] Can't find node by name [%s]", nodeName)
+				log.Debugf("[hosts] Can't find node by name [%s]", nodeName)
 				return nil
 			}
 			return err
@@ -104,7 +105,7 @@ func RemoveTaintFromNodeByKey(k8sClient *kubernetes.Clientset, nodeName, taintKe
 		}
 		_, err = k8sClient.CoreV1().Nodes().Update(node)
 		if err != nil {
-			logrus.Debugf("Error updating node [%s] with new set of taints: %v", node.Name, err)
+			log.Debugf("Error updating node [%s] with new set of taints: %v", node.Name, err)
 			time.Sleep(time.Second * 5)
 			continue
 		}

@@ -69,22 +69,9 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node name address and roles can't be null")
 	}
 
-	zkeEventCh := make(chan zke.ZKEEvent)
-	cluster.Status = zke.ClusterUpateing
-
-	ctxWithCancel, cancel := context.WithCancel(context.Background())
-	cluster.CancelFunction = cancel
-
-	go zke.UpdateCluster(ctxWithCancel, zkeEventCh, m.clusters.zkeMsgCh)
-	newClusterConfig, err := zke.GetNewConfigForAddNode(cluster.Config, inner)
-	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "node name or address duplicate")
+	if err := m.clusters.ZKE.UpdateForAddNode(cluster.Name, inner); err != nil {
+		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
-	zkeEvent := zke.ZKEEvent{
-		State:  cluster.State,
-		Config: newClusterConfig,
-	}
-	zkeEventCh <- zkeEvent
 
 	inner.SetID(inner.Name)
 	inner.SetCreationTimestamp(time.Now())
@@ -96,30 +83,16 @@ func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
-	if cluster.Status == zke.ClusterCreateing || cluster.Status == zke.ClusterUpateing {
+	zkeCluster := m.clusters.ZKE.Get(cluster.Name)
+	if zkeCluster.Status == zke.ClusterCreateing || zkeCluster.Status == zke.ClusterUpateing {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, "cluster is createing or updateing")
 	}
 	target := ctx.Object.(*types.Node).GetID()
 
-	zkeEventCh := make(chan zke.ZKEEvent)
-	cluster.Status = zke.ClusterUpateing
-
-	ctxWithCancel, cancel := context.WithCancel(context.Background())
-	cluster.CancelFunction = cancel
-
-	go zke.UpdateCluster(ctxWithCancel, zkeEventCh, m.clusters.zkeMsgCh)
-
-	newConfig, isExist := zke.GetNewConfigForDeleteNode(cluster.Config, target)
-	if isExist {
-		zkeEvent := zke.ZKEEvent{
-			State:  cluster.State,
-			Config: newConfig,
-		}
-		zkeEventCh <- zkeEvent
-		return nil
-	} else {
-		return resttypes.NewAPIError(resttypes.NotFound, "node doesn't exist")
+	if err := m.clusters.ZKE.UpdateForDeleteNode(cluster.Name, target); err != nil {
+		return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
+	return nil
 }
 
 func getNodes(cli client.Client) ([]*types.Node, error) {

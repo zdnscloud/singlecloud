@@ -15,7 +15,6 @@ import (
 
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -62,7 +61,7 @@ func DeployStateOnPlaneHost(ctx context.Context, host *hosts.Host, stateDownload
 	if err := docker.DoRemoveContainer(ctx, host.DClient, StateDeployerContainerName, host.Address); err != nil {
 		return err
 	}
-	logrus.Debugf("[state] Successfully started state deployer container on node [%s]", host.Address)
+	log.Debugf("[state] Successfully started state deployer container on node [%s]", host.Address)
 	return nil
 }
 
@@ -100,7 +99,7 @@ func doRunDeployer(ctx context.Context, host *hosts.Host, containerEnv []string,
 	if err := host.DClient.ContainerStart(ctx, resp.ID, dockertypes.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("Failed to start Certificates deployer container on host [%s]: %v", host.Address, err)
 	}
-	logrus.Debugf("[certificates] Successfully started Certificate deployer container: %s", resp.ID)
+	log.Debugf("[certificates] Successfully started Certificate deployer container: %s", resp.ID)
 	for {
 		isDeployerRunning, err := docker.IsContainerRunning(ctx, host.DClient, host.Address, CrtDownloaderContainer, false)
 		if err != nil {
@@ -121,7 +120,7 @@ func DeployAdminConfig(ctx context.Context, kubeConfig, localConfigPath string) 
 	if len(kubeConfig) == 0 {
 		return nil
 	}
-	logrus.Debugf("Deploying admin Kubeconfig locally: %s", kubeConfig)
+	log.Debugf("Deploying admin Kubeconfig locally: %s", kubeConfig)
 	err := ioutil.WriteFile(localConfigPath, []byte(kubeConfig), 0640)
 	if err != nil {
 		return fmt.Errorf("Failed to create local admin kubeconfig file: %v", err)
@@ -133,7 +132,7 @@ func DeployAdminConfig(ctx context.Context, kubeConfig, localConfigPath string) 
 func RemoveAdminConfig(ctx context.Context, localConfigPath string) {
 	log.Infof(ctx, "Removing local admin Kubeconfig: %s", localConfigPath)
 	if err := os.Remove(localConfigPath); err != nil {
-		logrus.Warningf("Failed to remove local admin Kubeconfig file: %v", err)
+		log.Warnf(ctx, "Failed to remove local admin Kubeconfig file: %v", err)
 		return
 	}
 	log.Infof(ctx, "Local admin Kubeconfig removed successfully")

@@ -3,7 +3,8 @@ package k8s
 import (
 	"fmt"
 
-	"github.com/sirupsen/logrus"
+	"github.com/zdnscloud/zke/pkg/log"
+
 	"k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,19 +33,19 @@ func ApplyK8sSystemJob(jobYaml string, k8sClient *kubernetes.Clientset, timeout 
 	// if the addon configMap is updated, or the previous job is not completed,
 	// I will remove the existing job first, if any
 	if addonUpdated || (jobStatus.Created && !jobStatus.Completed) {
-		logrus.Debugf("[k8s] replacing job %s.. ", job.Name)
+		log.Debugf("[k8s] replacing job %s.. ", job.Name)
 		if err := DeleteK8sSystemJob(jobYaml, k8sClient, timeout); err != nil {
 			return err
 		}
 	}
 	if _, err = k8sClient.BatchV1().Jobs(job.Namespace).Create(&job); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			logrus.Debugf("[k8s] Job %s already exists..", job.Name)
+			log.Debugf("[k8s] Job %s already exists..", job.Name)
 			return nil
 		}
 		return err
 	}
-	logrus.Debugf("[k8s] waiting for job %s to complete..", job.Name)
+	log.Debugf("[k8s] waiting for job %s to complete..", job.Name)
 	return retryToWithTimeout(ensureJobCompleted, k8sClient, job, timeout)
 }
 
@@ -74,7 +75,7 @@ func ensureJobCompleted(k8sClient *kubernetes.Clientset, j interface{}) error {
 		return fmt.Errorf("Failed to get job complete status for job %s in namespace %s: %v", job.Name, job.Namespace, err)
 	}
 	if jobStatus.Completed {
-		logrus.Debugf("[k8s] Job %s in namespace %s completed successfully", job.Name, job.Namespace)
+		log.Debugf("[k8s] Job %s in namespace %s completed successfully", job.Name, job.Namespace)
 		return nil
 	}
 	return fmt.Errorf("Failed to get job complete status for job %s in namespace %s", job.Name, job.Namespace)

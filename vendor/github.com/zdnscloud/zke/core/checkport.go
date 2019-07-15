@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
-	"github.com/sirupsen/logrus"
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/log"
@@ -118,7 +117,7 @@ func (c *Cluster) CheckClusterPorts(ctx context.Context, currentCluster *Cluster
 func (c *Cluster) checkKubeAPIPort(ctx context.Context) error {
 	log.Infof(ctx, "[network] Checking KubeAPI port Control Plane hosts")
 	for _, host := range c.ControlPlaneHosts {
-		logrus.Debugf("[network] Checking KubeAPI port [%s] on host: %s", KubeAPIPort, host.Address)
+		log.Debugf("[network] Checking KubeAPI port [%s] on host: %s", KubeAPIPort, host.Address)
 		address := fmt.Sprintf("%s:%s", host.Address, KubeAPIPort)
 		conn, err := net.Dial("tcp", address)
 		if err != nil {
@@ -179,10 +178,10 @@ func (c *Cluster) deployListener(ctx context.Context, host *hosts.Host, portList
 		},
 	}
 
-	logrus.Debugf("[network] Starting deployListener [%s] on host [%s]", containerName, host.Address)
+	log.Debugf("[network] Starting deployListener [%s] on host [%s]", containerName, host.Address)
 	if err := docker.DoRunContainer(ctx, host.DClient, imageCfg, hostCfg, containerName, host.Address, "network", c.PrivateRegistriesMap); err != nil {
 		if strings.Contains(err.Error(), "bind: address already in use") {
-			logrus.Debugf("[network] Service is already up on host [%s]", host.Address)
+			log.Debugf("[network] Service is already up on host [%s]", host.Address)
 			return nil
 		}
 		return err
@@ -283,12 +282,12 @@ func checkPlaneTCPPortsFromHost(ctx context.Context, host *hosts.Host, portList 
 	if logsErr != nil {
 		log.Warnf(ctx, "[network] Failed to get network port check logs: %v", logsErr)
 	}
-	logrus.Debugf("[network] containerLog [%s] on host: %s", containerLog, host.Address)
+	log.Debugf("[network] containerLog [%s] on host: %s", containerLog, host.Address)
 
 	if err := docker.RemoveContainer(ctx, host.DClient, host.Address, PortCheckContainer); err != nil {
 		return err
 	}
-	logrus.Debugf("[network] Length of containerLog is [%d] on host: %s", len(containerLog), host.Address)
+	log.Debugf("[network] Length of containerLog is [%d] on host: %s", len(containerLog), host.Address)
 	if len(containerLog) > 0 {
 		portCheckLogs := strings.Join(strings.Split(strings.TrimSpace(containerLog), "\n"), ", ")
 		return fmt.Errorf("[network] Host [%s] is not able to connect to the following ports: [%s]. Please check network policies and firewall rules", host.Address, portCheckLogs)

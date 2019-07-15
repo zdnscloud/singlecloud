@@ -13,7 +13,6 @@ import (
 	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/types"
 
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -41,7 +40,7 @@ func ClusterRemove(
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("Starting Cluster removal")
+	log.Debugf("Starting Cluster removal")
 	err = kubeCluster.ClusterRemove(ctx)
 	if err != nil {
 		return err
@@ -66,7 +65,7 @@ func ClusterRemoveWithoutCleanFiles(
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("Starting Cluster removal")
+	log.Debugf("Starting Cluster removal")
 	err = kubeCluster.CleanupNodes(ctx)
 	if err != nil {
 		return err
@@ -104,6 +103,7 @@ func clusterRemoveFromCli(ctx *cli.Context) error {
 	return ClusterRemove(context.Background(), zkeConfig, hosts.DialersOptions{})
 }
 
-func ClusterRemoveFromRest(ctx context.Context, zkeConfig *types.ZKEConfig) error {
+func ClusterRemoveFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, logCh chan string) error {
+	SetRestLogCh(logCh)
 	return ClusterRemoveWithoutCleanFiles(ctx, zkeConfig, hosts.DialersOptions{})
 }

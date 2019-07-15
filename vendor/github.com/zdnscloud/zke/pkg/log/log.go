@@ -2,38 +2,49 @@ package log
 
 import (
 	"context"
+	"os"
 
-	"github.com/sirupsen/logrus"
+	cementlog "github.com/zdnscloud/cement/log"
 )
-
-type logKey string
 
 const (
-	key logKey = "zke-logger"
+	DefaultLogger      = "console"
+	ChannelLogger      = "channel"
+	DefaultLogChLength = 50
 )
 
-type logger interface {
-	Infof(msg string, args ...interface{})
-	Warnf(msg string, args ...interface{})
-}
+var ZKELogger cementlog.Logger
+var ZKELoggerKind string = DefaultLogger
+var ZKELogLevel = cementlog.Info
+var ZKELogCh chan string
 
-func SetLogger(ctx context.Context, logger logger) context.Context {
-	return context.WithValue(ctx, key, logger)
-}
-
-func getLogger(ctx context.Context) logger {
-	logger, _ := ctx.Value(key).(logger)
-	if logger == nil {
-		return logrus.StandardLogger()
+func Init() {
+	if ZKELoggerKind == ChannelLogger {
+		ZKELogger, ZKELogCh = cementlog.NewLog4jBufLogger(DefaultLogChLength, ZKELogLevel)
+	} else {
+		ZKELogger = cementlog.NewLog4jConsoleLogger(ZKELogLevel)
 	}
-	return logger
+}
+
+func Debugf(msg string, args ...interface{}) {
+	ZKELogger.Debug(msg, args...)
 }
 
 func Infof(ctx context.Context, msg string, args ...interface{}) {
-	getLogger(ctx).Infof(msg, args...)
+	ZKELogger.Info(msg, args...)
 
 }
 
 func Warnf(ctx context.Context, msg string, args ...interface{}) {
-	getLogger(ctx).Warnf(msg, args...)
+	ZKELogger.Warn(msg, args...)
+}
+
+func Errorf(ctx context.Context, msg string, args ...interface{}) {
+	ZKELogger.Error(msg, args...)
+}
+
+func Fatal(args ...interface{}) {
+	ZKELogger.Error("", args...)
+	ZKELogger.Close()
+	os.Exit(1)
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/zdnscloud/zke/types"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -56,6 +55,6 @@ func doDeployFile(ctx context.Context, host *hosts.Host, fileName, fileContents,
 	if err := docker.DoRemoveContainer(ctx, host.DClient, ContainerName, host.Address); err != nil {
 		return err
 	}
-	logrus.Debugf("[%s] Successfully deployed file '%s' on node [%s]", ServiceName, fileName, host.Address)
+	log.Debugf("[%s] Successfully deployed file '%s' on node [%s]", ServiceName, fileName, host.Address)
 	return nil
 }

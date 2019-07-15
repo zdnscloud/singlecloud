@@ -18,7 +18,6 @@ import (
 	"github.com/zdnscloud/zke/types"
 
 	dockertypes "github.com/docker/docker/api/types"
-	"github.com/sirupsen/logrus"
 	"github.com/zdnscloud/cement/errgroup"
 	"github.com/zdnscloud/gok8s/client/config"
 	"gopkg.in/yaml.v2"
@@ -115,7 +114,7 @@ func (c *Cluster) DeployWorkerPlane(ctx context.Context) error {
 }
 
 func ParseConfig(clusterFile string) (*types.ZKEConfig, error) {
-	logrus.Debugf("Parsing cluster file [%v]", clusterFile)
+	log.Debugf("Parsing cluster file [%v]", clusterFile)
 	var zkeConfig types.ZKEConfig
 	if err := yaml.Unmarshal([]byte(clusterFile), &zkeConfig); err != nil {
 		return nil, err
@@ -275,7 +274,7 @@ func (c *Cluster) SyncLabelsAndTaints(ctx context.Context, currentCluster *Clust
 		log.Infof(ctx, "[sync] Syncing nodes Labels and Taints")
 		hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
 		_, err := errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
-			logrus.Debugf("worker starting sync for node [%s]", h.(*hosts.Host).NodeName)
+			log.Debugf("worker starting sync for node [%s]", h.(*hosts.Host).NodeName)
 			return nil, setNodeAnnotationsLabelsTaints(c.KubeClient, h.(*hosts.Host))
 		})
 
@@ -293,7 +292,7 @@ func setNodeAnnotationsLabelsTaints(k8sClient *kubernetes.Clientset, host *hosts
 	for retries := 0; retries <= 5; retries++ {
 		node, err = k8s.GetNode(k8sClient, host.NodeName)
 		if err != nil {
-			logrus.Debugf("[hosts] Can't find node by name [%s], retrying..", host.NodeName)
+			log.Debugf("[hosts] Can't find node by name [%s], retrying..", host.NodeName)
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -304,12 +303,12 @@ func setNodeAnnotationsLabelsTaints(k8sClient *kubernetes.Clientset, host *hosts
 		k8s.SyncNodeTaints(node, host.ToAddTaints, host.ToDelTaints)
 
 		if reflect.DeepEqual(oldNode, node) {
-			logrus.Debugf("skipping syncing labels for node [%s]", node.Name)
+			log.Debugf("skipping syncing labels for node [%s]", node.Name)
 			return nil
 		}
 		_, err = k8sClient.CoreV1().Nodes().Update(node)
 		if err != nil {
-			logrus.Debugf("Error syncing labels for node [%s]: %v", node.Name, err)
+			log.Debugf("Error syncing labels for node [%s]: %v", node.Name, err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
