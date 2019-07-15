@@ -95,7 +95,7 @@ func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
 			continue
 		}
 
-		userQuotas = append(userQuotas, *quota)
+		userQuotas = append(userQuotas, quota)
 	}
 
 	sort.Sort(userQuotas)

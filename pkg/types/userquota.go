@@ -58,7 +58,7 @@ type UserQuota struct {
 	ResponseTimestamp  resttypes.ISOTime `json:"responseTimestamp,omitempty"`
 }
 
-type UserQuotas []UserQuota
+type UserQuotas []*UserQuota
 
 func (u UserQuotas) Len() int {
 	return len(u)
