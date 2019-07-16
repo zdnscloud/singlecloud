@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"k8s.io/client-go/rest"
+
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -12,10 +15,8 @@ import (
 	"github.com/zdnscloud/zke/core/pki"
 )
 
-func (z *ZKE) AddWithCreate(c *types.Cluster) error {
-	z.Lock.Lock()
-	defer z.Lock.Unlock()
-	if _, ok := z.Clusters[c.Name]; ok {
+func (m ZKEManager) CreateCluster(c *types.Cluster, eventCh chan Event) error {
+	if _, ok := m[c.Name]; ok {
 		return fmt.Errorf("duplicate cluster name")
 	}
 
@@ -23,123 +24,106 @@ func (z *ZKE) AddWithCreate(c *types.Cluster) error {
 	if err != nil {
 		return err
 	}
-	cluster := &Cluster{
+	zc := &ZKECluster{
 		Config: config,
-		Status: ClusterCreateing,
 		logCh:  make(chan string, 5),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	cluster.CancelFunc = cancel
-	z.Clusters[c.Name] = cluster
-	go createCluster(ctx, cluster, z.MsgCh)
+	zc.Cancel = cancel
+	m[c.Name] = zc
+
+	go createCluster(ctx, zc, eventCh)
 	return nil
 }
 
-func (z *ZKE) AddWithOutCreate(c string, yaml []byte) error {
-	z.Lock.Lock()
-	defer z.Lock.Unlock()
-	if _, ok := z.Clusters[c]; ok {
-		return fmt.Errorf("duplicate cluster name")
+func (m ZKEManager) ImportCluster(id string, yaml []byte, eventCh chan Event) (client.Client, *rest.Config, error) {
+	if _, ok := m[id]; ok {
+		return nil, nil, fmt.Errorf("duplicate cluster name")
 	}
 
-	cluster := &Cluster{
-		State:  &core.FullState{},
-		Status: ClusterCreateComplete,
+	zc := &ZKECluster{
+		State: &core.FullState{},
 	}
 
-	if err := json.Unmarshal(yaml, cluster.State); err != nil {
-		return err
+	if err := json.Unmarshal(yaml, zc.State); err != nil {
+		return nil, nil, err
 	}
-	cluster.State.DesiredState.CertificatesBundle = pki.TransformPEMToObject(cluster.State.DesiredState.CertificatesBundle)
-	cluster.State.CurrentState.CertificatesBundle = pki.TransformPEMToObject(cluster.State.CurrentState.CertificatesBundle)
-	cluster.Config = cluster.State.CurrentState.ZKEConfig.DeepCopy()
+	zc.State.DesiredState.CertificatesBundle = pki.TransformPEMToObject(zc.State.DesiredState.CertificatesBundle)
+	zc.State.CurrentState.CertificatesBundle = pki.TransformPEMToObject(zc.State.CurrentState.CertificatesBundle)
+	zc.Config = zc.State.CurrentState.ZKEConfig.DeepCopy()
 
-	k8sConfYaml := cluster.State.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
+	k8sConfYaml := zc.State.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
 	k8sConf, err := config.BuildConfig([]byte(k8sConfYaml))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	k8sClient, err := client.New(k8sConf, client.Options{})
+	kubeClient, err := client.New(k8sConf, client.Options{})
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	z.Clusters[c] = cluster
+	m[id] = zc
 
-	msg := Msg{
-		ClusterName: c,
-		KubeConfig:  k8sConf,
-		KubeClient:  k8sClient,
-		Status:      cluster.Status,
-		State:       cluster.State,
-	}
-	z.MsgCh <- msg
-
-	return nil
+	return kubeClient, k8sConf, nil
 }
 
-func (z *ZKE) UpdateForAddNode(cluster string, node *types.Node) error {
-	z.Lock.Lock()
-	defer z.Lock.Unlock()
-	c, ok := z.Clusters[cluster]
+func (m ZKEManager) UpdateForAddNode(cluster string, node *types.Node, eventCh chan Event) error {
+	s, ok := m[cluster]
 	if !ok {
 		return fmt.Errorf("cluster %s not found to add node", cluster)
 	}
 
-	config, err := getNewConfigForAddNode(c.Config, node)
+	config, err := getNewConfigForAddNode(s.Config, node)
 	if err != nil {
 		return err
 	}
-	c.Config = config
-	c.Status = ClusterUpateing
-	c.logCh = make(chan string, 5)
+	s.Config = config
+	s.logCh = make(chan string, 5)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	c.CancelFunc = cancel
+	s.Cancel = cancel
 
-	go updateCluster(ctx, c, z.MsgCh)
+	go updateCluster(ctx, s, eventCh)
 	return nil
 }
 
-func (z *ZKE) UpdateForDeleteNode(cluster string, node string) error {
-	z.Lock.Lock()
-	defer z.Lock.Unlock()
-	c, ok := z.Clusters[cluster]
+func (m ZKEManager) UpdateForDeleteNode(cluster string, node string, eventCh chan Event) error {
+	s, ok := m[cluster]
 	if !ok {
 		return fmt.Errorf("cluster %s not found to add node", cluster)
 	}
 
-	config, err := getNewConfigForDeleteNode(c.Config, node)
+	config, err := getNewConfigForDeleteNode(s.Config, node)
 	if err != nil {
 		return err
 	}
-	c.Config = config
-	c.Status = ClusterUpateing
-	c.logCh = make(chan string, 5)
+	s.Config = config
+	s.logCh = make(chan string, 5)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	c.CancelFunc = cancel
+	s.Cancel = cancel
 
-	go updateCluster(ctx, c, z.MsgCh)
+	go updateCluster(ctx, s, eventCh)
 	return nil
 }
 
-func (z *ZKE) Delete(clusterID string) error {
-	z.Lock.Lock()
-	defer z.Lock.Unlock()
-	_, ok := z.Clusters[clusterID]
+func (m ZKEManager) Delete(id string) {
+	_, ok := m[id]
 	if !ok {
-		return fmt.Errorf("zke cluster %s not exist", clusterID)
+		log.Warnf("cluster %s not found to delete it's state", id)
 	}
-	delete(z.Clusters, clusterID)
-	return nil
+	delete(m, id)
 }
 
-func (z *ZKE) Get(clusterID string) *Cluster {
-	c, ok := z.Clusters[clusterID]
-	if !ok {
-		return nil
+/*
+func printLog(logCh chan string) {
+	for {
+		log, ok := <-logCh
+		if !ok {
+			return
+		}
+		fmt.Printf(log)
 	}
-	return c
 }
+*/

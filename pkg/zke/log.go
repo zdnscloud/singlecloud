@@ -14,29 +14,29 @@ const (
 	WSZKELogPathTemp = WSPrefix + "/clusters/%s/zkelog"
 )
 
-func (z *ZKE) OpenLog(clusterID string, r *http.Request, w http.ResponseWriter) {
-	cluster := z.Get(clusterID)
-	if cluster == nil {
-		log.Warnf("cluster %s isn't found to open log console", clusterID)
+func (m ZKEManager) OpenLog(id string, r *http.Request, w http.ResponseWriter) {
+	cluster, ok := m[id]
+	if !ok {
+		log.Warnf("cluster %s isn't found to open log console", id)
 		return
 	}
 
 	if cluster.logCh == nil {
-		log.Warnf("cluster log channel is nil can't to open log console", clusterID)
+		log.Warnf("cluster log channel is nil can't to open log console", id)
 		return
 	}
 
 	if cluster.logSession != nil {
-		z.Lock.Lock()
+		cluster.lock.Lock()
 		cluster.logSession.Close(503, "new connection is opened")
-		z.Lock.Unlock()
+		cluster.lock.Unlock()
 	}
 
 	Sockjshandler := func(session sockjs.Session) {
 		done := make(chan struct{})
-		z.Lock.Lock()
+		cluster.lock.Lock()
 		cluster.logSession = session
-		z.Lock.Unlock()
+		cluster.lock.Unlock()
 		go func() {
 			<-session.ClosedNotify()
 			close(done)
@@ -53,13 +53,13 @@ func (z *ZKE) OpenLog(clusterID string, r *http.Request, w http.ResponseWriter) 
 				break
 			}
 		}
-		z.Lock.Lock()
+		cluster.lock.Lock()
 		session.Close(503, "log is terminated")
 		cluster.logSession = nil
-		z.Lock.Unlock()
+		cluster.lock.Unlock()
 		<-done
 	}
 
-	path := fmt.Sprintf(WSZKELogPathTemp, clusterID)
+	path := fmt.Sprintf(WSZKELogPathTemp, id)
 	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }

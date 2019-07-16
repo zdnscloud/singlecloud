@@ -2,10 +2,10 @@ package zke
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	gok8sconfig "github.com/zdnscloud/gok8s/client/config"
 	zkecmd "github.com/zdnscloud/zke/cmd"
@@ -14,101 +14,99 @@ import (
 	zketypes "github.com/zdnscloud/zke/types"
 )
 
-func createCluster(ctx context.Context, cluster *Cluster, msgCh chan Msg) {
-	var msg = Msg{
-		ClusterName: cluster.Config.ClusterName,
-		Status:      ClusterCreateFailed,
+func createCluster(ctx context.Context, cluster *ZKECluster, eventCh chan Event) {
+	var event = Event{
+		ID:     cluster.Config.ClusterName,
+		Status: types.CSCreateFailed,
 	}
-	defer func(msgCh chan Msg) {
+	defer func(eventCh chan Event) {
 		if r := recover(); r != nil {
-			err := fmt.Errorf("pannic info %s", r)
-			msg.Error = err
-			msgCh <- msg
+			log.Errorf("zke pannic info %s", r)
+			eventCh <- event
 		}
-	}(msgCh)
+	}(eventCh)
 
 	if err := zkecmd.ClusterRemoveFromRest(ctx, cluster.Config, cluster.logCh); err != nil {
-		msg.Error = err
-		msgCh <- msg
+		eventCh <- event
+		log.Errorf("zke err info %s", err)
 		return
 	}
 
 	state, err := zkecmd.ClusterUpFromRest(ctx, cluster.Config, &core.FullState{}, cluster.logCh)
 	if err != nil {
-		msg.Error = err
-		msgCh <- msg
+		eventCh <- event
+		log.Errorf("zke err info %s", err)
 		return
 	}
 
 	kubeConfigYaml := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
-	kubeConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfigYaml))
+	k8sConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfigYaml))
 	if err != nil {
-		msg.Error = err
-		msgCh <- msg
+		eventCh <- event
+		log.Errorf("zke err info %s", err)
 		return
 	}
 
-	kubeClient, err := client.New(kubeConfig, client.Options{})
+	kubeClient, err := client.New(k8sConfig, client.Options{})
 	if err != nil {
-		msg.Error = err
-		msgCh <- msg
+		eventCh <- event
+		log.Errorf("zke err info %s", err)
 		return
 	}
 
 	if err := deployZcloudProxy(kubeClient, cluster.Config.ClusterName, cluster.Config.SingleCloudAddress); err != nil {
-		msg.Error = err
-		msgCh <- msg
+		eventCh <- event
+		log.Errorf("zke err info %s", err)
 		return
 	}
 
-	msg.KubeClient = kubeClient
-	msg.KubeConfig = kubeConfig
-	msg.Status = ClusterCreateComplete
-	msg.State = state
-	msgCh <- msg
+	event.KubeClient = kubeClient
+	event.K8sConfig = k8sConfig
+	event.Status = types.CSCreateSuccess
+	event.State = state
+	eventCh <- event
 	return
 }
 
-func updateCluster(ctx context.Context, cluster *Cluster, msgCh chan Msg) {
-	var msg = Msg{
-		ClusterName: cluster.Config.ClusterName,
-		Status:      ClusterUpateFailed,
+func updateCluster(ctx context.Context, cluster *ZKECluster, eventCh chan Event) {
+	var event = Event{
+		ID:     cluster.Config.ClusterName,
+		Status: types.CSUpdateFailed,
 	}
-	defer func(msgCh chan Msg) {
+	defer func(eventCh chan Event) {
 		if r := recover(); r != nil {
-			err := fmt.Errorf("pannic info %s", r)
-			msg.Error = err
-			msgCh <- msg
+			log.Errorf("zke pannic info %s", r)
+			eventCh <- event
 		}
-	}(msgCh)
+	}(eventCh)
 
 	state, err := zkecmd.ClusterUpFromRest(ctx, cluster.Config, cluster.State, cluster.logCh)
 	if err != nil {
-		msg.Error = err
-		msgCh <- msg
+		eventCh <- event
+		log.Errorf("zke err info %s", err)
 		return
 	}
 
 	kubeConfigYaml := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
-	kubeConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfigYaml))
+	k8sConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfigYaml))
 	if err != nil {
-		msg.Error = err
-		msgCh <- msg
+		eventCh <- event
+		log.Errorf("zke err info %s", err)
 		return
 	}
 
-	kubeClient, err := client.New(kubeConfig, client.Options{})
+	kubeClient, err := client.New(k8sConfig, client.Options{})
 	if err != nil {
-		msg.Error = err
-		msgCh <- msg
+		eventCh <- event
+		log.Errorf("zke err info %s", err)
 		return
 	}
 
-	msg.KubeClient = kubeClient
-	msg.KubeConfig = kubeConfig
-	msg.Status = ClusterUpateComplete
-	msg.State = state
-	msgCh <- msg
+	event.KubeClient = kubeClient
+	event.K8sConfig = k8sConfig
+	event.Status = types.CSUpdateSuccess
+	event.State = state
+	eventCh <- event
 	return
 }
 

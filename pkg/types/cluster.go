@@ -7,12 +7,14 @@ import (
 type ClusterStatus string
 
 const (
-	CSRunning      ClusterStatus = "Running"
-	CSUnreachable  ClusterStatus = "Unreachable"
-	CSCreateing    ClusterStatus = "Createing"
-	CSCreateFailed ClusterStatus = "CreateFailed"
-	CSUpdateing    ClusterStatus = "Updateing"
-	CSUpdateFailed ClusterStatus = "UpdateFailed"
+	CSRunning       ClusterStatus = "Running"
+	CSUnreachable   ClusterStatus = "Unreachable"
+	CSCreateing     ClusterStatus = "Createing"
+	CSCreateFailed  ClusterStatus = "CreateFailed"
+	CSCreateSuccess ClusterStatus = "CreateSuccess"
+	CSUpdateing     ClusterStatus = "Updateing"
+	CSUpdateFailed  ClusterStatus = "UpdateFailed"
+	CSUpdateSuccess ClusterStatus = "UpdateSuccess"
 
 	ClusterCancel = "cancel"
 )

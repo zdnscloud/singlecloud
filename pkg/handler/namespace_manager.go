@@ -32,7 +32,7 @@ func (m *NamespaceManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Object.(*types.Namespace)

@@ -17,7 +17,6 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 type NodeManager struct {
@@ -69,7 +68,10 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node name address and roles can't be null")
 	}
 
-	if err := m.clusters.ZKE.UpdateForAddNode(cluster.Name, inner); err != nil {
+	cluster.status = types.CSUpdateing
+	m.clusters.moveToUnready(cluster)
+
+	if err := m.clusters.zkeManager.UpdateForAddNode(cluster.Name, inner, m.clusters.zkeEventCh); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
 
@@ -83,13 +85,13 @@ func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
-	zkeCluster := m.clusters.ZKE.Get(cluster.Name)
-	if zkeCluster.Status == zke.ClusterCreateing || zkeCluster.Status == zke.ClusterUpateing {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "cluster is createing or updateing")
-	}
+
 	target := ctx.Object.(*types.Node).GetID()
 
-	if err := m.clusters.ZKE.UpdateForDeleteNode(cluster.Name, target); err != nil {
+	cluster.status = types.CSUpdateing
+	m.clusters.moveToUnready(cluster)
+
+	if err := m.clusters.zkeManager.UpdateForDeleteNode(cluster.Name, target, m.clusters.zkeEventCh); err != nil {
 		return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
 	return nil
