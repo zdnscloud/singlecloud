@@ -6,26 +6,15 @@
     "resourceFields":{
         "name":{"type":"string"},
         "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
-        "hosts":{"type":"array","elemType":"hostspec"},
-        "status":{"type":"storagestatus"}
+        "hosts":{"type":"array","elemType":"string"},
+        "phase":{"type":"string"},
+        "size":{"type":"string"},
+        "usedsize":{"type":"string"},
+        "freesize":{"type":"string"},
+        "nodes":{"type":"array","elemType":"storagenode"},
+        "pvs":{"type":"array","elemType":"storagepv"}
     },
     "subResources":{
-        "hostspec":{
-            "nodeName":{"type":"string"},
-            "blockDevices":{"type":"array","elemType":"string"}
-        },
-        "storagestatus":{
-            "health":{"type":"string"},
-            "info":{"type":"storageinfo"}
-        },
-        "storageinfo":{
-            "name":{"type":"string"},
-            "size":{"type":"string"},
-            "usedsize":{"type":"string"},
-            "freesize":{"type":"string"},
-            "nodes":{"type":"array","elemType":"storagenode"},
-            "pvs":{"type":"array","elemType":"storagepv"}
-        },
         "storagenode":{
             "name":{"type":"string"},
             "size":{"type":"string"},
@@ -37,7 +26,8 @@
             "size":{"type":"string"},
             "usedsize":{"type":"string"},
             "freesize":{"type":"string"},
-            "pods":{"type":"array","elemType":"storagepod"}
+            "pods":{"type":"array","elemType":"storagepod"},
+            "node":{"type":"string"}
         },
         "storagepod":{
             "name":{"type":"string"}
@@ -49,24 +39,12 @@
         "fields":{
             "name":{"type":"string"},
             "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
-            "hosts":{"type":"array","elemType":"hostspec"}
-        },
-	"subResources": {
-            "hostspec":{
-                "nodeName":{"type":"string"},
-                "blockDevices":{"type":"array","elemType":"string"}
-            }
-	}
+            "hosts":{"type":"array","elemType":"string"}
+        }
     },
     "putParameters":{
         "fields":{
-            "hosts":{"type":"array","elemType":"hostspec"}
-        },
-	"subResources": {
-            "hostspec":{
-                "nodeName":{"type":"string"},
-                "blockDevices":{"type":"array","elemType":"string"}
-            }
-	}
+            "hosts":{"type":"array","elemType":"string"}
+        }
     }
 }
