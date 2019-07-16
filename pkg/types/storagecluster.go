@@ -15,8 +15,8 @@ type StorageCluster struct {
 	resttypes.Resource `json:",inline"`
 	Name               string        `json:"name"`
 	StorageType        string        `json:"storagetype"`
-	Hosts              []HostSpec    `json:"hosts"`
-	Health             string        `json:"health"`
+	Hosts              []string      `json:"hosts"`
+	Phase              string        `json:"phase"`
 	Size               string        `json:"size"`
 	UsedSize           string        `json:"usedsize"`
 	FreeSize           string        `json:"freesize"`
@@ -24,10 +24,11 @@ type StorageCluster struct {
 	PVs                []PV          `json:"pvs"`
 }
 
+/*
 type HostSpec struct {
 	NodeName     string   `json:"nodeName"`
 	BlockDevices []string `json:"blockDevices"`
-}
+}*/
 
 var StorageClusterType = resttypes.GetResourceType(StorageCluster{})
 
