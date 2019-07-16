@@ -165,6 +165,10 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	cluster.SetCreationTimestamp(c.CreateTime)
 	cluster.Status = types.CSUnreachable
 
+	if len(c.status) > 0 {
+		cluster.Status = c.status
+	}
+
 	version, err := c.KubeClient.ServerVersion()
 	if err != nil {
 		return cluster, err
@@ -351,6 +355,9 @@ func (m *ClusterManager) setClusterAfterCreatedOrUpdated(event zke.Event) error 
 				m.zkeManager[c.Name].State = event.State
 				m.moveToready(c)
 				m.eventBus.Pub(UpdateCluster{Cluster: c}, eventbus.ClusterEvent)
+			case types.CSUpdateFailed:
+				c.status = event.Status
+				m.moveToready(c)
 			default:
 				c.status = event.Status
 			}
