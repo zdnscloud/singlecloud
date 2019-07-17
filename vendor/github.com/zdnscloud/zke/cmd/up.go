@@ -18,6 +18,7 @@ import (
 	"github.com/zdnscloud/zke/zcloud"
 
 	"github.com/urfave/cli"
+	cementlog "github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client/config"
 	"k8s.io/client-go/kubernetes"
 )
@@ -332,8 +333,8 @@ func clusterUpFromCli(ctx *cli.Context) error {
 	return err
 }
 
-func ClusterUpFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logCh chan string) (*core.FullState, error) {
-	SetRestLogCh(logCh)
+func ClusterUpFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger) (*core.FullState, error) {
+	log.InitChannelLog(logger)
 
 	newClusterState, err := ClusterInitForRest(ctx, zkeConfig, clusterState, hosts.DialersOptions{})
 	if err != nil {
@@ -341,6 +342,8 @@ func ClusterUpFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, clusterS
 	}
 
 	newClusterState, err = ClusterUpForRest(ctx, newClusterState, hosts.DialersOptions{})
+
+	log.ZKELogger.Close()
 	return newClusterState, err
 }
 

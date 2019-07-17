@@ -63,6 +63,8 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
+	m.clusters.lock.Lock()
+	defer m.clusters.lock.Unlock()
 	inner := ctx.Object.(*types.Node)
 	if len(inner.Name) == 0 || len(inner.Roles) == 0 || len(inner.Address) == 0 {
 		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node name address and roles can't be null")
@@ -71,7 +73,7 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 	cluster.status = types.CSUpdateing
 	m.clusters.moveToUnready(cluster)
 
-	if err := m.clusters.zkeManager.UpdateForAddNode(cluster.Name, inner, m.clusters.zkeEventCh); err != nil {
+	if err := m.clusters.zkeManager[cluster.Name].AddNode(inner, m.clusters.zkeEventCh); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
 
@@ -86,12 +88,15 @@ func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
+	m.clusters.lock.Lock()
+	defer m.clusters.lock.Unlock()
+
 	target := ctx.Object.(*types.Node).GetID()
 
 	cluster.status = types.CSUpdateing
 	m.clusters.moveToUnready(cluster)
 
-	if err := m.clusters.zkeManager.UpdateForDeleteNode(cluster.Name, target, m.clusters.zkeEventCh); err != nil {
+	if err := m.clusters.zkeManager[cluster.Name].DeleteNode(target, m.clusters.zkeEventCh); err != nil {
 		return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
 	return nil

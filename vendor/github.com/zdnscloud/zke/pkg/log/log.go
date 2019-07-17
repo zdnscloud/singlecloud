@@ -8,22 +8,19 @@ import (
 )
 
 const (
-	DefaultLogger      = "console"
-	ChannelLogger      = "channel"
 	DefaultLogChLength = 50
 )
 
 var ZKELogger cementlog.Logger
-var ZKELoggerKind string = DefaultLogger
 var ZKELogLevel = cementlog.Info
 var ZKELogCh chan string
 
-func Init() {
-	if ZKELoggerKind == ChannelLogger {
-		ZKELogger, ZKELogCh = cementlog.NewLog4jBufLogger(DefaultLogChLength, ZKELogLevel)
-	} else {
-		ZKELogger = cementlog.NewLog4jConsoleLogger(ZKELogLevel)
-	}
+func InitConsoleLog() {
+	ZKELogger = cementlog.NewLog4jConsoleLogger(ZKELogLevel)
+}
+
+func InitChannelLog(l cementlog.Logger) {
+	ZKELogger = l
 }
 
 func Debugf(msg string, args ...interface{}) {

@@ -81,23 +81,3 @@ func ClusterInitForRest(ctx context.Context, zkeConfig *types.ZKEConfig, zkeFull
 	}
 	return &zkeState, nil
 }
-
-func SetRestLogCh(logCh chan string) {
-	log.ZKELoggerKind = log.ChannelLogger
-	log.Init()
-
-	go func() {
-		for {
-			l, ok := <-log.ZKELogCh
-			if !ok {
-				return
-			}
-			select {
-			case logCh <- l:
-			default:
-				<-logCh
-				logCh <- l
-			}
-		}
-	}()
-}

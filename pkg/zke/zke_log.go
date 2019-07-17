@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	MaxZKELogLines   = 100
+	MaxZKELogLines   = 50
 	WSPrefix         = "/apis/ws.zcloud.cn/v1"
 	WSZKELogPathTemp = WSPrefix + "/clusters/%s/zkelog"
 )
@@ -22,28 +22,31 @@ func (m ZKEManager) OpenLog(id string, r *http.Request, w http.ResponseWriter) {
 	}
 
 	if cluster.logCh == nil {
-		log.Warnf("cluster log channel is nil can't to open log console", id)
+		log.Warnf("only cluster in createing and updateing state can open zke log console", id)
 		return
 	}
+	cluster.openLog(id, r, w)
+}
 
-	if cluster.logSession != nil {
-		cluster.lock.Lock()
-		cluster.logSession.Close(503, "new connection is opened")
-		cluster.lock.Unlock()
+func (c *ZKECluster) openLog(id string, r *http.Request, w http.ResponseWriter) {
+	if c.logSession != nil {
+		c.lock.Lock()
+		c.logSession.Close(503, "new connection is opened")
+		c.lock.Unlock()
 	}
 
 	Sockjshandler := func(session sockjs.Session) {
 		done := make(chan struct{})
-		cluster.lock.Lock()
-		cluster.logSession = session
-		cluster.lock.Unlock()
+		c.lock.Lock()
+		c.logSession = session
+		c.lock.Unlock()
 		go func() {
 			<-session.ClosedNotify()
 			close(done)
 		}()
 
 		for {
-			logString, ok := <-cluster.logCh
+			logString, ok := <-c.logCh
 			if !ok {
 				break
 			}
@@ -53,10 +56,10 @@ func (m ZKEManager) OpenLog(id string, r *http.Request, w http.ResponseWriter) {
 				break
 			}
 		}
-		cluster.lock.Lock()
+		c.lock.Lock()
 		session.Close(503, "log is terminated")
-		cluster.logSession = nil
-		cluster.lock.Unlock()
+		c.logSession = nil
+		c.lock.Unlock()
 		<-done
 	}
 

@@ -9,10 +9,10 @@ type ClusterStatus string
 const (
 	CSRunning       ClusterStatus = "Running"
 	CSUnreachable   ClusterStatus = "Unreachable"
-	CSCreateing     ClusterStatus = "Createing"
+	CSCreateing     ClusterStatus = "Creating"
 	CSCreateFailed  ClusterStatus = "CreateFailed"
 	CSCreateSuccess ClusterStatus = "CreateSuccess"
-	CSUpdateing     ClusterStatus = "Updateing"
+	CSUpdateing     ClusterStatus = "Updating"
 	CSUpdateFailed  ClusterStatus = "UpdateFailed"
 	CSUpdateSuccess ClusterStatus = "UpdateSuccess"
 

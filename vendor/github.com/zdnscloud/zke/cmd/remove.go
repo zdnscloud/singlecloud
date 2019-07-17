@@ -14,6 +14,7 @@ import (
 	"github.com/zdnscloud/zke/types"
 
 	"github.com/urfave/cli"
+	cementlog "github.com/zdnscloud/cement/log"
 )
 
 func RemoveCommand() cli.Command {
@@ -103,7 +104,12 @@ func clusterRemoveFromCli(ctx *cli.Context) error {
 	return ClusterRemove(context.Background(), zkeConfig, hosts.DialersOptions{})
 }
 
-func ClusterRemoveFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, logCh chan string) error {
-	SetRestLogCh(logCh)
-	return ClusterRemoveWithoutCleanFiles(ctx, zkeConfig, hosts.DialersOptions{})
+func ClusterRemoveFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, logger cementlog.Logger) error {
+	log.InitChannelLog(logger)
+	if err := ClusterRemoveWithoutCleanFiles(ctx, zkeConfig, hosts.DialersOptions{}); err != nil {
+		log.ZKELogger.Close()
+		return err
+	}
+	log.ZKELogger.Close()
+	return nil
 }

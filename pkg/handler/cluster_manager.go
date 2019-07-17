@@ -108,7 +108,7 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	cluster.stopCh = stopCh
 	m.unReadyClusters = append(m.unReadyClusters, cluster)
 
-	if err := m.zkeManager.CreateCluster(inner, m.zkeEventCh); err != nil {
+	if err := m.zkeManager.Create(inner, m.zkeEventCh); err != nil {
 		return inner, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
 
@@ -133,7 +133,7 @@ func (m *ClusterManager) importExternalCluster(ctx *resttypes.Context, yaml []by
 		CreateTime: time.Now(),
 	}
 
-	kubeClient, k8sConfig, err := m.zkeManager.ImportCluster(cluster.Name, yaml, m.zkeEventCh)
+	kubeClient, k8sConfig, err := m.zkeManager.Import(cluster.Name, yaml, m.zkeEventCh)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
@@ -164,10 +164,6 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	cluster.Name = c.Name
 	cluster.SetCreationTimestamp(c.CreateTime)
 	cluster.Status = types.CSUnreachable
-
-	if len(c.status) > 0 {
-		cluster.Status = c.status
-	}
 
 	version, err := c.KubeClient.ServerVersion()
 	if err != nil {
@@ -245,12 +241,14 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 		}
 	}
 
-	if includeUnready := requestFlags.Get("includeUnready"); includeUnready == "true" {
-		for _, c := range m.unReadyClusters {
-			if m.authorizer.Authorize(user, c.Name, "") {
-				info := getUnreadyClusterInfo(c)
-				clusters = append(clusters, info)
-			}
+	if onlyReady := requestFlags.Get("onlyready"); onlyReady == "true" {
+		return clusters
+	}
+
+	for _, c := range m.unReadyClusters {
+		if m.authorizer.Authorize(user, c.Name, "") {
+			info := getUnreadyClusterInfo(c)
+			clusters = append(clusters, info)
 		}
 	}
 
@@ -276,6 +274,9 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	for i, c := range m.unReadyClusters {
 		if c.Name == target {
 			cluster = c
+			if cluster.status == types.CSCreateing || cluster.status == types.CSUpdateing {
+				m.zkeManager[cluster.Name].Cancel()
+			}
 			m.unReadyClusters = append(m.unReadyClusters[:i], m.unReadyClusters[i+1:]...)
 			break
 		}
@@ -335,11 +336,11 @@ func (m *ClusterManager) setClusterAfterCreatedOrUpdated(event zke.Event) error 
 		if c.Name == event.ID {
 			m.lock.Lock()
 			defer m.lock.Unlock()
+			m.zkeManager.Update(event)
 			switch event.Status {
 			case types.CSCreateSuccess:
 				c.KubeClient = event.KubeClient
 				c.K8sConfig = event.K8sConfig
-				m.zkeManager[c.Name].State = event.State
 				cache, err := cache.New(c.K8sConfig, cache.Options{})
 				if err != nil {
 					return err
@@ -352,11 +353,9 @@ func (m *ClusterManager) setClusterAfterCreatedOrUpdated(event zke.Event) error 
 			case types.CSUpdateSuccess:
 				c.KubeClient = event.KubeClient
 				c.K8sConfig = event.K8sConfig
-				m.zkeManager[c.Name].State = event.State
 				m.moveToready(c)
 				m.eventBus.Pub(UpdateCluster{Cluster: c}, eventbus.ClusterEvent)
 			case types.CSUpdateFailed:
-				c.status = event.Status
 				m.moveToready(c)
 			default:
 				c.status = event.Status
