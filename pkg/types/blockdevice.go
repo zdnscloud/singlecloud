@@ -40,3 +40,9 @@ type Dev struct {
 }
 
 var BlockDeviceType = resttypes.GetResourceType(BlockDevice{})
+
+type BlockDeviceSlice []BlockDevice
+
+func (s BlockDeviceSlice) Len() int           { return len(s) }
+func (s BlockDeviceSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s BlockDeviceSlice) Less(i, j int) bool { return s[i].Host.NodeName < s[j].Host.NodeName }

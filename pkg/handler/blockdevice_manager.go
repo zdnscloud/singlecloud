@@ -9,6 +9,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"io/ioutil"
 	"net/http"
+	"sort"
 )
 
 type BlockDeviceManager struct {
@@ -39,7 +40,7 @@ func (m *BlockDeviceManager) List(ctx *resttypes.Context) interface{} {
 }
 
 func getBlockDevices(cluster string, agent *clusteragent.AgentManager) ([]types.BlockDevice, error) {
-	res := make([]types.BlockDevice, 0)
+	var res types.BlockDeviceSlice
 	url := "/apis/agent.zcloud.cn/v1/blockinfos"
 	req, err := http.NewRequest("GET", clusteragent.ClusterAgentServiceHost+url, nil)
 	if err != nil {
@@ -59,5 +60,6 @@ func getBlockDevices(cluster string, agent *clusteragent.AgentManager) ([]types.
 		}
 		res = append(res, blockdevice)
 	}
+	sort.Sort(res)
 	return res, nil
 }
