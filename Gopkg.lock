@@ -18,6 +18,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:0f98f59e9a2f4070d66f0c9c39561f68fcd1dc837b22a852d28d0003aebd1b1e"
+  name = "github.com/boltdb/bolt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8"
+  version = "v1.3.1"
+
+[[projects]]
   digest = "1:53cbf1b46de4361416179ade70a96517fe6263301e65a7afa6afde8d92bab4c6"
   name = "github.com/coreos/etcd"
   packages = [
@@ -523,7 +531,7 @@
 
 [[projects]]
   branch = "node-manager"
-  digest = "1:81f8ec9a6042b2bfa9a04bd4cb4daab394dd9590f263247b030eebdae3ecec8b"
+  digest = "1:6f5b7a0703039877d9e837aa9d45a23ea7a29e1d4003abe5053ada365698a21b"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -551,7 +559,7 @@
     "zcloud/storage",
   ]
   pruneopts = "UT"
-  revision = "41013a6d88f00d1227260a25c2a5926effe3a787"
+  revision = "e03f71e12c8d47ada517c6df4f2a8b0f28b00426"
 
 [[projects]]
   branch = "master"
@@ -733,7 +741,7 @@
     "pkg/apis/apiextensions/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "b4b8a3310a453763e276c567dd33701d0a1057cb"
+  revision = "604b51f5711bfb7b1dfc456af1c8ebbb5bd253b8"
 
 [[projects]]
   branch = "release-1.13"
@@ -871,7 +879,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:42f4e088ef95ea0afe3817e73f70b1b3fc492306096b02f00a04e32cfe6f1367"
+  digest = "1:11127a6a0790c8f6d56683362f55c8af9789c6abdfd36da64d511eea68707174"
   name = "k8s.io/kube-aggregator"
   packages = [
     "pkg/apis/apiregistration",
@@ -879,7 +887,7 @@
     "pkg/apis/apiregistration/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "eca9bd52b3081ccf52a017c959ee0a401209d78c"
+  revision = "1971ed21b36056b14ccac854211bb4ee0d5bd7d3"
 
 [[projects]]
   branch = "release-1.13"
@@ -917,6 +925,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/boltdb/bolt",
     "github.com/dgrijalva/jwt-go",
     "github.com/gin-contrib/static",
     "github.com/gin-gonic/gin",

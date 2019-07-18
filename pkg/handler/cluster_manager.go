@@ -18,6 +18,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -58,9 +59,10 @@ type ClusterManager struct {
 	authenticator   *authentication.Authenticator
 	zkeEventCh      chan zke.Event
 	zkeManager      zke.ZKEManager
+	db              storage.DB
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub) *ClusterManager {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, db storage.DB) *ClusterManager {
 
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
@@ -68,9 +70,18 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 		eventBus:      eventBus,
 		zkeManager:    zke.New(),
 		zkeEventCh:    make(chan zke.Event),
+		db:            db,
 	}
 	go clusterMgr.zkeEventLoop()
 	return clusterMgr
+}
+
+func (m *ClusterManager) GetDB() storage.DB {
+	return m.db
+}
+
+func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {
+	return m.authorizer
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
@@ -79,6 +90,12 @@ func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	return m.get(clusterID)
+}
+
+func (m *ClusterManager) GetClusterByName(name string) *Cluster {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.get(name)
 }
 
 func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
@@ -304,6 +321,10 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 		user := getCurrentUser(ctx)
 		if user == "" {
 			return resttypes.NewAPIError(resttypes.Unauthorized, fmt.Sprintf("user is unknowned"))
+		}
+
+		if m.authorizer.GetUser(user) == nil {
+			m.authorizer.AddUser(&types.User{Name: user})
 		}
 
 		ancestors := resttypes.GetAncestors(ctx.Object)

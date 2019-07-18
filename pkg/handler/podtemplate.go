@@ -80,14 +80,20 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 }
 
 func createPVCs(cli client.Client, namespace string, k8sPVCs []corev1.PersistentVolumeClaim) error {
+	var err error
 	for _, pvc := range k8sPVCs {
 		pvc.Namespace = namespace
-		if err := cli.Create(context.TODO(), &pvc); err != nil {
-			return fmt.Errorf("create pvc %s with namespace %s failed: %s", pvc.Name, namespace, err.Error())
+		if e := cli.Create(context.TODO(), &pvc); e != nil {
+			err = fmt.Errorf("create pvc %s with namespace %s failed: %s", pvc.Name, namespace, e.Error())
+			break
 		}
 	}
 
-	return nil
+	if err != nil {
+		deletePVCs(cli, namespace, k8sPVCs)
+	}
+
+	return err
 }
 
 func getPVCs(cli client.Client, namespace string, templates []types.PersistentVolumeTemplate) ([]types.PersistentVolumeTemplate, error) {
