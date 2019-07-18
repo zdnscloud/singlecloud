@@ -118,6 +118,10 @@ func (m *UserManager) login(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.InvalidFormat, "login param not valid")
 	}
 
+	if up.Password == "" {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "empty password")
+	}
+
 	userName := ctx.Object.GetID()
 	token, err := m.authenticator.CreateToken(userName, up.Password)
 	if err != nil {

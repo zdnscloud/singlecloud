@@ -71,6 +71,13 @@ func (a *Authenticator) AddUser(user *types.User) error {
 	}
 }
 
+func (a *Authenticator) HasUser(userName string) bool {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	_, ok := a.users[userName]
+	return ok
+}
+
 func (a *Authenticator) DeleteUser(userName string) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()

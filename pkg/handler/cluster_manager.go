@@ -249,6 +249,10 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 			return resttypes.NewAPIError(resttypes.Unauthorized, fmt.Sprintf("user is unknowned"))
 		}
 
+		if m.authorizer.GetUser(user) == nil {
+			m.authorizer.AddUser(&types.User{Name: user})
+		}
+
 		ancestors := resttypes.GetAncestors(ctx.Object)
 		if len(ancestors) < 2 {
 			return nil
