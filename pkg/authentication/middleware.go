@@ -97,6 +97,7 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 	var authExceptionPaths = []string{
 		"/assets",
+		"/apis/ws.zcloud.cn",
 		WebRolePath,
 		WebCASRedirectPath,
 	}
