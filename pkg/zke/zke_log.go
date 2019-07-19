@@ -14,21 +14,21 @@ const (
 	WSZKELogPathTemp = WSPrefix + "/clusters/%s/zkelog"
 )
 
-func (m ZKEManager) OpenLog(id string, r *http.Request, w http.ResponseWriter) {
-	cluster, ok := m[id]
+func (m ZKEManager) OpenLog(clusterID string, r *http.Request, w http.ResponseWriter) {
+	cluster, ok := m[clusterID]
 	if !ok {
-		log.Warnf("cluster %s isn't found to open log console", id)
+		log.Warnf("cluster %s isn't found to open log console", clusterID)
 		return
 	}
 
 	if cluster.logCh == nil {
-		log.Warnf("only cluster in createing and updateing state can open zke log console", id)
+		log.Warnf("only cluster in createing and updateing state can open zke log console", clusterID)
 		return
 	}
-	cluster.openLog(id, r, w)
+	cluster.openLog(r, w)
 }
 
-func (c *ZKECluster) openLog(id string, r *http.Request, w http.ResponseWriter) {
+func (c *ZKECluster) openLog(r *http.Request, w http.ResponseWriter) {
 	if c.logSession != nil {
 		c.lock.Lock()
 		c.logSession.Close(503, "new connection is opened")
@@ -63,6 +63,6 @@ func (c *ZKECluster) openLog(id string, r *http.Request, w http.ResponseWriter) 
 		<-done
 	}
 
-	path := fmt.Sprintf(WSZKELogPathTemp, id)
+	path := fmt.Sprintf(WSZKELogPathTemp, c.ClusterName)
 	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
 }

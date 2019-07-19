@@ -73,7 +73,12 @@ func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, 
 	cluster.status = types.CSUpdateing
 	m.clusters.moveToUnready(cluster)
 
-	if err := m.clusters.zkeManager[cluster.Name].AddNode(inner, m.clusters.zkeEventCh); err != nil {
+	zc := m.clusters.zkeManager.Get(cluster.Name)
+	if zc == nil {
+		return nil, resttypes.NewAPIError(resttypes.ClusterUnavailable, fmt.Sprintf("not found zke cluster %s", cluster.Name))
+	}
+
+	if err := zc.AddNode(inner, m.clusters.zkeEventCh, m.clusters.GetDB()); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
 
@@ -96,7 +101,12 @@ func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	cluster.status = types.CSUpdateing
 	m.clusters.moveToUnready(cluster)
 
-	if err := m.clusters.zkeManager[cluster.Name].DeleteNode(target, m.clusters.zkeEventCh); err != nil {
+	zc := m.clusters.zkeManager.Get(cluster.Name)
+	if zc == nil {
+		return resttypes.NewAPIError(resttypes.ClusterUnavailable, fmt.Sprintf("not found zke cluster %s", cluster.Name))
+	}
+
+	if err := zc.DeleteNode(target, m.clusters.zkeEventCh, m.clusters.GetDB()); err != nil {
 		return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
 	return nil

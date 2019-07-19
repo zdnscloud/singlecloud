@@ -68,12 +68,61 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 		authorizer:    authorizer,
 		authenticator: authenticator,
 		eventBus:      eventBus,
-		zkeManager:    zke.New(),
 		zkeEventCh:    make(chan zke.Event),
 		db:            db,
 	}
+	zkeMgr, err := zke.New(db)
+	if err != nil {
+		log.Fatalf("create zke manager err %s", err)
+		return clusterMgr
+	}
+	clusterMgr.zkeManager = zkeMgr
+
+	if err := clusterMgr.initFromZkeManager(); err != nil {
+		log.Fatalf("init cluster manager err %s", err)
+		return clusterMgr
+	}
+
 	go clusterMgr.zkeEventLoop()
 	return clusterMgr
+}
+
+func (m *ClusterManager) initFromZkeManager() error {
+	for _, c := range m.zkeManager {
+		if err := m.addClusterFromZKECluster(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *ClusterManager) addClusterFromZKECluster(zc *zke.ZKECluster) error {
+	kubeClient, k8sConfig, err := zc.GetK8sClient(m.db)
+	if err != nil {
+		return err
+	}
+	cluster := &Cluster{
+		Name:       zc.ClusterName,
+		CreateTime: zc.CreateTime,
+	}
+
+	cluster.KubeClient = kubeClient
+	cluster.K8sConfig = k8sConfig
+
+	stopCh := make(chan struct{})
+	cluster.stopCh = stopCh
+	m.readyClusters = append(m.readyClusters, cluster)
+
+	cache, err := cache.New(cluster.K8sConfig, cache.Options{})
+	if err != nil {
+		return err
+	}
+	go cache.Start(cluster.stopCh)
+	cache.WaitForCacheSync(cluster.stopCh)
+	cluster.Cache = cache
+
+	m.eventBus.Pub(AddCluster{Cluster: cluster}, eventbus.ClusterEvent)
+	return nil
 }
 
 func (m *ClusterManager) GetDB() storage.DB {
@@ -125,14 +174,15 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	cluster.stopCh = stopCh
 	m.unReadyClusters = append(m.unReadyClusters, cluster)
 
-	if err := m.zkeManager.Create(inner, m.zkeEventCh); err != nil {
-		return inner, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
-	}
-
 	inner.SetID(inner.Name)
 	inner.SetType(types.ClusterType)
 	inner.Status = types.CSCreateing
 	inner.SetCreationTimestamp(cluster.CreateTime)
+
+	if err := m.zkeManager.Create(inner, m.zkeEventCh, m.GetDB()); err != nil {
+		return inner, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
+	}
+
 	return inner, nil
 }
 
@@ -150,7 +200,7 @@ func (m *ClusterManager) importExternalCluster(ctx *resttypes.Context, yaml []by
 		CreateTime: time.Now(),
 	}
 
-	kubeClient, k8sConfig, err := m.zkeManager.Import(cluster.Name, yaml, m.zkeEventCh)
+	kubeClient, k8sConfig, err := m.zkeManager.Import(cluster.CreateTime, yaml, m.zkeEventCh, m.GetDB())
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
@@ -299,7 +349,9 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		}
 	}
 
-	m.zkeManager.Delete(cluster.Name)
+	if err := m.zkeManager.Delete(cluster.Name, m.GetDB()); err != nil {
+		return resttypes.NewAPIError(resttypes.ServerError, err.Error())
+	}
 	m.lock.Unlock()
 
 	if cluster == nil {
@@ -357,7 +409,7 @@ func (m *ClusterManager) setClusterAfterCreatedOrUpdated(event zke.Event) error 
 		if c.Name == event.ID {
 			m.lock.Lock()
 			defer m.lock.Unlock()
-			m.zkeManager.Update(event)
+			m.zkeManager.UpdateFromEvent(event, m.GetDB())
 			switch event.Status {
 			case types.CSCreateSuccess:
 				c.KubeClient = event.KubeClient
@@ -414,8 +466,8 @@ func (m *ClusterManager) cancel(ctx *resttypes.Context) (interface{}, *resttypes
 		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", target))
 	}
 
-	zkeCluster, ok := m.zkeManager[target]
-	if !ok {
+	zkeCluster := m.zkeManager.Get(target)
+	if zkeCluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("zke state not found for %s to cancel", target))
 	}
 	if cluster.status == types.CSCreateing || cluster.status == types.CSUpdateing {
