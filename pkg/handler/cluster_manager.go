@@ -78,22 +78,19 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 	}
 	clusterMgr.zkeManager = zkeMgr
 
-	if err := clusterMgr.initFromZkeManager(); err != nil {
-		log.Fatalf("init cluster manager err %s", err)
-		return clusterMgr
-	}
+	clusterMgr.initFromZkeManager()
 
 	go clusterMgr.zkeEventLoop()
 	return clusterMgr
 }
 
-func (m *ClusterManager) initFromZkeManager() error {
+func (m *ClusterManager) initFromZkeManager() {
 	for _, c := range m.zkeManager {
 		if err := m.addClusterFromZKECluster(c); err != nil {
-			return err
+			log.Errorf("cluster %s is unready, will not add to singlecloud %s", c.ClusterName, err)
+			continue
 		}
 	}
-	return nil
 }
 
 func (m *ClusterManager) addClusterFromZKECluster(zc *zke.ZKECluster) error {
@@ -115,6 +112,7 @@ func (m *ClusterManager) addClusterFromZKECluster(zc *zke.ZKECluster) error {
 
 	cache, err := cache.New(cluster.K8sConfig, cache.Options{})
 	if err != nil {
+		log.Warnf(err.Error())
 		return err
 	}
 	go cache.Start(cluster.stopCh)
@@ -224,8 +222,8 @@ func (m *ClusterManager) importExternalCluster(ctx *resttypes.Context, yaml []by
 	return cluster, nil
 }
 
-func getClusterInfo(c *Cluster) (*types.Cluster, error) {
-	cluster := &types.Cluster{}
+func (m *ClusterManager) getClusterInfo(c *Cluster) (*types.Cluster, error) {
+	cluster := zke.ZKEClusterToSCCluster(m.zkeManager.Get(c.Name))
 	cluster.SetID(c.Name)
 	cluster.SetType(types.ClusterType)
 	cluster.Name = c.Name
@@ -271,7 +269,7 @@ func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	if cluster == nil {
 		return nil
 	}
-	info, _ := getClusterInfo(cluster)
+	info, _ := m.getClusterInfo(cluster)
 	return info
 }
 
@@ -303,7 +301,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	defer m.lock.Unlock()
 	for _, c := range m.readyClusters {
 		if m.authorizer.Authorize(user, c.Name, "") {
-			info, _ := getClusterInfo(c)
+			info, _ := m.getClusterInfo(c)
 			clusters = append(clusters, info)
 		}
 	}

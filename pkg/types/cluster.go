@@ -32,7 +32,7 @@ type Cluster struct {
 	types.Resource     `json:",inline"`
 	Nodes              []ClusterConfigNode `json:"nodes"`
 	Network            ClusterNetwork      `json:"network"`
-	PrivateRegistrys   []PrivateRegistry   `json:"privateRegistrys"`
+	PrivateRegistries  []PrivateRegistry   `json:"privateRegistrys"`
 	SingleCloudAddress string              `json:"singleCloudAddress"`
 	Name               string              `json:"name"`
 	Status             ClusterStatus       `json:"status"`

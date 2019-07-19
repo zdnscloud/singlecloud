@@ -315,9 +315,9 @@ func scClusterToZKECluster(cluster *types.Cluster) (*ZKECluster, error) {
 		config.Nodes = append(config.Nodes, n)
 	}
 
-	if cluster.PrivateRegistrys != nil {
+	if cluster.PrivateRegistries != nil {
 		config.PrivateRegistries = []zketypes.PrivateRegistry{}
-		for _, pr := range cluster.PrivateRegistrys {
+		for _, pr := range cluster.PrivateRegistries {
 			npr := zketypes.PrivateRegistry{
 				User:     pr.User,
 				Password: pr.Password,
@@ -338,4 +338,44 @@ func scClusterToZKECluster(cluster *types.Cluster) (*ZKECluster, error) {
 	}
 
 	return zc, nil
+}
+
+func ZKEClusterToSCCluster(zc *ZKECluster) *types.Cluster {
+	sc := &types.Cluster{}
+	sc.Name = zc.ClusterName
+	sc.SSHUser = zc.Option.SSHUser
+	sc.SSHPort = zc.Option.SSHPort
+	sc.SSHKey = zc.Option.SSHKey
+	sc.ClusterCidr = zc.Option.ClusterCidr
+	sc.ServiceCidr = zc.Option.ServiceCidr
+	sc.ClusterDomain = zc.Option.ClusterDomain
+	sc.ClusterDNSServiceIP = zc.Option.ClusterDNSServiceIP
+	sc.ClusterUpstreamDNS = zc.Option.ClusterUpstreamDNS
+	sc.Network.Plugin = zc.Network.Plugin
+	sc.SingleCloudAddress = zc.SingleCloudAddress
+
+	sc.Nodes = []types.ClusterConfigNode{}
+
+	for _, node := range zc.Nodes {
+		n := types.ClusterConfigNode{
+			NodeName: node.NodeName,
+			Address:  node.Address,
+			Role:     node.Role,
+		}
+		sc.Nodes = append(sc.Nodes, n)
+	}
+
+	if zc.PrivateRegistries != nil {
+		sc.PrivateRegistries = []types.PrivateRegistry{}
+		for _, pr := range zc.PrivateRegistries {
+			npr := types.PrivateRegistry{
+				User:     pr.User,
+				Password: pr.Password,
+				URL:      pr.URL,
+				CAcert:   pr.CAcert,
+			}
+			sc.PrivateRegistries = append(sc.PrivateRegistries, npr)
+		}
+	}
+	return sc
 }
