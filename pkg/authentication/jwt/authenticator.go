@@ -63,10 +63,11 @@ func (a *Authenticator) AddUser(user *types.User) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	if _, ok := a.users[user.Name]; ok {
+	name := user.GetID()
+	if _, ok := a.users[name]; ok {
 		return fmt.Errorf("user %s already exists", user)
 	} else {
-		a.users[user.Name] = user.Password
+		a.users[name] = user.Password
 		return nil
 	}
 }

@@ -43,7 +43,9 @@ func (a *Authenticator) Authenticate(w http.ResponseWriter, req *http.Request) (
 		user, err := a.CasAuth.Authenticate(w, req)
 		if err == nil && user != "" {
 			if !a.JwtAuth.HasUser(user) {
-				a.JwtAuth.AddUser(&types.User{Name: user})
+				newUser := &types.User{Name: user}
+				newUser.SetID(user)
+				a.JwtAuth.AddUser(newUser)
 			}
 		}
 		return user, err
