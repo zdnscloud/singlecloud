@@ -95,19 +95,21 @@ func (a *Authenticator) DeleteUser(userName string) error {
 	}
 }
 
-func (a *Authenticator) ResetPassword(userName string, old, new string) error {
+func (a *Authenticator) ResetPassword(userName string, old, new string, force bool) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	if old_, ok := a.users[userName]; ok {
-		if old_ != old {
-			return fmt.Errorf("password isn't correct")
-		}
-		a.users[userName] = new
-		return nil
-	} else {
+	old_, ok := a.users[userName]
+	if ok == false {
 		return fmt.Errorf("user %s doesn't exist", userName)
 	}
+
+	if !force && old_ != old {
+		return fmt.Errorf("password isn't correct")
+	}
+
+	a.users[userName] = new
+	return nil
 }
 
 func (a *Authenticator) CreateToken(userName, password string) (string, error) {
