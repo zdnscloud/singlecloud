@@ -1,0 +1,19 @@
+{
+    "resourceType": "chart",
+    "collectionName": "charts",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "versions": {"type": "array", "elemType": "chartVersion"}
+    },
+
+    "subResources": {
+        "chartVersion": {
+            "version": {"type": "string"},
+            "config": {"type": "json"}
+        }
+    },
+
+    "resourceMethods": [ "GET" ],
+    "collectionMethods": [ "GET" ]
+}

@@ -28,10 +28,12 @@ func main() {
 	var casServer string
 	var globaldnsAddr string
 	var showVersion bool
+	var chartDir string
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
 	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
+	flag.StringVar(&chartDir, "chart", "", "chart path")
 	flag.Parse()
 
 	if showVersion {
@@ -55,7 +57,7 @@ func main() {
 
 	authorizer := authorization.New()
 
-	app := handler.NewApp(authenticator, authorizer, eventBus)
+	app := handler.NewApp(authenticator, authorizer, eventBus, chartDir)
 
 	server, err := server.NewServer(authenticator.MiddlewareFunc())
 	if err != nil {

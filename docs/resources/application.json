@@ -1,0 +1,25 @@
+{
+    "resourceType": "application",
+    "collectionName": "applications",
+    "parentResources": [ "namespace" ],
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "version": {"type": "int"},
+        "chartName": {"type": "string"},
+        "chartVersion": {"type": "string"},
+        "configs": {"type": "json"}
+    },
+
+    "collectionMethods": [ "GET", "POST" ],
+    "resourceMethods": [ "DELETE" ],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": "true"},
+            "chartName": {"type": "string", "required": "true"},
+            "chartVersion": {"type": "string", "required": "true"},
+            "configs": {"type": "json", "required": "true"}
+        }
+    }
+}
