@@ -104,8 +104,18 @@ func (m *NamespaceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 
 	namespace := ctx.Object.(*types.Namespace)
-	err := deleteNamespace(cluster.KubeClient, namespace.GetID())
+	exits, err := IsExistsNamespaceInDB(m.clusters.GetDB(), UserQuotaTable, namespace.GetID())
 	if err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))
+	}
+
+	if exits {
+		return resttypes.NewAPIError(resttypes.PermissionDenied,
+			fmt.Sprintf("can`t delete namespace %s for other user using", namespace.GetID()))
+	}
+
+	if err := deleteNamespace(cluster.KubeClient, namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))
 		} else {

@@ -13,6 +13,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 var (
@@ -27,9 +28,9 @@ type App struct {
 	chartDir       string
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, chartDir string) *App {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, db storage.DB, chartDir string) *App {
 	return &App{
-		clusterManager: newClusterManager(authenticator, authorizer, eventBus),
+		clusterManager: newClusterManager(authenticator, authorizer, eventBus, db),
 		chartDir:       chartDir,
 	}
 }
@@ -69,6 +70,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.Chart{}, newChartManager(a.chartDir), types.SetChartSchema)
 	schemas.MustImportAndCustomize(&Version, types.Application{}, newApplicationManager(a.clusterManager, a.chartDir), types.SetApplicationSchema)
 	schemas.MustImport(&Version, charts.Redis{})
+	schemas.MustImportAndCustomize(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager), types.SetUserQuotaSchema)
 
 	server := api.NewAPIServer()
 	if err := server.AddSchemas(schemas); err != nil {
