@@ -257,7 +257,7 @@ SSH设置：用户名，ssh私钥文件，ssh连接端口。
 
 **描述**
 
-创建集群时，集群状态初始为creating，若创建成功（zcloud可正常访问api server），则集群状态变为running。若失败，集群状态为createfailed。
+创建集群时，集群状态初始为creating，若创建成功（zcloud可正常访问api server），则集群状态变为running。若失败，集群状态为unavailable。
 
 #### **5.2.4.3**      编辑集群
 
@@ -275,7 +275,7 @@ SSH设置：用户名，ssh私钥文件，ssh连接端口。
 
 编辑节点实际上是对集群的update操作，当节点变动时，集群状态会有两种结果running - updating - running成功，这时查看节点数会相应的减少或增加。running - updating -running失败。如果发生失败，添加的节点信息不做保存。并且节点数量不会变。
 
-集群处于任意状态，均可被删除。只有为running状态的集群才允许做节点变更。
+running与unavailable状态的集群才允许做节点变更。
 
 若集群只剩余一个master节点，则不允许删除master节点；
 
@@ -293,7 +293,7 @@ SSH设置：用户名，ssh私钥文件，ssh连接端口。
 
 只支持单个集群的删除操作。删除只是把zcloud的集群记录删除，k8s方面不做任何清理。
 
-集群删除：任意状态下，都可以重新部署集群。
+集群删除：在unreachable，running，unavailable状态下可以操作删除集群。
 
  
 
@@ -307,16 +307,6 @@ SSH设置：用户名，ssh私钥文件，ssh连接端口。
 
 只有running状态下的集群才可用
 
-#### **5.2.4.6**      重新安装部署集群
-
-**功能点描述：**重新初始化集群，或是安装失败进行重新安装。
-
-**使用角色：**管理员。
-
-**描述**
-
-重新部署：running，unreachable，createfail，initializing可以重新部署
-
 #### **5.2.4.7**      取消操作
 
 **功能点描述：**对集群的创建或更新动作进行取消。
@@ -325,7 +315,7 @@ SSH设置：用户名，ssh私钥文件，ssh连接端口。
 
 **描述**
 
-仅creating和updating状态可查看创建/更新日志。
+creating，updating，connecting状态可进行取消操作。
 
 #### **5.2.4.8**      查看创建或更新日志
 
