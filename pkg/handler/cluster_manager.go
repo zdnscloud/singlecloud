@@ -109,13 +109,12 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	defer m.lock.Unlock()
 
 	inner := ctx.Object.(*types.Cluster)
-	if c := m.getReady(inner.Name); c != nil {
+	if c := m.get(inner.Name); c != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
 	}
 
 	cluster := newClusterWithFsm(inner.Name, string(types.CSInit))
 	cluster.CreateTime = time.Now()
-	cluster.fsm.Event(zke.CreateEvent, m)
 
 	inner.SetID(inner.Name)
 	inner.SetType(types.ClusterType)
@@ -124,6 +123,7 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	if err := m.zkeManager.CreateCluster(inner); err != nil {
 		return inner, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
+	cluster.fsm.Event(zke.CreateEvent, m)
 	return inner, nil
 }
 
@@ -366,6 +366,7 @@ func newClusterWithFsm(name string, initStatus string) *Cluster {
 		fsm.Events{
 			{Name: zke.InitEvent, Src: []string{string(types.CSInit)}, Dst: string(types.CSConnecting)},
 			{Name: zke.InitSuccessEvent, Src: []string{string(types.CSConnecting)}, Dst: string(types.CSRunning)},
+			{Name: zke.InitFailedEvent, Src: []string{string(types.CSConnecting)}, Dst: string(types.CSUnavailable)},
 			{Name: zke.CreateEvent, Src: []string{string(types.CSInit)}, Dst: string(types.CSCreateing)},
 			{Name: zke.CreateSuccessEvent, Src: []string{string(types.CSCreateing)}, Dst: string(types.CSRunning)},
 			{Name: zke.CreateFailedEvent, Src: []string{string(types.CSCreateing)}, Dst: string(types.CSUnavailable)},

@@ -15,10 +15,12 @@ import (
 )
 
 const (
-	ZKEManagerTable = "zke_manager"
+	ZKEManagerTable     = "zke_manager"
+	ZKEEventBufferCount = 50
 
 	InitEvent           = "init"
 	InitSuccessEvent    = "initSuccess"
+	InitFailedEvent     = "initFailed"
 	CreateEvent         = "create"
 	CreateSuccessEvent  = "createSuccess"
 	CreateFailedEvent   = "createFailed"
@@ -31,8 +33,6 @@ const (
 	CancelSuccessEvent  = "cancelSuccess"
 	DeleteEvent         = "delete"
 )
-
-type EventType string
 
 type ZKEManager struct {
 	clusters map[string]*ZKECluster
@@ -136,7 +136,7 @@ func (m *ZKEManager) UpdateClusterState(e Event) error {
 func New(db storage.DB) (*ZKEManager, error) {
 	mgr := &ZKEManager{
 		clusters: make(map[string]*ZKECluster),
-		EventCh:  make(chan Event),
+		EventCh:  make(chan Event, ZKEEventBufferCount),
 		db:       db,
 	}
 	go mgr.initFromDB()

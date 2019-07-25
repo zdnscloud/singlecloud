@@ -233,6 +233,10 @@ func (c *ZKECluster) initProcess(ctx context.Context, kubeConfig string, eventCh
 			k8sConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfig))
 			if err != nil {
 				log.Errorf("build cluster %s k8sconfig err %s", c.ClusterName, err)
+				eventCh <- Event{
+					ClusterID: c.ClusterName,
+					Type:      InitFailedEvent,
+				}
 				return
 			}
 
