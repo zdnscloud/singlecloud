@@ -233,6 +233,7 @@ func (c *ZKECluster) initProcess(ctx context.Context, kubeConfig string, eventCh
 			k8sConfig, err := gok8sconfig.BuildConfig([]byte(kubeConfig))
 			if err != nil {
 				log.Errorf("build cluster %s k8sconfig err %s", c.ClusterName, err)
+				return
 			}
 
 			kubeClient, err := client.New(k8sConfig, client.Options{})
@@ -243,6 +244,7 @@ func (c *ZKECluster) initProcess(ctx context.Context, kubeConfig string, eventCh
 					KubeClient: kubeClient,
 					Type:       InitSuccessEvent,
 				}
+				return
 			}
 		}
 	}

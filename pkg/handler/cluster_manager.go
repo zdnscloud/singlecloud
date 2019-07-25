@@ -329,6 +329,10 @@ func (m *ClusterManager) eventLoop() {
 			}
 		} else {
 			c := m.get(e.ClusterID)
+			if c == nil {
+				log.Errorf("recive %s event but cluster %s desn't exist", e.Type, e.ClusterID)
+				continue
+			}
 			c.fsm.Event(e.Type, m, e)
 		}
 		m.lock.Unlock()
