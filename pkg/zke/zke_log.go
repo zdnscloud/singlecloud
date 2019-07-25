@@ -58,7 +58,6 @@ func (c *ZKECluster) openLog(r *http.Request, w http.ResponseWriter) {
 		}
 		c.lock.Lock()
 		session.Close(503, "log is terminated")
-		c.logSession = nil
 		c.lock.Unlock()
 		<-done
 	}
