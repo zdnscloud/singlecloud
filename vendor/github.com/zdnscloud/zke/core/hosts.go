@@ -26,35 +26,39 @@ const (
 )
 
 func (c *Cluster) TunnelHosts(ctx context.Context) error {
-	c.InactiveHosts = make([]*hosts.Host, 0)
-	uniqueHosts := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		c.InactiveHosts = make([]*hosts.Host, 0)
+		uniqueHosts := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
 
-	_, err := errgroup.Batch(uniqueHosts, func(h interface{}) (interface{}, error) {
-		runHost := h.(*hosts.Host)
-		if err := runHost.TunnelUp(ctx, c.DockerDialerFactory, c.Option.PrefixPath, c.Option.KubernetesVersion); err != nil {
-			// Unsupported Docker version is NOT a connectivity problem that we can recover! So we bail out on it
-			if strings.Contains(err.Error(), "Unsupported Docker version found") {
-				return nil, err
+		_, err := errgroup.Batch(uniqueHosts, func(h interface{}) (interface{}, error) {
+			runHost := h.(*hosts.Host)
+			if err := runHost.TunnelUp(ctx, c.DockerDialerFactory, c.Option.PrefixPath, c.Option.KubernetesVersion); err != nil {
+				// Unsupported Docker version is NOT a connectivity problem that we can recover! So we bail out on it
+				if strings.Contains(err.Error(), "Unsupported Docker version found") {
+					return nil, err
+				}
+				log.Warnf(ctx, "Failed to set up SSH tunneling for host [%s]: %v", runHost.Address, err)
+				c.InactiveHosts = append(c.InactiveHosts, runHost)
 			}
-			log.Warnf(ctx, "Failed to set up SSH tunneling for host [%s]: %v", runHost.Address, err)
-			c.InactiveHosts = append(c.InactiveHosts, runHost)
+			return nil, nil
+		})
+		if err != nil {
+			return err
 		}
-		return nil, nil
-	})
-	if err != nil {
-		return err
-	}
 
-	for _, host := range c.InactiveHosts {
-		log.Warnf(ctx, "Removing host [%s] from node lists", host.Address)
-		c.EtcdHosts = removeFromHosts(host, c.EtcdHosts)
-		c.ControlPlaneHosts = removeFromHosts(host, c.ControlPlaneHosts)
-		c.WorkerHosts = removeFromHosts(host, c.WorkerHosts)
-		c.EdgeHosts = removeFromHosts(host, c.EdgeHosts)
-		c.ZKEConfig.Nodes = removeFromZKENodes(host.ZKEConfigNode, c.ZKEConfig.Nodes)
+		for _, host := range c.InactiveHosts {
+			log.Warnf(ctx, "Removing host [%s] from node lists", host.Address)
+			c.EtcdHosts = removeFromHosts(host, c.EtcdHosts)
+			c.ControlPlaneHosts = removeFromHosts(host, c.ControlPlaneHosts)
+			c.WorkerHosts = removeFromHosts(host, c.WorkerHosts)
+			c.EdgeHosts = removeFromHosts(host, c.EdgeHosts)
+			c.ZKEConfig.Nodes = removeFromZKENodes(host.ZKEConfigNode, c.ZKEConfig.Nodes)
+		}
+		return ValidateHostCount(c)
 	}
-	return ValidateHostCount(c)
-
 }
 
 func (c *Cluster) InvertIndexHosts() error {
@@ -120,31 +124,36 @@ func (c *Cluster) InvertIndexHosts() error {
 }
 
 func (c *Cluster) SetUpHosts(ctx context.Context) error {
-	if c.AuthnStrategies[AuthnX509Provider] {
-		log.Infof(ctx, "[certificates] Deploying kubernetes certificates to Cluster nodes")
-		forceDeploy := false
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		if c.AuthnStrategies[AuthnX509Provider] {
+			log.Infof(ctx, "[certificates] Deploying kubernetes certificates to Cluster nodes")
+			forceDeploy := false
 
-		hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
-		_, err := errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
-			return nil, pki.DeployCertificatesOnPlaneHost(ctx, h.(*hosts.Host), c.ZKEConfig, c.Certificates, c.Image.CertDownloader, c.PrivateRegistriesMap, forceDeploy)
-		})
-		if err != nil {
-			return err
-		}
-
-		if err := rebuildLocalAdminConfig(ctx, c); err != nil {
-			return err
-		}
-		log.Infof(ctx, "[certificates] Successfully deployed kubernetes certificates to Cluster nodes")
-
-		if c.Authentication.Webhook != nil {
-			if err := deployFile(ctx, hostList, c.Image.Alpine, c.PrivateRegistriesMap, authnWebhookFileName, c.Authentication.Webhook.ConfigFile); err != nil {
+			hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
+			_, err := errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
+				return nil, pki.DeployCertificatesOnPlaneHost(ctx, h.(*hosts.Host), c.ZKEConfig, c.Certificates, c.Image.CertDownloader, c.PrivateRegistriesMap, forceDeploy)
+			})
+			if err != nil {
 				return err
 			}
-			log.Infof(ctx, "[%s] Successfully deployed authentication webhook config Cluster nodes", authnWebhookFileName)
+
+			if err := rebuildLocalAdminConfig(ctx, c); err != nil {
+				return err
+			}
+			log.Infof(ctx, "[certificates] Successfully deployed kubernetes certificates to Cluster nodes")
+
+			if c.Authentication.Webhook != nil {
+				if err := deployFile(ctx, hostList, c.Image.Alpine, c.PrivateRegistriesMap, authnWebhookFileName, c.Authentication.Webhook.ConfigFile); err != nil {
+					return err
+				}
+				log.Infof(ctx, "[%s] Successfully deployed authentication webhook config Cluster nodes", authnWebhookFileName)
+			}
 		}
+		return nil
 	}
-	return nil
 }
 
 func CheckEtcdHostsChanged(kubeCluster, currentCluster *Cluster) error {

@@ -47,50 +47,71 @@ func ReconcileCluster(ctx context.Context, kubeCluster, currentCluster *Cluster)
 }
 
 func reconcileWorker(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
-	// worker deleted first to avoid issues when worker+controller on same host
-	log.Debugf("[reconcile] Check worker hosts to be deleted")
-	wpToDelete := hosts.GetToDeleteHosts(currentCluster.WorkerHosts, kubeCluster.WorkerHosts, kubeCluster.InactiveHosts)
-	for _, toDeleteHost := range wpToDelete {
-		toDeleteHost.IsWorker = false
-		if err := hosts.DeleteNode(ctx, toDeleteHost, kubeClient, toDeleteHost.IsControl); err != nil {
-			return fmt.Errorf("Failed to delete worker node [%s] from cluster: %v", toDeleteHost.Address, err)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		// worker deleted first to avoid issues when worker+controller on same host
+		log.Debugf("[reconcile] Check worker hosts to be deleted")
+		wpToDelete := hosts.GetToDeleteHosts(currentCluster.WorkerHosts, kubeCluster.WorkerHosts, kubeCluster.InactiveHosts)
+		for _, toDeleteHost := range wpToDelete {
+			toDeleteHost.IsWorker = false
+			if err := hosts.DeleteNode(ctx, toDeleteHost, kubeClient, toDeleteHost.IsControl); err != nil {
+				return fmt.Errorf("Failed to delete worker node [%s] from cluster: %v", toDeleteHost.Address, err)
+			}
+			// attempting to clean services/files on the host
+			if err := reconcileHost(ctx, toDeleteHost, true, false, currentCluster.Image.Alpine, currentCluster.DockerDialerFactory, currentCluster.PrivateRegistriesMap, currentCluster.Option.PrefixPath, currentCluster.Option.KubernetesVersion); err != nil {
+				log.Warnf(ctx, "[reconcile] Couldn't clean up worker node [%s]: %v", toDeleteHost.Address, err)
+				continue
+			}
 		}
-		// attempting to clean services/files on the host
-		if err := reconcileHost(ctx, toDeleteHost, true, false, currentCluster.Image.Alpine, currentCluster.DockerDialerFactory, currentCluster.PrivateRegistriesMap, currentCluster.Option.PrefixPath, currentCluster.Option.KubernetesVersion); err != nil {
-			log.Warnf(ctx, "[reconcile] Couldn't clean up worker node [%s]: %v", toDeleteHost.Address, err)
-			continue
+		// attempt to remove unschedulable taint
+		toAddHosts := hosts.GetToAddHosts(currentCluster.WorkerHosts, kubeCluster.WorkerHosts)
+		for _, host := range toAddHosts {
+			host.UpdateWorker = true
+			if host.IsEtcd {
+				host.ToDelTaints = append(host.ToDelTaints, unschedulableEtcdTaint)
+			}
+			if host.IsControl {
+				host.ToDelTaints = append(host.ToDelTaints, unschedulableControlTaint)
+			}
 		}
+		return nil
 	}
-	// attempt to remove unschedulable taint
-	toAddHosts := hosts.GetToAddHosts(currentCluster.WorkerHosts, kubeCluster.WorkerHosts)
-	for _, host := range toAddHosts {
-		host.UpdateWorker = true
-		if host.IsEtcd {
-			host.ToDelTaints = append(host.ToDelTaints, unschedulableEtcdTaint)
-		}
-		if host.IsControl {
-			host.ToDelTaints = append(host.ToDelTaints, unschedulableControlTaint)
-		}
-	}
-	return nil
 }
 
 func reconcileControl(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
-	log.Debugf("[reconcile] Check Control plane hosts to be deleted")
-	selfDeleteAddress, err := getLocalConfigAddress(kubeCluster.Certificates[pki.KubeAdminCertName].Config)
-	if err != nil {
-		return err
-	}
-	cpToDelete := hosts.GetToDeleteHosts(currentCluster.ControlPlaneHosts, kubeCluster.ControlPlaneHosts, kubeCluster.InactiveHosts)
-	// move the current host in local kubeconfig to the end of the list
-	for i, toDeleteHost := range cpToDelete {
-		if toDeleteHost.Address == selfDeleteAddress {
-			cpToDelete = append(cpToDelete[:i], cpToDelete[i+1:]...)
-			cpToDelete = append(cpToDelete, toDeleteHost)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		log.Debugf("[reconcile] Check Control plane hosts to be deleted")
+		selfDeleteAddress, err := getLocalConfigAddress(kubeCluster.Certificates[pki.KubeAdminCertName].Config)
+		if err != nil {
+			return err
 		}
-	}
-	if len(cpToDelete) == len(currentCluster.ControlPlaneHosts) {
-		log.Infof(ctx, "[reconcile] Deleting all current controlplane nodes, skipping deleting from k8s cluster")
+		cpToDelete := hosts.GetToDeleteHosts(currentCluster.ControlPlaneHosts, kubeCluster.ControlPlaneHosts, kubeCluster.InactiveHosts)
+		// move the current host in local kubeconfig to the end of the list
+		for i, toDeleteHost := range cpToDelete {
+			if toDeleteHost.Address == selfDeleteAddress {
+				cpToDelete = append(cpToDelete[:i], cpToDelete[i+1:]...)
+				cpToDelete = append(cpToDelete, toDeleteHost)
+			}
+		}
+		if len(cpToDelete) == len(currentCluster.ControlPlaneHosts) {
+			log.Infof(ctx, "[reconcile] Deleting all current controlplane nodes, skipping deleting from k8s cluster")
+			// rebuilding local admin config to enable saving cluster state
+			// if err := RebuildKubeconfigForRest(ctx, kubeCluster); err != nil {
+			if err := rebuildLocalAdminConfig(ctx, kubeCluster); err != nil {
+				return err
+			}
+			return nil
+		}
+		for _, toDeleteHost := range cpToDelete {
+			if err := cleanControlNode(ctx, kubeCluster, currentCluster, toDeleteHost); err != nil {
+				return err
+			}
+		}
 		// rebuilding local admin config to enable saving cluster state
 		// if err := RebuildKubeconfigForRest(ctx, kubeCluster); err != nil {
 		if err := rebuildLocalAdminConfig(ctx, kubeCluster); err != nil {
@@ -98,17 +119,6 @@ func reconcileControl(ctx context.Context, currentCluster, kubeCluster *Cluster,
 		}
 		return nil
 	}
-	for _, toDeleteHost := range cpToDelete {
-		if err := cleanControlNode(ctx, kubeCluster, currentCluster, toDeleteHost); err != nil {
-			return err
-		}
-	}
-	// rebuilding local admin config to enable saving cluster state
-	// if err := RebuildKubeconfigForRest(ctx, kubeCluster); err != nil {
-	if err := rebuildLocalAdminConfig(ctx, kubeCluster); err != nil {
-		return err
-	}
-	return nil
 }
 
 func reconcileHost(ctx context.Context, toDeleteHost *hosts.Host, worker, etcd bool, cleanerImage string, dialerFactory hosts.DialerFactory, prsMap map[string]types.PrivateRegistry, clusterPrefixPath string, clusterVersion string) error {
@@ -141,57 +151,62 @@ func reconcileHost(ctx context.Context, toDeleteHost *hosts.Host, worker, etcd b
 }
 
 func reconcileEtcd(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
-	log.Infof(ctx, "[reconcile] Check etcd hosts to be deleted")
-	// get tls for the first current etcd host
-	clientCert := cert.EncodeCertPEM(currentCluster.Certificates[pki.KubeNodeCertName].Certificate)
-	clientkey := cert.EncodePrivateKeyPEM(currentCluster.Certificates[pki.KubeNodeCertName].Key)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		log.Infof(ctx, "[reconcile] Check etcd hosts to be deleted")
+		// get tls for the first current etcd host
+		clientCert := cert.EncodeCertPEM(currentCluster.Certificates[pki.KubeNodeCertName].Certificate)
+		clientkey := cert.EncodePrivateKeyPEM(currentCluster.Certificates[pki.KubeNodeCertName].Key)
 
-	etcdToDelete := hosts.GetToDeleteHosts(currentCluster.EtcdHosts, kubeCluster.EtcdHosts, kubeCluster.InactiveHosts)
-	for _, etcdHost := range etcdToDelete {
-		if err := services.RemoveEtcdMember(ctx, etcdHost, kubeCluster.EtcdHosts, clientCert, clientkey); err != nil {
-			log.Warnf(ctx, "[reconcile] %v", err)
-			continue
+		etcdToDelete := hosts.GetToDeleteHosts(currentCluster.EtcdHosts, kubeCluster.EtcdHosts, kubeCluster.InactiveHosts)
+		for _, etcdHost := range etcdToDelete {
+			if err := services.RemoveEtcdMember(ctx, etcdHost, kubeCluster.EtcdHosts, clientCert, clientkey); err != nil {
+				log.Warnf(ctx, "[reconcile] %v", err)
+				continue
+			}
+			if err := hosts.DeleteNode(ctx, etcdHost, kubeClient, etcdHost.IsControl); err != nil {
+				log.Warnf(ctx, "Failed to delete etcd node [%s] from cluster: %v", etcdHost.Address, err)
+				continue
+			}
+			// attempting to clean services/files on the host
+			if err := reconcileHost(ctx, etcdHost, false, true, currentCluster.Image.Alpine, currentCluster.DockerDialerFactory, currentCluster.PrivateRegistriesMap, currentCluster.Option.PrefixPath, currentCluster.Option.KubernetesVersion); err != nil {
+				log.Warnf(ctx, "[reconcile] Couldn't clean up etcd node [%s]: %v", etcdHost.Address, err)
+				continue
+			}
 		}
-		if err := hosts.DeleteNode(ctx, etcdHost, kubeClient, etcdHost.IsControl); err != nil {
-			log.Warnf(ctx, "Failed to delete etcd node [%s] from cluster: %v", etcdHost.Address, err)
-			continue
+		log.Infof(ctx, "[reconcile] Check etcd hosts to be added")
+		etcdToAdd := hosts.GetToAddHosts(currentCluster.EtcdHosts, kubeCluster.EtcdHosts)
+		for _, etcdHost := range etcdToAdd {
+			etcdHost.ToAddEtcdMember = true
 		}
-		// attempting to clean services/files on the host
-		if err := reconcileHost(ctx, etcdHost, false, true, currentCluster.Image.Alpine, currentCluster.DockerDialerFactory, currentCluster.PrivateRegistriesMap, currentCluster.Option.PrefixPath, currentCluster.Option.KubernetesVersion); err != nil {
-			log.Warnf(ctx, "[reconcile] Couldn't clean up etcd node [%s]: %v", etcdHost.Address, err)
-			continue
-		}
-	}
-	log.Infof(ctx, "[reconcile] Check etcd hosts to be added")
-	etcdToAdd := hosts.GetToAddHosts(currentCluster.EtcdHosts, kubeCluster.EtcdHosts)
-	for _, etcdHost := range etcdToAdd {
-		etcdHost.ToAddEtcdMember = true
-	}
-	for _, etcdHost := range etcdToAdd {
-		// Check if the host already part of the cluster -- this will cover cluster with lost quorum
-		isEtcdMember, err := services.IsEtcdMember(ctx, etcdHost, kubeCluster.EtcdHosts, clientCert, clientkey)
-		if err != nil {
-			return err
-		}
-		if !isEtcdMember {
-			if err := services.AddEtcdMember(ctx, etcdHost, kubeCluster.EtcdHosts, clientCert, clientkey); err != nil {
+		for _, etcdHost := range etcdToAdd {
+			// Check if the host already part of the cluster -- this will cover cluster with lost quorum
+			isEtcdMember, err := services.IsEtcdMember(ctx, etcdHost, kubeCluster.EtcdHosts, clientCert, clientkey)
+			if err != nil {
+				return err
+			}
+			if !isEtcdMember {
+				if err := services.AddEtcdMember(ctx, etcdHost, kubeCluster.EtcdHosts, clientCert, clientkey); err != nil {
+					return err
+				}
+			}
+			etcdHost.ToAddEtcdMember = false
+			kubeCluster.setReadyEtcdHosts()
+
+			etcdNodePlanMap := make(map[string]types.ZKENodePlan)
+			for _, etcdReadyHost := range kubeCluster.EtcdReadyHosts {
+				etcdNodePlanMap[etcdReadyHost.Address] = BuildZKEConfigNodePlan(ctx, kubeCluster, etcdReadyHost, etcdReadyHost.DockerInfo)
+			}
+			// this will start the newly added etcd node and make sure it started correctly before restarting other node
+			// https://github.com/etcd-io/etcd/blob/master/Documentation/op-guide/runtime-configuration.md#add-a-new-member
+			if err := services.ReloadEtcdCluster(ctx, kubeCluster.EtcdReadyHosts, etcdHost, clientCert, clientkey, currentCluster.PrivateRegistriesMap, etcdNodePlanMap, kubeCluster.Image.Alpine); err != nil {
 				return err
 			}
 		}
-		etcdHost.ToAddEtcdMember = false
-		kubeCluster.setReadyEtcdHosts()
-
-		etcdNodePlanMap := make(map[string]types.ZKENodePlan)
-		for _, etcdReadyHost := range kubeCluster.EtcdReadyHosts {
-			etcdNodePlanMap[etcdReadyHost.Address] = BuildZKEConfigNodePlan(ctx, kubeCluster, etcdReadyHost, etcdReadyHost.DockerInfo)
-		}
-		// this will start the newly added etcd node and make sure it started correctly before restarting other node
-		// https://github.com/etcd-io/etcd/blob/master/Documentation/op-guide/runtime-configuration.md#add-a-new-member
-		if err := services.ReloadEtcdCluster(ctx, kubeCluster.EtcdReadyHosts, etcdHost, clientCert, clientkey, currentCluster.PrivateRegistriesMap, etcdNodePlanMap, kubeCluster.Image.Alpine); err != nil {
-			return err
-		}
+		return nil
 	}
-	return nil
 }
 
 func syncLabels(ctx context.Context, currentCluster, kubeCluster *Cluster) {

@@ -7,7 +7,6 @@ import (
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/log"
-	"github.com/zdnscloud/zke/pkg/util"
 	"github.com/zdnscloud/zke/types"
 
 	"github.com/docker/docker/api/types/container"
@@ -46,8 +45,6 @@ const (
 	KubeControllerPort = 10252
 	KubeletPort        = 10250
 	KubeproxyPort      = 10256
-
-	WorkerThreads = util.WorkerThreads
 )
 
 type RestartFunc func(context.Context, *hosts.Host) error

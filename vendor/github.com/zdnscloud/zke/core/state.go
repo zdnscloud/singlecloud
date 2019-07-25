@@ -42,57 +42,71 @@ func (c *Cluster) UpdateClusterCurrentState(ctx context.Context, fullState *Full
 	return fullState.WriteStateFile(ctx, pki.StateFileName)
 }
 
-func (c *Cluster) UpdateClusterCurrentStateForRest(ctx context.Context, fullState *FullState) (*FullState, error) {
-	fullState.CurrentState.ZKEConfig = c.ZKEConfig.DeepCopy()
-	fullState.CurrentState.CertificatesBundle = c.Certificates
-	return fullState, nil
+func (c *Cluster) UpdateClusterCurrentStateForSingleCloud(ctx context.Context, fullState *FullState) (*FullState, error) {
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("cluster build has beed canceled")
+	default:
+		fullState.CurrentState.ZKEConfig = c.ZKEConfig.DeepCopy()
+		fullState.CurrentState.CertificatesBundle = c.Certificates
+		return fullState, nil
+	}
 }
 
 func (c *Cluster) GetClusterState(ctx context.Context, fullState *FullState) (*Cluster, error) {
-	var err error
-	if fullState.CurrentState.ZKEConfig == nil {
-		return nil, nil
-	}
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("cluster build has beed canceled")
+	default:
+		var err error
+		if fullState.CurrentState.ZKEConfig == nil {
+			return nil, nil
+		}
 
-	currentCluster, err := InitClusterObject(ctx, fullState.CurrentState.ZKEConfig)
-	if err != nil {
-		return nil, err
-	}
-	currentCluster.Certificates = fullState.CurrentState.CertificatesBundle
+		currentCluster, err := InitClusterObject(ctx, fullState.CurrentState.ZKEConfig)
+		if err != nil {
+			return nil, err
+		}
+		currentCluster.Certificates = fullState.CurrentState.CertificatesBundle
 
-	// resetup dialers
-	dialerOptions := hosts.GetDialerOptions(c.DockerDialerFactory, c.K8sWrapTransport)
-	if err := currentCluster.SetupDialers(ctx, dialerOptions); err != nil {
-		return nil, err
+		// resetup dialers
+		dialerOptions := hosts.GetDialerOptions(c.DockerDialerFactory, c.K8sWrapTransport)
+		if err := currentCluster.SetupDialers(ctx, dialerOptions); err != nil {
+			return nil, err
+		}
+		return currentCluster, nil
 	}
-	return currentCluster, nil
 }
 
 func SaveFullStateToKubernetes(ctx context.Context, kubeCluster *Cluster, fullState *FullState) error {
-
-	log.Infof(ctx, "[state] Saving full cluster state to Kubernetes")
-	stateFile, err := json.Marshal(*fullState)
-	if err != nil {
-		return err
-	}
-	timeout := make(chan bool, 1)
-	go func() {
-		for {
-			_, err := k8s.UpdateConfigMap(kubeCluster.KubeClient, stateFile, FullStateConfigMapName)
-			if err != nil {
-				time.Sleep(time.Second * 5)
-				continue
-			}
-			log.Infof(ctx, "[state] Successfully Saved full cluster state to Kubernetes ConfigMap: %s", StateConfigMapName)
-			timeout <- true
-			break
-		}
-	}()
 	select {
-	case <-timeout:
-		return nil
-	case <-time.After(time.Second * UpdateStateTimeout):
-		return fmt.Errorf("[state] Timeout waiting for kubernetes to be ready")
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		log.Infof(ctx, "[state] Saving full cluster state to Kubernetes")
+		stateFile, err := json.Marshal(*fullState)
+		if err != nil {
+			return err
+		}
+		timeout := make(chan bool, 1)
+		go func() {
+			for {
+				_, err := k8s.UpdateConfigMap(kubeCluster.KubeClient, stateFile, FullStateConfigMapName)
+				if err != nil {
+					time.Sleep(time.Second * 5)
+					continue
+				}
+				log.Infof(ctx, "[state] Successfully Saved full cluster state to Kubernetes ConfigMap: %s", StateConfigMapName)
+				timeout <- true
+				break
+			}
+		}()
+		select {
+		case <-timeout:
+			return nil
+		case <-time.After(time.Second * UpdateStateTimeout):
+			return fmt.Errorf("[state] Timeout waiting for kubernetes to be ready")
+		}
 	}
 }
 

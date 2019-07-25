@@ -427,12 +427,13 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2da4ae92974af02d25298fd8c090f5a5dc6726cae059a258c31bb696fb622226"
+  digest = "1:8ab9b7679209ff342040877aabcf39df4cf946cc291ad8d92989b8c4f8477ec8"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
     "domaintree",
     "errgroup",
+    "fsm",
     "httprouter",
     "log",
     "log/log4go",
@@ -531,7 +532,7 @@
 
 [[projects]]
   branch = "node-manager"
-  digest = "1:6f5b7a0703039877d9e837aa9d45a23ea7a29e1d4003abe5053ada365698a21b"
+  digest = "1:365cba6a5921c779e7596a322452f01944f8b2fb3ae58b28328eb2852d352c1a"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -559,7 +560,7 @@
     "zcloud/storage",
   ]
   pruneopts = "UT"
-  revision = "e03f71e12c8d47ada517c6df4f2a8b0f28b00426"
+  revision = "b13c0675f2fa3e209205059762aeda620d8f20bd"
 
 [[projects]]
   branch = "master"
@@ -931,6 +932,7 @@
     "github.com/gin-gonic/gin",
     "github.com/gorilla/websocket",
     "github.com/kyokomi/emoji",
+    "github.com/zdnscloud/cement/fsm",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",
     "github.com/zdnscloud/cement/set",

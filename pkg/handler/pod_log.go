@@ -67,7 +67,7 @@ func (m *ClusterManager) openPodLog(cluster *Cluster, namespace, pod, container 
 }
 
 func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string, r *http.Request, w http.ResponseWriter) {
-	cluster := m.get(clusterID)
+	cluster := m.getReady(clusterID)
 	if cluster == nil {
 		log.Warnf("cluster %s isn't found to open console", clusterID)
 		return

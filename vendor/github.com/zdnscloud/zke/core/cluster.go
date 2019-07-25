@@ -66,51 +66,61 @@ const (
 )
 
 func (c *Cluster) DeployControlPlane(ctx context.Context) error {
-	// Deploy Etcd Plane
-	etcdNodePlanMap := make(map[string]types.ZKENodePlan)
-	// Build etcd node plan map
-	for _, etcdHost := range c.EtcdHosts {
-		etcdNodePlanMap[etcdHost.Address] = BuildZKEConfigNodePlan(ctx, c, etcdHost, etcdHost.DockerInfo)
-	}
-	if len(c.Core.Etcd.ExternalURLs) > 0 {
-		log.Infof(ctx, "[etcd] External etcd connection string has been specified, skipping etcd plane")
-	} else {
-		if err := services.RunEtcdPlane(ctx, c.EtcdHosts, etcdNodePlanMap, c.PrivateRegistriesMap, c.Image.Alpine, c.Core.Etcd, c.Certificates); err != nil {
-			return fmt.Errorf("[etcd] Failed to bring up Etcd Plane: %v", err)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		// Deploy Etcd Plane
+		etcdNodePlanMap := make(map[string]types.ZKENodePlan)
+		// Build etcd node plan map
+		for _, etcdHost := range c.EtcdHosts {
+			etcdNodePlanMap[etcdHost.Address] = BuildZKEConfigNodePlan(ctx, c, etcdHost, etcdHost.DockerInfo)
 		}
+		if len(c.Core.Etcd.ExternalURLs) > 0 {
+			log.Infof(ctx, "[etcd] External etcd connection string has been specified, skipping etcd plane")
+		} else {
+			if err := services.RunEtcdPlane(ctx, c.EtcdHosts, etcdNodePlanMap, c.PrivateRegistriesMap, c.Image.Alpine, c.Core.Etcd, c.Certificates); err != nil {
+				return fmt.Errorf("[etcd] Failed to bring up Etcd Plane: %v", err)
+			}
+		}
+		// Deploy Control plane
+		cpNodePlanMap := make(map[string]types.ZKENodePlan)
+		// Build cp node plan map
+		for _, cpHost := range c.ControlPlaneHosts {
+			cpNodePlanMap[cpHost.Address] = BuildZKEConfigNodePlan(ctx, c, cpHost, cpHost.DockerInfo)
+		}
+		if err := services.RunControlPlane(ctx, c.ControlPlaneHosts,
+			c.PrivateRegistriesMap,
+			cpNodePlanMap,
+			c.Image.Alpine,
+			c.Certificates); err != nil {
+			return fmt.Errorf("[controlPlane] Failed to bring up Control Plane: %v", err)
+		}
+		return nil
 	}
-	// Deploy Control plane
-	cpNodePlanMap := make(map[string]types.ZKENodePlan)
-	// Build cp node plan map
-	for _, cpHost := range c.ControlPlaneHosts {
-		cpNodePlanMap[cpHost.Address] = BuildZKEConfigNodePlan(ctx, c, cpHost, cpHost.DockerInfo)
-	}
-	if err := services.RunControlPlane(ctx, c.ControlPlaneHosts,
-		c.PrivateRegistriesMap,
-		cpNodePlanMap,
-		c.Image.Alpine,
-		c.Certificates); err != nil {
-		return fmt.Errorf("[controlPlane] Failed to bring up Control Plane: %v", err)
-	}
-	return nil
 }
 
 func (c *Cluster) DeployWorkerPlane(ctx context.Context) error {
-	// Deploy Worker plane
-	workerNodePlanMap := make(map[string]types.ZKENodePlan)
-	// Build cp node plan map
-	allHosts := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
-	for _, workerHost := range allHosts {
-		workerNodePlanMap[workerHost.Address] = BuildZKEConfigNodePlan(ctx, c, workerHost, workerHost.DockerInfo)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		// Deploy Worker plane
+		workerNodePlanMap := make(map[string]types.ZKENodePlan)
+		// Build cp node plan map
+		allHosts := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
+		for _, workerHost := range allHosts {
+			workerNodePlanMap[workerHost.Address] = BuildZKEConfigNodePlan(ctx, c, workerHost, workerHost.DockerInfo)
+		}
+		if err := services.RunWorkerPlane(ctx, allHosts,
+			c.PrivateRegistriesMap,
+			workerNodePlanMap,
+			c.Certificates,
+			c.Image.Alpine); err != nil {
+			return fmt.Errorf("[workerPlane] Failed to bring up Worker Plane: %v", err)
+		}
+		return nil
 	}
-	if err := services.RunWorkerPlane(ctx, allHosts,
-		c.PrivateRegistriesMap,
-		workerNodePlanMap,
-		c.Certificates,
-		c.Image.Alpine); err != nil {
-		return fmt.Errorf("[workerPlane] Failed to bring up Worker Plane: %v", err)
-	}
-	return nil
 }
 
 func ParseConfig(clusterFile string) (*types.ZKEConfig, error) {
@@ -123,39 +133,49 @@ func ParseConfig(clusterFile string) (*types.ZKEConfig, error) {
 }
 
 func InitClusterObject(ctx context.Context, zkeConfig *types.ZKEConfig) (*Cluster, error) {
-	// basic cluster object from zkeConfig
-	c := &Cluster{
-		AuthnStrategies:      make(map[string]bool),
-		ZKEConfig:            *zkeConfig,
-		PrivateRegistriesMap: make(map[string]types.PrivateRegistry),
-	}
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("cluster build has beed canceled")
+	default:
+		// basic cluster object from zkeConfig
+		c := &Cluster{
+			AuthnStrategies:      make(map[string]bool),
+			ZKEConfig:            *zkeConfig,
+			PrivateRegistriesMap: make(map[string]types.PrivateRegistry),
+		}
 
-	// Setting cluster Defaults
-	err := c.setClusterDefaults(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// set cluster kubernetesService ip
-	c.KubernetesServiceIP, err = pki.GetKubernetesServiceIP(c.Core.KubeAPI.ServiceClusterIPRange)
-	if err != nil {
-		return c, fmt.Errorf("Failed to get Kubernetes Service IP: %v", err)
-	}
+		// Setting cluster Defaults
+		err := c.setClusterDefaults(ctx)
+		if err != nil {
+			return nil, err
+		}
+		// set cluster kubernetesService ip
+		c.KubernetesServiceIP, err = pki.GetKubernetesServiceIP(c.Core.KubeAPI.ServiceClusterIPRange)
+		if err != nil {
+			return c, fmt.Errorf("Failed to get Kubernetes Service IP: %v", err)
+		}
 
-	// set hosts groups
-	if err := c.InvertIndexHosts(); err != nil {
-		return nil, fmt.Errorf("Failed to classify hosts from config file: %v", err)
+		// set hosts groups
+		if err := c.InvertIndexHosts(); err != nil {
+			return nil, fmt.Errorf("Failed to classify hosts from config file: %v", err)
+		}
+		// validate cluster configuration
+		if err := c.ValidateCluster(); err != nil {
+			return nil, fmt.Errorf("Failed to validate cluster: %v", err)
+		}
+		return c, nil
 	}
-	// validate cluster configuration
-	if err := c.ValidateCluster(); err != nil {
-		return nil, fmt.Errorf("Failed to validate cluster: %v", err)
-	}
-	return c, nil
 }
 
 func (c *Cluster) SetupDialers(ctx context.Context, dailersOptions hosts.DialersOptions) error {
-	c.DockerDialerFactory = dailersOptions.DockerDialerFactory
-	c.K8sWrapTransport = dailersOptions.K8sWrapTransport
-	return nil
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		c.DockerDialerFactory = dailersOptions.DockerDialerFactory
+		c.K8sWrapTransport = dailersOptions.K8sWrapTransport
+		return nil
+	}
 }
 
 func RebuildKubeconfig(ctx context.Context, kubeCluster *Cluster, clusterState *FullState) error {
@@ -224,47 +244,57 @@ func getLocalAdminConfigWithNewAddress(kubeConfigYaml, cpAddress string, cluster
 }
 
 func ApplyAuthzResources(ctx context.Context, zkeConfig types.ZKEConfig, k8sClient *kubernetes.Clientset, dailersOptions hosts.DialersOptions) error {
-	// dialer factories are not needed here since we are not uses docker only k8s jobs
-	kubeCluster, err := InitClusterObject(ctx, &zkeConfig)
-	if err != nil {
-		return err
-	}
-	if err := kubeCluster.SetupDialers(ctx, dailersOptions); err != nil {
-		return err
-	}
-	if len(kubeCluster.ControlPlaneHosts) == 0 {
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		// dialer factories are not needed here since we are not uses docker only k8s jobs
+		kubeCluster, err := InitClusterObject(ctx, &zkeConfig)
+		if err != nil {
+			return err
+		}
+		if err := kubeCluster.SetupDialers(ctx, dailersOptions); err != nil {
+			return err
+		}
+		if len(kubeCluster.ControlPlaneHosts) == 0 {
+			return nil
+		}
+		if err := authz.ApplyJobDeployerServiceAccount(ctx, k8sClient); err != nil {
+			return fmt.Errorf("Failed to apply the ServiceAccount needed for job execution: %v", err)
+		}
+		if kubeCluster.Authorization.Mode == NoneAuthorizationMode {
+			return nil
+		}
+		if kubeCluster.Authorization.Mode == services.RBACAuthorizationMode {
+			if err := authz.ApplySystemNodeClusterRoleBinding(ctx, k8sClient); err != nil {
+				return fmt.Errorf("Failed to apply the ClusterRoleBinding needed for node authorization: %v", err)
+			}
+		}
+		if kubeCluster.Authorization.Mode == services.RBACAuthorizationMode && kubeCluster.Core.KubeAPI.PodSecurityPolicy {
+			if err := authz.ApplyDefaultPodSecurityPolicy(ctx, k8sClient); err != nil {
+				return fmt.Errorf("Failed to apply default PodSecurityPolicy: %v", err)
+			}
+			if err := authz.ApplyDefaultPodSecurityPolicyRole(ctx, k8sClient); err != nil {
+				return fmt.Errorf("Failed to apply default PodSecurityPolicy ClusterRole and ClusterRoleBinding: %v", err)
+			}
+		}
 		return nil
 	}
-	if err := authz.ApplyJobDeployerServiceAccount(ctx, k8sClient); err != nil {
-		return fmt.Errorf("Failed to apply the ServiceAccount needed for job execution: %v", err)
-	}
-	if kubeCluster.Authorization.Mode == NoneAuthorizationMode {
-		return nil
-	}
-	if kubeCluster.Authorization.Mode == services.RBACAuthorizationMode {
-		if err := authz.ApplySystemNodeClusterRoleBinding(ctx, k8sClient); err != nil {
-			return fmt.Errorf("Failed to apply the ClusterRoleBinding needed for node authorization: %v", err)
-		}
-	}
-	if kubeCluster.Authorization.Mode == services.RBACAuthorizationMode && kubeCluster.Core.KubeAPI.PodSecurityPolicy {
-		if err := authz.ApplyDefaultPodSecurityPolicy(ctx, k8sClient); err != nil {
-			return fmt.Errorf("Failed to apply default PodSecurityPolicy: %v", err)
-		}
-		if err := authz.ApplyDefaultPodSecurityPolicyRole(ctx, k8sClient); err != nil {
-			return fmt.Errorf("Failed to apply default PodSecurityPolicy ClusterRole and ClusterRoleBinding: %v", err)
-		}
-	}
-	return nil
 }
 
 func (c *Cluster) SyncLabelsAndTaints(ctx context.Context, currentCluster *Cluster) error {
-	if currentCluster != nil {
-		cpToDelete := hosts.GetToDeleteHosts(currentCluster.ControlPlaneHosts, c.ControlPlaneHosts, c.InactiveHosts)
-		if len(cpToDelete) == len(currentCluster.ControlPlaneHosts) {
-			log.Infof(ctx, "[sync] Cleaning left control plane nodes from reconcilation")
-			for _, toDeleteHost := range cpToDelete {
-				if err := cleanControlNode(ctx, c, currentCluster, toDeleteHost); err != nil {
-					return err
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		if currentCluster != nil {
+			cpToDelete := hosts.GetToDeleteHosts(currentCluster.ControlPlaneHosts, c.ControlPlaneHosts, c.InactiveHosts)
+			if len(cpToDelete) == len(currentCluster.ControlPlaneHosts) {
+				log.Infof(ctx, "[sync] Cleaning left control plane nodes from reconcilation")
+				for _, toDeleteHost := range cpToDelete {
+					if err := cleanControlNode(ctx, c, currentCluster, toDeleteHost); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -318,17 +348,22 @@ func setNodeAnnotationsLabelsTaints(k8sClient *kubernetes.Clientset, host *hosts
 }
 
 func (c *Cluster) PrePullK8sImages(ctx context.Context) error {
-	log.Infof(ctx, "Pre-pulling kubernetes images")
-	hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
-	_, err := errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
-		runHost := h.(*hosts.Host)
-		return nil, docker.UseLocalOrPull(ctx, runHost.DClient, runHost.Address, c.Image.Kubernetes, "pre-deploy", c.PrivateRegistriesMap)
-	})
-	if err != nil {
-		return err
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		log.Infof(ctx, "Pre-pulling kubernetes images")
+		hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
+		_, err := errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
+			runHost := h.(*hosts.Host)
+			return nil, docker.UseLocalOrPull(ctx, runHost.DClient, runHost.Address, c.Image.Kubernetes, "pre-deploy", c.PrivateRegistriesMap)
+		})
+		if err != nil {
+			return err
+		}
+		log.Infof(ctx, "Kubernetes images pulled successfully")
+		return nil
 	}
-	log.Infof(ctx, "Kubernetes images pulled successfully")
-	return nil
 }
 
 func RestartClusterPods(ctx context.Context, kubeCluster *Cluster) error {

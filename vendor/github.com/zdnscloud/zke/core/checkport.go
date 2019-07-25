@@ -84,34 +84,39 @@ var EtcdClientPortList = []string{
 }
 
 func (c *Cluster) CheckClusterPorts(ctx context.Context, currentCluster *Cluster) error {
-	if currentCluster != nil {
-		newEtcdHost := hosts.GetToAddHosts(currentCluster.EtcdHosts, c.EtcdHosts)
-		newControlPlanHosts := hosts.GetToAddHosts(currentCluster.ControlPlaneHosts, c.ControlPlaneHosts)
-		newWorkerHosts := hosts.GetToAddHosts(currentCluster.WorkerHosts, c.WorkerHosts)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		if currentCluster != nil {
+			newEtcdHost := hosts.GetToAddHosts(currentCluster.EtcdHosts, c.EtcdHosts)
+			newControlPlanHosts := hosts.GetToAddHosts(currentCluster.ControlPlaneHosts, c.ControlPlaneHosts)
+			newWorkerHosts := hosts.GetToAddHosts(currentCluster.WorkerHosts, c.WorkerHosts)
 
-		if len(newEtcdHost) == 0 &&
-			len(newWorkerHosts) == 0 &&
-			len(newControlPlanHosts) == 0 {
-			log.Infof(ctx, "[network] No hosts added existing cluster, skipping port check")
-			return nil
+			if len(newEtcdHost) == 0 &&
+				len(newWorkerHosts) == 0 &&
+				len(newControlPlanHosts) == 0 {
+				log.Infof(ctx, "[network] No hosts added existing cluster, skipping port check")
+				return nil
+			}
 		}
-	}
-	if err := c.deployTCPPortListeners(ctx, currentCluster); err != nil {
-		return err
-	}
-	if err := c.runServicePortChecks(ctx); err != nil {
-		return err
-	}
-	// Skip kubeapi check if we are using custom k8s dialer
-	if c.K8sWrapTransport == nil {
-		if err := c.checkKubeAPIPort(ctx); err != nil {
+		if err := c.deployTCPPortListeners(ctx, currentCluster); err != nil {
 			return err
 		}
-	} else {
-		log.Infof(ctx, "[network] Skipping kubeapi port check")
-	}
+		if err := c.runServicePortChecks(ctx); err != nil {
+			return err
+		}
+		// Skip kubeapi check if we are using custom k8s dialer
+		if c.K8sWrapTransport == nil {
+			if err := c.checkKubeAPIPort(ctx); err != nil {
+				return err
+			}
+		} else {
+			log.Infof(ctx, "[network] Skipping kubeapi port check")
+		}
 
-	return c.removeTCPPortListeners(ctx)
+		return c.removeTCPPortListeners(ctx)
+	}
 }
 
 func (c *Cluster) checkKubeAPIPort(ctx context.Context) error {

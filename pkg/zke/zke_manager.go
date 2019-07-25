@@ -2,7 +2,6 @@ package zke
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,31 +10,50 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gok8s/client/config"
-	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 	"k8s.io/client-go/rest"
 )
 
 const (
 	ZKEManagerTable = "zke_manager"
+
+	InitEvent           = "init"
+	InitSuccessEvent    = "initSuccess"
+	CreateEvent         = "create"
+	CreateSuccessEvent  = "createSuccess"
+	CreateFailedEvent   = "createFailed"
+	UpdateEvent         = "update"
+	UpdateSuccessEvent  = "updateSuccess"
+	UpdateFailedEvent   = "updateFailed"
+	GetInfoFailedEvent  = "getInfoFailed"
+	GetInfoSuccessEvent = "getInfoSuccess"
+	CancelEvent         = "cancel"
+	CancelSuccessEvent  = "cancelSuccess"
+	DeleteEvent         = "delete"
 )
 
-type ZKEManager map[string]*ZKECluster
+type EventType string
 
-type Event struct {
-	ID         string //cluster name
-	Status     types.ClusterStatus
-	State      State
-	KubeClient client.Client
-	K8sConfig  *rest.Config
+type ZKEManager struct {
+	clusters map[string]*ZKECluster
+	EventCh  chan Event
+	db       storage.DB
 }
 
-func (m ZKEManager) Create(c *types.Cluster, eventCh chan Event, db storage.DB) error {
-	if _, ok := m[c.Name]; ok {
+type Event struct {
+	Type          string
+	ClusterID     string
+	IsUnavailable bool
+	State         State
+	KubeClient    client.Client
+	K8sConfig     *rest.Config
+	CreateTime    time.Time
+}
+
+func (m *ZKEManager) CreateCluster(c *types.Cluster) error {
+	if c := m.GetCluster(c.Name); c != nil {
 		return fmt.Errorf("duplicate cluster name")
 	}
-
 	zc, err := scClusterToZKECluster(c)
 	if err != nil {
 		return err
@@ -43,135 +61,116 @@ func (m ZKEManager) Create(c *types.Cluster, eventCh chan Event, db storage.DB) 
 
 	ctx, cancel := context.WithCancel(context.Background())
 	zc.cancel = cancel
-	m[c.Name] = zc
+	m.clusters[c.Name] = zc
 
-	go zc.create(ctx, eventCh, db)
+	state := State{
+		ZKEConfig:    zc.ZKEConfig,
+		CreateTime:   zc.CreateTime,
+		IsUnvailable: true,
+	}
+	if err := m.createOrUpdateState(c.Name, state); err != nil {
+		return err
+	}
+
+	go zc.create(ctx, m.EventCh)
 	return nil
 }
 
-func (m ZKEManager) Import(createTime time.Time, yaml []byte, eventCh chan Event, db storage.DB) (client.Client, *rest.Config, error) {
-	zc := &ZKECluster{
-		CreateTime: createTime,
+func (m *ZKEManager) UpdateCluster(c *types.Cluster) error {
+	oldZC := m.GetCluster(c.Name)
+	if oldZC == nil {
+		return fmt.Errorf("cluster %s desn't exist in zke-manager", c.Name)
 	}
-
-	s := State{
-		FullState:  &core.FullState{},
-		CreateTime: createTime,
-	}
-
-	if err := json.Unmarshal(yaml, s.FullState); err != nil {
-		return nil, nil, err
-	}
-	s.DesiredState.CertificatesBundle = pki.TransformPEMToObject(s.DesiredState.CertificatesBundle)
-	s.CurrentState.CertificatesBundle = pki.TransformPEMToObject(s.CurrentState.CertificatesBundle)
-	zc.ZKEConfig = s.CurrentState.ZKEConfig.DeepCopy()
-
-	k8sConfYaml := s.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
-	k8sConf, err := config.BuildConfig([]byte(k8sConfYaml))
+	newZC, err := scClusterToZKECluster(c)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
+	oldZC = newZC
 
-	kubeClient, err := client.New(k8sConf, client.Options{})
+	ctx, cancel := context.WithCancel(context.Background())
+	newZC.cancel = cancel
+	state, err := m.getState(c.Name)
+	state.IsUnvailable = true
+	if err := m.createOrUpdateState(c.Name, state); err != nil {
+		return err
+	}
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-
-	if _, ok := m[zc.ClusterName]; ok {
-		return kubeClient, k8sConf, fmt.Errorf("duplicate cluster name")
-	}
-
-	m[zc.ClusterName] = zc
-	if err := zc.updateOrCreateState(db, s); err != nil {
-		return kubeClient, k8sConf, err
-	}
-	return kubeClient, k8sConf, nil
+	go newZC.update(ctx, state, m.EventCh)
+	return nil
 }
 
-func (m ZKEManager) Get(id string) *ZKECluster {
-	c, ok := m[id]
+func (m *ZKEManager) GetCluster(id string) *ZKECluster {
+	c, ok := m.clusters[id]
 	if ok {
 		return c
 	}
 	return nil
 }
 
-func (m ZKEManager) Delete(id string, db storage.DB) error {
-	_, ok := m[id]
-	if !ok {
-		log.Warnf("cluster %s not found to delete it's state", id)
+func (m *ZKEManager) DeleteCluster(id string) error {
+	c := m.GetCluster(id)
+	if c == nil {
+		log.Warnf("cluster %s desn't exist to delete it's state", id)
 		return nil
 	}
-	if err := m.Get(id).deleteState(db); err != nil {
+	if err := m.deleteState(id); err != nil {
 		return err
 	}
-	delete(m, id)
+	delete(m.clusters, id)
 	return nil
 }
 
-func (m ZKEManager) UpdateFromEvent(e Event, db storage.DB) error {
-	c, ok := m[e.ID]
-	if !ok {
-		log.Warnf("cluster %s not found to update it's zke state", e.ID)
+func (m *ZKEManager) UpdateClusterState(e Event) error {
+	c := m.GetCluster(e.ClusterID)
+	if c == nil {
+		log.Warnf("cluster %s desn't exist to update it's state", e.ClusterID)
 	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
-	switch e.Status {
-	case types.CSCreateSuccess:
-		if err := c.updateOrCreateState(db, e.State); err != nil {
-			return err
-		}
-		c.logCh = nil
-	case types.CSCreateFailed:
-		c.logCh = nil
-	case types.CSUpdateSuccess:
-		if err := c.updateOrCreateState(db, e.State); err != nil {
-			return err
-		}
-		c.logCh = nil
-	case types.CSUpdateFailed:
-		config, err := c.getConfigFromDB(db)
-		if err != nil {
-			return err
-		}
-		c.ZKEConfig = config
-		c.logCh = nil
-	}
-	return nil
+	c.logCh = nil
+	return m.createOrUpdateState(e.ClusterID, e.State)
 }
 
-func New(db storage.DB) (ZKEManager, error) {
-	mgr := map[string]*ZKECluster{}
-	table, err := db.CreateOrGetTable(ZKEManagerTable)
-	if err != nil {
-		return mgr, fmt.Errorf("get table failed %s", err.Error())
+func New(db storage.DB) (*ZKEManager, error) {
+	mgr := &ZKEManager{
+		clusters: make(map[string]*ZKECluster),
+		EventCh:  make(chan Event),
+		db:       db,
 	}
-
-	tx, err := table.Begin()
-	if err != nil {
-		return mgr, fmt.Errorf("begin transaction failed %s", err.Error())
-	}
-
-	defer tx.Commit()
-
-	values, err := tx.List()
-	if err != nil {
-		return mgr, fmt.Errorf("list cluster state failed %s", err.Error())
-	}
-
-	for k, v := range values {
-		s := State{}
-		if err := json.Unmarshal(v, &s); err != nil {
-			return mgr, fmt.Errorf("unmarshal cluster %s state failed %s", k, err.Error())
-		}
-		s.DesiredState.CertificatesBundle = pki.TransformPEMToObject(s.DesiredState.CertificatesBundle)
-		s.CurrentState.CertificatesBundle = pki.TransformPEMToObject(s.CurrentState.CertificatesBundle)
-		zc := &ZKECluster{
-			ZKEConfig:  s.CurrentState.ZKEConfig.DeepCopy(),
-			CreateTime: s.CreateTime,
-		}
-		mgr[k] = zc
-	}
+	go mgr.initFromDB()
 	return mgr, nil
+}
+
+func (m *ZKEManager) initFromDB() {
+	stateMap, err := m.listState()
+	if err != nil {
+		log.Fatalf("%s", err)
+	}
+
+	for k, v := range stateMap {
+		cluster := &ZKECluster{
+			CreateTime: v.CreateTime,
+			ZKEConfig:  v.ZKEConfig,
+		}
+
+		event := Event{
+			ClusterID:  k,
+			Type:       InitEvent,
+			CreateTime: v.CreateTime,
+		}
+		m.clusters[k] = cluster
+
+		if v.IsUnvailable {
+			event.IsUnavailable = true
+			m.EventCh <- event
+			continue
+		}
+		m.EventCh <- event
+		ctx, cancel := context.WithCancel(context.Background())
+		cluster.cancel = cancel
+		kubeConfig := v.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
+		go cluster.initProcess(ctx, kubeConfig, m.EventCh)
+	}
 }

@@ -51,22 +51,27 @@ const (
 )
 
 func DeployNetwork(ctx context.Context, c *core.Cluster) error {
-	k8sClient, err := k8s.GetK8sClientFromYaml(c.Certificates[pki.KubeAdminCertName].Config)
-	if err != nil {
-		return err
-	}
-	if err := doNetworkPluginDeploy(ctx, c, k8sClient); err != nil {
-		return err
-	}
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		k8sClient, err := k8s.GetK8sClientFromYaml(c.Certificates[pki.KubeAdminCertName].Config)
+		if err != nil {
+			return err
+		}
+		if err := doNetworkPluginDeploy(ctx, c, k8sClient); err != nil {
+			return err
+		}
 
-	if err := doDNSDeploy(ctx, c, k8sClient); err != nil {
-		return err
-	}
+		if err := doDNSDeploy(ctx, c, k8sClient); err != nil {
+			return err
+		}
 
-	if err := doIngressDeploy(ctx, c, k8sClient); err != nil {
-		return err
+		if err := doIngressDeploy(ctx, c, k8sClient); err != nil {
+			return err
+		}
+		return nil
 	}
-	return nil
 }
 
 func doNetworkPluginDeploy(ctx context.Context, c *core.Cluster, cli client.Client) error {

@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
@@ -14,20 +15,25 @@ import (
 const DeployNamespace = "zcloud"
 
 func DeployMonitoring(ctx context.Context, c *core.Cluster) error {
-	log.Infof(ctx, "[Monitor] Setting up Monitor Plugin")
-	templateConfig, k8sClient, err := prepare(c)
-	if err != nil {
-		return err
-	}
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		log.Infof(ctx, "[Monitor] Setting up Monitor Plugin")
+		templateConfig, k8sClient, err := prepare(c)
+		if err != nil {
+			return err
+		}
 
-	err = k8s.DoCreateFromTemplate(k8sClient, metricsServerTemplate, templateConfig)
-	if err != nil {
-		log.Infof(ctx, "[Monitor] deploy metrics server failed")
-		return err
-	}
+		err = k8s.DoCreateFromTemplate(k8sClient, metricsServerTemplate, templateConfig)
+		if err != nil {
+			log.Infof(ctx, "[Monitor] deploy metrics server failed")
+			return err
+		}
 
-	log.Infof(ctx, "[Monitor] Successfully deployed Monitor Plugin")
-	return nil
+		log.Infof(ctx, "[Monitor] Successfully deployed Monitor Plugin")
+		return nil
+	}
 }
 
 func prepare(c *core.Cluster) (map[string]interface{}, client.Client, error) {

@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/client-go/rest"
 
+	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/cache"
@@ -33,8 +34,8 @@ type Cluster struct {
 	KubeClient client.Client
 	Cache      cache.Cache
 	K8sConfig  *rest.Config
-	status     types.ClusterStatus
 	stopCh     chan struct{}
+	fsm        *fsm.FSM
 }
 
 type AddCluster struct {
@@ -57,8 +58,7 @@ type ClusterManager struct {
 	eventBus        *pubsub.PubSub
 	authorizer      *authorization.Authorizer
 	authenticator   *authentication.Authenticator
-	zkeEventCh      chan zke.Event
-	zkeManager      zke.ZKEManager
+	zkeManager      *zke.ZKEManager
 	db              storage.DB
 }
 
@@ -68,59 +68,15 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 		authorizer:    authorizer,
 		authenticator: authenticator,
 		eventBus:      eventBus,
-		zkeEventCh:    make(chan zke.Event),
 		db:            db,
 	}
 	zkeMgr, err := zke.New(db)
 	if err != nil {
-		log.Fatalf("create zke manager err %s", err)
 		return clusterMgr
 	}
 	clusterMgr.zkeManager = zkeMgr
-
-	clusterMgr.initFromZkeManager()
-
-	go clusterMgr.zkeEventLoop()
+	go clusterMgr.eventLoop()
 	return clusterMgr
-}
-
-func (m *ClusterManager) initFromZkeManager() {
-	for _, c := range m.zkeManager {
-		if err := m.addClusterFromZKECluster(c); err != nil {
-			log.Errorf("cluster %s is unready, will not add to singlecloud %s", c.ClusterName, err)
-			continue
-		}
-	}
-}
-
-func (m *ClusterManager) addClusterFromZKECluster(zc *zke.ZKECluster) error {
-	kubeClient, k8sConfig, err := zc.GetK8sClient(m.db)
-	if err != nil {
-		return err
-	}
-	cluster := &Cluster{
-		Name:       zc.ClusterName,
-		CreateTime: zc.CreateTime,
-	}
-
-	cluster.KubeClient = kubeClient
-	cluster.K8sConfig = k8sConfig
-
-	stopCh := make(chan struct{})
-	cluster.stopCh = stopCh
-	m.readyClusters = append(m.readyClusters, cluster)
-
-	cache, err := cache.New(cluster.K8sConfig, cache.Options{})
-	if err != nil {
-		log.Warnf(err.Error())
-		return err
-	}
-	go cache.Start(cluster.stopCh)
-	cache.WaitForCacheSync(cluster.stopCh)
-	cluster.Cache = cache
-
-	m.eventBus.Pub(AddCluster{Cluster: cluster}, eventbus.ClusterEvent)
-	return nil
 }
 
 func (m *ClusterManager) GetDB() storage.DB {
@@ -136,105 +92,75 @@ func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster
 	clusterID := ancestors[0].GetID()
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return m.get(clusterID)
+	return m.getReady(clusterID)
 }
 
 func (m *ClusterManager) GetClusterByName(name string) *Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return m.get(name)
+	return m.getReady(name)
 }
 
 func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
 	}
-
-	if len(yamlConf) > 0 {
-		return m.importExternalCluster(ctx, yamlConf)
-	}
-
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	inner := ctx.Object.(*types.Cluster)
-	if c := m.get(inner.Name); c != nil {
+	if c := m.getReady(inner.Name); c != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
 	}
 
-	cluster := &Cluster{
-		Name:       inner.Name,
-		CreateTime: time.Now(),
-		status:     types.CSCreateing,
-	}
-
-	stopCh := make(chan struct{})
-	cluster.stopCh = stopCh
-	m.unReadyClusters = append(m.unReadyClusters, cluster)
+	cluster := newClusterWithFsm(inner.Name, string(types.CSInit))
+	cluster.CreateTime = time.Now()
+	cluster.fsm.Event(zke.CreateEvent, m)
 
 	inner.SetID(inner.Name)
 	inner.SetType(types.ClusterType)
-	inner.Status = types.CSCreateing
 	inner.SetCreationTimestamp(cluster.CreateTime)
 
-	if err := m.zkeManager.Create(inner, m.zkeEventCh, m.GetDB()); err != nil {
+	if err := m.zkeManager.CreateCluster(inner); err != nil {
 		return inner, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
-
 	return inner, nil
 }
 
-func (m *ClusterManager) importExternalCluster(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
+func (m *ClusterManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
+	}
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	inner := ctx.Object.(*types.Cluster)
-	if c := m.get(inner.Name); c != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
+	c := m.get(inner.Name)
+
+	if c == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", inner.Name))
 	}
+	c.fsm.Event(zke.UpdateEvent, m)
 
-	cluster := &Cluster{
-		Name:       inner.Name,
-		CreateTime: time.Now(),
+	if err := m.zkeManager.UpdateCluster(inner); err != nil {
+		return inner, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
 	}
-
-	kubeClient, k8sConfig, err := m.zkeManager.Import(cluster.CreateTime, yaml, m.zkeEventCh, m.GetDB())
-	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
-	}
-	cluster.KubeClient = kubeClient
-	cluster.K8sConfig = k8sConfig
-
-	stopCh := make(chan struct{})
-	cluster.stopCh = stopCh
-	m.readyClusters = append(m.readyClusters, cluster)
-
-	cache, err := cache.New(cluster.K8sConfig, cache.Options{})
-	if err != nil {
-		return cluster, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create cache for cluster %s failed:%s", cluster.Name, err))
-	}
-	go cache.Start(cluster.stopCh)
-	cache.WaitForCacheSync(cluster.stopCh)
-	cluster.Cache = cache
-
-	m.eventBus.Pub(AddCluster{Cluster: cluster}, eventbus.ClusterEvent)
-
-	return cluster, nil
+	return inner, nil
 }
 
-func (m *ClusterManager) getClusterInfo(c *Cluster) (*types.Cluster, error) {
-	cluster := zke.ZKEClusterToSCCluster(m.zkeManager.Get(c.Name))
+func (m *ClusterManager) getReadyClusterInfo(c *Cluster) (*types.Cluster, error) {
+	cluster := zke.ZKEClusterToSCCluster(m.zkeManager.GetCluster(c.Name))
 	cluster.SetID(c.Name)
 	cluster.SetType(types.ClusterType)
-	cluster.Name = c.Name
 	cluster.SetCreationTimestamp(c.CreateTime)
 	cluster.Status = types.CSUnreachable
 
 	version, err := c.KubeClient.ServerVersion()
 	if err != nil {
+		c.fsm.Event(zke.GetInfoFailedEvent, m)
 		return cluster, err
 	}
-
+	c.fsm.Event(zke.GetInfoSuccessEvent, m)
 	cluster.Version = version.GitVersion
 
 	nodes, err := getNodes(c.KubeClient)
@@ -257,6 +183,15 @@ func (m *ClusterManager) getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	return cluster, nil
 }
 
+func (m *ClusterManager) getUnreadyClusterInfo(c *Cluster) *types.Cluster {
+	cluster := zke.ZKEClusterToSCCluster(m.zkeManager.GetCluster(c.Name))
+	cluster.SetID(c.Name)
+	cluster.SetType(types.ClusterType)
+	cluster.SetCreationTimestamp(c.CreateTime)
+	cluster.Status = types.ClusterStatus(c.fsm.Current())
+	return cluster
+}
+
 func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	target := ctx.Object.GetID()
 	if m.authorizer.Authorize(getCurrentUser(ctx), target, "") == false {
@@ -264,32 +199,19 @@ func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	}
 
 	m.lock.Lock()
-	cluster := m.get(target)
-	m.lock.Unlock()
-	if cluster == nil {
-		return nil
+	defer m.lock.Unlock()
+	cluster := m.getReady(target)
+	if cluster != nil {
+		info, _ := m.getReadyClusterInfo(cluster)
+		return info
 	}
-	info, _ := m.getClusterInfo(cluster)
-	return info
-}
 
-func (m *ClusterManager) get(id string) *Cluster {
-	for _, c := range m.readyClusters {
-		if c.Name == id {
-			return c
-		}
+	cluster = m.getUnready(target)
+	if cluster != nil {
+		info := m.getUnreadyClusterInfo(cluster)
+		return info
 	}
 	return nil
-}
-
-func getUnreadyClusterInfo(c *Cluster) *types.Cluster {
-	cluster := &types.Cluster{}
-	cluster.SetID(c.Name)
-	cluster.SetType(types.ClusterType)
-	cluster.Name = c.Name
-	cluster.SetCreationTimestamp(c.CreateTime)
-	cluster.Status = c.status
-	return cluster
 }
 
 func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
@@ -301,7 +223,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	defer m.lock.Unlock()
 	for _, c := range m.readyClusters {
 		if m.authorizer.Authorize(user, c.Name, "") {
-			info, _ := m.getClusterInfo(c)
+			info, _ := m.getReadyClusterInfo(c)
 			clusters = append(clusters, info)
 		}
 	}
@@ -312,11 +234,10 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 
 	for _, c := range m.unReadyClusters {
 		if m.authorizer.Authorize(user, c.Name, "") {
-			info := getUnreadyClusterInfo(c)
+			info := m.getUnreadyClusterInfo(c)
 			clusters = append(clusters, info)
 		}
 	}
-
 	return clusters
 }
 
@@ -324,9 +245,9 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
 	}
-
 	target := ctx.Object.(*types.Cluster).GetID()
 	m.lock.Lock()
+	defer m.lock.Unlock()
 	var cluster *Cluster
 	for i, c := range m.readyClusters {
 		if c.Name == target {
@@ -339,18 +260,17 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	for i, c := range m.unReadyClusters {
 		if c.Name == target {
 			cluster = c
-			if cluster.status == types.CSCreateing || cluster.status == types.CSUpdateing {
-				m.zkeManager[cluster.Name].Cancel()
+			if cluster.fsm.Current() == string(types.CSCreateing) || cluster.fsm.Current() == string(types.CSUpdateing) || cluster.fsm.Current() == string(types.CSConnecting) {
+				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster in %s state desn't allow to delete", cluster.fsm.Current()))
 			}
 			m.unReadyClusters = append(m.unReadyClusters[:i], m.unReadyClusters[i+1:]...)
 			break
 		}
 	}
 
-	if err := m.zkeManager.Delete(cluster.Name, m.GetDB()); err != nil {
+	if err := m.zkeManager.DeleteCluster(target); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
-	m.lock.Unlock()
 
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", target))
@@ -393,91 +313,146 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 	}
 }
 
-func (m *ClusterManager) zkeEventLoop() {
+func (m *ClusterManager) eventLoop() {
 	for {
-		event := <-m.zkeEventCh
-		if err := m.setClusterAfterCreatedOrUpdated(event); err != nil {
-			log.Errorf("set cluster err info: %s", err)
-		}
-	}
-}
-
-func (m *ClusterManager) setClusterAfterCreatedOrUpdated(event zke.Event) error {
-	for _, c := range m.unReadyClusters {
-		if c.Name == event.ID {
-			m.lock.Lock()
-			defer m.lock.Unlock()
-			m.zkeManager.UpdateFromEvent(event, m.GetDB())
-			switch event.Status {
-			case types.CSCreateSuccess:
-				c.KubeClient = event.KubeClient
-				c.K8sConfig = event.K8sConfig
-				cache, err := cache.New(c.K8sConfig, cache.Options{})
-				if err != nil {
-					return err
-				}
-				go cache.Start(c.stopCh)
-				cache.WaitForCacheSync(c.stopCh)
-				c.Cache = cache
-				m.moveToready(c)
-				m.eventBus.Pub(AddCluster{Cluster: c}, eventbus.ClusterEvent)
-			case types.CSUpdateSuccess:
-				c.KubeClient = event.KubeClient
-				c.K8sConfig = event.K8sConfig
-				m.moveToready(c)
-				m.eventBus.Pub(UpdateCluster{Cluster: c}, eventbus.ClusterEvent)
-			case types.CSUpdateFailed:
-				m.moveToready(c)
-			default:
-				c.status = event.Status
+		e := <-m.zkeManager.EventCh
+		m.lock.Lock()
+		if e.Type == zke.InitEvent {
+			if e.IsUnavailable {
+				c := newClusterWithFsm(e.ClusterID, string(types.CSUnavailable))
+				m.addToUnreadyFromEvent(c, e)
+			} else {
+				c := newClusterWithFsm(e.ClusterID, string(types.CSInit))
+				c.fsm.Event(zke.InitEvent, m, e)
 			}
+		} else {
+			c := m.get(e.ClusterID)
+			c.fsm.Event(e.Type, m, e)
 		}
+		m.lock.Unlock()
 	}
-	return nil
 }
 
 func (m *ClusterManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	if ctx.Action.Name == types.ClusterCancel {
-		return m.cancel(ctx)
+		target := ctx.Object.(*types.Cluster).GetID()
+		cluster := m.getUnready(target)
+		currentStatus := cluster.fsm.Current()
+		if currentStatus == string(types.CSConnecting) || currentStatus == string(types.CSCreateing) || currentStatus == string(types.CSUpdateing) {
+			cluster.fsm.Event(zke.CancelEvent, m)
+			return nil, nil
+		}
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state, not allow cancel", cluster.Name, currentStatus))
+
 	}
 	return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
 }
 
-func (m *ClusterManager) cancel(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	target := ctx.Object.(*types.Cluster).GetID()
-
-	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can cancel")
+func newClusterWithFsm(name string, initStatus string) *Cluster {
+	cluster := &Cluster{
+		Name:   name,
+		stopCh: make(chan struct{}),
 	}
-
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	var cluster *Cluster
-	for _, c := range m.unReadyClusters {
-		if c.Name == target {
-			cluster = c
-		}
-		break
-	}
-
-	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", target))
-	}
-
-	zkeCluster := m.zkeManager.Get(target)
-	if zkeCluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("zke state not found for %s to cancel", target))
-	}
-	if cluster.status == types.CSCreateing || cluster.status == types.CSUpdateing {
-		zkeCluster.Cancel()
-	}
-
-	return nil, nil
+	fsm := fsm.NewFSM(
+		initStatus,
+		fsm.Events{
+			{Name: zke.InitEvent, Src: []string{string(types.CSInit)}, Dst: string(types.CSConnecting)},
+			{Name: zke.InitSuccessEvent, Src: []string{string(types.CSConnecting)}, Dst: string(types.CSRunning)},
+			{Name: zke.CreateEvent, Src: []string{string(types.CSInit)}, Dst: string(types.CSCreateing)},
+			{Name: zke.CreateSuccessEvent, Src: []string{string(types.CSCreateing)}, Dst: string(types.CSRunning)},
+			{Name: zke.CreateFailedEvent, Src: []string{string(types.CSCreateing)}, Dst: string(types.CSUnavailable)},
+			{Name: zke.UpdateEvent, Src: []string{string(types.CSRunning), string(types.CSUnavailable)}, Dst: string(types.CSUpdateing)},
+			{Name: zke.UpdateSuccessEvent, Src: []string{string(types.CSUpdateing)}, Dst: string(types.CSRunning)},
+			{Name: zke.UpdateFailedEvent, Src: []string{string(types.CSUpdateing)}, Dst: string(types.CSUnavailable)},
+			{Name: zke.GetInfoFailedEvent, Src: []string{string(types.CSRunning)}, Dst: string(types.CSUnreachable)},
+			{Name: zke.GetInfoSuccessEvent, Src: []string{string(types.CSUnreachable)}, Dst: string(types.CSRunning)},
+			{Name: zke.CancelEvent, Src: []string{string(types.CSUpdateing), string(types.CSCreateing), string(types.CSConnecting)}, Dst: string(types.CSCanceling)},
+			{Name: zke.CancelSuccessEvent, Src: []string{string(types.CSCanceling)}, Dst: string(types.CSUnavailable)},
+			{Name: zke.DeleteEvent, Src: []string{string(types.CSRunning), string(types.CSUnavailable), string(types.CSUnreachable)}, Dst: string(types.CSDestroy)},
+		},
+		fsm.Callbacks{
+			zke.InitEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				ze := e.Args[1].(zke.Event)
+				mgr.addToUnreadyFromEvent(cluster, ze)
+			},
+			zke.InitSuccessEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				ze := e.Args[1].(zke.Event)
+				mgr.pubAddFromEvent(cluster, ze)
+			},
+			zke.CreateEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				mgr.unReadyClusters = append(mgr.unReadyClusters, cluster)
+			},
+			zke.CreateSuccessEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				ze := e.Args[1].(zke.Event)
+				mgr.zkeManager.UpdateClusterState(ze)
+				mgr.pubAddFromEvent(cluster, ze)
+			},
+			zke.CreateFailedEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				ze := e.Args[1].(zke.Event)
+				if err := mgr.zkeManager.UpdateClusterState(ze); err != nil {
+					log.Infof("%s", err)
+				}
+			},
+			zke.UpdateEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				mgr.moveClusterToUnready(cluster)
+			},
+			zke.UpdateSuccessEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				ze := e.Args[1].(zke.Event)
+				mgr.zkeManager.UpdateClusterState(ze)
+				mgr.pubUpdateFromEvent(cluster, ze)
+			},
+			zke.UpdateFailedEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				ze := e.Args[1].(zke.Event)
+				mgr.zkeManager.UpdateClusterState(ze)
+			},
+			zke.CancelEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ClusterManager)
+				mgr.zkeManager.GetCluster(cluster.Name).Cancel(mgr.zkeManager.EventCh)
+			},
+		},
+	)
+	cluster.fsm = fsm
+	return cluster
 }
 
-func (m *ClusterManager) moveToready(cluster *Cluster) {
-	m.readyClusters = append(m.readyClusters, cluster)
+func (m *ClusterManager) addToUnreadyFromEvent(c *Cluster, e zke.Event) {
+	c.CreateTime = e.CreateTime
+	m.unReadyClusters = append(m.unReadyClusters, c)
+}
 
+func (m *ClusterManager) pubAddFromEvent(c *Cluster, e zke.Event) {
+	c.K8sConfig = e.K8sConfig
+	c.KubeClient = e.KubeClient
+	cache, err := cache.New(c.K8sConfig, cache.Options{})
+	if err != nil {
+		log.Errorf("build cluster %s cache err %s", c.Name, err)
+	}
+	go cache.Start(c.stopCh)
+	cache.WaitForCacheSync(c.stopCh)
+	c.Cache = cache
+	m.moveClusterToready(c)
+	m.eventBus.Pub(AddCluster{Cluster: c}, eventbus.ClusterEvent)
+}
+
+func (m *ClusterManager) pubUpdateFromEvent(c *Cluster, e zke.Event) {
+	c.K8sConfig = e.K8sConfig
+	c.KubeClient = e.KubeClient
+	m.moveClusterToready(c)
+	m.eventBus.Pub(UpdateCluster{Cluster: c}, eventbus.ClusterEvent)
+}
+
+func (m *ClusterManager) moveClusterToready(cluster *Cluster) {
+	m.readyClusters = append(m.readyClusters, cluster)
 	for i, c := range m.unReadyClusters {
 		if c.Name == cluster.Name {
 			m.unReadyClusters = append(m.unReadyClusters[:i], m.unReadyClusters[i+1:]...)
@@ -486,13 +461,38 @@ func (m *ClusterManager) moveToready(cluster *Cluster) {
 	}
 }
 
-func (m *ClusterManager) moveToUnready(cluster *Cluster) {
+func (m *ClusterManager) moveClusterToUnready(cluster *Cluster) {
 	m.unReadyClusters = append(m.unReadyClusters, cluster)
-
 	for i, c := range m.readyClusters {
 		if c.Name == cluster.Name {
 			m.readyClusters = append(m.readyClusters[:i], m.readyClusters[i+1:]...)
 			break
 		}
 	}
+}
+
+func (m *ClusterManager) getUnready(id string) *Cluster {
+	for _, c := range m.unReadyClusters {
+		if c.Name == id {
+			return c
+		}
+	}
+	return nil
+}
+
+func (m *ClusterManager) getReady(id string) *Cluster {
+	for _, c := range m.readyClusters {
+		if c.Name == id {
+			return c
+		}
+	}
+	return nil
+}
+
+func (m *ClusterManager) get(id string) *Cluster {
+	readyCluster := m.getReady(id)
+	if readyCluster != nil {
+		return readyCluster
+	}
+	return m.getUnready(id)
 }

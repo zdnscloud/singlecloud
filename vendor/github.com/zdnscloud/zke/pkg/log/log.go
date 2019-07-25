@@ -7,16 +7,11 @@ import (
 	cementlog "github.com/zdnscloud/cement/log"
 )
 
-const (
-	DefaultLogChLength = 50
-)
-
 var ZKELogger cementlog.Logger
-var ZKELogLevel = cementlog.Info
-var ZKELogCh chan string
+var DefaultLogLevel = cementlog.Info
 
 func InitConsoleLog() {
-	ZKELogger = cementlog.NewLog4jConsoleLogger(ZKELogLevel)
+	ZKELogger = cementlog.NewLog4jConsoleLogger(DefaultLogLevel)
 }
 
 func InitChannelLog(l cementlog.Logger) {
@@ -29,7 +24,6 @@ func Debugf(msg string, args ...interface{}) {
 
 func Infof(ctx context.Context, msg string, args ...interface{}) {
 	ZKELogger.Info(msg, args...)
-
 }
 
 func Warnf(ctx context.Context, msg string, args ...interface{}) {

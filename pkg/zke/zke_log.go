@@ -15,8 +15,8 @@ const (
 )
 
 func (m ZKEManager) OpenLog(clusterID string, r *http.Request, w http.ResponseWriter) {
-	cluster, ok := m[clusterID]
-	if !ok {
+	cluster := m.GetCluster(clusterID)
+	if cluster == nil {
 		log.Warnf("cluster %s isn't found to open log console", clusterID)
 		return
 	}

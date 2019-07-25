@@ -104,7 +104,7 @@ func clusterRemoveFromCli(ctx *cli.Context) error {
 	return ClusterRemove(context.Background(), zkeConfig, hosts.DialersOptions{})
 }
 
-func ClusterRemoveFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, logger cementlog.Logger) error {
+func ClusterRemoveFromSingleCloud(ctx context.Context, zkeConfig *types.ZKEConfig, logger cementlog.Logger) error {
 	log.InitChannelLog(logger)
 	if err := ClusterRemoveWithoutCleanFiles(ctx, zkeConfig, hosts.DialersOptions{}); err != nil {
 		log.ZKELogger.Close()

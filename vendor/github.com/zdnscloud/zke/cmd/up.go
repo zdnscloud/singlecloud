@@ -185,7 +185,7 @@ func ClusterUp(ctx context.Context, dialersOptions hosts.DialersOptions) error {
 	return nil
 }
 
-func ClusterUpForRest(ctx context.Context, clusterState *core.FullState, dialersOptions hosts.DialersOptions) (*core.FullState, error) {
+func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, dialersOptions hosts.DialersOptions) (*core.FullState, error) {
 	kubeCluster, err := core.InitClusterObject(ctx, clusterState.DesiredState.ZKEConfig.DeepCopy())
 	if err != nil {
 		return clusterState, err
@@ -255,7 +255,7 @@ func ClusterUpForRest(ctx context.Context, clusterState *core.FullState, dialers
 		return clusterState, err
 	}
 
-	clusterState, err = kubeCluster.UpdateClusterCurrentStateForRest(ctx, clusterState)
+	clusterState, err = kubeCluster.UpdateClusterCurrentStateForSingleCloud(ctx, clusterState)
 	if err != nil {
 		return clusterState, err
 	}
@@ -333,15 +333,15 @@ func clusterUpFromCli(ctx *cli.Context) error {
 	return err
 }
 
-func ClusterUpFromRest(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger) (*core.FullState, error) {
+func ClusterUpFromSingleCloud(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger) (*core.FullState, error) {
 	log.InitChannelLog(logger)
 
-	newClusterState, err := ClusterInitForRest(ctx, zkeConfig, clusterState, hosts.DialersOptions{})
+	newClusterState, err := ClusterInitForSingleCloud(ctx, zkeConfig, clusterState, hosts.DialersOptions{})
 	if err != nil {
 		return clusterState, err
 	}
 
-	newClusterState, err = ClusterUpForRest(ctx, newClusterState, hosts.DialersOptions{})
+	newClusterState, err = ClusterUpForSingleCloud(ctx, newClusterState, hosts.DialersOptions{})
 
 	log.ZKELogger.Close()
 	return newClusterState, err

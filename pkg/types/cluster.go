@@ -7,14 +7,15 @@ import (
 type ClusterStatus string
 
 const (
-	CSRunning       ClusterStatus = "Running"
-	CSUnreachable   ClusterStatus = "Unreachable"
-	CSCreateing     ClusterStatus = "Creating"
-	CSCreateFailed  ClusterStatus = "CreateFailed"
-	CSCreateSuccess ClusterStatus = "CreateSuccess"
-	CSUpdateing     ClusterStatus = "Updating"
-	CSUpdateFailed  ClusterStatus = "UpdateFailed"
-	CSUpdateSuccess ClusterStatus = "UpdateSuccess"
+	CSRunning     ClusterStatus = "Running"
+	CSUnreachable ClusterStatus = "Unreachable"
+	CSCreateing   ClusterStatus = "Creating"
+	CSUpdateing   ClusterStatus = "Updating"
+	CSConnecting  ClusterStatus = "Connecting"
+	CSUnavailable ClusterStatus = "Unavailable"
+	CSCanceling   ClusterStatus = "Canceling"
+	CSInit        ClusterStatus = "Init"
+	CSDestroy     ClusterStatus = "Destroy"
 
 	ClusterCancel = "cancel"
 )
@@ -22,7 +23,7 @@ const (
 func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE", "POST"}
+	schema.ResourceMethods = []string{"GET", "DELETE", "POST", "PUT"}
 	schema.ResourceActions = append(schema.ResourceActions, types.Action{
 		Name: ClusterCancel,
 	})

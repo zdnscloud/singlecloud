@@ -63,7 +63,7 @@ func validateHostsOptions(c *types.ZKEConfig) error {
 	return nil
 }
 
-func validateControlplaneCount(c *types.ZKEConfig) error {
+func validateEtcdCount(c *types.ZKEConfig) error {
 	etcds := []types.ZKEConfigNode{}
 	for _, host := range c.Nodes {
 		for _, role := range host.Role {
@@ -78,7 +78,7 @@ func validateControlplaneCount(c *types.ZKEConfig) error {
 	return nil
 }
 
-func validateEtcdCount(c *types.ZKEConfig) error {
+func validateControlplaneCount(c *types.ZKEConfig) error {
 	controlplanes := []types.ZKEConfigNode{}
 	for _, host := range c.Nodes {
 		for _, role := range host.Role {

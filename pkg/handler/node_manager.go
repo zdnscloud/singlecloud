@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -56,60 +55,6 @@ func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
 
 	nodes, _ := getNodes(cluster.KubeClient)
 	return nodes
-}
-
-func (m *NodeManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
-	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
-	}
-	m.clusters.lock.Lock()
-	defer m.clusters.lock.Unlock()
-	inner := ctx.Object.(*types.Node)
-	if len(inner.Name) == 0 || len(inner.Roles) == 0 || len(inner.Address) == 0 {
-		return nil, resttypes.NewAPIError(resttypes.NotNullable, "node name address and roles can't be null")
-	}
-
-	cluster.status = types.CSUpdateing
-	m.clusters.moveToUnready(cluster)
-
-	zc := m.clusters.zkeManager.Get(cluster.Name)
-	if zc == nil {
-		return nil, resttypes.NewAPIError(resttypes.ClusterUnavailable, fmt.Sprintf("not found zke cluster %s", cluster.Name))
-	}
-
-	if err := zc.AddNode(inner, m.clusters.zkeEventCh, m.clusters.GetDB()); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
-	}
-
-	inner.SetID(inner.Name)
-	inner.SetCreationTimestamp(time.Now())
-	return inner, nil
-}
-
-func (m *NodeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
-	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
-	}
-
-	m.clusters.lock.Lock()
-	defer m.clusters.lock.Unlock()
-
-	target := ctx.Object.(*types.Node).GetID()
-
-	cluster.status = types.CSUpdateing
-	m.clusters.moveToUnready(cluster)
-
-	zc := m.clusters.zkeManager.Get(cluster.Name)
-	if zc == nil {
-		return resttypes.NewAPIError(resttypes.ClusterUnavailable, fmt.Sprintf("not found zke cluster %s", cluster.Name))
-	}
-
-	if err := zc.DeleteNode(target, m.clusters.zkeEventCh, m.clusters.GetDB()); err != nil {
-		return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("zke err %s", err))
-	}
-	return nil
 }
 
 func getNodes(cli client.Client) ([]*types.Node, error) {

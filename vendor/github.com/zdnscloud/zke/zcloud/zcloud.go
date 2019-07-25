@@ -2,17 +2,18 @@ package zcloud
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 	"github.com/zdnscloud/zke/pkg/k8s"
 	"github.com/zdnscloud/zke/pkg/log"
-
-	"github.com/zdnscloud/gok8s/client"
 	clusteragent "github.com/zdnscloud/zke/zcloud/cluster-agent"
 	nodeagent "github.com/zdnscloud/zke/zcloud/node-agent"
 	zcloudsa "github.com/zdnscloud/zke/zcloud/sa"
 	"github.com/zdnscloud/zke/zcloud/storage"
+
+	"github.com/zdnscloud/gok8s/client"
 )
 
 const (
@@ -28,23 +29,28 @@ const (
 )
 
 func DeployZcloudManager(ctx context.Context, c *core.Cluster) error {
-	k8sClient, err := k8s.GetK8sClientFromYaml(c.Certificates[pki.KubeAdminCertName].Config)
-	if err != nil {
-		return err
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		k8sClient, err := k8s.GetK8sClientFromYaml(c.Certificates[pki.KubeAdminCertName].Config)
+		if err != nil {
+			return err
+		}
+		if err := doSADeploy(ctx, c, k8sClient); err != nil {
+			return err
+		}
+		if err := doClusterAgentDeploy(ctx, c, k8sClient); err != nil {
+			return err
+		}
+		if err := doNodeAgentDeploy(ctx, c, k8sClient); err != nil {
+			return err
+		}
+		if err := doStorageOperator(ctx, c, k8sClient); err != nil {
+			return err
+		}
+		return nil
 	}
-	if err := doSADeploy(ctx, c, k8sClient); err != nil {
-		return err
-	}
-	if err := doClusterAgentDeploy(ctx, c, k8sClient); err != nil {
-		return err
-	}
-	if err := doNodeAgentDeploy(ctx, c, k8sClient); err != nil {
-		return err
-	}
-	if err := doStorageOperator(ctx, c, k8sClient); err != nil {
-		return err
-	}
-	return nil
 }
 
 func doSADeploy(ctx context.Context, c *core.Cluster, cli client.Client) error {

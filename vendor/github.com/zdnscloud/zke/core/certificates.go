@@ -14,8 +14,13 @@ import (
 )
 
 func SetUpAuthentication(ctx context.Context, kubeCluster, currentCluster *Cluster, fullState *FullState) {
-	if kubeCluster.AuthnStrategies[AuthnX509Provider] {
-		kubeCluster.Certificates = fullState.DesiredState.CertificatesBundle
+	select {
+	case <-ctx.Done():
+		log.Infof(ctx, "cluster build has beed canceled")
+	default:
+		if kubeCluster.AuthnStrategies[AuthnX509Provider] {
+			kubeCluster.Certificates = fullState.DesiredState.CertificatesBundle
+		}
 	}
 }
 
