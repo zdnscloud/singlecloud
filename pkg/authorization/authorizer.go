@@ -69,10 +69,11 @@ func (m *Authorizer) AddUser(user *types.User) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if _, ok := m.users[user.Name]; ok {
+	name := user.GetID()
+	if _, ok := m.users[name]; ok {
 		return fmt.Errorf("user %s already exists", user)
 	} else {
-		m.users[user.Name] = user.Projects
+		m.users[name] = user.Projects
 		return nil
 	}
 }
@@ -119,10 +120,11 @@ func (m *Authorizer) UpdateUser(user *types.User) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if _, ok := m.users[user.Name]; ok == false {
+	name := user.GetID()
+	if _, ok := m.users[name]; ok == false {
 		return fmt.Errorf("user %s doesn't exist", user)
 	} else {
-		m.users[user.Name] = user.Projects
+		m.users[name] = user.Projects
 		return nil
 	}
 }

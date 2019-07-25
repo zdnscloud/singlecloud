@@ -294,7 +294,9 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 		}
 
 		if m.authorizer.GetUser(user) == nil {
-			m.authorizer.AddUser(&types.User{Name: user})
+			newUser := &types.User{Name: user}
+			newUser.SetID(user)
+			m.authorizer.AddUser(newUser)
 		}
 
 		ancestors := resttypes.GetAncestors(ctx.Object)
