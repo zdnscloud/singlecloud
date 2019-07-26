@@ -84,10 +84,11 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 	})
 
 	router.GET(WebLogoutPath, func(c *gin.Context) {
-		if a.CasAuth != nil {
-			a.CasAuth.Logout(c.Writer, c.Request)
-		} else {
+		user, _ := a.JwtAuth.Authenticate(c.Writer, c.Request)
+		if user != "" {
 			a.JwtAuth.Logout(c.Writer, c.Request)
+		} else if a.CasAuth != nil {
+			a.CasAuth.Logout(c.Writer, c.Request)
 		}
 	})
 
