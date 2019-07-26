@@ -82,10 +82,12 @@ func (m *Authorizer) GetUser(userName string) *types.User {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	if projects, ok := m.users[userName]; ok {
-		return &types.User{
+		user := &types.User{
 			Name:     userName,
 			Projects: projects,
 		}
+		user.SetID(userName)
+		return user
 	} else {
 		return nil
 	}
@@ -96,10 +98,12 @@ func (m *Authorizer) ListUser() []*types.User {
 	defer m.lock.RUnlock()
 	users := make([]*types.User, 0, len(m.users))
 	for name, projects := range m.users {
-		users = append(users, &types.User{
+		user := &types.User{
 			Name:     name,
 			Projects: projects,
-		})
+		}
+		user.SetID(name)
+		users = append(users, user)
 	}
 	return users
 }
