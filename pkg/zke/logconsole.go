@@ -42,6 +42,7 @@ func (c *Cluster) openLog(r *http.Request, w http.ResponseWriter) {
 		c.lock.Unlock()
 		go func() {
 			<-session.ClosedNotify()
+			log.Infof("zke logconsole handler recive session close signal")
 			close(done)
 		}()
 
@@ -60,6 +61,7 @@ func (c *Cluster) openLog(r *http.Request, w http.ResponseWriter) {
 		session.Close(503, "log is terminated")
 		c.lock.Unlock()
 		<-done
+		log.Infof("zke logconsole this handler func will exit")
 	}
 
 	path := fmt.Sprintf(WSZKELogPathTemp, c.Name)
