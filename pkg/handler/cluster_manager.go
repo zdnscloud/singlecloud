@@ -157,6 +157,9 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	}
 	cluster.NodesCount = len(nodes)
 	for _, n := range nodes {
+		if n.HasRole(types.RoleControlPlane) {
+			continue
+		}
 		cluster.Cpu += n.Cpu
 		cluster.CpuUsed += n.CpuUsed
 		cluster.Memory += n.Memory
