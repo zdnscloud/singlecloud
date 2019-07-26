@@ -5,34 +5,40 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zdnscloud/singlecloud/storage"
+
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
-	zketypes "github.com/zdnscloud/zke/types"
+	"github.com/zdnscloud/zke/types"
 )
 
-type State struct {
-	*core.FullState     `json:",inline"`
-	*zketypes.ZKEConfig `json:",inline"`
-	CreateTime          time.Time `json:"createTime"`
-	IsUnvailable        bool      `json:"isUnvailable"`
+const (
+	ZKEManagerDBTable = "zke_manager"
+)
+
+type clusterState struct {
+	*core.FullState  `json:",inline"`
+	*types.ZKEConfig `json:",inline"`
+	CreateTime       time.Time `json:"createTime"`
+	IsUnvailable     bool      `json:"isUnvailable"`
 }
 
-func (m *ZKEManager) getState(clusterID string) (State, error) {
-	table, err := m.db.CreateOrGetTable(ZKEManagerTable)
+func getState(clusterID string, db storage.DB) (clusterState, error) {
+	table, err := db.CreateOrGetTable(ZKEManagerDBTable)
 	if err != nil {
-		return State{}, fmt.Errorf("get table failed: %s", err.Error())
+		return clusterState{}, fmt.Errorf("get table failed: %s", err.Error())
 	}
 
 	tx, err := table.Begin()
 	if err != nil {
-		return State{}, fmt.Errorf("begin transaction failed: %s", err.Error())
+		return clusterState{}, fmt.Errorf("begin transaction failed: %s", err.Error())
 	}
 	defer tx.Commit()
 
 	value, err := tx.Get(clusterID)
 
 	if err != nil {
-		return State{}, fmt.Errorf("get cluster %s  state failed %s", clusterID, err.Error())
+		return clusterState{}, fmt.Errorf("get cluster %s  state failed %s", clusterID, err.Error())
 	}
 
 	state, err := readStateJsonBytes(value)
@@ -42,8 +48,8 @@ func (m *ZKEManager) getState(clusterID string) (State, error) {
 	return state, nil
 }
 
-func (m *ZKEManager) createOrUpdateState(clsuterID string, s State) error {
-	table, err := m.db.CreateOrGetTable(ZKEManagerTable)
+func createOrUpdateState(clsuterID string, s clusterState, db storage.DB) error {
+	table, err := db.CreateOrGetTable(ZKEManagerDBTable)
 	if err != nil {
 		return fmt.Errorf("get table failed %s", err.Error())
 	}
@@ -52,13 +58,13 @@ func (m *ZKEManager) createOrUpdateState(clsuterID string, s State) error {
 	if err != nil {
 		return fmt.Errorf("begin transaction failed %s", err.Error())
 	}
+	defer tx.Rollback()
 
 	value, err := json.Marshal(s)
 	if err != nil {
 		return fmt.Errorf("marshal cluster %s state failed %s", clsuterID, err.Error())
 	}
 
-	defer tx.Rollback()
 	existValue, _ := tx.Get(clsuterID)
 	if existValue == nil {
 		if err := tx.Add(clsuterID, value); err != nil {
@@ -76,8 +82,8 @@ func (m *ZKEManager) createOrUpdateState(clsuterID string, s State) error {
 	return nil
 }
 
-func (m *ZKEManager) deleteState(clusterID string) error {
-	table, err := m.db.CreateOrGetTable(ZKEManagerTable)
+func deleteState(clusterID string, db storage.DB) error {
+	table, err := db.CreateOrGetTable(ZKEManagerDBTable)
 	if err != nil {
 		return fmt.Errorf("get table failed %s", err.Error())
 	}
@@ -86,8 +92,8 @@ func (m *ZKEManager) deleteState(clusterID string) error {
 	if err != nil {
 		return fmt.Errorf("begin transaction failed %s", err.Error())
 	}
-
 	defer tx.Rollback()
+
 	if err := tx.Delete(clusterID); err != nil {
 		return fmt.Errorf("delete cluster %s  state failed %s", clusterID, err.Error())
 	}
@@ -98,10 +104,10 @@ func (m *ZKEManager) deleteState(clusterID string) error {
 	return nil
 }
 
-func (m *ZKEManager) listState() (map[string]State, error) {
-	stateMap := make(map[string]State)
+func listState(db storage.DB) (map[string]clusterState, error) {
+	stateMap := make(map[string]clusterState)
 
-	table, err := m.db.CreateOrGetTable(ZKEManagerTable)
+	table, err := db.CreateOrGetTable(ZKEManagerDBTable)
 	if err != nil {
 		return stateMap, fmt.Errorf("get table failed %s", err.Error())
 	}
@@ -110,8 +116,8 @@ func (m *ZKEManager) listState() (map[string]State, error) {
 	if err != nil {
 		return stateMap, fmt.Errorf("begin transaction failed %s", err.Error())
 	}
-
 	defer tx.Commit()
+
 	values, err := tx.List()
 	if err != nil {
 		return stateMap, fmt.Errorf("list cluster state failed %s", err.Error())
@@ -127,8 +133,8 @@ func (m *ZKEManager) listState() (map[string]State, error) {
 	return stateMap, nil
 }
 
-func readStateJsonBytes(sj []byte) (State, error) {
-	s := State{}
+func readStateJsonBytes(sj []byte) (clusterState, error) {
+	s := clusterState{}
 	if err := json.Unmarshal(sj, &s); err != nil {
 		return s, err
 	}

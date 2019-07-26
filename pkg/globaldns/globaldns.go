@@ -15,7 +15,7 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
-	"github.com/zdnscloud/singlecloud/pkg/handler"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 const (
@@ -54,7 +54,7 @@ func (g *GlobalDNS) eventLoop() {
 	for {
 		event := <-g.clusterEventCh
 		switch e := event.(type) {
-		case handler.AddCluster:
+		case zke.AddCluster:
 			cluster := e.Cluster
 			g.lock.Lock()
 			err := g.newClusterDNSSyncer(cluster.Name, cluster.Cache)
@@ -62,7 +62,7 @@ func (g *GlobalDNS) eventLoop() {
 				log.Warnf("create globaldns syncer for cluster %s failed: %s", cluster.Name, err.Error())
 			}
 			g.lock.Unlock()
-		case handler.DeleteCluster:
+		case zke.DeleteCluster:
 			cluster := e.Cluster
 			g.lock.Lock()
 			syncer, ok := g.clusterDNSSyncers[cluster.Name]
