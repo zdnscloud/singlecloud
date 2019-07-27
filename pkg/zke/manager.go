@@ -23,8 +23,8 @@ type ZKEManager struct {
 }
 
 type tempCluster struct {
-	client.Client
-	*types.Cluster
+	Client  client.Client
+	Cluster *types.Cluster
 }
 
 func New(db storage.DB) (*ZKEManager, error) {
@@ -100,6 +100,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
 
+	m.moveTounready(c)
 	c.fsm.Event(UpdateEvent)
 
 	zkectx, cancel := context.WithCancel(context.Background())
@@ -109,17 +110,17 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 	return nil, nil
 }
 
-func (m *ZKEManager) Get(id string) tempCluster {
+func (m *ZKEManager) Get(id string) *tempCluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	cluster := m.get(id)
 	if cluster != nil {
-		return tempCluster{
+		return &tempCluster{
 			Client:  cluster.KubeClient,
 			Cluster: cluster.getTypesCluster(),
 		}
 	}
-	return tempCluster{}
+	return nil
 }
 
 func (m *ZKEManager) GetReady(id string) *Cluster {
@@ -128,18 +129,18 @@ func (m *ZKEManager) GetReady(id string) *Cluster {
 	return m.getReady(id)
 }
 
-func (m *ZKEManager) ListAll() []tempCluster {
+func (m *ZKEManager) ListAll() []*tempCluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var clusters []tempCluster
+	var clusters []*tempCluster
 	for _, c := range m.readyClusters {
-		clusters = append(clusters, tempCluster{
+		clusters = append(clusters, &tempCluster{
 			Client:  c.KubeClient,
 			Cluster: c.getTypesCluster(),
 		})
 	}
 	for _, c := range m.unreadyClusters {
-		clusters = append(clusters, tempCluster{
+		clusters = append(clusters, &tempCluster{
 			Client:  c.KubeClient,
 			Cluster: c.getTypesCluster(),
 		})
@@ -147,12 +148,12 @@ func (m *ZKEManager) ListAll() []tempCluster {
 	return clusters
 }
 
-func (m *ZKEManager) ListReady() []tempCluster {
+func (m *ZKEManager) ListReady() []*tempCluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var clusters []tempCluster
+	var clusters []*tempCluster
 	for _, c := range m.readyClusters {
-		clusters = append(clusters, tempCluster{
+		clusters = append(clusters, &tempCluster{
 			Client:  c.KubeClient,
 			Cluster: c.getTypesCluster(),
 		})
@@ -247,9 +248,7 @@ func (m *ZKEManager) moveToreadyWithLock(c *Cluster) {
 	}
 }
 
-func (m *ZKEManager) moveTounreadyWithLock(c *Cluster) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (m *ZKEManager) moveTounready(c *Cluster) {
 	m.unreadyClusters = append(m.unreadyClusters, c)
 	for i, cluster := range m.readyClusters {
 		if cluster.Name == c.Name {

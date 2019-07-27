@@ -87,10 +87,10 @@ func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 	cluster := m.zkeManager.Get(id)
-	if cluster.Cluster == nil {
-		return nil
+	if cluster != nil {
+		return getClusterInfo(cluster.Client, cluster.Cluster)
 	}
-	return getClusterInfo(cluster.Client, cluster.Cluster)
+	return nil
 }
 
 func getClusterInfo(cli client.Client, sc *types.Cluster) *types.Cluster {
@@ -124,7 +124,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 
 	if onlyReady := requestFlags.Get("onlyready"); onlyReady == "true" {
 		for _, c := range m.zkeManager.ListReady() {
-			if m.authorizer.Authorize(user, c.Name, "") {
+			if m.authorizer.Authorize(user, c.Cluster.Name, "") {
 				sc := getClusterInfo(c.Client, c.Cluster)
 				clusters = append(clusters, sc)
 			}
@@ -133,7 +133,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	}
 
 	for _, c := range m.zkeManager.ListAll() {
-		if m.authorizer.Authorize(user, c.Name, "") {
+		if m.authorizer.Authorize(user, c.Cluster.Name, "") {
 			sc := getClusterInfo(c.Client, c.Cluster)
 			clusters = append(clusters, sc)
 		}
