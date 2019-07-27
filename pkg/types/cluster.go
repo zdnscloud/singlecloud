@@ -31,14 +31,14 @@ func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 
 type Cluster struct {
 	types.Resource     `json:",inline"`
-	Nodes              []ClusterConfigNode `json:"nodes"`
-	Network            ClusterNetwork      `json:"network"`
-	PrivateRegistries  []PrivateRegistry   `json:"privateRegistrys"`
-	SingleCloudAddress string              `json:"singleCloudAddress"`
-	Name               string              `json:"name"`
-	Status             ClusterStatus       `json:"status"`
-	NodesCount         int                 `json:"nodeCount"`
-	Version            string              `json:"version"`
+	Nodes              []Node            `json:"nodes"`
+	Network            ClusterNetwork    `json:"network"`
+	PrivateRegistries  []PrivateRegistry `json:"privateRegistrys"`
+	SingleCloudAddress string            `json:"singleCloudAddress"`
+	Name               string            `json:"name"`
+	Status             ClusterStatus     `json:"status"`
+	NodesCount         int               `json:"nodeCount"`
+	Version            string            `json:"version"`
 
 	Cpu             int64  `json:"cpu"`
 	CpuUsed         int64  `json:"cpuUsed"`
@@ -62,13 +62,6 @@ type Cluster struct {
 	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty"`
 	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS"`
 	DisablePortCheck    bool     `json:"disablePortCheck"`
-}
-
-type ClusterConfigNode struct {
-	NodeName string `json:"name"`
-	Address  string `json:"address"`
-	// Node role in kubernetes cluster (controlplane, worker, etcd, storage or edge)
-	Role []string `json:"roles"`
 }
 
 type ClusterNetwork struct {

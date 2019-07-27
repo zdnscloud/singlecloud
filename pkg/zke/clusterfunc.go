@@ -19,7 +19,7 @@ const (
 )
 
 func (c *Cluster) getTypesCluster() *types.Cluster {
-	cluster := ZKEClusterToSCCluster(c)
+	cluster := zkeClusterToSCCluster(c)
 	if c.KubeClient == nil {
 		return cluster
 	}

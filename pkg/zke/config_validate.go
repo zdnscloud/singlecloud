@@ -3,92 +3,106 @@ package zke
 import (
 	"fmt"
 
-	"github.com/zdnscloud/zke/core/services"
-	"github.com/zdnscloud/zke/types"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-func validateConfig(c *types.ZKEConfig) error {
+func validateConfig(c *types.Cluster) error {
+	if err := validateClusterOptions(c); err != nil {
+		return err
+	}
 	if err := validateDuplicateNodes(c); err != nil {
 		return err
 	}
-
-	if err := validateHostsOptions(c); err != nil {
+	if err := validateNodeOptions(c); err != nil {
 		return err
 	}
-
-	if err := validateControlplaneCount(c); err != nil {
+	if err := validateNodeCount(c); err != nil {
 		return err
 	}
-
-	if err := validateEtcdCount(c); err != nil {
+	if err := validateNodeRole(c); err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func validateDuplicateNodes(c *types.ZKEConfig) error {
+func validateClusterOptions(c *types.Cluster) error {
+	if len(c.Name) == 0 {
+		return fmt.Errorf("cluster name can't empty")
+	}
+	if len(c.SSHUser) == 0 {
+		return fmt.Errorf("cluster sshuser can't empty")
+	}
+	if len(c.SSHKey) == 0 {
+		return fmt.Errorf("cluster sshkey can't empty")
+	}
+	if len(c.SingleCloudAddress) == 0 {
+		return fmt.Errorf("singlecloud address can't empty")
+	}
+	if len(c.ClusterDomain) == 0 {
+		return fmt.Errorf("cluster domain can't empty")
+	}
+	return nil
+}
+
+func validateDuplicateNodes(c *types.Cluster) error {
 	for i := range c.Nodes {
 		for j := range c.Nodes {
 			if i == j {
 				continue
 			}
 			if c.Nodes[i].Address == c.Nodes[j].Address {
-				return fmt.Errorf("Cluster can't have duplicate node: %s", c.Nodes[i].Address)
+				return fmt.Errorf("duplicate node address %s", c.Nodes[i].Address)
 			}
-			if c.Nodes[i].NodeName == c.Nodes[j].NodeName {
-				return fmt.Errorf("Cluster can't have duplicate node: %s", c.Nodes[i].NodeName)
-			}
-		}
-	}
-	return nil
-}
-
-func validateHostsOptions(c *types.ZKEConfig) error {
-	for i, host := range c.Nodes {
-		if len(host.Address) == 0 {
-			return fmt.Errorf("Address for host (%d) is not provided", i+1)
-		}
-
-		if len(host.Role) == 0 {
-			return fmt.Errorf("Role for host (%d) is not provided", i+1)
-		}
-
-		for _, role := range host.Role {
-			if role != services.ETCDRole && role != services.ControlRole && role != services.WorkerRole && role != services.StorageRole && role != services.EdgeRole {
-				return fmt.Errorf("Role [%s] for host (%d) is not recognized", role, i+1)
+			if c.Nodes[i].Name == c.Nodes[j].Name {
+				return fmt.Errorf("duplicate node name %s", c.Nodes[i].Name)
 			}
 		}
 	}
 	return nil
 }
 
-func validateEtcdCount(c *types.ZKEConfig) error {
-	etcds := []types.ZKEConfigNode{}
-	for _, host := range c.Nodes {
-		for _, role := range host.Role {
-			if role == "etcd" {
-				etcds = append(etcds, host)
-			}
+func validateNodeOptions(c *types.Cluster) error {
+	for _, n := range c.Nodes {
+		if len(n.Name) == 0 || len(n.Address) == 0 || len(n.Roles) == 0 {
+			return fmt.Errorf("node name,address and roles cat't nil")
 		}
-	}
-	if len(etcds) == 0 {
-		return fmt.Errorf("Cluster must have at least one etcd plane host: please specify one or more etcd in cluster config")
 	}
 	return nil
 }
 
-func validateControlplaneCount(c *types.ZKEConfig) error {
-	controlplanes := []types.ZKEConfigNode{}
-	for _, host := range c.Nodes {
-		for _, role := range host.Role {
-			if role == "controlplane" {
-				controlplanes = append(controlplanes, host)
-			}
+func validateNodeCount(c *types.Cluster) error {
+	var hasControlplane bool
+	var hasEtcd bool
+	var hasWorker bool
+	for _, n := range c.Nodes {
+		if n.HasRole(types.RoleControlPlane) {
+			hasControlplane = true
+		}
+		if n.HasRole(types.RoleEtcd) {
+			hasEtcd = true
+		}
+		if n.HasRole(types.RoleWorker) {
+			hasWorker = true
 		}
 	}
-	if len(controlplanes) == 0 {
-		return fmt.Errorf("Cluster must have at least one controlplane host: please specify one or more etcd in cluster config")
+	if !hasControlplane || !hasEtcd || !hasWorker {
+		return fmt.Errorf("a cluster must has at least one controlplane, one etcd and one worker node")
+	}
+	return nil
+}
+
+func validateNodeRole(c *types.Cluster) error {
+	for _, n := range c.Nodes {
+		if n.HasRole(types.RoleControlPlane) {
+			if n.HasRole(types.RoleWorker) || n.HasRole(types.RoleEdge) {
+				return fmt.Errorf("controlplane node can't be worker or edge node")
+			}
+		}
+		if n.HasRole(types.RoleEtcd) {
+			if n.HasRole(types.RoleWorker) || n.HasRole(types.RoleEdge) {
+				return fmt.Errorf("etcd node can't be worker or edge node")
+			}
+		}
 	}
 	return nil
 }

@@ -58,9 +58,11 @@ func scClusterToZKEConfig(cluster *types.Cluster) (*zketypes.ZKEConfig, error) {
 	config.Nodes = []zketypes.ZKEConfigNode{}
 	for _, node := range cluster.Nodes {
 		n := zketypes.ZKEConfigNode{
-			NodeName: node.NodeName,
+			NodeName: node.Name,
 			Address:  node.Address,
-			Role:     node.Role,
+		}
+		for _, role := range node.Roles {
+			n.Role = append(n.Role, string(role))
 		}
 		config.Nodes = append(config.Nodes, n)
 	}
@@ -77,14 +79,10 @@ func scClusterToZKEConfig(cluster *types.Cluster) (*zketypes.ZKEConfig, error) {
 			config.PrivateRegistries = append(config.PrivateRegistries, npr)
 		}
 	}
-
-	if err := validateConfig(config); err != nil {
-		return config, err
-	}
 	return config, nil
 }
 
-func ZKEClusterToSCCluster(zc *Cluster) *types.Cluster {
+func zkeClusterToSCCluster(zc *Cluster) *types.Cluster {
 	sc := &types.Cluster{}
 	sc.Name = zc.Name
 	sc.SSHUser = zc.config.Option.SSHUser
@@ -101,12 +99,13 @@ func ZKEClusterToSCCluster(zc *Cluster) *types.Cluster {
 		Plugin: zc.config.Network.Plugin,
 	}
 
-	sc.Nodes = []types.ClusterConfigNode{}
 	for _, node := range zc.config.Nodes {
-		n := types.ClusterConfigNode{
-			NodeName: node.NodeName,
-			Address:  node.Address,
-			Role:     node.Role,
+		n := types.Node{
+			Name:    node.NodeName,
+			Address: node.Address,
+		}
+		for _, role := range node.Role {
+			n.Roles = append(n.Roles, types.NodeRole(role))
 		}
 		sc.Nodes = append(sc.Nodes, n)
 	}
