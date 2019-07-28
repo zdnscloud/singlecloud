@@ -65,24 +65,6 @@
         }
     },
 
-    "postParameters": {
-        "fields": {
-            "name": {
-                "type": "string",
-                "required": true
-            },
-            "address": {
-                "type": "string",
-                "required": true
-            },
-            "roles": {
-                "type": "array",
-                "elemType": "string",
-                "required": true
-            },
-
-            "resourceMethods": ["GET", "DELETE"],
-            "collectionMethods": ["GET", "POST"]
-        }
-    }
+    "resourceMethods": ["GET"],
+    "collectionMethods": ["GET"]
 }
