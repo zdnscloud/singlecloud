@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/kyokomi/emoji"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -192,6 +193,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("create cluster failed:%s", err.Error())
 	}
+
+	time.Sleep(time.Second * 5)
 
 	err = deleteZcloudProxyDeployment(addr, token, clusterName)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/zdnscloud/gok8s/client"
 	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 )
 
@@ -52,16 +53,15 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
-	config, err := scClusterToZKEConfig(inner)
-	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("validate cluster %s config failed %s", inner.Name, err))
-	}
+	config := scClusterToZKEConfig(inner)
 
 	state := clusterState{
 		ZKEConfig:    config,
 		CreateTime:   time.Now(),
+		FullState:    &core.FullState{},
 		IsUnvailable: true,
 	}
+
 	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
@@ -75,6 +75,38 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 	zkectx, cancel := context.WithCancel(context.Background())
 	cluster.cancel = cancel
 	go cluster.create(zkectx, state, m)
+	return inner, nil
+}
+
+func (m *ZKEManager) Import(ctx *resttypes.Context, json []byte) (interface{}, *resttypes.APIError) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	inner := ctx.Object.(*types.Cluster)
+	c := m.get(inner.Name)
+
+	if c != nil {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster")
+	}
+
+	state, err := readStateJsonBytes(json)
+	if err != nil {
+		return nil, resttypes.NewAPIError(resttypes.InvalidBodyContent, fmt.Sprintf("%s", err))
+	}
+	state.ZKEConfig = state.CurrentState.ZKEConfig.DeepCopy()
+	state.CreateTime = time.Now()
+	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
+		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
+	}
+
+	cluster := newClusterWithStatus(inner.Name, types.CSConnecting)
+	cluster.CreateTime = state.CreateTime
+	cluster.config = state.CurrentState.ZKEConfig.DeepCopy()
+	m.unreadyClusters = append(m.unreadyClusters, cluster)
+
+	kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
+	zkectx, cancel := context.WithCancel(context.Background())
+	cluster.cancel = cancel
+	go cluster.initLoop(zkectx, kubeConfig, m)
 	return inner, nil
 }
 
@@ -92,10 +124,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
-	config, err := scClusterToZKEConfig(inner)
-	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("validate cluster %s config failed %s", inner.Name, err))
-	}
+	config := updateConfigNodesFromScCluster(c.config, inner)
 	c.config = config
 
 	state, err := getState(inner.Name, m.db)
@@ -103,6 +132,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
 
+	state.ZKEConfig = config
 	state.IsUnvailable = true
 	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))

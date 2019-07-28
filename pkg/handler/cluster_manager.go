@@ -71,6 +71,9 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
 	}
+	if len(yamlConf) > 0 {
+		return m.zkeManager.Import(ctx, yamlConf)
+	}
 	return m.zkeManager.Create(ctx)
 }
 

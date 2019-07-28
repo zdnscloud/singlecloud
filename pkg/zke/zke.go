@@ -39,7 +39,7 @@ func upCluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.Full
 	return newState, k8sConfig, kubeClient, nil
 }
 
-func scClusterToZKEConfig(cluster *types.Cluster) (*zketypes.ZKEConfig, error) {
+func scClusterToZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 	config := &zketypes.ZKEConfig{
 		ClusterName:        cluster.Name,
 		SingleCloudAddress: cluster.SingleCloudAddress,
@@ -79,7 +79,7 @@ func scClusterToZKEConfig(cluster *types.Cluster) (*zketypes.ZKEConfig, error) {
 			config.PrivateRegistries = append(config.PrivateRegistries, npr)
 		}
 	}
-	return config, nil
+	return config
 }
 
 func zkeClusterToSCCluster(zc *Cluster) *types.Cluster {
@@ -128,4 +128,20 @@ func zkeClusterToSCCluster(zc *Cluster) *types.Cluster {
 	sc.SetCreationTimestamp(zc.CreateTime)
 	sc.Status = zc.getStatus()
 	return sc
+}
+
+func updateConfigNodesFromScCluster(config *zketypes.ZKEConfig, sc *types.Cluster) *zketypes.ZKEConfig {
+	newConfig := config.DeepCopy()
+	newConfig.Nodes = []zketypes.ZKEConfigNode{}
+	for _, node := range sc.Nodes {
+		n := zketypes.ZKEConfigNode{
+			NodeName: node.Name,
+			Address:  node.Address,
+		}
+		for _, role := range node.Roles {
+			n.Role = append(n.Role, string(role))
+		}
+		newConfig.Nodes = append(newConfig.Nodes, n)
+	}
+	return newConfig
 }

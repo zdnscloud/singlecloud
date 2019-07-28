@@ -2,6 +2,7 @@ package zke
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -10,7 +11,6 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
-	"github.com/zdnscloud/zke/core"
 	"k8s.io/client-go/rest"
 )
 
@@ -90,7 +90,9 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
-	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, &core.FullState{}, logger)
+	// go printLog(c.logCh)
+
+	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger)
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		c.fsm.Event(CreateFailedEvent, mgr, state)
@@ -122,6 +124,8 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
+	// go printLog(c.logCh)
+
 	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger)
 	if err != nil {
 		log.Errorf("zke err info %s", err)
@@ -136,4 +140,15 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	state.IsUnvailable = false
 
 	c.fsm.Event(UpdateSuccessEvent, mgr, state)
+}
+
+func printLog(logCh chan string) {
+	for {
+		l, ok := <-logCh
+		if !ok {
+			log.Infof("log channel has been closed")
+			return
+		}
+		fmt.Printf(l)
+	}
 }

@@ -138,7 +138,7 @@ func readStateJsonBytes(sj []byte) (clusterState, error) {
 	if err := json.Unmarshal(sj, &s); err != nil {
 		return s, err
 	}
-	if s.FullState != nil {
+	if s.FullState != nil && s.FullState.DesiredState.CertificatesBundle != nil {
 		s.DesiredState.CertificatesBundle = pki.TransformPEMToObject(s.DesiredState.CertificatesBundle)
 		s.CurrentState.CertificatesBundle = pki.TransformPEMToObject(s.CurrentState.CertificatesBundle)
 	}
