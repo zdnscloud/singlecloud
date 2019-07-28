@@ -10,6 +10,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
@@ -42,6 +43,7 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 	}
 	zkeMgr, err := zke.New(db)
 	if err != nil {
+		log.Fatalf("create zke-manager failed %s", err)
 		return clusterMgr
 	}
 	clusterMgr.zkeManager = zkeMgr

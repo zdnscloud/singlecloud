@@ -15,6 +15,10 @@ import (
 	"github.com/zdnscloud/zke/core/pki"
 )
 
+const (
+	PubEventBufferCount = 500
+)
+
 type ZKEManager struct {
 	PubEventCh      chan interface{}
 	readyClusters   []*Cluster
@@ -32,10 +36,12 @@ func New(db storage.DB) (*ZKEManager, error) {
 	mgr := &ZKEManager{
 		readyClusters:   make([]*Cluster, 0),
 		unreadyClusters: make([]*Cluster, 0),
-		PubEventCh:      make(chan interface{}),
+		PubEventCh:      make(chan interface{}, PubEventBufferCount),
 		db:              db,
 	}
-	go mgr.loadDB()
+	if err := mgr.loadDB(); err != nil {
+		return mgr, err
+	}
 	return mgr, nil
 }
 
@@ -216,7 +222,7 @@ func (m *ZKEManager) Delete(id string) *resttypes.APIError {
 			toDelete = c
 			status := c.getStatus()
 			if status == types.CSCreateing || status == types.CSUpdateing || status == types.CSConnecting || status == types.CSCanceling {
-				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state desn't allow to delete", status))
+				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state desn't allow to delete", id, status))
 			}
 			m.unreadyClusters = append(m.unreadyClusters[:i], m.unreadyClusters[i+1:]...)
 			break
@@ -226,7 +232,10 @@ func (m *ZKEManager) Delete(id string) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
 	if err := deleteState(id, m.db); err != nil {
-		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster %s from database failed", id, err))
+		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster %s from database failed %s", id, err))
+	}
+	m.PubEventCh <- DeleteCluster{
+		Cluster: toDelete,
 	}
 	return nil
 }
