@@ -59,6 +59,8 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
+	preDealOnlyEdgeRoleCondition(inner) //deal with condition that zke pending when an node only has edge role
+
 	config := scClusterToZKEConfig(inner)
 
 	state := clusterState{
@@ -129,6 +131,8 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 	if err := validateConfig(inner); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
+
+	preDealOnlyEdgeRoleCondition(inner) //deal with condition that zke pending when an node only has edge role
 
 	config := updateConfigNodesFromScCluster(c.config, inner)
 	c.config = config

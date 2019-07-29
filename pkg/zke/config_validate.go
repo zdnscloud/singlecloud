@@ -106,3 +106,11 @@ func validateNodeRole(c *types.Cluster) error {
 	}
 	return nil
 }
+
+func preDealOnlyEdgeRoleCondition(c *types.Cluster) {
+	for i, n := range c.Nodes {
+		if n.HasRole(types.RoleEdge) && !n.HasRole(types.RoleWorker) {
+			c.Nodes[i].Roles = append(n.Roles, types.RoleWorker)
+		}
+	}
+}
