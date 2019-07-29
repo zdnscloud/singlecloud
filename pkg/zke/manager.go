@@ -261,6 +261,27 @@ func (m *ZKEManager) Cancel(id string) (interface{}, *resttypes.APIError) {
 	return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state, not allow cancel", id, status))
 }
 
+func (m *ZKEManager) GetKubeConfig(id string) (interface{}, *resttypes.APIError) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	c := m.get(id)
+	if c == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
+	}
+	state, err := getState(id, m.db)
+	if err != nil {
+		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("get cluster %s state from database failed %s", id, err))
+	}
+	if state.FullState != nil && state.FullState.DesiredState.CertificatesBundle != nil {
+		kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
+		return map[string]string{
+			"name":   id,
+			"config": kubeConfig,
+		}, nil
+	}
+	return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("cluster %s not yet created", id))
+}
+
 func (m *ZKEManager) getReady(id string) *Cluster {
 	for _, c := range m.readyClusters {
 		if c.Name == id {

@@ -158,9 +158,16 @@ func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 }
 
 func (m *ClusterManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	if ctx.Action.Name == types.ClusterCancel {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can call cluster action apis")
+	}
+	if ctx.Action.Name == types.CSCancelAction {
 		id := ctx.Object.(*types.Cluster).GetID()
 		return m.zkeManager.Cancel(id)
+	}
+	if ctx.Action.Name == types.CSGetKubeConfigAction {
+		id := ctx.Object.(*types.Cluster).GetID()
+		return m.zkeManager.GetKubeConfig(id)
 	}
 	return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
 }

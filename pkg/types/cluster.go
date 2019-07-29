@@ -17,7 +17,8 @@ const (
 	CSInit        ClusterStatus = "Init"
 	CSDestroy     ClusterStatus = "Destroy"
 
-	ClusterCancel = "cancel"
+	CSCancelAction        = "cancel"
+	CSGetKubeConfigAction = "getkubeconfig"
 )
 
 func SetClusterSchema(schema *types.Schema, handler types.Handler) {
@@ -25,7 +26,10 @@ func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 	schema.CollectionMethods = []string{"GET", "POST"}
 	schema.ResourceMethods = []string{"GET", "DELETE", "POST", "PUT"}
 	schema.ResourceActions = append(schema.ResourceActions, types.Action{
-		Name: ClusterCancel,
+		Name: CSCancelAction,
+	})
+	schema.ResourceActions = append(schema.ResourceActions, types.Action{
+		Name: CSGetKubeConfigAction,
 	})
 }
 
