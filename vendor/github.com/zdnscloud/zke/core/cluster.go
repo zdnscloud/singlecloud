@@ -48,7 +48,7 @@ const (
 	AuthnX509Provider       = "x509"
 	AuthnWebhookProvider    = "webhook"
 	StateConfigMapName      = "cluster-state"
-	FullStateConfigMapName  = "full-cluster-state"
+	ClusterConfigMapName    = "cluster-config"
 	UpdateStateTimeout      = 30
 	GetStateTimeout         = 30
 	KubernetesClientTimeOut = 30

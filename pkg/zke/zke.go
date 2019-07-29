@@ -15,8 +15,8 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func upCluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger) (*core.FullState, *rest.Config, client.Client, error) {
-	newState, err := zkecmd.ClusterUpFromSingleCloud(ctx, config, state, logger)
+func upCluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger, isNewCluster bool) (*core.FullState, *rest.Config, client.Client, error) {
+	newState, err := zkecmd.ClusterUpFromSingleCloud(ctx, config, state, logger, isNewCluster)
 	if err != nil {
 		return newState, nil, nil, err
 	}

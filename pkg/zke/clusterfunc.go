@@ -92,7 +92,7 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 
 	// go printLog(c.logCh)
 
-	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger)
+	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, true)
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		c.fsm.Event(CreateFailedEvent, mgr, state)
@@ -126,7 +126,7 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 
 	// go printLog(c.logCh)
 
-	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger)
+	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, false)
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		c.fsm.Event(UpdateFailedEvent, mgr, state)

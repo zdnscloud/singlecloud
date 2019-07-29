@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/zdnscloud/zke/zcloud"
 
 	"github.com/urfave/cli"
+	"github.com/zdnscloud/cement/errgroup"
 	cementlog "github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client/config"
 	"k8s.io/client-go/kubernetes"
@@ -29,42 +29,6 @@ func UpCommand() cli.Command {
 		Usage:  "Bring the cluster up",
 		Action: clusterUpFromCli,
 	}
-}
-
-func doUpgradeLegacyCluster(ctx context.Context, kubeCluster *core.Cluster, fullState *core.FullState) error {
-	if _, err := os.Stat(pki.KubeAdminConfigName); os.IsNotExist(err) {
-		// there is no kubeconfig. This is a new cluster
-		log.Debugf("[state] local kubeconfig not found, this is a new cluster")
-		return nil
-	}
-	if _, err := os.Stat(pki.StateFileName); err == nil {
-		// this cluster has a previous state, I don't need to upgrade!
-		log.Debugf("[state] previous state found, this is not a legacy cluster")
-		return nil
-	}
-	// We have a kubeconfig and no current state. This is a legacy cluster or a new cluster with old kubeconfig
-	// let's try to upgrade
-	// log.Infof(ctx, "[state] Possible legacy cluster detected, trying to upgrade")
-	// if err := core.RebuildKubeconfig(ctx, kubeCluster); err != nil {
-	// return err
-	// }
-	recoveredCluster, err := core.GetStateFromKubernetes(ctx, kubeCluster)
-	if err != nil {
-		return err
-	}
-	// if we found a recovered cluster, we will need override the current state
-	if recoveredCluster != nil {
-		recoveredCerts, err := core.GetClusterCertsFromKubernetes(ctx, kubeCluster)
-		if err != nil {
-			return err
-		}
-		fullState.CurrentState.ZKEConfig = recoveredCluster.ZKEConfig.DeepCopy()
-		fullState.CurrentState.CertificatesBundle = recoveredCerts
-		// we don't want to regenerate certificates
-		fullState.DesiredState.CertificatesBundle = recoveredCerts
-		return fullState.WriteStateFile(ctx, pki.StateFileName)
-	}
-	return nil
 }
 
 func ClusterUp(ctx context.Context, dialersOptions hosts.DialersOptions) error {
@@ -97,6 +61,10 @@ func ClusterUp(ctx context.Context, dialersOptions hosts.DialersOptions) error {
 
 	isNewCluster := true
 	if currentCluster != nil {
+		log.Infof(ctx, "Begin clean to add hosts")
+		if err := preCleanToAddHosts(ctx, kubeCluster, currentCluster); err != nil {
+			return err
+		}
 		isNewCluster = false
 	}
 
@@ -147,7 +115,7 @@ func ClusterUp(ctx context.Context, dialersOptions hosts.DialersOptions) error {
 		return err
 	}
 
-	err = core.SaveFullStateToKubernetes(ctx, kubeCluster, clusterState)
+	err = core.SaveZKEConfigToKubernetes(ctx, kubeCluster, clusterState)
 	if err != nil {
 		return err
 	}
@@ -210,6 +178,10 @@ func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, 
 
 	isNewCluster := true
 	if currentCluster != nil {
+		log.Infof(ctx, "Begin clean to add hosts")
+		if err := preCleanToAddHosts(ctx, kubeCluster, currentCluster); err != nil {
+			return clusterState, err
+		}
 		isNewCluster = false
 	}
 
@@ -218,6 +190,7 @@ func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, 
 			return clusterState, err
 		}
 	}
+
 	core.SetUpAuthentication(ctx, kubeCluster, currentCluster, clusterState)
 
 	kubeConfig, err := config.BuildConfig([]byte(kubeCluster.Certificates[pki.KubeAdminCertName].Config))
@@ -260,7 +233,7 @@ func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, 
 		return clusterState, err
 	}
 
-	err = core.SaveFullStateToKubernetes(ctx, kubeCluster, clusterState)
+	err = core.SaveZKEConfigToKubernetes(ctx, kubeCluster, clusterState)
 	if err != nil {
 		return clusterState, err
 	}
@@ -328,13 +301,20 @@ func clusterUpFromCli(ctx *cli.Context) error {
 	err = ClusterUp(context.Background(), hosts.DialersOptions{})
 	if err == nil {
 		endUPtime := time.Since(startUPtime) / 1e9
-		log.Infof(context.TODO(), "This up takes [%s] secends", strconv.FormatInt(int64(endUPtime), 10))
+		log.Infof(context.TODO(), fmt.Sprintf("This up takes [%s] secends", strconv.FormatInt(int64(endUPtime), 10)))
 	}
 	return err
 }
 
-func ClusterUpFromSingleCloud(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger) (*core.FullState, error) {
+func ClusterUpFromSingleCloud(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger, newCluster bool) (*core.FullState, error) {
 	log.InitChannelLog(logger)
+	defer logger.Close()
+
+	if newCluster {
+		if err := ClusterRemoveFromSingleCloud(ctx, zkeConfig, logger); err != nil {
+			return clusterState, err
+		}
+	}
 
 	newClusterState, err := ClusterInitForSingleCloud(ctx, zkeConfig, clusterState, hosts.DialersOptions{})
 	if err != nil {
@@ -342,8 +322,6 @@ func ClusterUpFromSingleCloud(ctx context.Context, zkeConfig *types.ZKEConfig, c
 	}
 
 	newClusterState, err = ClusterUpForSingleCloud(ctx, newClusterState, hosts.DialersOptions{})
-
-	log.ZKELogger.Close()
 	return newClusterState, err
 }
 
@@ -375,6 +353,23 @@ func ConfigureCluster(
 		if err := zcloud.DeployZcloudManager(ctx, kubeCluster); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func preCleanToAddHosts(ctx context.Context, kubeCluster, currentCluster *core.Cluster) error {
+	// if not new cluster, first clean toAddHosts then up
+	currentAllHosts := hosts.GetUniqueHostList(currentCluster.ControlPlaneHosts, currentCluster.EtcdHosts, currentCluster.WorkerHosts, currentCluster.EdgeHosts)
+	configAllHosts := hosts.GetUniqueHostList(kubeCluster.ControlPlaneHosts, kubeCluster.EtcdHosts, kubeCluster.WorkerHosts, kubeCluster.EdgeHosts)
+	toAddHosts := hosts.GetToAddHosts(currentAllHosts, configAllHosts)
+
+	_, err := errgroup.Batch(toAddHosts, func(h interface{}) (interface{}, error) {
+		runHost := h.(*hosts.Host)
+		return nil, runHost.CleanUpAll(ctx, kubeCluster.Image.Alpine, kubeCluster.PrivateRegistriesMap, false)
+	})
+
+	if err != nil {
+		return err
 	}
 	return nil
 }

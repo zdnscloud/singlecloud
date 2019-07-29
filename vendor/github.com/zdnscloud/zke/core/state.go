@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/zdnscloud/zke/core/pki"
@@ -16,14 +15,7 @@ import (
 	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/types"
 
-	"gopkg.in/yaml.v2"
-	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-)
-
-const (
-	stateFileExt = ".zkestate"
-	certDirExt   = "_certs"
 )
 
 type FullState struct {
@@ -37,9 +29,14 @@ type State struct {
 }
 
 func (c *Cluster) UpdateClusterCurrentState(ctx context.Context, fullState *FullState) error {
-	fullState.CurrentState.ZKEConfig = c.ZKEConfig.DeepCopy()
-	fullState.CurrentState.CertificatesBundle = c.Certificates
-	return fullState.WriteStateFile(ctx, pki.StateFileName)
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("cluster build has beed canceled")
+	default:
+		fullState.CurrentState.ZKEConfig = c.ZKEConfig.DeepCopy()
+		fullState.CurrentState.CertificatesBundle = c.Certificates
+		return fullState.WriteStateFile(ctx, pki.StateFileName)
+	}
 }
 
 func (c *Cluster) UpdateClusterCurrentStateForSingleCloud(ctx context.Context, fullState *FullState) (*FullState, error) {
@@ -78,20 +75,21 @@ func (c *Cluster) GetClusterState(ctx context.Context, fullState *FullState) (*C
 	}
 }
 
-func SaveFullStateToKubernetes(ctx context.Context, kubeCluster *Cluster, fullState *FullState) error {
+func SaveZKEConfigToKubernetes(ctx context.Context, kubeCluster *Cluster, fullState *FullState) error {
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("cluster build has beed canceled")
 	default:
 		log.Infof(ctx, "[state] Saving full cluster state to Kubernetes")
-		stateFile, err := json.Marshal(*fullState)
+		config := fullState.CurrentState.ZKEConfig.DeepCopy()
+		configFile, err := json.Marshal(*config)
 		if err != nil {
 			return err
 		}
 		timeout := make(chan bool, 1)
 		go func() {
 			for {
-				_, err := k8s.UpdateConfigMap(kubeCluster.KubeClient, stateFile, FullStateConfigMapName)
+				_, err := k8s.UpdateConfigMap(kubeCluster.KubeClient, configFile, ClusterConfigMapName)
 				if err != nil {
 					time.Sleep(time.Second * 5)
 					continue
@@ -107,39 +105,6 @@ func SaveFullStateToKubernetes(ctx context.Context, kubeCluster *Cluster, fullSt
 		case <-time.After(time.Second * UpdateStateTimeout):
 			return fmt.Errorf("[state] Timeout waiting for kubernetes to be ready")
 		}
-	}
-}
-
-func GetStateFromKubernetes(ctx context.Context, kubeCluster *Cluster) (*Cluster, error) {
-	log.Infof(ctx, "[state] Fetching cluster state from Kubernetes")
-
-	var err error
-	var cfgMap *v1.ConfigMap
-	var currentCluster Cluster
-	timeout := make(chan bool, 1)
-	go func() {
-		for {
-			cfgMap, err = k8s.GetConfigMap(kubeCluster.KubeClient, StateConfigMapName)
-			if err != nil {
-				time.Sleep(time.Second * 5)
-				continue
-			}
-			log.Infof(ctx, "[state] Successfully Fetched cluster state to Kubernetes ConfigMap: %s", StateConfigMapName)
-			timeout <- true
-			break
-		}
-	}()
-	select {
-	case <-timeout:
-		clusterData := cfgMap.Data[StateConfigMapName]
-		err := yaml.Unmarshal([]byte(clusterData), &currentCluster)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal cluster data")
-		}
-		return &currentCluster, nil
-	case <-time.After(time.Second * GetStateTimeout):
-		log.Infof(ctx, "Timed out waiting for kubernetes cluster to get state")
-		return nil, fmt.Errorf("Timeout waiting for kubernetes cluster to get state")
 	}
 }
 
@@ -193,36 +158,6 @@ func (s *FullState) WriteStateFile(ctx context.Context, statePath string) error 
 	return nil
 }
 
-func GetStateFilePath(configPath, configDir string) string {
-	if configPath == "" {
-		configPath = pki.ClusterConfig
-	}
-	baseDir := filepath.Dir(configPath)
-	if len(configDir) > 0 {
-		baseDir = filepath.Dir(configDir)
-	}
-	fileName := filepath.Base(configPath)
-	baseDir += "/"
-	fullPath := fmt.Sprintf("%s%s", baseDir, fileName)
-	trimmedName := strings.TrimSuffix(fullPath, filepath.Ext(fullPath))
-	return trimmedName + stateFileExt
-}
-
-func GetCertificateDirPath(configPath, configDir string) string {
-	if configPath == "" {
-		configPath = pki.ClusterConfig
-	}
-	baseDir := filepath.Dir(configPath)
-	if len(configDir) > 0 {
-		baseDir = filepath.Dir(configDir)
-	}
-	fileName := filepath.Base(configPath)
-	baseDir += "/"
-	fullPath := fmt.Sprintf("%s%s", baseDir, fileName)
-	trimmedName := strings.TrimSuffix(fullPath, filepath.Ext(fullPath))
-	return trimmedName + certDirExt
-}
-
 func ReadStateFile(ctx context.Context, statePath string) (*FullState, error) {
 	zkeFullState := &FullState{}
 	fp, err := filepath.Abs(statePath)
@@ -239,19 +174,6 @@ func ReadStateFile(ctx context.Context, statePath string) (*FullState, error) {
 		return zkeFullState, fmt.Errorf("failed to read state file: %v", err)
 	}
 	if err := json.Unmarshal(buf, zkeFullState); err != nil {
-		return zkeFullState, fmt.Errorf("failed to unmarshal the state file: %v", err)
-	}
-	zkeFullState.DesiredState.CertificatesBundle = pki.TransformPEMToObject(zkeFullState.DesiredState.CertificatesBundle)
-	zkeFullState.CurrentState.CertificatesBundle = pki.TransformPEMToObject(zkeFullState.CurrentState.CertificatesBundle)
-	return zkeFullState, nil
-}
-
-func ReadStateJson(ctx context.Context, stateJson string) (*FullState, error) {
-	zkeFullState := &FullState{}
-	if len(stateJson) == 0 {
-		return zkeFullState, nil
-	}
-	if err := json.Unmarshal([]byte(stateJson), zkeFullState); err != nil {
 		return zkeFullState, fmt.Errorf("failed to unmarshal the state file: %v", err)
 	}
 	zkeFullState.DesiredState.CertificatesBundle = pki.TransformPEMToObject(zkeFullState.DesiredState.CertificatesBundle)

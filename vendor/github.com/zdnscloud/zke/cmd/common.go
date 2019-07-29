@@ -44,10 +44,7 @@ func ClusterInit(ctx context.Context, zkeConfig *types.ZKEConfig, dialersOptions
 	if err := kubeCluster.SetupDialers(ctx, dialersOptions); err != nil {
 		return err
 	}
-	err = doUpgradeLegacyCluster(ctx, kubeCluster, zkeFullState)
-	if err != nil {
-		log.Warnf(ctx, "[state] can't fetch legacy cluster state from Kubernetes")
-	}
+
 	fullState, err = core.RebuildState(ctx, &kubeCluster.ZKEConfig, zkeFullState)
 	if err != nil {
 		return err

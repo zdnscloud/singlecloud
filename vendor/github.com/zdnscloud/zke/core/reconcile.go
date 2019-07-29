@@ -26,7 +26,6 @@ func ReconcileCluster(ctx context.Context, kubeCluster, currentCluster *Cluster)
 		log.Infof(ctx, "[reconcile] This is newly generated cluster")
 		return nil
 	}
-
 	// sync node labels to define the toDelete labels
 	syncLabels(ctx, currentCluster, kubeCluster)
 

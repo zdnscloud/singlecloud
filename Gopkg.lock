@@ -532,7 +532,7 @@
 
 [[projects]]
   branch = "node-manager"
-  digest = "1:365cba6a5921c779e7596a322452f01944f8b2fb3ae58b28328eb2852d352c1a"
+  digest = "1:b00e15c5b5f811b239771e4d7549187bf4744aad609ab9aea0fbde8f05269c6f"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -560,7 +560,7 @@
     "zcloud/storage",
   ]
   pruneopts = "UT"
-  revision = "b13c0675f2fa3e209205059762aeda620d8f20bd"
+  revision = "3286a87843d8b657a960a3d69de45db8e98bf5a4"
 
 [[projects]]
   branch = "master"
@@ -959,7 +959,6 @@
     "github.com/zdnscloud/zke/cmd",
     "github.com/zdnscloud/zke/core",
     "github.com/zdnscloud/zke/core/pki",
-    "github.com/zdnscloud/zke/core/services",
     "github.com/zdnscloud/zke/types",
     "gopkg.in/yaml.v2",
     "k8s.io/api/apps/v1",
