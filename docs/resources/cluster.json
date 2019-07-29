@@ -298,6 +298,18 @@
     "collectionMethods": ["GET", "POST"],
 
     "resourceActions": [{
-        "name": "cancel"
-    }]
+            "name": "cancel"
+        },
+        {
+            "name": "getkubeconfig",
+            "output": {
+                "name": {
+                    "type": "string"
+                },
+                "config": {
+                    "type": "string"
+                }
+            }
+        }
+    ]
 }
