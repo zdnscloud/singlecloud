@@ -1,0 +1,7 @@
+name: vanguard 
+description: Deploy a simple dns server 
+version: 0.1.0
+home: https://github.com/zdnscloud/vanguard 
+sources:
+  - https://github.com/zdnscloud/vanguard 
+appVersion: 1.0

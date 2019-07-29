@@ -50,7 +50,7 @@ var (
 
 const (
 	notesFileSuffix = "NOTES.txt"
-	cmReleaseKey    = "release"
+	cmReleaseKey    = "application-release"
 	cmLabelChart    = "chart-name"
 	cmLabelVersion  = "chart-version"
 	cmLabelOwnerApp = "application-name"
@@ -113,6 +113,10 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 		if err != nil {
 			log.Warnf("list applications info failed:%s", err.Error())
 			return nil
+		}
+
+		if release == nil {
+			continue
 		}
 
 		chartVersion := item.Labels[cmLabelVersion]
@@ -178,6 +182,10 @@ func deleteApplication(cli client.Client, namespace, name string) error {
 	release, err := decodeRelease(k8sConfigMap.Data[cmReleaseKey])
 	if err != nil {
 		return fmt.Errorf("decode application %s from configmap failed: %s", name, err.Error())
+	}
+
+	if release == nil {
+		return fmt.Errorf("application %s should not be empty data in configmap", name)
 	}
 
 	manifests := releaseutil.SplitManifests(release.Manifest)
@@ -371,12 +379,15 @@ func encodeRelease(rls *release.Release) (string, error) {
 }
 
 func decodeRelease(data string) (*release.Release, error) {
+	if data == "" {
+		return nil, nil
+	}
 	b, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
 		return nil, err
 	}
 
-	if bytes.Equal(b[0:3], magicGzip) {
+	if len(b) > 2 && bytes.Equal(b[0:3], magicGzip) {
 		r, err := gzip.NewReader(bytes.NewReader(b))
 		if err != nil {
 			return nil, err

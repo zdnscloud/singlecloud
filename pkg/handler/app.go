@@ -70,6 +70,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.Chart{}, newChartManager(a.chartDir), types.SetChartSchema)
 	schemas.MustImportAndCustomize(&Version, types.Application{}, newApplicationManager(a.clusterManager, a.chartDir), types.SetApplicationSchema)
 	schemas.MustImport(&Version, charts.Redis{})
+	schemas.MustImport(&Version, charts.Vanguard{})
 	schemas.MustImportAndCustomize(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager), types.SetUserQuotaSchema)
 
 	server := api.NewAPIServer()
