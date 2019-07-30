@@ -10,16 +10,14 @@ func validateConfig(c *types.Cluster) error {
 	if err := validateClusterOptions(c); err != nil {
 		return err
 	}
+	if err := validateNodeRoleAndOption(c); err != nil {
+		return err
+	}
 	if err := validateDuplicateNodes(c); err != nil {
 		return err
 	}
-	if err := validateNodeOptions(c); err != nil {
-		return err
-	}
+
 	if err := validateNodeCount(c); err != nil {
-		return err
-	}
-	if err := validateNodeRole(c); err != nil {
 		return err
 	}
 	return nil
@@ -61,15 +59,6 @@ func validateDuplicateNodes(c *types.Cluster) error {
 	return nil
 }
 
-func validateNodeOptions(c *types.Cluster) error {
-	for _, n := range c.Nodes {
-		if len(n.Name) == 0 || len(n.Address) == 0 || len(n.Roles) == 0 {
-			return fmt.Errorf("node name,address and roles cat't nil")
-		}
-	}
-	return nil
-}
-
 func validateNodeCount(c *types.Cluster) error {
 	var hasControlplane bool
 	var hasEtcd bool
@@ -91,8 +80,11 @@ func validateNodeCount(c *types.Cluster) error {
 	return nil
 }
 
-func validateNodeRole(c *types.Cluster) error {
+func validateNodeRoleAndOption(c *types.Cluster) error {
 	for _, n := range c.Nodes {
+		if len(n.Name) == 0 || len(n.Address) == 0 || len(n.Roles) == 0 {
+			return fmt.Errorf("%s node name,address and roles cat't nil", n.Name)
+		}
 		if !n.HasRole(types.RoleControlPlane) && !n.HasRole(types.RoleWorker) {
 			return fmt.Errorf("%s must be controlplane or worker", n.Name)
 		}
