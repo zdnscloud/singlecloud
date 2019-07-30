@@ -2,7 +2,6 @@ package zke
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -90,8 +89,6 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
-	// go printLog(c.logCh)
-
 	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, true)
 	if err != nil {
 		log.Errorf("zke err info %s", err)
@@ -124,8 +121,6 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
-	// go printLog(c.logCh)
-
 	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, false)
 	if err != nil {
 		log.Errorf("zke err info %s", err)
@@ -140,15 +135,4 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	state.IsUnvailable = false
 
 	c.fsm.Event(UpdateSuccessEvent, mgr, state)
-}
-
-func printLog(logCh chan string) {
-	for {
-		l, ok := <-logCh
-		if !ok {
-			log.Infof("log channel has been closed")
-			return
-		}
-		fmt.Printf(l)
-	}
 }

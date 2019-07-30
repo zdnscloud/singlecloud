@@ -93,24 +93,12 @@ func validateNodeCount(c *types.Cluster) error {
 
 func validateNodeRole(c *types.Cluster) error {
 	for _, n := range c.Nodes {
-		if n.HasRole(types.RoleControlPlane) {
-			if n.HasRole(types.RoleWorker) || n.HasRole(types.RoleEdge) {
-				return fmt.Errorf("controlplane node can't be worker or edge node")
-			}
+		if !n.HasRole(types.RoleControlPlane) && !n.HasRole(types.RoleWorker) {
+			return fmt.Errorf("%s must be controlplane or worker", n.Name)
 		}
-		if n.HasRole(types.RoleEtcd) {
-			if n.HasRole(types.RoleWorker) || n.HasRole(types.RoleEdge) {
-				return fmt.Errorf("etcd node can't be worker or edge node")
-			}
+		if n.HasRole(types.RoleControlPlane) && n.HasRole(types.RoleWorker) {
+			return fmt.Errorf("%s controlplane node can't be worker", n.Name)
 		}
 	}
 	return nil
-}
-
-func preDealOnlyEdgeRoleCondition(c *types.Cluster) {
-	for i, n := range c.Nodes {
-		if n.HasRole(types.RoleEdge) && !n.HasRole(types.RoleWorker) {
-			c.Nodes[i].Roles = append(n.Roles, types.RoleWorker)
-		}
-	}
 }
