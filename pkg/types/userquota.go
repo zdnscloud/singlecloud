@@ -68,7 +68,11 @@ func (u UserQuotas) Swap(i, j int) {
 }
 func (u UserQuotas) Less(i, j int) bool {
 	if time.Time(u[i].CreationTimestamp).Equal(time.Time(u[j].CreationTimestamp)) {
-		return u[i].UserName < u[j].UserName
+		if u[i].UserName == u[j].UserName {
+			return u[i].Name < u[j].Name
+		} else {
+			return u[i].UserName < u[j].UserName
+		}
 	} else {
 		return time.Time(u[i].CreationTimestamp).Before(time.Time(u[j].CreationTimestamp))
 	}
