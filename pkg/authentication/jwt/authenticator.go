@@ -12,6 +12,7 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/session"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -30,16 +31,29 @@ type Authenticator struct {
 	lock     sync.Mutex
 	users    map[string]string
 	sessions *session.SessionMgr
+	db       storage.Table
 }
 
-func NewAuthenticator() *Authenticator {
-	users := make(map[string]string)
-	users[types.Administrator] = AdminPasswd
-	return &Authenticator{
+func NewAuthenticator(db storage.DB) (*Authenticator, error) {
+	auth := &Authenticator{
 		repo:     NewTokenRepo(tokenSecret, tokenValidDuration),
-		users:    users,
 		sessions: session.New(SessionCookieName),
 	}
+
+	if err := auth.loadUsers(db); err != nil {
+		return nil, err
+	}
+
+	if _, ok := auth.users[types.Administrator]; ok == false {
+		admin := &types.User{
+			Name:     types.Administrator,
+			Password: AdminPasswd,
+		}
+		admin.SetID(types.Administrator)
+		auth.AddUser(admin)
+	}
+
+	return auth, nil
 }
 
 func (a *Authenticator) Authenticate(_ http.ResponseWriter, req *http.Request) (string, *resttypes.APIError) {
@@ -65,8 +79,11 @@ func (a *Authenticator) AddUser(user *types.User) error {
 
 	name := user.GetID()
 	if _, ok := a.users[name]; ok {
-		return fmt.Errorf("user %s already exists", user)
+		return fmt.Errorf("user %s already exists", name)
 	} else {
+		if err := a.addUser(user); err != nil {
+			return err
+		}
 		a.users[name] = user.Password
 		return nil
 	}
@@ -88,6 +105,9 @@ func (a *Authenticator) DeleteUser(userName string) error {
 	}
 
 	if _, ok := a.users[userName]; ok {
+		if err := a.deleteUser(userName); err != nil {
+			return err
+		}
 		delete(a.users, userName)
 		return nil
 	} else {
@@ -108,6 +128,9 @@ func (a *Authenticator) ResetPassword(userName string, old, new string, force bo
 		return fmt.Errorf("password isn't correct")
 	}
 
+	if err := a.updateUser(userName, new); err != nil {
+		return err
+	}
 	a.users[userName] = new
 	return nil
 }

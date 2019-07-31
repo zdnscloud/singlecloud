@@ -57,12 +57,15 @@ func main() {
 		}
 	}
 
-	authenticator, err := authentication.New(casServer)
+	authenticator, err := authentication.New(casServer, db)
+	if err != nil {
+		log.Fatalf("create authenticator failed:%s", err.Error())
+	}
+
+	authorizer, err := authorization.New(db)
 	if err != nil {
 		log.Fatalf("create authorizer failed:%s", err.Error())
 	}
-
-	authorizer := authorization.New()
 
 	app := handler.NewApp(authenticator, authorizer, eventBus, db)
 

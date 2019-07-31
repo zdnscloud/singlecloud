@@ -16,14 +16,18 @@ type Storage struct {
 	db *bolt.DB
 }
 
-func New(filePath string) (DB, error) {
-	if filePath != "" {
-		if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+func New(fileDir string) (DB, error) {
+	if fileDir != "" {
+		if err := os.MkdirAll(fileDir, os.ModePerm); err != nil {
 			return nil, err
 		}
 	}
 
-	db, err := bolt.Open(path.Join(filePath, dbFileName), 0664, nil)
+	return CreateWithPath(path.Join(fileDir, dbFileName))
+}
+
+func CreateWithPath(filePath string) (DB, error) {
+	db, err := bolt.Open(filePath, 0664, nil)
 	if err != nil {
 		return nil, err
 	}
