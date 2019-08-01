@@ -144,7 +144,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	if cluster := m.getUnready(c.Name); cluster != nil {
+	if cluster := m.getReady(c.Name); cluster != nil {
 		m.moveTounready(c)
 	}
 	c.fsm.Event(UpdateEvent)
