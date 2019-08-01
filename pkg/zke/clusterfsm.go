@@ -91,21 +91,21 @@ func newClusterWithStatus(name string, status types.ClusterStatus) *Cluster {
 			InitSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				mgr.moveToreadyWithLock(cluster)
-				mgr.sendPubEventWithLock(AddCluster{Cluster: cluster})
+				mgr.sendPubEvent(AddCluster{Cluster: cluster})
 			},
 			CreateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				mgr.moveToreadyWithLock(cluster)
 				mgr.updateClusterStateWithLock(cluster, state)
-				mgr.sendPubEventWithLock(AddCluster{Cluster: cluster})
+				mgr.sendPubEvent(AddCluster{Cluster: cluster})
 			},
 			UpdateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				mgr.moveToreadyWithLock(cluster)
 				mgr.updateClusterStateWithLock(cluster, state)
-				mgr.sendPubEventWithLock(UpdateCluster{Cluster: cluster})
+				mgr.sendPubEvent(UpdateCluster{Cluster: cluster})
 			},
 			CancelSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)

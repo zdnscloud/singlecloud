@@ -363,9 +363,7 @@ func (m *ZKEManager) addToUnreadyWithLock(c *Cluster) {
 	m.unreadyClusters = append(m.unreadyClusters, c)
 }
 
-func (m *ZKEManager) sendPubEventWithLock(e interface{}) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (m *ZKEManager) sendPubEvent(e interface{}) {
 	m.PubEventCh <- e
 }
 
