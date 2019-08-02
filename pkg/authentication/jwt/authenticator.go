@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	resthandler "github.com/zdnscloud/gorest/api/handler"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/session"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -156,21 +157,29 @@ func (a *Authenticator) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
+	ctx := &resttypes.Context{
+		Response:       w,
+		ResponseFormat: resttypes.ResponseJSON,
+	}
+
 	reqBody, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, err.Error())
+		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
 		return
 	}
 
 	if err := json.Unmarshal(reqBody, &params); err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, "login param not valid")
+		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
 		return
 	}
 
 	token, err := a.CreateToken(params.Name, params.Password)
 	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, err.Error())
+		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
 		return
 	}
 
