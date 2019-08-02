@@ -109,30 +109,15 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 
 	var apps types.Applications
 	for _, item := range k8sConfigMaps.Items {
-		release, err := decodeRelease(item.Data[cmReleaseKey])
+		app, err := k8sConfigMapToScApplication(cluster.KubeClient, &item)
 		if err != nil {
 			log.Warnf("list applications info failed:%s", err.Error())
-			return nil
-		}
-
-		if release == nil {
 			continue
 		}
 
-		chartVersion := item.Labels[cmLabelVersion]
-		if release.Chart.Metadata != nil {
-			chartVersion = release.Chart.Metadata.Version
+		if app != nil {
+			apps = append(apps, app)
 		}
-		app := &types.Application{
-			Name:         release.Name,
-			Version:      release.Version,
-			ChartName:    release.Chart.Name(),
-			ChartVersion: chartVersion,
-		}
-		app.SetID(app.Name)
-		app.SetType(types.ApplicationType)
-		app.SetCreationTimestamp(item.CreationTimestamp.Time)
-		apps = append(apps, app)
 	}
 
 	sort.Sort(apps)
@@ -158,6 +143,121 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 	}
 
 	return nil
+}
+
+func k8sConfigMapToScApplication(cli client.Client, k8sConfigMap *corev1.ConfigMap) (*types.Application, error) {
+	release, err := decodeRelease(k8sConfigMap.Data[cmReleaseKey])
+	if err != nil {
+		return nil, err
+	}
+
+	if release == nil {
+		return nil, nil
+	}
+
+	chartVersion := k8sConfigMap.Labels[cmLabelVersion]
+	if release.Chart.Metadata != nil {
+		chartVersion = release.Chart.Metadata.Version
+	}
+
+	var appResources types.AppResources
+	manifests := releaseutil.SplitManifests(release.Manifest)
+	for _, content := range manifests {
+		var contentMap map[string]interface{}
+		if err := yaml.Unmarshal([]byte(content), &contentMap); err != nil {
+			return nil, fmt.Errorf("unmarshal application resource content failed: %s", err.Error())
+		}
+
+		if len(contentMap) == 0 {
+			continue
+		}
+
+		metadata, ok := contentMap["metadata"].(map[interface{}]interface{})
+		if ok == false {
+			return nil, fmt.Errorf("invalid resource without metadata")
+		}
+		resourceName := metadata["name"].(string)
+
+		switch strings.ToLower(contentMap["kind"].(string)) {
+		case types.DeploymentType:
+			k8sDeploy, err := getDeployment(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get deploy %s failed: %v", resourceName, err.Error())
+			}
+
+			deploy, err := k8sDeployToSCDeploy(cli, k8sDeploy)
+			if err != nil {
+				return nil, fmt.Errorf("trans k8sdeploy to scdeploy failed: %v", err.Error())
+			}
+			appResources.Deployments = append(appResources.Deployments, *deploy)
+		case types.StatefulSetType:
+			k8sStatefulSet, err := getStatefulSet(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get statefulset %s failed: %v", resourceName, err.Error())
+			}
+			appResources.StatefulSets = append(appResources.StatefulSets, *k8sStatefulSetToSCStatefulSet(k8sStatefulSet))
+		case types.DaemonSetType:
+			k8sDaemonSet, err := getDaemonSet(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get daemonset %s failed: %v", resourceName, err.Error())
+			}
+
+			daemonset, err := k8sDaemonSetToSCDaemonSet(cli, k8sDaemonSet)
+			if err != nil {
+				return nil, fmt.Errorf("trans k8sdaemonset to scdaemonset failed: %v", err.Error())
+			}
+			appResources.DaemonSets = append(appResources.DaemonSets, *daemonset)
+		case types.ConfigMapType:
+			configMap, err := getConfigMap(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get configmap %s failed: %v", resourceName, err.Error())
+			}
+
+			appResources.ConfigMaps = append(appResources.ConfigMaps, *k8sConfigMapToSCConfigMap(configMap))
+		case types.SecretType:
+			k8sSecret, err := getSecret(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get secret %s failed: %v", resourceName, err.Error())
+			}
+			appResources.Secrets = append(appResources.Secrets, *k8sSecretToSCSecret(k8sSecret))
+		case types.ServiceType:
+			k8sService, err := getService(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get service %s failed: %v", resourceName, err.Error())
+			}
+			appResources.Services = append(appResources.Services, *k8sServiceToSCService(k8sService))
+		case types.IngressType:
+			k8sIngress, err := getIngress(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get ingress %s failed: %v", resourceName, err.Error())
+			}
+			appResources.Ingresses = append(appResources.Ingresses, *k8sIngressToSCIngress(k8sIngress))
+		case types.CronJobType:
+			k8sCronJob, err := getCronJob(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get cronjob %s failed: %v", resourceName, err.Error())
+			}
+			appResources.CronJobs = append(appResources.CronJobs, *k8sCronJobToScCronJob(k8sCronJob))
+		case types.JobType:
+			k8sJob, err := getJob(cli, k8sConfigMap.Namespace, resourceName)
+			if err != nil {
+				return nil, fmt.Errorf("get job %s failed: %v", resourceName, err.Error())
+			}
+			appResources.Jobs = append(appResources.Jobs, *k8sJobToSCJob(k8sJob))
+		}
+	}
+
+	app := &types.Application{
+		Name:         release.Name,
+		Version:      release.Version,
+		ChartName:    release.Chart.Name(),
+		ChartVersion: chartVersion,
+		AppResources: appResources,
+	}
+	app.SetID(app.Name)
+	app.SetType(types.ApplicationType)
+	app.SetCreationTimestamp(k8sConfigMap.CreationTimestamp.Time)
+	return app, nil
 }
 
 func deleteApplication(cli client.Client, namespace, name string) error {
@@ -266,13 +366,6 @@ func createApplication(ctx *resttypes.Context, cli client.Client, namespace, cha
 		}
 	}
 
-	/*
-		hs, manifests, err := releaseutil.SortManifests(files, caps.APIVersions, releaseutil.InstallOrder)
-		if err != nil {
-			return err
-		}
-	*/
-
 	releaseManifests := bytes.NewBuffer(nil)
 	for fileName, content := range files {
 		var contentMap map[string]interface{}
@@ -284,12 +377,12 @@ func createApplication(ctx *resttypes.Context, cli client.Client, namespace, cha
 			continue
 		}
 
-		matadata, ok := contentMap["metadata"].(map[interface{}]interface{})
+		metadata, ok := contentMap["metadata"].(map[interface{}]interface{})
 		if ok == false {
 			return fmt.Errorf("invalid chart file %s without metadata", fileName)
 		}
 
-		matadata["namespace"] = namespace
+		metadata["namespace"] = namespace
 		if contentByte, err := yaml.Marshal(contentMap); err != nil {
 			return fmt.Errorf("marshal chart file %s content failed: %s", fileName, err.Error())
 		} else {
@@ -361,7 +454,7 @@ func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]
 }
 
 func encodeRelease(rls *release.Release) (string, error) {
-	b, err := json.Marshal(rls)
+	b, err := yaml.Marshal(rls)
 	if err != nil {
 		return "", err
 	}
@@ -400,7 +493,7 @@ func decodeRelease(data string) (*release.Release, error) {
 	}
 
 	var rls release.Release
-	if err := json.Unmarshal(b, &rls); err != nil {
+	if err := yaml.Unmarshal(b, &rls); err != nil {
 		return nil, err
 	}
 	return &rls, nil

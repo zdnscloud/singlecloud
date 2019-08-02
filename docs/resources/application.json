@@ -8,7 +8,21 @@
         "version": {"type": "int"},
         "chartName": {"type": "string"},
         "chartVersion": {"type": "string"},
-        "configs": {"type": "json"}
+        "appResources": {"type": "appResource"}
+    },
+
+    "subResources": {
+        "appResource": {
+            "deployments": {"type": "array", "elemType": "deployment"},
+            "statefulsets": {"type": "array", "elemType": "statefulset"},
+            "daemonsets": {"type": "array", "elemType": "daemonset"},
+            "configmaps": {"type": "array", "elemType": "configmap"},
+            "secrets": {"type": "array", "elemType": "secret"},
+            "services": {"type": "array", "elemType": "service"},
+            "ingresses": {"type": "array", "elemType": "ingress"},
+            "cronjobs": {"type": "array", "elemType": "cronjob"},
+            "jobs": {"type": "array", "elemType": "job"}
+        }
     },
 
     "collectionMethods": [ "GET", "POST" ],

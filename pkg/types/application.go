@@ -13,11 +13,24 @@ func SetApplicationSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 
 type Application struct {
 	resttypes.Resource `json:",inline"`
-	Name               string `json:"name"`
-	Version            int    `json:"version"`
-	ChartName          string `json:"chartName"`
-	ChartVersion       string `json:"chartVersion"`
-	Configs            string `json:"configs,omitempty"`
+	Name               string       `json:"name"`
+	Version            int          `json:"version"`
+	ChartName          string       `json:"chartName"`
+	ChartVersion       string       `json:"chartVersion"`
+	Configs            string       `json:"configs,omitempty"`
+	AppResources       AppResources `json:"appResources,omitempty"`
+}
+
+type AppResources struct {
+	Deployments  []Deployment  `json:"deployments,omitempty"`
+	DaemonSets   []DaemonSet   `json:"daemonsets,omitempty"`
+	StatefulSets []StatefulSet `json:"statefulsets,omitempty"`
+	Services     []Service     `json:"services,omitempty"`
+	Ingresses    []Ingress     `json:"ingresses,omitempty"`
+	ConfigMaps   []ConfigMap   `json:"configmaps,omitempty"`
+	Secrets      []Secret      `json:"secrets,omitempty"`
+	CronJobs     []CronJob     `json:"cronjobs,omitempty"`
+	Jobs         []Job         `json:"jobs,omitempty"`
 }
 
 type Applications []*Application
