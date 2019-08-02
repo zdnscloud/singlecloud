@@ -159,18 +159,18 @@ func (a *Authenticator) Login(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 
 	if err := json.Unmarshal(reqBody, &params); err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 
 	token, err := a.CreateToken(params.Name, params.Password)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 
