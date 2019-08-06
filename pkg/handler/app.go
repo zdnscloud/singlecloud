@@ -13,6 +13,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 var (
@@ -24,13 +25,11 @@ var (
 
 type App struct {
 	clusterManager *ClusterManager
-	agentManager   *clusteragent.AgentManager
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager) *App {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB) *App {
 	return &App{
-		clusterManager: newClusterManager(authenticator, authorizer, eventBus),
-		agentManager:   agent,
+		clusterManager: newClusterManager(authenticator, authorizer, eventBus, agent, db),
 	}
 }
 
@@ -65,8 +64,10 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.User{}, userManager, types.SetUserSchema)
 	schemas.MustImportAndCustomize(&Version, types.PersistentVolumeClaim{}, newPersistentVolumeClaimManager(a.clusterManager), types.SetPersistentVolumeClaimSchema)
 	schemas.MustImportAndCustomize(&Version, types.PersistentVolume{}, newPersistentVolumeManager(a.clusterManager), types.SetPersistentVolumeSchema)
-	schemas.MustImportAndCustomize(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager, a.agentManager), types.SetStorageClusterSchema)
-	schemas.MustImportAndCustomize(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager, a.agentManager), types.SetBlockDeviceSchema)
+	schemas.MustImportAndCustomize(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager), types.SetStorageClusterSchema)
+	schemas.MustImportAndCustomize(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager), types.SetBlockDeviceSchema)
+
+	schemas.MustImportAndCustomize(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager), types.SetUserQuotaSchema)
 
 	server := api.NewAPIServer()
 	if err := server.AddSchemas(schemas); err != nil {

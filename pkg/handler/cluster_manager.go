@@ -16,8 +16,10 @@ import (
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
+	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -51,14 +53,26 @@ type ClusterManager struct {
 	eventBus      *pubsub.PubSub
 	authorizer    *authorization.Authorizer
 	authenticator *authentication.Authenticator
+	db            storage.DB
+	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub) *ClusterManager {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB) *ClusterManager {
 	return &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
 		eventBus:      eventBus,
+		db:            db,
+		Agent:         agent,
 	}
+}
+
+func (m *ClusterManager) GetDB() storage.DB {
+	return m.db
+}
+
+func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {
+	return m.authorizer
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
@@ -67,6 +81,12 @@ func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	return m.get(clusterID)
+}
+
+func (m *ClusterManager) GetClusterByName(name string) *Cluster {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.get(name)
 }
 
 func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
@@ -144,6 +164,9 @@ func getClusterInfo(c *Cluster) (*types.Cluster, error) {
 	}
 	cluster.NodesCount = len(nodes)
 	for _, n := range nodes {
+		if n.HasRole(types.RoleControlPlane) {
+			continue
+		}
 		cluster.Cpu += n.Cpu
 		cluster.CpuUsed += n.CpuUsed
 		cluster.Memory += n.Memory
@@ -234,6 +257,12 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 		user := getCurrentUser(ctx)
 		if user == "" {
 			return resttypes.NewAPIError(resttypes.Unauthorized, fmt.Sprintf("user is unknowned"))
+		}
+
+		if m.authorizer.GetUser(user) == nil {
+			newUser := &types.User{Name: user}
+			newUser.SetID(user)
+			m.authorizer.AddUser(newUser)
 		}
 
 		ancestors := resttypes.GetAncestors(ctx.Object)

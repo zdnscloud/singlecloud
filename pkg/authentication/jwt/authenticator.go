@@ -9,9 +9,11 @@ import (
 	"sync"
 	"time"
 
+	resthandler "github.com/zdnscloud/gorest/api/handler"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/session"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -30,16 +32,29 @@ type Authenticator struct {
 	lock     sync.Mutex
 	users    map[string]string
 	sessions *session.SessionMgr
+	db       storage.Table
 }
 
-func NewAuthenticator() *Authenticator {
-	users := make(map[string]string)
-	users[types.Administrator] = AdminPasswd
-	return &Authenticator{
+func NewAuthenticator(db storage.DB) (*Authenticator, error) {
+	auth := &Authenticator{
 		repo:     NewTokenRepo(tokenSecret, tokenValidDuration),
-		users:    users,
 		sessions: session.New(SessionCookieName),
 	}
+
+	if err := auth.loadUsers(db); err != nil {
+		return nil, err
+	}
+
+	if _, ok := auth.users[types.Administrator]; ok == false {
+		admin := &types.User{
+			Name:     types.Administrator,
+			Password: AdminPasswd,
+		}
+		admin.SetID(types.Administrator)
+		auth.AddUser(admin)
+	}
+
+	return auth, nil
 }
 
 func (a *Authenticator) Authenticate(_ http.ResponseWriter, req *http.Request) (string, *resttypes.APIError) {
@@ -63,12 +78,23 @@ func (a *Authenticator) AddUser(user *types.User) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	if _, ok := a.users[user.Name]; ok {
-		return fmt.Errorf("user %s already exists", user)
+	name := user.GetID()
+	if _, ok := a.users[name]; ok {
+		return fmt.Errorf("user %s already exists", name)
 	} else {
-		a.users[user.Name] = user.Password
+		if err := a.addUser(user); err != nil {
+			return err
+		}
+		a.users[name] = user.Password
 		return nil
 	}
+}
+
+func (a *Authenticator) HasUser(userName string) bool {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	_, ok := a.users[userName]
+	return ok
 }
 
 func (a *Authenticator) DeleteUser(userName string) error {
@@ -80,6 +106,9 @@ func (a *Authenticator) DeleteUser(userName string) error {
 	}
 
 	if _, ok := a.users[userName]; ok {
+		if err := a.deleteUser(userName); err != nil {
+			return err
+		}
 		delete(a.users, userName)
 		return nil
 	} else {
@@ -87,19 +116,24 @@ func (a *Authenticator) DeleteUser(userName string) error {
 	}
 }
 
-func (a *Authenticator) ResetPassword(userName string, old, new string) error {
+func (a *Authenticator) ResetPassword(userName string, old, new string, force bool) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	if old_, ok := a.users[userName]; ok {
-		if old_ != old {
-			return fmt.Errorf("password isn't correct")
-		}
-		a.users[userName] = new
-		return nil
-	} else {
+	old_, ok := a.users[userName]
+	if ok == false {
 		return fmt.Errorf("user %s doesn't exist", userName)
 	}
+
+	if !force && old_ != old {
+		return fmt.Errorf("password isn't correct")
+	}
+
+	if err := a.updateUser(userName, new); err != nil {
+		return err
+	}
+	a.users[userName] = new
+	return nil
 }
 
 func (a *Authenticator) CreateToken(userName, password string) (string, error) {
@@ -123,21 +157,29 @@ func (a *Authenticator) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
+	ctx := &resttypes.Context{
+		Response:       w,
+		ResponseFormat: resttypes.ResponseJSON,
+	}
+
 	reqBody, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, err.Error())
+		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
 		return
 	}
 
 	if err := json.Unmarshal(reqBody, &params); err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, "login param not valid")
+		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
 		return
 	}
 
 	token, err := a.CreateToken(params.Name, params.Password)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, err.Error())
+		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
 		return
 	}
 

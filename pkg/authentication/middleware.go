@@ -67,7 +67,12 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 	router.GET(WebCASRedirectPath, func(c *gin.Context) {
 		if a.CasAuth != nil {
 			if err := a.CasAuth.SaveTicket(c.Writer, c.Request); err != nil {
+				body, _ := json.Marshal(map[string]string{
+					"err": err.Error(),
+				})
+				c.Writer.Header().Set("Content-Type", "application/json")
 				c.Writer.WriteHeader(http.StatusUnauthorized)
+				c.Writer.Write(body)
 				return
 			}
 		}
@@ -79,10 +84,11 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 	})
 
 	router.GET(WebLogoutPath, func(c *gin.Context) {
-		if a.CasAuth != nil {
-			a.CasAuth.Logout(c.Writer, c.Request)
-		} else {
+		user, _ := a.JwtAuth.Authenticate(c.Writer, c.Request)
+		if user != "" {
 			a.JwtAuth.Logout(c.Writer, c.Request)
+		} else if a.CasAuth != nil {
+			a.CasAuth.Logout(c.Writer, c.Request)
 		}
 	})
 
@@ -92,6 +98,7 @@ func (a *Authenticator) RegisterHandler(router gin.IRoutes) error {
 func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 	var authExceptionPaths = []string{
 		"/assets",
+		"/apis/ws.zcloud.cn",
 		WebRolePath,
 		WebCASRedirectPath,
 	}

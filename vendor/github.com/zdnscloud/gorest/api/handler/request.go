@@ -8,7 +8,6 @@ import (
 	"reflect"
 
 	"github.com/zdnscloud/gorest/types"
-	"github.com/zdnscloud/gorest/util"
 )
 
 func CreateHandler(ctx *types.Context) *types.APIError {
@@ -80,8 +79,11 @@ func ListHandler(ctx *types.Context) *types.APIError {
 	var result interface{}
 	if ctx.Object.GetID() == "" {
 		data := handler.List(ctx)
-		if data == nil || reflect.ValueOf(data).IsNil() {
+		if data == nil {
 			data = make([]types.Object, 0)
+		} else if reflect.ValueOf(data).Kind() != reflect.Slice {
+			return types.NewAPIError(types.ServerError,
+				fmt.Sprintf("list handler doesn't return slice but %v", reflect.ValueOf(data).Kind()))
 		}
 
 		collection := &types.Collection{
@@ -93,9 +95,12 @@ func ListHandler(ctx *types.Context) *types.APIError {
 		result = collection
 	} else {
 		result = handler.Get(ctx)
-		if util.IsValueNil(result) {
+		if result == nil {
 			return types.NewAPIError(types.NotFound,
 				fmt.Sprintf("%s resource with id %s doesn't exist", ctx.Object.GetType(), ctx.Object.GetID()))
+		} else if reflect.ValueOf(result).Kind() != reflect.Ptr {
+			return types.NewAPIError(types.ServerError,
+				fmt.Sprintf("get handler doesn't return pointer but %v", reflect.ValueOf(result).Kind()))
 		}
 		addResourceLinks(ctx, result)
 	}

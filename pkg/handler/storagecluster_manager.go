@@ -23,13 +23,11 @@ import (
 type StorageClusterManager struct {
 	api.DefaultHandler
 	clusters *ClusterManager
-	agent    *clusteragent.AgentManager
 }
 
-func newStorageClusterManager(clusters *ClusterManager, agentmgr *clusteragent.AgentManager) *StorageClusterManager {
+func newStorageClusterManager(clusters *ClusterManager) *StorageClusterManager {
 	return &StorageClusterManager{
 		clusters: clusters,
-		agent:    agentmgr,
 	}
 }
 
@@ -49,7 +47,7 @@ func (m *StorageClusterManager) List(ctx *resttypes.Context) interface{} {
 
 	var storageclusters []*types.StorageCluster
 	for _, item := range k8sStorageClusters.Items {
-		storageclusters = append(storageclusters, k8sStorageToSCStorage(cluster, m.agent, &item))
+		storageclusters = append(storageclusters, k8sStorageToSCStorage(cluster, m.clusters.Agent, &item))
 	}
 	return storageclusters
 }
@@ -69,7 +67,7 @@ func (m StorageClusterManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	return k8sStorageToSCStorage(cluster, m.agent, k8sStorageCluster)
+	return k8sStorageToSCStorage(cluster, m.clusters.Agent, k8sStorageCluster)
 }
 
 func (m StorageClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {

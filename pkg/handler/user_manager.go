@@ -78,11 +78,18 @@ func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.AP
 	}
 
 	user := ctx.Object.(*types.User)
+	//reset user password
+	if user.Password != "" {
+		if err := m.authenticator.ResetPassword(user.GetID(), "", user.Password, true); err != nil {
+			return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
+		}
+	}
+	//update user priviledge
 	if err := m.authorizer.UpdateUser(user); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
-	} else {
-		return user, nil
 	}
+
+	return user, nil
 }
 
 func (m *UserManager) List(ctx *resttypes.Context) interface{} {
@@ -118,10 +125,14 @@ func (m *UserManager) login(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.InvalidFormat, "login param not valid")
 	}
 
+	if up.Password == "" {
+		return nil, resttypes.NewAPIError(resttypes.NotNullable, "empty password")
+	}
+
 	userName := ctx.Object.GetID()
 	token, err := m.authenticator.CreateToken(userName, up.Password)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
+		return nil, resttypes.NewAPIError(resttypes.InvalidBodyContent, err.Error())
 	} else {
 		return map[string]string{
 			"token": token,
@@ -140,7 +151,7 @@ func (m *UserManager) resetPassword(ctx *resttypes.Context) *resttypes.APIError 
 		return resttypes.NewAPIError(resttypes.PermissionDenied, "only user himself could reset his password")
 	}
 
-	if err := m.authenticator.ResetPassword(userName, param.OldPassword, param.NewPassword); err != nil {
+	if err := m.authenticator.ResetPassword(userName, param.OldPassword, param.NewPassword, false); err != nil {
 		return resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
 	}
 	return nil

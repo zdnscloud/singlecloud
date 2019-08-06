@@ -18,10 +18,9 @@ type BlockDeviceManager struct {
 	agent    *clusteragent.AgentManager
 }
 
-func newBlockDeviceManager(clusters *ClusterManager, agentmgr *clusteragent.AgentManager) *BlockDeviceManager {
+func newBlockDeviceManager(clusters *ClusterManager) *BlockDeviceManager {
 	return &BlockDeviceManager{
 		clusters: clusters,
-		agent:    agentmgr,
 	}
 }
 
@@ -31,12 +30,12 @@ func (m *BlockDeviceManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	resp, err := getBlockDevices(cluster.Name, m.agent)
+	resp, err := getBlockDevices(cluster.Name, m.clusters.Agent)
 	if err != nil {
 		log.Warnf("get blockdevices info failed:%s", err.Error())
 		return nil
 	}
-	return &resp
+	return resp
 }
 
 func getBlockDevices(cluster string, agent *clusteragent.AgentManager) ([]types.BlockDevice, error) {

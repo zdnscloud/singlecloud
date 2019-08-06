@@ -3,9 +3,11 @@ package authentication
 import (
 	"net/http"
 
-	"github.com/zdnscloud/gorest/types"
+	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/cas"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/jwt"
+	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 type Authenticator struct {
@@ -13,9 +15,14 @@ type Authenticator struct {
 	CasAuth *cas.Authenticator
 }
 
-func New(casServer string) (*Authenticator, error) {
+func New(casServer string, db storage.DB) (*Authenticator, error) {
+	jwtAuth, err := jwt.NewAuthenticator(db)
+	if err != nil {
+		return nil, err
+	}
+
 	auth := &Authenticator{
-		JwtAuth: jwt.NewAuthenticator(),
+		JwtAuth: jwtAuth,
 	}
 
 	if casServer != "" {
@@ -28,7 +35,7 @@ func New(casServer string) (*Authenticator, error) {
 	return auth, nil
 }
 
-func (a *Authenticator) Authenticate(w http.ResponseWriter, req *http.Request) (string, *types.APIError) {
+func (a *Authenticator) Authenticate(w http.ResponseWriter, req *http.Request) (string, *resttypes.APIError) {
 	user, err := a.JwtAuth.Authenticate(w, req)
 	if err != nil {
 		return "", err
@@ -39,6 +46,14 @@ func (a *Authenticator) Authenticate(w http.ResponseWriter, req *http.Request) (
 	if a.CasAuth == nil {
 		return "", nil
 	} else {
-		return a.CasAuth.Authenticate(w, req)
+		user, err := a.CasAuth.Authenticate(w, req)
+		if err == nil && user != "" {
+			if !a.JwtAuth.HasUser(user) {
+				newUser := &types.User{Name: user}
+				newUser.SetID(user)
+				a.JwtAuth.AddUser(newUser)
+			}
+		}
+		return user, err
 	}
 }

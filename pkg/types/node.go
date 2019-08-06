@@ -11,6 +11,16 @@ const (
 	NSNotReady NodeStatus = "NotReady"
 )
 
+type NodeRole string
+
+const (
+	RoleControlPlane NodeRole = "controlplane"
+	RoleEtcd         NodeRole = "etcd"
+	RoleWorker       NodeRole = "worker"
+	RoleEdge         NodeRole = "edge"
+	RoleStorage      NodeRole = "storage"
+)
+
 func SetNodeSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET"}
@@ -23,7 +33,7 @@ type Node struct {
 	Name                 string            `json:"name,omitempty"`
 	Status               NodeStatus        `json:"status"`
 	Address              string            `json:"address,omitempty"`
-	Roles                []string          `json:"roles,omitempty"`
+	Roles                []NodeRole        `json:"roles,omitempty"`
 	Labels               map[string]string `json:"labels,omitempty"`
 	Annotations          map[string]string `json:"annotations,omitempty"`
 	OperatingSystem      string            `json:"operatingSystem,omitempty"`
@@ -41,3 +51,12 @@ type Node struct {
 }
 
 var NodeType = resttypes.GetResourceType(Node{})
+
+func (n *Node) HasRole(role NodeRole) bool {
+	for _, role_ := range n.Roles {
+		if role == role_ {
+			return true
+		}
+	}
+	return false
+}
