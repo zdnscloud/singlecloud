@@ -126,7 +126,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", inner.Name))
 	}
 
-	if err := validateConfig(inner); err != nil {
+	if err := validateNodes(inner); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 

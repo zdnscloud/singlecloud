@@ -87,7 +87,7 @@ func zkeClusterToSCCluster(zc *Cluster) *types.Cluster {
 	sc.Name = zc.Name
 	sc.SSHUser = zc.config.Option.SSHUser
 	sc.SSHPort = zc.config.Option.SSHPort
-	sc.SSHKey = zc.config.Option.SSHKey
+	// sc.SSHKey = zc.config.Option.SSHKey
 	sc.ClusterCidr = zc.config.Option.ClusterCidr
 	sc.ServiceCidr = zc.config.Option.ServiceCidr
 	sc.ClusterDomain = zc.config.Option.ClusterDomain

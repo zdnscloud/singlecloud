@@ -17,10 +17,17 @@ func validateConfig(c *types.Cluster) error {
 		return err
 	}
 
-	if err := validateNodeCount(c); err != nil {
+	return validateNodeCount(c)
+}
+
+func validateNodes(c *types.Cluster) error {
+	if err := validateNodeRoleAndOption(c); err != nil {
 		return err
 	}
-	return nil
+	if err := validateDuplicateNodes(c); err != nil {
+		return err
+	}
+	return validateNodeCount(c)
 }
 
 func validateClusterOptions(c *types.Cluster) error {
