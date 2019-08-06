@@ -149,29 +149,11 @@ func updateStorageCluster(cli client.Client, storagecluster *types.StorageCluste
 	if err != nil {
 		return err
 	}
-	/*
-		hosts := make([]storagev1.HostSpec, 0)
-		for _, h := range storagecluster.Hosts {
-			host := storagev1.HostSpec{
-				NodeName:     h.NodeName,
-				BlockDevices: h.BlockDevices,
-			}
-			hosts = append(hosts, host)
-		}*/
 	k8sStorageCluster.Spec.Hosts = storagecluster.Hosts
 	return cli.Update(context.TODO(), k8sStorageCluster)
 }
 
 func scStorageToK8sStorage(storagecluster *types.StorageCluster) *storagev1.Cluster {
-	/*
-		hosts := make([]storagev1.HostSpec, 0)
-		for _, h := range storagecluster.Hosts {
-			host := storagev1.HostSpec{
-				NodeName:     h.NodeName,
-				BlockDevices: h.BlockDevices,
-			}
-			hosts = append(hosts, host)
-		}*/
 	return &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: storagecluster.Name,
@@ -184,16 +166,6 @@ func scStorageToK8sStorage(storagecluster *types.StorageCluster) *storagev1.Clus
 }
 
 func k8sStorageToSCStorage(cluster *Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
-	/*
-		hosts := make([]types.HostSpec, 0)
-		for _, h := range k8sStorageCluster.Spec.Hosts {
-			host := types.HostSpec{
-				NodeName:     h.NodeName,
-				BlockDevices: h.BlockDevices,
-			}
-			hosts = append(hosts, host)
-		}*/
-
 	info, err := getStatusInfo(cluster.Name, agent, k8sStorageCluster.Spec.StorageType)
 	if err != nil {
 		log.Warnf("get clusterinfo from clusteragent failed:%s", err.Error())
