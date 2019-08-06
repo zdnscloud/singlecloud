@@ -4,6 +4,8 @@
 
     "resourceFields": {
         "name": {"type": "string"},
+        "description": {"type": "string"},
+        "icon": {"type": "string"},
         "versions": {"type": "array", "elemType": "chartVersion"}
     },
 
