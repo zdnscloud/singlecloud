@@ -419,7 +419,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:25c1c4976cf20335e02e186cdec94d232890f39ba9526ea8ec02f4f48a024ab0"
+  digest = "1:339960d8c59a5a7e958396ad98bfb8c71cb37a6b52209e1f05c07b7b1d1d4916"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -437,7 +437,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "5155cc7298f00265e934c18cac1494911d648bdb"
+  revision = "1f27ab80da373615c68d07b7847fe5c0867709a3"
 
 [[projects]]
   branch = "master"
@@ -608,17 +608,14 @@
 
 [[projects]]
   branch = "dev-v3"
-  digest = "1:38147883d19908e9fcb51c4252399c6bc7e04f8409d58d228e65595c3110e2e1"
+  digest = "1:139a2431dfa0368f04be2344e5b5f9610d3600fdd414f4e393a89ad8aa0f4eba"
   name = "helm.sh/helm"
   packages = [
     "pkg/chart",
     "pkg/chart/loader",
     "pkg/chartutil",
     "pkg/engine",
-    "pkg/hooks",
     "pkg/ignore",
-    "pkg/release",
-    "pkg/releaseutil",
     "pkg/sympath",
     "pkg/version",
   ]
@@ -886,6 +883,7 @@
     "github.com/zdnscloud/gorest/api",
     "github.com/zdnscloud/gorest/api/handler",
     "github.com/zdnscloud/gorest/types",
+    "github.com/zdnscloud/gorest/util",
     "github.com/zdnscloud/vanguard/httpcmd",
     "github.com/zdnscloud/vanguard/resolver/auth",
     "github.com/zdnscloud/vanguard/server",
@@ -894,8 +892,6 @@
     "helm.sh/helm/pkg/chart/loader",
     "helm.sh/helm/pkg/chartutil",
     "helm.sh/helm/pkg/engine",
-    "helm.sh/helm/pkg/release",
-    "helm.sh/helm/pkg/releaseutil",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
     "k8s.io/api/batch/v1beta1",
@@ -904,6 +900,7 @@
     "k8s.io/api/rbac/v1",
     "k8s.io/api/storage/v1",
     "k8s.io/apimachinery/pkg/api/errors",
+    "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/fields",
