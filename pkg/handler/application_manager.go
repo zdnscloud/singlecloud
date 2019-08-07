@@ -1,32 +1,24 @@
 package handler
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	yaml "gopkg.in/yaml.v2"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"helm.sh/helm/pkg/chart/loader"
 	"helm.sh/helm/pkg/chartutil"
 	"helm.sh/helm/pkg/engine"
-	"helm.sh/helm/pkg/release"
-	"helm.sh/helm/pkg/releaseutil"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
@@ -34,7 +26,9 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	restHandler "github.com/zdnscloud/gorest/api/handler"
 	resttypes "github.com/zdnscloud/gorest/types"
+	restutil "github.com/zdnscloud/gorest/util"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 var (
@@ -44,17 +38,13 @@ var (
 			Major:   "1",
 			Minor:   "13",
 		},
+		APIVersions: chartutil.DefaultVersionSet,
 	}
-	magicGzip = []byte{0x1f, 0x8b, 0x08}
 )
 
 const (
 	notesFileSuffix = "NOTES.txt"
-	cmReleaseKey    = "application-release"
-	cmLabelChart    = "chart-name"
-	cmLabelVersion  = "chart-version"
-	cmLabelOwnerApp = "application-name"
-	cmLabelRevision = "application-revision"
+	AppTableSuffix  = "application"
 )
 
 type ApplicationManager struct {
@@ -75,18 +65,21 @@ func (m *ApplicationManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 
 	namespace := ctx.Object.GetParent().GetID()
 	app := ctx.Object.(*types.Application)
-	if err := createApplication(ctx, cluster.KubeClient, namespace, m.chartDir, app); err != nil {
+	app.SetID(app.Name)
+	urlPrefix := genUrlPrefix(ctx, cluster.Name, namespace)
+	if err := m.create(ctx, cluster.KubeClient, namespace, urlPrefix, app); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource,
 				fmt.Sprintf("duplicate chart %s with name %s", app.ChartName, app.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("install chart failed %s", err.Error()))
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create application failed %s", err.Error()))
 		}
 	}
 
-	app.Configs = ""
-	app.SetID(app.Name)
-	return app, nil
+	retApp := *app
+	retApp.Configs = ""
+	retApp.Manifests = nil
+	return &retApp, nil
 }
 
 func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
@@ -96,28 +89,40 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 	}
 
 	namespace := ctx.Object.GetParent().GetID()
-	k8sConfigMaps, err := getConfigMaps(cluster.KubeClient, namespace)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), namespace+"_"+AppTableSuffix)
 	if err != nil {
-		log.Warnf("list applications info failed:%s", err.Error())
+		log.Warnf("list applications failed %s", err.Error())
 		return nil
 	}
 
-	if len(k8sConfigMaps.Items) == 0 {
-		log.Debugf("no install any applications")
+	appValues, err := tx.List()
+	if err != nil {
+		tx.Rollback()
+		log.Warnf("list applications failed %s", err.Error())
+		return nil
+	}
+
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		log.Warnf("list applications failed %s", err.Error())
 		return nil
 	}
 
 	var apps types.Applications
-	for _, item := range k8sConfigMaps.Items {
-		app, err := k8sConfigMapToScApplication(cluster.KubeClient, &item)
-		if err != nil {
-			log.Warnf("list applications info failed:%s", err.Error())
+	for _, value := range appValues {
+		if len(value) == 0 {
 			continue
 		}
 
-		if app != nil {
-			apps = append(apps, app)
+		var app types.Application
+		if err := json.Unmarshal(value, &app); err != nil {
+			log.Warnf("list applications failed %s", err.Error())
+			return nil
 		}
+
+		app.Configs = ""
+		app.Manifests = nil
+		apps = append(apps, &app)
 	}
 
 	sort.Sort(apps)
@@ -132,194 +137,151 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 
 	namespace := ctx.Object.GetParent().GetID()
 	appName := ctx.Object.GetID()
-	if err := deleteApplication(cluster.KubeClient, namespace, appName); err != nil {
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), namespace, appName, types.AppStatusDelete)
+	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
 		} else {
 			return resttypes.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("uninstall application %s failed: %s", appName, err.Error()))
+				fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
 		}
 	}
 
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, namespace, app)
 	return nil
 }
 
-func k8sConfigMapToScApplication(cli client.Client, k8sConfigMap *corev1.ConfigMap) (*types.Application, error) {
-	release, err := decodeRelease(k8sConfigMap.Data[cmReleaseKey])
+func deleteApplication(db storage.DB, cli client.Client, namespace string, app *types.Application) {
+	for fileName, content := range app.Manifests {
+		if err := helper.MapOnRuntimeObject(content, func(ctx context.Context, obj runtime.Object) error {
+			metaObj, err := meta.Accessor(obj)
+			if err != nil {
+				return fmt.Errorf("runtime object to meta object with file %s failed: %s", fileName, err.Error())
+			}
+
+			metaObj.SetNamespace(namespace)
+			if err := cli.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil {
+				if apierrors.IsNotFound(err) == false {
+					return fmt.Errorf("delete resource with file %s failed: %s", fileName, err.Error())
+				}
+			}
+
+			return nil
+		}); err != nil {
+			app.Status = types.AppStatusFailed
+			if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+				log.Warnf("delete application %s resources failed, update status get error: %s", app.Name, err.Error())
+			}
+			log.Warnf("delete application %s resource with file %s failed: %s", app.Name, fileName, err.Error())
+			return
+		}
+	}
+
+	if err := deleteApplicationFromDB(db, namespace, app.GetID()); err != nil {
+		app.Status = types.AppStatusFailed
+		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+			log.Warnf("delete application %s failed, update status get error: %s", app.Name, err.Error())
+		}
+		log.Warnf("delete application %s from db failed: %s", app.Name, err.Error())
+	}
+}
+
+func updateApplicationStatusFromDB(db storage.DB, namespace, name, status string) (*types.Application, error) {
+	tx, err := BeginTableTransaction(db, namespace+"_"+AppTableSuffix)
 	if err != nil {
 		return nil, err
 	}
 
-	if release == nil {
-		return nil, nil
+	defer tx.Rollback()
+	value, err := tx.Get(name)
+	if err != nil {
+		return nil, err
 	}
 
-	chartVersion := k8sConfigMap.Labels[cmLabelVersion]
-	if release.Chart.Metadata != nil {
-		chartVersion = release.Chart.Metadata.Version
+	var app types.Application
+	if err := json.Unmarshal(value, &app); err != nil {
+		return nil, err
 	}
 
-	var appResources types.AppResources
-	manifests := releaseutil.SplitManifests(release.Manifest)
-	for _, content := range manifests {
-		var contentMap map[string]interface{}
-		if err := yaml.Unmarshal([]byte(content), &contentMap); err != nil {
-			return nil, fmt.Errorf("unmarshal application resource content failed: %s", err.Error())
-		}
-
-		if len(contentMap) == 0 {
-			continue
-		}
-
-		metadata, ok := contentMap["metadata"].(map[interface{}]interface{})
-		if ok == false {
-			return nil, fmt.Errorf("invalid resource without metadata")
-		}
-		resourceName := metadata["name"].(string)
-
-		switch strings.ToLower(contentMap["kind"].(string)) {
-		case types.DeploymentType:
-			k8sDeploy, err := getDeployment(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get deploy %s failed: %v", resourceName, err.Error())
-			}
-
-			deploy, err := k8sDeployToSCDeploy(cli, k8sDeploy)
-			if err != nil {
-				return nil, fmt.Errorf("trans k8sdeploy to scdeploy failed: %v", err.Error())
-			}
-			appResources.Deployments = append(appResources.Deployments, *deploy)
-		case types.StatefulSetType:
-			k8sStatefulSet, err := getStatefulSet(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get statefulset %s failed: %v", resourceName, err.Error())
-			}
-			appResources.StatefulSets = append(appResources.StatefulSets, *k8sStatefulSetToSCStatefulSet(k8sStatefulSet))
-		case types.DaemonSetType:
-			k8sDaemonSet, err := getDaemonSet(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get daemonset %s failed: %v", resourceName, err.Error())
-			}
-
-			daemonset, err := k8sDaemonSetToSCDaemonSet(cli, k8sDaemonSet)
-			if err != nil {
-				return nil, fmt.Errorf("trans k8sdaemonset to scdaemonset failed: %v", err.Error())
-			}
-			appResources.DaemonSets = append(appResources.DaemonSets, *daemonset)
-		case types.ConfigMapType:
-			configMap, err := getConfigMap(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get configmap %s failed: %v", resourceName, err.Error())
-			}
-
-			appResources.ConfigMaps = append(appResources.ConfigMaps, *k8sConfigMapToSCConfigMap(configMap))
-		case types.SecretType:
-			k8sSecret, err := getSecret(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get secret %s failed: %v", resourceName, err.Error())
-			}
-			appResources.Secrets = append(appResources.Secrets, *k8sSecretToSCSecret(k8sSecret))
-		case types.ServiceType:
-			k8sService, err := getService(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get service %s failed: %v", resourceName, err.Error())
-			}
-			appResources.Services = append(appResources.Services, *k8sServiceToSCService(k8sService))
-		case types.IngressType:
-			k8sIngress, err := getIngress(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get ingress %s failed: %v", resourceName, err.Error())
-			}
-			appResources.Ingresses = append(appResources.Ingresses, *k8sIngressToSCIngress(k8sIngress))
-		case types.CronJobType:
-			k8sCronJob, err := getCronJob(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get cronjob %s failed: %v", resourceName, err.Error())
-			}
-			appResources.CronJobs = append(appResources.CronJobs, *k8sCronJobToScCronJob(k8sCronJob))
-		case types.JobType:
-			k8sJob, err := getJob(cli, k8sConfigMap.Namespace, resourceName)
-			if err != nil {
-				return nil, fmt.Errorf("get job %s failed: %v", resourceName, err.Error())
-			}
-			appResources.Jobs = append(appResources.Jobs, *k8sJobToSCJob(k8sJob))
-		}
+	app.Status = status
+	value, err = json.Marshal(app)
+	if err != nil {
+		return nil, err
 	}
 
-	app := &types.Application{
-		Name:         release.Name,
-		Version:      release.Version,
-		ChartName:    release.Chart.Name(),
-		ChartVersion: chartVersion,
-		AppResources: appResources,
+	if err := tx.Update(name, value); err != nil {
+		return nil, err
 	}
-	app.SetID(app.Name)
-	app.SetType(types.ApplicationType)
-	app.SetCreationTimestamp(k8sConfigMap.CreationTimestamp.Time)
-	return app, nil
+
+	return &app, tx.Commit()
 }
 
-func deleteApplication(cli client.Client, namespace, name string) error {
-	k8sConfigMaps := corev1.ConfigMapList{}
-	k8sLabels := labels.Set{cmLabelOwnerApp: name}
-	if err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace, LabelSelector: k8sLabels.AsSelector()},
-		&k8sConfigMaps); err != nil {
+func deleteApplicationFromDB(db storage.DB, namespace, name string) error {
+	tx, err := BeginTableTransaction(db, namespace+"_"+AppTableSuffix)
+	if err != nil {
 		return err
 	}
 
-	if len(k8sConfigMaps.Items) == 0 {
-		return fmt.Errorf("no found application %s with namespace %s", name, namespace)
+	defer tx.Rollback()
+	if err := tx.Delete(name); err != nil {
+		return err
 	}
 
-	k8sConfigMap := k8sConfigMaps.Items[0]
-	for _, item := range k8sConfigMaps.Items {
-		if item.Labels[cmLabelRevision] > k8sConfigMap.Labels[cmLabelRevision] {
-			k8sConfigMap = item
-		}
-	}
-
-	release, err := decodeRelease(k8sConfigMap.Data[cmReleaseKey])
-	if err != nil {
-		return fmt.Errorf("decode application %s from configmap failed: %s", name, err.Error())
-	}
-
-	if release == nil {
-		return fmt.Errorf("application %s should not be empty data in configmap", name)
-	}
-
-	manifests := releaseutil.SplitManifests(release.Manifest)
-	for _, content := range manifests {
-		if err := helper.DeleteResourceFromYaml(cli, content); err != nil {
-			return fmt.Errorf("delete resource by yaml content failed: %v", err.Error())
-		}
-	}
-
-	for _, item := range k8sConfigMaps.Items {
-		if err := deleteConfigMap(cli, namespace, item.Name); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return tx.Commit()
 }
 
-func createApplication(ctx *resttypes.Context, cli client.Client, namespace, chartDir string, app *types.Application) error {
-	chartPath := path.Join(chartDir, app.ChartName, app.ChartVersion)
+func (m *ApplicationManager) create(ctx *resttypes.Context, cli client.Client, namespace, url string, app *types.Application) error {
+	chartPath := path.Join(m.chartDir, app.ChartName, app.ChartVersion)
 	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
 		return err
 	}
 
-	configMapName := app.Name + ".v1"
-	if k8sConfigMap, err := getConfigMap(cli, namespace, configMapName); err != nil && apierrors.IsNotFound(err) == false {
-		return err
-	} else if k8sConfigMap.Name == configMapName {
-		return fmt.Errorf("application %s with namespace %s has been installed", app.Name, namespace)
+	files, err := loadChartFiles(ctx, namespace, chartPath, app)
+	if err != nil {
+		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	rawValues, err := getChartValues(ctx, app)
+	app.Manifests = files
+	app.Status = types.AppStatusCreate
+	app.SetCreationTimestamp(time.Now())
+	if err := addOrUpdateAppToDB(m.clusters.GetDB(), namespace, app, true); err != nil {
+		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
+	}
+
+	go createApplication(m.clusters.GetDB(), cli, namespace, url, app)
+	return nil
+}
+
+func addOrUpdateAppToDB(db storage.DB, namespace string, app *types.Application, isCreate bool) error {
+	value, err := json.Marshal(app)
+	if err != nil {
+		return fmt.Errorf("marshal application %s failed: %s", app.Name, err.Error())
+	}
+
+	tx, err := BeginTableTransaction(db, namespace+"_"+AppTableSuffix)
 	if err != nil {
 		return err
+	}
+
+	defer tx.Rollback()
+	if isCreate {
+		err = tx.Add(app.GetID(), value)
+	} else {
+		err = tx.Update(app.GetID(), value)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *types.Application) (map[string]string, error) {
+	rawValues, err := getChartValues(ctx, app)
+	if err != nil {
+		return nil, err
 	}
 	if rawValues == nil {
 		rawValues = make(map[string]interface{})
@@ -327,7 +289,7 @@ func createApplication(ctx *resttypes.Context, cli client.Client, namespace, cha
 
 	chartRequested, err := loader.Load(chartPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	options := chartutil.ReleaseOptions{
@@ -337,87 +299,81 @@ func createApplication(ctx *resttypes.Context, cli client.Client, namespace, cha
 	}
 	valuesToRender, err := chartutil.ToRenderValues(chartRequested, rawValues, options, DefaultCapabilities)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	valuesToRender["Release"].(map[string]interface{})["Service"] = "singlecloud"
-
-	rel := &release.Release{
-		Name:      app.Name,
-		Namespace: namespace,
-		Chart:     chartRequested,
-		Config:    rawValues,
-		Info: &release.Info{
-			Status: release.StatusDeployed,
-		},
-		Version: 1,
+	if rel, ok := valuesToRender["Release"].(map[string]interface{}); ok {
+		rel["Service"] = "singlecloud"
 	}
 
 	files, err := engine.Render(chartRequested, valuesToRender)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for k, v := range files {
-		if strings.HasSuffix(k, notesFileSuffix) {
-			if k == path.Join(app.ChartName, "templates", notesFileSuffix) {
-				rel.Info.Notes = v
-			}
-			delete(files, k)
+	for fileName, _ := range files {
+		if strings.HasSuffix(fileName, notesFileSuffix) {
+			delete(files, fileName)
 		}
 	}
 
-	releaseManifests := bytes.NewBuffer(nil)
-	for fileName, content := range files {
-		var contentMap map[string]interface{}
-		if err := yaml.Unmarshal([]byte(content), &contentMap); err != nil {
-			return fmt.Errorf("unmarshal chart file %s content failed: %s", fileName, err.Error())
-		}
+	return files, nil
+}
 
-		if len(contentMap) == 0 {
-			continue
-		}
-
-		metadata, ok := contentMap["metadata"].(map[interface{}]interface{})
-		if ok == false {
-			return fmt.Errorf("invalid chart file %s without metadata", fileName)
-		}
-
-		metadata["namespace"] = namespace
-		if contentByte, err := yaml.Marshal(contentMap); err != nil {
-			return fmt.Errorf("marshal chart file %s content failed: %s", fileName, err.Error())
-		} else {
-			content = string(contentByte)
-		}
-
-		if err := helper.CreateResourceFromYaml(cli, content); err != nil {
-			return fmt.Errorf("create resource by file %s failed: %s", fileName, err.Error())
-		}
-
-		fmt.Fprintf(releaseManifests, "---\n# Source: %s\n%s\n", fileName, content)
-	}
-
-	ts := time.Now()
-	rel.Manifest = releaseManifests.String()
-	rel.Info.FirstDeployed, rel.Info.LastDeployed = ts, ts
-	relStr, err := encodeRelease(rel)
+func createApplication(db storage.DB, cli client.Client, namespace, url string, app *types.Application) {
+	appResources, err := createAppResources(cli, namespace, url, app.Manifests)
 	if err != nil {
-		return fmt.Errorf("encode release to string failed: %s", err.Error())
+		app.Status = types.AppStatusFailed
+		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+			log.Warnf("create application %s resoures failed, update status get error: %s", app.Name, err.Error())
+		}
+		log.Warnf("create application %s resources failed: %s", app.Name, err.Error())
+		return
 	}
 
-	app.Version = rel.Version
-	return cli.Create(context.TODO(), &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapName,
-			Namespace: namespace,
-			Labels: map[string]string{
-				cmLabelChart:    app.ChartName,
-				cmLabelVersion:  app.ChartVersion,
-				cmLabelOwnerApp: app.Name,
-				cmLabelRevision: strconv.Itoa(rel.Version),
-			},
-		},
-		Data: map[string]string{cmReleaseKey: relStr},
-	})
+	app.AppResources = appResources
+	app.Status = types.AppStatusSucceed
+	if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+		app.Status = types.AppStatusFailed
+		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+			log.Warnf("update application %s status failed, update status get error: %s", app.Name, err.Error())
+		}
+		log.Warnf("update application %s status to succeed failed: %s", app.Name, err.Error())
+	}
+}
+
+func createAppResources(cli client.Client, namespace, urlPrefix string, manifests map[string]string) (types.AppResources, error) {
+	var appResources types.AppResources
+	for fileName, content := range manifests {
+		if err := helper.MapOnRuntimeObject(content, func(ctx context.Context, obj runtime.Object) error {
+			gvk := obj.GetObjectKind().GroupVersionKind()
+			metaObj, err := meta.Accessor(obj)
+			if err != nil {
+				return fmt.Errorf("runtime object to meta object with file %s failed: %s", fileName, err.Error())
+			}
+
+			metaObj.SetNamespace(namespace)
+			if err := cli.Create(ctx, obj); err != nil {
+				return fmt.Errorf("create resource with file %s failed: %s", fileName, err.Error())
+			}
+
+			switch typ := strings.ToLower(gvk.Kind); typ {
+			case types.DeploymentType, types.DaemonSetType, types.StatefulSetType,
+				types.ConfigMapType, types.SecretType, types.ServiceType, types.IngressType,
+				types.CronJobType, types.JobType:
+				appResources = append(appResources, types.AppResource{
+					Name: metaObj.GetName(),
+					Type: typ,
+					Link: path.Join(urlPrefix, restutil.GuessPluralName(typ)),
+				})
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	sort.Sort(appResources)
+	return appResources, nil
 }
 
 func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]interface{}, error) {
@@ -447,54 +403,26 @@ func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]
 
 	m, err := restHandler.ObjectToMap(chartCtx, obj)
 	if err != nil {
-		return nil, fmt.Errorf("install chart %s config is invalid: %v", app.ChartName, err.Error())
+		return nil, fmt.Errorf("create application %s config is invalid: %v", app.ChartName, err.Error())
 	}
 
 	return m, nil
 }
 
-func encodeRelease(rls *release.Release) (string, error) {
-	b, err := yaml.Marshal(rls)
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	w, err := gzip.NewWriterLevel(&buf, gzip.BestCompression)
-	if err != nil {
-		return "", err
-	}
-	if _, err = w.Write(b); err != nil {
-		return "", err
-	}
-	w.Close()
-
-	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
-}
-
-func decodeRelease(data string) (*release.Release, error) {
-	if data == "" {
-		return nil, nil
-	}
-	b, err := base64.StdEncoding.DecodeString(data)
-	if err != nil {
-		return nil, err
+func genUrlPrefix(ctx *resttypes.Context, clusterName, namespace string) string {
+	req := ctx.Request
+	scheme := "http"
+	if req.TLS != nil {
+		scheme = "https"
 	}
 
-	if len(b) > 2 && bytes.Equal(b[0:3], magicGzip) {
-		r, err := gzip.NewReader(bytes.NewReader(b))
-		if err != nil {
-			return nil, err
-		}
-		b2, err := ioutil.ReadAll(r)
-		if err != nil {
-			return nil, err
-		}
-		b = b2
+	urls := strings.SplitAfterN(req.URL.Path, "/namespaces/"+namespace, 2)
+	if len(urls) == 2 {
+		return fmt.Sprintf("%s://%s%s", scheme, req.Host, urls[0])
+	} else {
+		apiVersion := ctx.Object.GetSchema().Version
+		return path.Join(fmt.Sprintf("%s://%s", scheme, req.Host),
+			resttypes.GroupPrefix, apiVersion.Group, apiVersion.Version,
+			fmt.Sprintf("/clusters/%s/namespaces/%s", clusterName, namespace))
 	}
-
-	var rls release.Release
-	if err := yaml.Unmarshal(b, &rls); err != nil {
-		return nil, err
-	}
-	return &rls, nil
 }

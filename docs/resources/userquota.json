@@ -19,7 +19,7 @@
         "responseTimestamp": {"type": "date"}
     },
 
-    "resourceMethods": [ "GET", "PUT", "DELETE", "POST" ],
+    "resourceMethods": [ "GET", "PUT", "DELETE" ],
     "collectionMethods": [ "GET", "POST"],
 
     "postParameters": {

@@ -4,6 +4,13 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
+const (
+	AppStatusCreate  = "create"
+	AppStatusDelete  = "delete"
+	AppStatusFailed  = "failed"
+	AppStatusSucceed = "succeed"
+)
+
 func SetApplicationSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
@@ -13,24 +20,19 @@ func SetApplicationSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 
 type Application struct {
 	resttypes.Resource `json:",inline"`
-	Name               string       `json:"name"`
-	Version            int          `json:"version"`
-	ChartName          string       `json:"chartName"`
-	ChartVersion       string       `json:"chartVersion"`
-	Configs            string       `json:"configs,omitempty"`
-	AppResources       AppResources `json:"appResources,omitempty"`
+	Name               string            `json:"name"`
+	ChartName          string            `json:"chartName"`
+	ChartVersion       string            `json:"chartVersion"`
+	Status             string            `json:"status"`
+	AppResources       []AppResource     `json:"appResources,omitempty"`
+	Configs            string            `json:"configs,omitempty"`
+	Manifests          map[string]string `json:"manifests,omitempty"`
 }
 
-type AppResources struct {
-	Deployments  []Deployment  `json:"deployments,omitempty"`
-	DaemonSets   []DaemonSet   `json:"daemonsets,omitempty"`
-	StatefulSets []StatefulSet `json:"statefulsets,omitempty"`
-	Services     []Service     `json:"services,omitempty"`
-	Ingresses    []Ingress     `json:"ingresses,omitempty"`
-	ConfigMaps   []ConfigMap   `json:"configmaps,omitempty"`
-	Secrets      []Secret      `json:"secrets,omitempty"`
-	CronJobs     []CronJob     `json:"cronjobs,omitempty"`
-	Jobs         []Job         `json:"jobs,omitempty"`
+type AppResource struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+	Link string `json:"link"`
 }
 
 type Applications []*Application
@@ -52,6 +54,24 @@ func (a Applications) Less(i, j int) bool {
 		}
 	} else {
 		return a[i].ChartName < a[j].ChartName
+	}
+}
+
+type AppResources []AppResource
+
+func (r AppResources) Len() int {
+	return len(r)
+}
+
+func (r AppResources) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
+func (r AppResources) Less(i, j int) bool {
+	if r[i].Type == r[j].Type {
+		return r[i].Name < r[j].Name
+	} else {
+		return r[i].Type < r[j].Type
 	}
 }
 

@@ -13,6 +13,8 @@ func SetChartSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 type Chart struct {
 	resttypes.Resource `json:",inline"`
 	Name               string         `json:"name"`
+	Description        string         `json:"description"`
+	Icon               string         `json:"icon"`
 	Versions           []ChartVersion `json:"versions"`
 }
 
