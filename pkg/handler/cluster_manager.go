@@ -93,7 +93,11 @@ func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
 	}
 	cluster := m.zkeManager.Get(id)
 	if cluster != nil {
-		return getClusterInfo(cluster.Client, cluster.Cluster)
+		sc := cluster.ToTypesCluster()
+		if cluster.IsReady() {
+			return getClusterInfo(cluster.KubeClient, sc)
+		}
+		return sc
 	}
 	return nil
 }
@@ -132,8 +136,8 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 
 	if onlyReady := requestFlags.Get("onlyready"); onlyReady == "true" {
 		for _, c := range m.zkeManager.ListReady() {
-			if m.authorizer.Authorize(user, c.Cluster.Name, "") {
-				sc := getClusterInfo(c.Client, c.Cluster)
+			if m.authorizer.Authorize(user, c.Name, "") {
+				sc := getClusterInfo(c.KubeClient, c.ToTypesCluster())
 				clusters = append(clusters, sc)
 			}
 		}
@@ -141,8 +145,11 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	}
 
 	for _, c := range m.zkeManager.ListAll() {
-		if m.authorizer.Authorize(user, c.Cluster.Name, "") {
-			sc := getClusterInfo(c.Client, c.Cluster)
+		if m.authorizer.Authorize(user, c.Name, "") {
+			sc := c.ToTypesCluster()
+			if c.IsReady() {
+				sc = getClusterInfo(c.KubeClient, c.ToTypesCluster())
+			}
 			clusters = append(clusters, sc)
 		}
 	}

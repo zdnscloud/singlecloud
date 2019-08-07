@@ -9,7 +9,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 
-	"github.com/zdnscloud/gok8s/client"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
@@ -25,11 +24,6 @@ type ZKEManager struct {
 	unreadyClusters []*Cluster
 	db              storage.DB
 	lock            sync.Mutex
-}
-
-type tempCluster struct {
-	Client  client.Client
-	Cluster *types.Cluster
 }
 
 func New(db storage.DB) (*ZKEManager, error) {
@@ -156,15 +150,12 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 	return nil, nil
 }
 
-func (m *ZKEManager) Get(id string) *tempCluster {
+func (m *ZKEManager) Get(id string) *Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	cluster := m.get(id)
 	if cluster != nil {
-		return &tempCluster{
-			Client:  cluster.KubeClient,
-			Cluster: cluster.getTypesCluster(),
-		}
+		return cluster
 	}
 	return nil
 }
@@ -175,34 +166,25 @@ func (m *ZKEManager) GetReady(id string) *Cluster {
 	return m.getReady(id)
 }
 
-func (m *ZKEManager) ListAll() []*tempCluster {
+func (m *ZKEManager) ListAll() []*Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var clusters []*tempCluster
+	var clusters []*Cluster
 	for _, c := range m.readyClusters {
-		clusters = append(clusters, &tempCluster{
-			Client:  c.KubeClient,
-			Cluster: c.getTypesCluster(),
-		})
+		clusters = append(clusters, c)
 	}
 	for _, c := range m.unreadyClusters {
-		clusters = append(clusters, &tempCluster{
-			Client:  c.KubeClient,
-			Cluster: c.getTypesCluster(),
-		})
+		clusters = append(clusters, c)
 	}
 	return clusters
 }
 
-func (m *ZKEManager) ListReady() []*tempCluster {
+func (m *ZKEManager) ListReady() []*Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var clusters []*tempCluster
+	var clusters []*Cluster
 	for _, c := range m.readyClusters {
-		clusters = append(clusters, &tempCluster{
-			Client:  c.KubeClient,
-			Cluster: c.getTypesCluster(),
-		})
+		clusters = append(clusters, c)
 	}
 	return clusters
 }

@@ -17,8 +17,12 @@ const (
 	ClusterRetryInterval = time.Second * 10
 )
 
-func (c *Cluster) getTypesCluster() *types.Cluster {
+func (c *Cluster) ToTypesCluster() *types.Cluster {
 	cluster := zkeClusterToSCCluster(c)
+	// unready cluster do not get cluster version info
+	if !c.IsReady() {
+		return cluster
+	}
 	if c.KubeClient == nil {
 		return cluster
 	}
@@ -30,6 +34,14 @@ func (c *Cluster) getTypesCluster() *types.Cluster {
 	c.fsm.Event(GetInfoSuccessEvent)
 	cluster.Version = version.GitVersion
 	return cluster
+}
+
+func (c *Cluster) IsReady() bool {
+	status := c.getStatus()
+	if status == types.CSUnavailable || status == types.CSConnecting || status == types.CSCreateing || status == types.CSUpdateing || status == types.CSCanceling {
+		return false
+	}
+	return true
 }
 
 func (c *Cluster) getStatus() types.ClusterStatus {
