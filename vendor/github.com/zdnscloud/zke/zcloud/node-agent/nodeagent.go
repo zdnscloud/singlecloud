@@ -42,7 +42,12 @@ spec:
         volumeMounts:
           - mountPath: /var/lib
             name: lib
+          - mountPath: /dev
+            name: host-dev
       volumes:
         - name: lib
           hostPath:
-            path: /var/lib`
+            path: /var/lib
+        - name: host-dev
+          hostPath:
+            path: /dev`

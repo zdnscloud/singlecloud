@@ -12,8 +12,29 @@ spec:
     listKind: ClusterList
     plural: clusters
     singular: cluster
-  scope: Namespaced
+  scope: Cluster
   version: v1
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            storageType:
+              pattern: ^(lvm|ceph)$
+              type: string
+            hosts:
+              type: array
+          required:
+          - storageType
+          - hosts
+  additionalPrinterColumns:
+    - name: Age
+      type: date
+      JSONPath: .metadata.creationTimestamp
+    - name: State
+      type: string
+      description: Current State
+      JSONPath: .status.phase
 ---
 {{- if eq .RBACConfig "rbac"}}
 apiVersion: v1
@@ -48,7 +69,7 @@ rules:
     verbs: ["get" ,"list" ,"watch" ,"update", "create", "delete"]
   - apiGroups: [""]
     resources: ["services"]
-    verbs: ["create", "delete"]
+    verbs: ["create", "delete", "get"]
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["create", "get", "list"]

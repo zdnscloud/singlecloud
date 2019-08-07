@@ -202,10 +202,12 @@ func pullImage(ctx context.Context, dClient *client.Client, hostname string, con
 	}
 	pullOptions.RegistryAuth = regAuth
 
-	_, err = dClient.ImagePull(ctx, containerImage, pullOptions)
+	out, err := dClient.ImagePull(ctx, containerImage, pullOptions)
 	if err != nil {
 		return fmt.Errorf("Can't pull Docker image [%s] for host [%s]: %v", containerImage, hostname, err)
 	}
+	defer out.Close()
+	io.Copy(ioutil.Discard, out)
 
 	return nil
 }
