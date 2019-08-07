@@ -47,3 +47,7 @@ func NewAPIError(code ErrorCode, message string) *APIError {
 		Message:   message,
 	}
 }
+
+func (e *APIError) Error() string {
+	return e.Message
+}
