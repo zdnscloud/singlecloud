@@ -148,7 +148,7 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 		if m.authorizer.Authorize(user, c.Name, "") {
 			sc := c.ToTypesCluster()
 			if c.IsReady() {
-				sc = getClusterInfo(c.KubeClient, c.ToTypesCluster())
+				sc = getClusterInfo(c.KubeClient, sc)
 			}
 			clusters = append(clusters, sc)
 		}
