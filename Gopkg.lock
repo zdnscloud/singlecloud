@@ -370,12 +370,12 @@
   revision = "b515ac7fed0e4002895a90be54b0a9c68f5ee78b"
 
 [[projects]]
-  branch = "remove-dev"
+  branch = "master"
   digest = "1:f366ff386b202b29a1106fc2fcc012f148fac7eb37819cfa1874291ee136bbe0"
   name = "github.com/zdnscloud/immense"
   packages = ["pkg/apis/zcloud/v1"]
   pruneopts = "UT"
-  revision = "a9ef0aec66efad92638dd5e46acf5719e5f272b6"
+  revision = "a8c0050b3789ba6781799bb2feb5a26710268cd5"
 
 [[projects]]
   branch = "master"
