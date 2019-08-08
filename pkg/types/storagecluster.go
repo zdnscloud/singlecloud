@@ -24,16 +24,10 @@ type StorageCluster struct {
 	PVs                []PV          `json:"pvs"`
 }
 
-/*
-type HostSpec struct {
-	NodeName     string   `json:"nodeName"`
-	BlockDevices []string `json:"blockDevices"`
-}*/
-
 var StorageClusterType = resttypes.GetResourceType(StorageCluster{})
 
 type Storage struct {
-	Name     string        `json:"-"`
+	Name     string        `json:"name"`
 	Size     string        `json:"size"`
 	UsedSize string        `json:"usedsize"`
 	FreeSize string        `json:"freesize"`

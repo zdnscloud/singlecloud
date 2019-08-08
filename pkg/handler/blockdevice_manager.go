@@ -9,11 +9,9 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
-	"net/http"
-	"sort"
+	"reflect"
 )
 
 type BlockDeviceManager struct {
@@ -51,38 +49,32 @@ func getBlockDevices(cluster string, cli client.Client, agent *clusteragent.Agen
 }
 
 func getAllDevices(cluster string, agent *clusteragent.AgentManager) ([]types.BlockDevice, error) {
-	var res types.BlockDeviceSlice
-	url := "/apis/agent.zcloud.cn/v1/blockinfos"
-	req, err := http.NewRequest("GET", clusteragent.ClusterAgentServiceHost+url, nil)
+	nets := make([]types.BlockDevice, 0)
+	url := "/apis/agent.zcloud.cn/v1/blockdevices"
+	res, err := agent.GetData(cluster, url)
 	if err != nil {
-		return res, err
+		return nets, err
 	}
-	resp, err := agent.ProxyRequest(cluster, req)
-	if err != nil {
-		return res, err
+	s := reflect.ValueOf(res)
+	for i := 0; i < s.Len(); i++ {
+		newp := new(types.BlockDevice)
+		p := s.Index(i).Interface()
+		tmp, _ := json.Marshal(&p)
+		json.Unmarshal(tmp, newp)
+		nets = append(nets, *newp)
 	}
-	defer resp.Body.Close()
-	var info types.Data
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &info)
-	for _, h := range info.Data[0].Hosts {
-		blockdevice := types.BlockDevice{
-			Host: h,
-		}
-		res = append(res, blockdevice)
-	}
-	sort.Sort(res)
-	return res, nil
+	return nets, nil
+
 }
 
 func cutInvalid(cli client.Client, resp []types.BlockDevice) []types.BlockDevice {
 	res := make([]types.BlockDevice, 0)
 	for _, b := range resp {
-		if !isValidHost(cli, b.Host.NodeName) {
+		if !isValidHost(cli, b.NodeName) {
 			continue
 		}
 		dev := make([]types.Dev, 0)
-		for _, d := range b.Host.BlockDevices {
+		for _, d := range b.BlockDevices {
 			if !isValidBlockDevice(d) {
 				continue
 			}
@@ -92,10 +84,8 @@ func cutInvalid(cli client.Client, resp []types.BlockDevice) []types.BlockDevice
 			continue
 		}
 		host := types.BlockDevice{
-			Host: types.Host{
-				NodeName:     b.Host.NodeName,
-				BlockDevices: dev,
-			},
+			NodeName:     b.NodeName,
+			BlockDevices: dev,
 		}
 		res = append(res, host)
 	}

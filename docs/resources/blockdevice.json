@@ -4,10 +4,10 @@
     "parentResources": [ "cluster" ],
 
     "resourceFields": {
-        "host":{
-            "nodeName":{"type":"string"},
-            "blockDevices":{"type":"array","elemType":"blockDevice"}
-        },
+        "nodeName":{"type":"string"},
+        "blockDevices":{"type":"array","elemType":"blockDevice"}
+    },
+    "subResources":{
         "blockDevice":{
             "name":{"type":"string"},
             "size":{"type":"string"},

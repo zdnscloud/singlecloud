@@ -67,6 +67,12 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager), types.SetStorageClusterSchema)
 	schemas.MustImportAndCustomize(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager), types.SetBlockDeviceSchema)
 
+	schemas.MustImportAndCustomize(&Version, types.PodNetwork{}, newPodNetworkManager(a.clusterManager), types.SetPodNetworkSchema)
+	schemas.MustImportAndCustomize(&Version, types.NodeNetwork{}, newNodeNetworkManager(a.clusterManager), types.SetNodeNetworkSchema)
+	schemas.MustImportAndCustomize(&Version, types.ServiceNetwork{}, newServiceNetworkManager(a.clusterManager), types.SetServiceNetworkSchema)
+	schemas.MustImportAndCustomize(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager), types.SetInnerServiceSchema)
+	schemas.MustImportAndCustomize(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager), types.SetOuterServiceSchema)
+
 	schemas.MustImportAndCustomize(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager), types.SetUserQuotaSchema)
 
 	server := api.NewAPIServer()

@@ -62,18 +62,18 @@ func main() {
 		log.Fatalf("create authenticator failed:%s", err.Error())
 	}
 
-	agent := clusteragent.New()
 	authorizer, err := authorization.New(db)
 	if err != nil {
 		log.Fatalf("create authorizer failed:%s", err.Error())
 	}
 
-	app := handler.NewApp(authenticator, authorizer, eventBus, agent, db)
-
 	server, err := server.NewServer(authenticator.MiddlewareFunc())
 	if err != nil {
 		log.Fatalf("create server failed:%s", err.Error())
 	}
+
+	agent := clusteragent.New()
+	app := handler.NewApp(authenticator, authorizer, eventBus, agent, db)
 
 	if err := server.RegisterHandler(authenticator); err != nil {
 		log.Fatalf("register redirect handler failed:%s", err.Error())
@@ -87,11 +87,9 @@ func main() {
 	if err := server.RegisterHandler(watcher); err != nil {
 		log.Fatalf("register k8s event watcher failed:%s", err.Error())
 	}
-
 	if err := server.RegisterHandler(agent); err != nil {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}
-
 	shellExecutor := k8sshell.New(eventBus)
 	if err := server.RegisterHandler(shellExecutor); err != nil {
 		log.Fatalf("register shell executor failed:%s", err.Error())
