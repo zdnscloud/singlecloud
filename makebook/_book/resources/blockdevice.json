@@ -1,0 +1,21 @@
+{
+    "resourceType": "blockdevice",
+    "collectionName": "blockdevices",
+    "parentResources": [ "cluster" ],
+
+    "resourceFields": {
+        "host":{
+            "nodeName":{"type":"string"},
+            "blockDevices":{"type":"array","elemType":"blockDevice"}
+        },
+        "blockDevice":{
+            "name":{"type":"string"},
+            "size":{"type":"string"},
+            "parted":{"type":"bool"},
+            "filesystem":{"type":"bool"},
+            "mount":{"type":"bool"}
+        }
+    },
+
+    "collectionMethods": [ "GET" ]
+}

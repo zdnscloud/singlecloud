@@ -1,0 +1,11 @@
+{
+    "resourceType": "storageclass",
+    "collectionName": "storageclasses",
+    "parentResources": [ "cluster" ],
+
+    "resourceFields": {
+        "name": {"type": "string"}
+    },
+
+    "collectionMethods": [ "GET" ]
+}
