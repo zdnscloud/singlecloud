@@ -7,7 +7,8 @@
             "type": "string"
         },
         "status": {
-            "type": "string"
+            "type": "enum",
+            "validValues": ["Running", "Unreachable", "Creating", "Updating", "Connecting", "Unavailable", "Canceling"]
         },
         "nodeCount": {
             "type": "uint32"
@@ -110,7 +111,8 @@
             },
             "roles": {
                 "type": "array",
-                "elemType": "string"
+                "elemType": "enum",
+                "validValues": ["controlplane", "etcd", "worker", "edge"]
             },
             "labels": {
                 "type": "map",
@@ -161,7 +163,8 @@
         },
         "zkeConfigNetwork": {
             "plugin": {
-                "type": "string"
+                "type": "enum",
+                "validValues": ["flannel", "calico"]
             },
             "iface": {
                 "type": "string"
@@ -264,14 +267,15 @@
                 },
                 "roles": {
                     "type": "array",
-                    "elemType": "string",
+                    "elemType": "enum",
+                    "validValues": ["controlplane", "etcd", "worker", "edge"],
                     "required": true
                 }
             },
             "zkeConfigNetwork": {
                 "plugin": {
-                    "type": "string",
-                    "required": true
+                    "type": "enum",
+                    "validValues": ["flannel", "calico"]
                 },
                 "iface": {
                     "type": "string"
