@@ -214,7 +214,7 @@ func (s *Schemas) readFields(schema *Schema, t reflect.Type) error {
 }
 
 func applyTag(structField *reflect.StructField, field *Field) error {
-	for _, part := range strings.Split(structField.Tag.Get("singlecloud"), ",") {
+	for _, part := range strings.Split(structField.Tag.Get("rest"), ",") {
 		if part == "" {
 			continue
 		}
