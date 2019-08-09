@@ -37,14 +37,14 @@
     "collectionMethods":["POST","GET"],
     "postParameters":{
         "fields":{
-            "name":{"type":"string"},
-            "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
-            "hosts":{"type":"array","elemType":"string"}
+            "name":{"type":"string", "required": true},
+            "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"], "required": true},
+            "hosts":{"type":"array","elemType":"string", "required": true}
         }
     },
     "putParameters":{
         "fields":{
-            "hosts":{"type":"array","elemType":"string"}
+            "hosts":{"type":"array","elemType":"string", "required": true}
         }
     }
 }

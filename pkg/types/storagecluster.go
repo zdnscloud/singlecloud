@@ -13,9 +13,9 @@ func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler
 
 type StorageCluster struct {
 	resttypes.Resource `json:",inline"`
-	Name               string        `json:"name"`
-	StorageType        string        `json:"storagetype"`
-	Hosts              []string      `json:"hosts"`
+	Name               string        `json:"name" rest:"required=true"`
+	StorageType        string        `json:"storagetype" rest:"required=true,options=lvm|ceph"`
+	Hosts              []string      `json:"hosts" rest:"required=true"`
 	Phase              string        `json:"phase"`
 	Size               string        `json:"size"`
 	UsedSize           string        `json:"usedsize"`
@@ -24,16 +24,10 @@ type StorageCluster struct {
 	PVs                []PV          `json:"pvs"`
 }
 
-/*
-type HostSpec struct {
-	NodeName     string   `json:"nodeName"`
-	BlockDevices []string `json:"blockDevices"`
-}*/
-
 var StorageClusterType = resttypes.GetResourceType(StorageCluster{})
 
 type Storage struct {
-	Name     string        `json:"-"`
+	Name     string        `json:"name"`
 	Size     string        `json:"size"`
 	UsedSize string        `json:"usedsize"`
 	FreeSize string        `json:"freesize"`

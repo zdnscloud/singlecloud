@@ -5,11 +5,10 @@ import (
 	"fmt"
 
 	"encoding/json"
-	"io/ioutil"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
-	"net/http"
+	"reflect"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
@@ -95,6 +94,10 @@ func (m StorageClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (
 	}
 
 	storagecluster := ctx.Object.(*types.StorageCluster)
+
+	if isExist(cluster.KubeClient, storagecluster.StorageType) {
+		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed,the type of %s storagecluster has already exists", storagecluster.StorageType))
+	}
 	if err := createStorageCluster(cluster.KubeClient, storagecluster); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
@@ -182,7 +185,6 @@ func k8sStorageToSCStorage(cluster *Cluster, agent *clusteragent.AgentManager, k
 		PVs:         info.PVs,
 	}
 	storagecluster.SetID(k8sStorageCluster.Name)
-	storagecluster.SetType(types.StorageClusterType)
 	storagecluster.SetCreationTimestamp(k8sStorageCluster.CreationTimestamp.Time)
 	return storagecluster
 }
@@ -190,16 +192,31 @@ func k8sStorageToSCStorage(cluster *Cluster, agent *clusteragent.AgentManager, k
 func getStatusInfo(cluster string, agent *clusteragent.AgentManager, storagetype string) (types.Storage, error) {
 	var info types.Storage
 	url := "/apis/agent.zcloud.cn/v1/storages/"
-	req, err := http.NewRequest("GET", clusteragent.ClusterAgentServiceHost+url+storagetype, nil)
+	res, err := agent.GetData(cluster, url)
 	if err != nil {
 		return info, err
 	}
-	resp, err := agent.ProxyRequest(cluster, req)
-	if err != nil {
-		return info, err
+	s := reflect.ValueOf(res)
+	for i := 0; i < s.Len(); i++ {
+		newp := new(types.Storage)
+		p := s.Index(i).Interface()
+		tmp, _ := json.Marshal(&p)
+		json.Unmarshal(tmp, newp)
+		if newp.Name == storagetype {
+			info = *newp
+			break
+		}
 	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &info)
 	return info, nil
+}
+
+func isExist(cli client.Client, storageType string) bool {
+	storageclusters := storagev1.ClusterList{}
+	_ = cli.List(context.TODO(), nil, &storageclusters)
+	for _, storage := range storageclusters.Items {
+		if storage.Spec.StorageType == storageType {
+			return true
+		}
+	}
+	return false
 }
