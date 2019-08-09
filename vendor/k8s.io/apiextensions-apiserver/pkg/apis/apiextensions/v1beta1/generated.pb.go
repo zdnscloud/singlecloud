@@ -59,8 +59,8 @@ import k8s_io_apimachinery_pkg_runtime "k8s.io/apimachinery/pkg/runtime"
 
 import k8s_io_apimachinery_pkg_types "k8s.io/apimachinery/pkg/types"
 
-import sortkeys "github.com/gogo/protobuf/sortkeys"
-import binary "encoding/binary"
+import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
+import encoding_binary "encoding/binary"
 
 import strings "strings"
 import reflect "reflect"
@@ -1044,7 +1044,7 @@ func (m *JSONSchemaProps) MarshalTo(dAtA []byte) (int, error) {
 	if m.Maximum != nil {
 		dAtA[i] = 0x49
 		i++
-		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(*m.Maximum))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(*m.Maximum))))
 		i += 8
 	}
 	dAtA[i] = 0x50
@@ -1058,7 +1058,7 @@ func (m *JSONSchemaProps) MarshalTo(dAtA []byte) (int, error) {
 	if m.Minimum != nil {
 		dAtA[i] = 0x59
 		i++
-		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(*m.Minimum))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(*m.Minimum))))
 		i += 8
 	}
 	dAtA[i] = 0x60
@@ -1112,7 +1112,7 @@ func (m *JSONSchemaProps) MarshalTo(dAtA []byte) (int, error) {
 		i++
 		dAtA[i] = 0x1
 		i++
-		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(*m.MultipleOf))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(*m.MultipleOf))))
 		i += 8
 	}
 	if len(m.Enum) > 0 {
@@ -1231,7 +1231,7 @@ func (m *JSONSchemaProps) MarshalTo(dAtA []byte) (int, error) {
 		for k := range m.Properties {
 			keysForProperties = append(keysForProperties, string(k))
 		}
-		sortkeys.Strings(keysForProperties)
+		github_com_gogo_protobuf_sortkeys.Strings(keysForProperties)
 		for _, k := range keysForProperties {
 			dAtA[i] = 0xea
 			i++
@@ -1276,7 +1276,7 @@ func (m *JSONSchemaProps) MarshalTo(dAtA []byte) (int, error) {
 		for k := range m.PatternProperties {
 			keysForPatternProperties = append(keysForPatternProperties, string(k))
 		}
-		sortkeys.Strings(keysForPatternProperties)
+		github_com_gogo_protobuf_sortkeys.Strings(keysForPatternProperties)
 		for _, k := range keysForPatternProperties {
 			dAtA[i] = 0xfa
 			i++
@@ -1309,7 +1309,7 @@ func (m *JSONSchemaProps) MarshalTo(dAtA []byte) (int, error) {
 		for k := range m.Dependencies {
 			keysForDependencies = append(keysForDependencies, string(k))
 		}
-		sortkeys.Strings(keysForDependencies)
+		github_com_gogo_protobuf_sortkeys.Strings(keysForDependencies)
 		for _, k := range keysForDependencies {
 			dAtA[i] = 0x82
 			i++
@@ -1354,7 +1354,7 @@ func (m *JSONSchemaProps) MarshalTo(dAtA []byte) (int, error) {
 		for k := range m.Definitions {
 			keysForDefinitions = append(keysForDefinitions, string(k))
 		}
-		sortkeys.Strings(keysForDefinitions)
+		github_com_gogo_protobuf_sortkeys.Strings(keysForDefinitions)
 		for _, k := range keysForDefinitions {
 			dAtA[i] = 0x92
 			i++
@@ -2363,7 +2363,7 @@ func (this *JSONSchemaProps) String() string {
 	for k := range this.Properties {
 		keysForProperties = append(keysForProperties, k)
 	}
-	sortkeys.Strings(keysForProperties)
+	github_com_gogo_protobuf_sortkeys.Strings(keysForProperties)
 	mapStringForProperties := "map[string]JSONSchemaProps{"
 	for _, k := range keysForProperties {
 		mapStringForProperties += fmt.Sprintf("%v: %v,", k, this.Properties[k])
@@ -2373,7 +2373,7 @@ func (this *JSONSchemaProps) String() string {
 	for k := range this.PatternProperties {
 		keysForPatternProperties = append(keysForPatternProperties, k)
 	}
-	sortkeys.Strings(keysForPatternProperties)
+	github_com_gogo_protobuf_sortkeys.Strings(keysForPatternProperties)
 	mapStringForPatternProperties := "map[string]JSONSchemaProps{"
 	for _, k := range keysForPatternProperties {
 		mapStringForPatternProperties += fmt.Sprintf("%v: %v,", k, this.PatternProperties[k])
@@ -2383,7 +2383,7 @@ func (this *JSONSchemaProps) String() string {
 	for k := range this.Dependencies {
 		keysForDependencies = append(keysForDependencies, k)
 	}
-	sortkeys.Strings(keysForDependencies)
+	github_com_gogo_protobuf_sortkeys.Strings(keysForDependencies)
 	mapStringForDependencies := "JSONSchemaDependencies{"
 	for _, k := range keysForDependencies {
 		mapStringForDependencies += fmt.Sprintf("%v: %v,", k, this.Dependencies[k])
@@ -2393,7 +2393,7 @@ func (this *JSONSchemaProps) String() string {
 	for k := range this.Definitions {
 		keysForDefinitions = append(keysForDefinitions, k)
 	}
-	sortkeys.Strings(keysForDefinitions)
+	github_com_gogo_protobuf_sortkeys.Strings(keysForDefinitions)
 	mapStringForDefinitions := "JSONSchemaDefinitions{"
 	for _, k := range keysForDefinitions {
 		mapStringForDefinitions += fmt.Sprintf("%v: %v,", k, this.Definitions[k])
@@ -5431,7 +5431,7 @@ func (m *JSONSchemaProps) Unmarshal(dAtA []byte) error {
 			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
 			v2 := float64(math.Float64frombits(v))
 			m.Maximum = &v2
@@ -5463,7 +5463,7 @@ func (m *JSONSchemaProps) Unmarshal(dAtA []byte) error {
 			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
 			v2 := float64(math.Float64frombits(v))
 			m.Minimum = &v2
@@ -5624,7 +5624,7 @@ func (m *JSONSchemaProps) Unmarshal(dAtA []byte) error {
 			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
 			v2 := float64(math.Float64frombits(v))
 			m.MultipleOf = &v2
