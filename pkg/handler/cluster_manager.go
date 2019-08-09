@@ -78,6 +78,13 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	if len(yamlConf) > 0 {
 		return m.zkeManager.Import(ctx, yamlConf)
 	}
+	return m.zkeManager.Create(ctx)
+}
+
+func (m *ClusterManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can update cluster")
+	}
 	return m.zkeManager.Update(ctx)
 }
 
