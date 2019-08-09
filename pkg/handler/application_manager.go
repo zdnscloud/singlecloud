@@ -89,21 +89,8 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 	}
 
 	namespace := ctx.Object.GetParent().GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), namespace+"_"+AppTableSuffix)
+	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), namespace)
 	if err != nil {
-		log.Warnf("list applications failed %s", err.Error())
-		return nil
-	}
-
-	appValues, err := tx.List()
-	if err != nil {
-		tx.Rollback()
-		log.Warnf("list applications failed %s", err.Error())
-		return nil
-	}
-
-	if err := tx.Commit(); err != nil {
-		tx.Rollback()
 		log.Warnf("list applications failed %s", err.Error())
 		return nil
 	}
@@ -153,29 +140,13 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 }
 
 func deleteApplication(db storage.DB, cli client.Client, namespace string, app *types.Application) {
-	for fileName, content := range app.Manifests {
-		if err := helper.MapOnRuntimeObject(content, func(ctx context.Context, obj runtime.Object) error {
-			metaObj, err := meta.Accessor(obj)
-			if err != nil {
-				return fmt.Errorf("runtime object to meta object with file %s failed: %s", fileName, err.Error())
-			}
-
-			metaObj.SetNamespace(namespace)
-			if err := cli.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil {
-				if apierrors.IsNotFound(err) == false {
-					return fmt.Errorf("delete resource with file %s failed: %s", fileName, err.Error())
-				}
-			}
-
-			return nil
-		}); err != nil {
-			app.Status = types.AppStatusFailed
-			if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
-				log.Warnf("delete application %s resources failed, update status get error: %s", app.Name, err.Error())
-			}
-			log.Warnf("delete application %s resource with file %s failed: %s", app.Name, fileName, err.Error())
-			return
+	if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
+		app.Status = types.AppStatusFailed
+		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+			log.Warnf("delete application %s resources failed, update status get error: %s", app.Name, err.Error())
 		}
+		log.Warnf("delete application %s resources failed: %s", app.Name, err.Error())
+		return
 	}
 
 	if err := deleteApplicationFromDB(db, namespace, app.GetID()); err != nil {
@@ -183,12 +154,13 @@ func deleteApplication(db storage.DB, cli client.Client, namespace string, app *
 		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
 			log.Warnf("delete application %s failed, update status get error: %s", app.Name, err.Error())
 		}
+
 		log.Warnf("delete application %s from db failed: %s", app.Name, err.Error())
 	}
 }
 
 func updateApplicationStatusFromDB(db storage.DB, namespace, name, status string) (*types.Application, error) {
-	tx, err := BeginTableTransaction(db, namespace+"_"+AppTableSuffix)
+	tx, err := BeginTableTransaction(db, genAppTableName(namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -204,6 +176,10 @@ func updateApplicationStatusFromDB(db storage.DB, namespace, name, status string
 		return nil, err
 	}
 
+	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
+		return nil, fmt.Errorf("application %s can`t delete when its status is %s", name, app.Status)
+	}
+
 	app.Status = status
 	value, err = json.Marshal(app)
 	if err != nil {
@@ -217,8 +193,36 @@ func updateApplicationStatusFromDB(db storage.DB, namespace, name, status string
 	return &app, tx.Commit()
 }
 
+func deleteAppResources(cli client.Client, namespace string, manifests []types.Manifest) error {
+	for _, manifest := range manifests {
+		if manifest.Duplicate {
+			continue
+		}
+
+		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
+			metaObj, err := meta.Accessor(obj)
+			if err != nil {
+				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
+			}
+
+			metaObj.SetNamespace(namespace)
+			if err := cli.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil {
+				if apierrors.IsNotFound(err) == false {
+					return fmt.Errorf("delete resource with file %s failed: %s", manifest.File, err.Error())
+				}
+			}
+
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func deleteApplicationFromDB(db storage.DB, namespace, name string) error {
-	tx, err := BeginTableTransaction(db, namespace+"_"+AppTableSuffix)
+	tx, err := BeginTableTransaction(db, genAppTableName(namespace))
 	if err != nil {
 		return err
 	}
@@ -237,12 +241,18 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cli client.Client, n
 		return err
 	}
 
-	files, err := loadChartFiles(ctx, namespace, chartPath, app)
+	manifests, err := loadChartFiles(ctx, namespace, chartPath, app)
 	if err != nil {
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	app.Manifests = files
+	if exists, err := hasNamespace(cli, namespace); err != nil {
+		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
+	} else if exists == false {
+		return fmt.Errorf("namespace %s is not found", namespace)
+	}
+
+	app.Manifests = manifests
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
 	if err := addOrUpdateAppToDB(m.clusters.GetDB(), namespace, app, true); err != nil {
@@ -259,7 +269,7 @@ func addOrUpdateAppToDB(db storage.DB, namespace string, app *types.Application,
 		return fmt.Errorf("marshal application %s failed: %s", app.Name, err.Error())
 	}
 
-	tx, err := BeginTableTransaction(db, namespace+"_"+AppTableSuffix)
+	tx, err := BeginTableTransaction(db, genAppTableName(namespace))
 	if err != nil {
 		return err
 	}
@@ -278,7 +288,26 @@ func addOrUpdateAppToDB(db storage.DB, namespace string, app *types.Application,
 	return tx.Commit()
 }
 
-func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *types.Application) (map[string]string, error) {
+func getApplicationsFromDB(db storage.DB, namespace string) (map[string][]byte, error) {
+	tx, err := BeginTableTransaction(db, genAppTableName(namespace))
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback()
+	appValues, err := tx.List()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return appValues, nil
+}
+
+func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *types.Application) ([]types.Manifest, error) {
 	rawValues, err := getChartValues(ctx, app)
 	if err != nil {
 		return nil, err
@@ -310,13 +339,18 @@ func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *ty
 		return nil, err
 	}
 
-	for fileName, _ := range files {
+	var manifests []types.Manifest
+	for fileName, content := range files {
 		if strings.HasSuffix(fileName, notesFileSuffix) {
 			delete(files, fileName)
 		}
+		manifests = append(manifests, types.Manifest{
+			File:    fileName,
+			Content: content,
+		})
 	}
 
-	return files, nil
+	return manifests, nil
 }
 
 func createApplication(db storage.DB, cli client.Client, namespace, url string, app *types.Application) {
@@ -341,19 +375,22 @@ func createApplication(db storage.DB, cli client.Client, namespace, url string, 
 	}
 }
 
-func createAppResources(cli client.Client, namespace, urlPrefix string, manifests map[string]string) (types.AppResources, error) {
+func createAppResources(cli client.Client, namespace, urlPrefix string, manifests []types.Manifest) (types.AppResources, error) {
 	var appResources types.AppResources
-	for fileName, content := range manifests {
-		if err := helper.MapOnRuntimeObject(content, func(ctx context.Context, obj runtime.Object) error {
+	for i, manifest := range manifests {
+		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
 			gvk := obj.GetObjectKind().GroupVersionKind()
 			metaObj, err := meta.Accessor(obj)
 			if err != nil {
-				return fmt.Errorf("runtime object to meta object with file %s failed: %s", fileName, err.Error())
+				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
 			}
 
 			metaObj.SetNamespace(namespace)
 			if err := cli.Create(ctx, obj); err != nil {
-				return fmt.Errorf("create resource with file %s failed: %s", fileName, err.Error())
+				if apierrors.IsAlreadyExists(err) {
+					manifests[i].Duplicate = true
+				}
+				return fmt.Errorf("create resource with file %s failed: %s", manifest.File, err.Error())
 			}
 
 			switch typ := strings.ToLower(gvk.Kind); typ {
@@ -425,4 +462,42 @@ func genUrlPrefix(ctx *resttypes.Context, clusterName, namespace string) string 
 			resttypes.GroupPrefix, apiVersion.Group, apiVersion.Version,
 			fmt.Sprintf("/clusters/%s/namespaces/%s", clusterName, namespace))
 	}
+}
+
+func genAppTableName(namespace string) string {
+	return namespace + "_" + AppTableSuffix
+}
+
+func clearApplications(db storage.DB, cli client.Client, namespace string) error {
+	appValues, err := getApplicationsFromDB(db, namespace)
+	if err != nil {
+		return fmt.Errorf("get applications from db failed: %s", err.Error())
+	}
+
+	for name, value := range appValues {
+		if len(value) == 0 {
+			continue
+		}
+
+		var app types.Application
+		if err := json.Unmarshal(value, &app); err != nil {
+			return fmt.Errorf("unmarshal application %s failed: %s", name, err.Error())
+		}
+
+		app.Status = types.AppStatusDelete
+		if err := addOrUpdateAppToDB(db, namespace, &app, false); err != nil {
+			return fmt.Errorf("update application %s status to delete failed: %s", app.Name, err.Error())
+		}
+
+		if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
+			return fmt.Errorf("delete application %s resources failed: %s", app.Name, err.Error())
+		}
+	}
+
+	tableName := genAppTableName(namespace)
+	if err := db.DeleteTable(tableName); err != nil {
+		return fmt.Errorf("delete application table %s failed: %s", tableName, err.Error())
+	}
+
+	return nil
 }

@@ -20,19 +20,25 @@ func SetApplicationSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 
 type Application struct {
 	resttypes.Resource `json:",inline"`
-	Name               string            `json:"name"`
-	ChartName          string            `json:"chartName"`
-	ChartVersion       string            `json:"chartVersion"`
-	Status             string            `json:"status"`
-	AppResources       []AppResource     `json:"appResources,omitempty"`
-	Configs            string            `json:"configs,omitempty"`
-	Manifests          map[string]string `json:"manifests,omitempty"`
+	Name               string        `json:"name"`
+	ChartName          string        `json:"chartName"`
+	ChartVersion       string        `json:"chartVersion"`
+	Status             string        `json:"status"`
+	AppResources       []AppResource `json:"appResources,omitempty"`
+	Configs            string        `json:"configs,omitempty"`
+	Manifests          []Manifest    `json:"manifests,omitempty"`
 }
 
 type AppResource struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 	Link string `json:"link"`
+}
+
+type Manifest struct {
+	File      string `json:"file,omitempty"`
+	Content   string `json:"content,omitempty"`
+	Duplicate bool   `json:"duplicate,omitempty"`
 }
 
 type Applications []*Application
