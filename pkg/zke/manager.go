@@ -49,7 +49,7 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster")
 	}
 
-	if err := validateConfig(inner); err != nil {
+	if err := validateConfigForCreate(inner); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
@@ -120,7 +120,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", inner.Name))
 	}
 
-	if err := validateNodes(inner); err != nil {
+	if err := validateConfigForUpdate(c.ToTypesCluster(), inner); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 

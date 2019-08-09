@@ -37,6 +37,7 @@ const (
 	CalicoNetworkPlugin = "calico"
 	CalicoCloudProvider = "calico_cloud_provider"
 	Calicoctl           = "Calicoctl"
+	CalicoInterface     = "CalicoInterface"
 
 	CoreDNSResourceName = "zke-dns-plugin"
 
@@ -115,6 +116,7 @@ func doCalicoDeploy(ctx context.Context, c *core.Cluster, cli client.Client) err
 	calicoConfig := map[string]interface{}{
 		KubeCfg:           clientConfig,
 		ClusterCIDR:       c.Option.ClusterCidr,
+		CalicoInterface:   c.Network.Iface,
 		CNIImage:          c.Image.CalicoCNI,
 		NodeImage:         c.Image.CalicoNode,
 		Calicoctl:         c.Image.CalicoCtl,
@@ -123,14 +125,7 @@ func doCalicoDeploy(ctx context.Context, c *core.Cluster, cli client.Client) err
 		"DeployNamespace": DeployNamespace,
 	}
 
-	var CalicoTemplate string
-	switch c.Option.KubernetesVersion {
-	case "v1.13.1":
-		CalicoTemplate = calico.CalicoTemplateV113
-	case "default":
-		CalicoTemplate = calico.CalicoTemplateV112
-	}
-	if err := k8s.DoCreateFromTemplate(cli, CalicoTemplate, calicoConfig); err != nil {
+	if err := k8s.DoCreateFromTemplate(cli, calico.CalicoTemplateV113, calicoConfig); err != nil {
 		return err
 	}
 	log.Infof(ctx, "[Network] network plugin calico deployed successfully")

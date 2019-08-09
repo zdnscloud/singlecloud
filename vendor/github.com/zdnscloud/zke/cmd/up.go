@@ -365,7 +365,7 @@ func preCleanToAddHosts(ctx context.Context, kubeCluster, currentCluster *core.C
 
 	_, err := errgroup.Batch(toAddHosts, func(h interface{}) (interface{}, error) {
 		runHost := h.(*hosts.Host)
-		return nil, runHost.CleanUpAll(ctx, kubeCluster.Image.Alpine, kubeCluster.PrivateRegistriesMap, false)
+		return nil, runHost.CleanUpAll(ctx, kubeCluster.Image.Alpine, kubeCluster.PrivateRegistriesMap, false, currentCluster.Option.ClusterCidr)
 	})
 
 	if err != nil {

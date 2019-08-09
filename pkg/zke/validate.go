@@ -4,20 +4,22 @@ import (
 	"fmt"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
+
+	"github.com/zdnscloud/cement/set"
 )
 
-func validateConfig(c *types.Cluster) error {
+func validateConfigForCreate(c *types.Cluster) error {
 	if err := validateClusterOptions(c); err != nil {
 		return err
 	}
-	if err := validateNodeRoleAndOption(c); err != nil {
-		return err
-	}
-	if err := validateDuplicateNodes(c); err != nil {
-		return err
-	}
+	return validateNodes(c)
+}
 
-	return validateNodeCount(c)
+func validateConfigForUpdate(oldCluster, newCluster *types.Cluster) error {
+	if err := validateNodes(newCluster); err != nil {
+		return err
+	}
+	return validateUnallowDeleteNodes(oldCluster, newCluster)
 }
 
 func validateNodes(c *types.Cluster) error {
@@ -97,6 +99,34 @@ func validateNodeRoleAndOption(c *types.Cluster) error {
 		}
 		if n.HasRole(types.RoleControlPlane) && n.HasRole(types.RoleWorker) {
 			return fmt.Errorf("%s controlplane node can't be worker", n.Name)
+		}
+	}
+	return nil
+}
+
+func validateUnallowDeleteNodes(oldCluster, newCluster *types.Cluster) error {
+	cpHosts := set.NewStringSet()
+	etcdHosts := set.NewStringSet()
+
+	for _, n := range newCluster.Nodes {
+		if n.HasRole(types.RoleControlPlane) {
+			cpHosts.Add(n.Address)
+		}
+		if n.HasRole(types.RoleEtcd) {
+			etcdHosts.Add(n.Address)
+		}
+	}
+
+	for _, n := range oldCluster.Nodes {
+		if n.HasRole(types.RoleControlPlane) {
+			if !cpHosts.Member(n.Address) {
+				return fmt.Errorf("controlplane node only can add, %s not in new config", n.Address)
+			}
+		}
+		if n.HasRole(types.RoleEtcd) {
+			if !etcdHosts.Member(n.Address) {
+				return fmt.Errorf("etcd node only can add, %s not in new config", n.Address)
+			}
 		}
 	}
 	return nil

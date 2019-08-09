@@ -2,6 +2,7 @@ package hosts
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/types"
@@ -10,6 +11,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 )
+
+const ZKERemoverEnvName = "PodCIDR"
 
 func CleanHeritageContainers(ctx context.Context, h *Host) error {
 	var op dockertypes.ContainerListOptions
@@ -32,15 +35,11 @@ func CleanHeritageContainers(ctx context.Context, h *Host) error {
 	return nil
 }
 
-func CleanHeritageStorge(ctx context.Context, h *Host, removeImage string, prsMap map[string]types.PrivateRegistry) error {
+func CleanHeritageStorge(ctx context.Context, h *Host, removeImage, clusterCIDR string, prsMap map[string]types.PrivateRegistry) error {
 	imageCfg := &container.Config{
 		Image: removeImage,
 		Tty:   true,
-		Cmd: []string{
-			"/bin/sh",
-			"-x",
-			"/remove.sh",
-		},
+		Env:   []string{fmt.Sprintf("%s=%s", ZKERemoverEnvName, clusterCIDR)},
 	}
 
 	hostcfgMounts := []mount.Mount{
@@ -50,12 +49,6 @@ func CleanHeritageStorge(ctx context.Context, h *Host, removeImage string, prsMa
 			Target:      "/var/lib",
 			BindOptions: &mount.BindOptions{Propagation: "rshared"},
 		},
-		{
-			Type:        "bind",
-			Source:      "/dev",
-			Target:      "/dev",
-			BindOptions: &mount.BindOptions{Propagation: "rprivate"},
-		},
 	}
 	hostCfg := &container.HostConfig{
 		Mounts:      hostcfgMounts,
@@ -63,14 +56,14 @@ func CleanHeritageStorge(ctx context.Context, h *Host, removeImage string, prsMa
 		NetworkMode: "host",
 	}
 
-	if err := docker.DoRunContainer(ctx, h.DClient, imageCfg, hostCfg, "zke-storge-remover", h.Address, "cleanup", prsMap); err != nil {
+	if err := docker.DoRunContainer(ctx, h.DClient, imageCfg, hostCfg, "zke-remover", h.Address, "cleanup", prsMap); err != nil {
 		return err
 	}
 
-	_, err := docker.WaitForContainer(ctx, h.DClient, h.Address, "zke-storge-remover")
+	_, err := docker.WaitForContainer(ctx, h.DClient, h.Address, "zke-remover")
 	if err != nil {
 		return err
 	}
 
-	return docker.DoRemoveContainer(ctx, h.DClient, "zke-storge-remover", h.Address)
+	return docker.DoRemoveContainer(ctx, h.DClient, "zke-remover", h.Address)
 }

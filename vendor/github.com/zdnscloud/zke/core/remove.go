@@ -21,12 +21,12 @@ func (c *Cluster) ClusterRemove(ctx context.Context) error {
 	return nil
 }
 
-func cleanUpHosts(ctx context.Context, cpHosts, workerHosts, etcdHosts, edgeHosts []*hosts.Host, cleanerImage string, prsMap map[string]types.PrivateRegistry, externalEtcd bool) error {
+func cleanUpHosts(ctx context.Context, cpHosts, workerHosts, etcdHosts, edgeHosts []*hosts.Host, cleanerImage string, prsMap map[string]types.PrivateRegistry, externalEtcd bool, clusterCIDR string) error {
 	uniqueHosts := hosts.GetUniqueHostList(cpHosts, workerHosts, etcdHosts, edgeHosts)
 
 	_, err := errgroup.Batch(uniqueHosts, func(h interface{}) (interface{}, error) {
 		runHost := h.(*hosts.Host)
-		return nil, runHost.CleanUpAll(ctx, cleanerImage, prsMap, externalEtcd)
+		return nil, runHost.CleanUpAll(ctx, cleanerImage, prsMap, externalEtcd, clusterCIDR)
 	})
 	return err
 }
@@ -53,7 +53,7 @@ func (c *Cluster) CleanupNodes(ctx context.Context) error {
 	}
 
 	// Clean up all hosts
-	return cleanUpHosts(ctx, c.ControlPlaneHosts, c.WorkerHosts, c.EtcdHosts, c.EdgeHosts, c.Image.Alpine, c.PrivateRegistriesMap, externalEtcd)
+	return cleanUpHosts(ctx, c.ControlPlaneHosts, c.WorkerHosts, c.EtcdHosts, c.EdgeHosts, c.Image.Alpine, c.PrivateRegistriesMap, externalEtcd, c.Option.ClusterCidr)
 }
 
 func (c *Cluster) CleanupFiles(ctx context.Context) error {

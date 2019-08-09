@@ -66,5 +66,5 @@
   name = "github.com/zdnscloud/vanguard"
 
 [[constraint]]
-  branch = "master"
+  branch = "node-manager"
   name = "github.com/zdnscloud/zke"

@@ -58,7 +58,7 @@ const (
 	ZKELogsPath             = "/var/lib/zdnscloud/zke/log"
 )
 
-func (h *Host) CleanUpAll(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry, externalEtcd bool) error {
+func (h *Host) CleanUpAll(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry, externalEtcd bool, clusterCIDR string) error {
 	log.Infof(ctx, "[hosts] Cleaning up host [%s]", h.Address)
 	toCleanPaths := []string{
 		path.Join(h.PrefixPath, ToCleanSSLDir),
@@ -78,10 +78,10 @@ func (h *Host) CleanUpAll(ctx context.Context, cleanerImage string, prsMap map[s
 	if !externalEtcd {
 		toCleanPaths = append(toCleanPaths, path.Join(h.PrefixPath, ToCleanEtcdDir))
 	}
-	return h.CleanUp(ctx, toCleanPaths, cleanerImage, prsMap)
+	return h.CleanUp(ctx, toCleanPaths, cleanerImage, clusterCIDR, prsMap)
 }
 
-func (h *Host) CleanUpWorkerHost(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry) error {
+func (h *Host) CleanUpWorkerHost(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry, clusterCIDR string) error {
 	if h.IsControl || h.IsEtcd {
 		log.Infof(ctx, "[hosts] Host [%s] is already a controlplane or etcd host, skipping cleanup.", h.Address)
 		return nil
@@ -93,10 +93,10 @@ func (h *Host) CleanUpWorkerHost(ctx context.Context, cleanerImage string, prsMa
 		ToCleanCalicoRun,
 		path.Join(h.PrefixPath, ToCleanCNILib),
 	}
-	return h.CleanUp(ctx, toCleanPaths, cleanerImage, prsMap)
+	return h.CleanUp(ctx, toCleanPaths, cleanerImage, clusterCIDR, prsMap)
 }
 
-func (h *Host) CleanUpControlHost(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry) error {
+func (h *Host) CleanUpControlHost(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry, clusterCIDR string) error {
 	if h.IsWorker || h.IsEtcd {
 		log.Infof(ctx, "[hosts] Host [%s] is already a worker or etcd host, skipping cleanup.", h.Address)
 		return nil
@@ -108,10 +108,10 @@ func (h *Host) CleanUpControlHost(ctx context.Context, cleanerImage string, prsM
 		ToCleanCalicoRun,
 		path.Join(h.PrefixPath, ToCleanCNILib),
 	}
-	return h.CleanUp(ctx, toCleanPaths, cleanerImage, prsMap)
+	return h.CleanUp(ctx, toCleanPaths, cleanerImage, clusterCIDR, prsMap)
 }
 
-func (h *Host) CleanUpEtcdHost(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry) error {
+func (h *Host) CleanUpEtcdHost(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry, clusterCIDR string) error {
 	toCleanPaths := []string{
 		path.Join(h.PrefixPath, ToCleanEtcdDir),
 		path.Join(h.PrefixPath, ToCleanSSLDir),
@@ -122,15 +122,15 @@ func (h *Host) CleanUpEtcdHost(ctx context.Context, cleanerImage string, prsMap 
 			path.Join(h.PrefixPath, ToCleanEtcdDir),
 		}
 	}
-	return h.CleanUp(ctx, toCleanPaths, cleanerImage, prsMap)
+	return h.CleanUp(ctx, toCleanPaths, cleanerImage, clusterCIDR, prsMap)
 }
 
-func (h *Host) CleanUp(ctx context.Context, toCleanPaths []string, cleanerImage string, prsMap map[string]types.PrivateRegistry) error {
+func (h *Host) CleanUp(ctx context.Context, toCleanPaths []string, cleanerImage string, clusterCIDR string, prsMap map[string]types.PrivateRegistry) error {
 	log.Infof(ctx, "[hosts] Cleaning up host [%s]", h.Address)
 	if err := CleanHeritageContainers(ctx, h); err != nil {
 		return fmt.Errorf("err while cleanheritagecontainers on host [%s]:%s", h.Address, err)
 	}
-	if err := CleanHeritageStorge(ctx, h, types.AllK8sVersions["v1.13.1"].ZKERemover, prsMap); err != nil {
+	if err := CleanHeritageStorge(ctx, h, types.AllK8sVersions["v1.13.1"].ZKERemover, clusterCIDR, prsMap); err != nil {
 		return fmt.Errorf("err while cleanheritagestorage on host [%s]:%s", h.Address, err)
 	}
 
