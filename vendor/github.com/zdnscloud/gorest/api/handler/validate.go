@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -16,6 +17,15 @@ func CheckObjectFields(ctx *types.Context) *types.APIError {
 
 	_, err := getStructValue(ctx, ctx.Object.GetSchema(), structVal)
 	return err
+}
+
+func ObjectToMap(ctx *types.Context, objValue interface{}) (map[string]interface{}, *types.APIError) {
+	structVal, ok := reflector.GetStructFromPointer(objValue)
+	if ok == false {
+		return nil, types.NewAPIError(types.ServerError, "get object structure but return "+structVal.Kind().String())
+	}
+
+	return getStructValue(ctx, ctx.Object.GetSchema(), structVal)
 }
 
 func getStructValue(ctx *types.Context, schema *types.Schema, structVal reflect.Value) (map[string]interface{}, *types.APIError) {
@@ -53,14 +63,49 @@ func getStructValue(ctx *types.Context, schema *types.Schema, structVal reflect.
 		}
 
 		schemaField := schema.ResourceFields[fieldJsonName]
-		if valueIsNil(value) && schemaField.Required {
-			return nil, types.NewAPIError(types.MissingRequired, "field "+fieldJsonName+" must be set when create")
+		if valueSlice, ok := value.([]interface{}); ok {
+			for _, v := range valueSlice {
+				if err := checkFieldCriteria(fieldJsonName, v, schemaField); err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		if err := checkFieldCriteria(fieldJsonName, value, schemaField); err != nil {
+			return nil, err
+
+		}
+
+		if valueIsNil(value) && schemaField.Default != nil {
+			value = schemaField.Default
 		}
 
 		fieldValues[fieldJsonName] = value
 	}
 
 	return fieldValues, nil
+}
+
+func checkFieldCriteria(fieldName string, value interface{}, field types.Field) *types.APIError {
+	if valueIsNil(value) {
+		if field.Required {
+			return types.NewAPIError(types.MissingRequired, fmt.Sprintf("field %s must be set when create", fieldName))
+		}
+	} else if valueStr, ok := value.(string); ok && len(field.Options) > 0 {
+		valid := false
+		for _, option := range field.Options {
+			if option == valueStr {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return types.NewAPIError(types.InvalidOption,
+				fmt.Sprintf("field %s value %s must in %v", fieldName, valueStr, field.Options))
+		}
+	}
+
+	return nil
 }
 
 func valueIsNil(value interface{}) bool {

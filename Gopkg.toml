@@ -53,6 +53,10 @@
   name = "github.com/dgrijalva/jwt-go"
   version = "3.2.0"
 
+[[constraint]]
+  name = "github.com/zdnscloud/immense"
+  branch = "master"
+
 [[override]]
  branch = "release-1.13"
  name = "k8s.io/metrics"
@@ -66,5 +70,13 @@
   name = "github.com/zdnscloud/vanguard"
 
 [[constraint]]
-  branch = "node-manager"
+  branch = "master"
   name = "github.com/zdnscloud/zke"
+
+[[override]]
+  branch = "release-1.13"
+  name = "k8s.io/apiextensions-apiserver"
+
+[[override]]
+  branch = "release-1.13"
+  name = "k8s.io/kube-aggregator"

@@ -8,6 +8,7 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	gok8sconfig "github.com/zdnscloud/gok8s/client/config"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	zkecmd "github.com/zdnscloud/zke/cmd"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
@@ -27,7 +28,10 @@ func upCluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.Full
 		return newState, k8sConfig, nil, err
 	}
 
-	kubeClient, err := client.New(k8sConfig, client.Options{})
+	var options client.Options
+	options.Scheme = client.GetDefaultScheme()
+	storagev1.AddToScheme(options.Scheme)
+	kubeClient, err := client.New(k8sConfig, options)
 	if err != nil {
 		return newState, k8sConfig, kubeClient, err
 	}

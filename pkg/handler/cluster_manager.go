@@ -3,18 +3,19 @@ package handler
 import (
 	"fmt"
 
+	"github.com/zdnscloud/cement/pubsub"
+	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gorest/api"
+	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
+	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/pubsub"
-	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
 )
 
 const (
@@ -31,15 +32,16 @@ type ClusterManager struct {
 	authenticator *authentication.Authenticator
 	zkeManager    *zke.ZKEManager
 	db            storage.DB
+	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, db storage.DB) *ClusterManager {
-
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB) *ClusterManager {
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
 		eventBus:      eventBus,
 		db:            db,
+		Agent:         agent,
 	}
 	zkeMgr, err := zke.New(db)
 	if err != nil {
@@ -75,13 +77,6 @@ func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 	if len(yamlConf) > 0 {
 		return m.zkeManager.Import(ctx, yamlConf)
-	}
-	return m.zkeManager.Create(ctx)
-}
-
-func (m *ClusterManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
 	}
 	return m.zkeManager.Update(ctx)
 }

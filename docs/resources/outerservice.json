@@ -1,0 +1,29 @@
+{
+    "resourceType": "outerservice",
+    "collectionName": "outerservices",
+    "parentResources": [ "namespace" ],
+
+    "resourceFields": {
+         "entryPoint": {"type":"string"},
+         "services": {"type": "map", "keyType": "string", "valueType": "innerservice"}
+    },
+    "subResources":{
+	 "innerservice": {
+             "name": {"type":"string"},
+	     "workloads": {"type":"array","elemType":"workload"}
+	 },
+
+         "workload": {
+             "name": {"type":"string"},
+             "kind": {"type":"string"},
+             "pods": {"type":"array","elemType":"pod"}
+         },
+
+         "pod": {
+             "name": {"type":"string"},
+             "state": {"type":"string"}
+         }
+    },
+
+    "collectionMethods": [ "GET" ]
+}

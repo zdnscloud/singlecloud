@@ -126,13 +126,13 @@ func (m *UserManager) login(ctx *resttypes.Context) (interface{}, *resttypes.API
 	}
 
 	if up.Password == "" {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "empty password")
+		return nil, resttypes.NewAPIError(resttypes.NotNullable, "empty password")
 	}
 
 	userName := ctx.Object.GetID()
 	token, err := m.authenticator.CreateToken(userName, up.Password)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
+		return nil, resttypes.NewAPIError(resttypes.InvalidBodyContent, err.Error())
 	} else {
 		return map[string]string{
 			"token": token,

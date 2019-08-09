@@ -16,7 +16,7 @@ docker: build-image
 
 build-image:
 	docker pull zdnscloud/singlecloud-ui:latest
-	docker build -t zdnscloud/singlecloud:${VERSION} .
+	docker build -t zdnscloud/singlecloud:${VERSION} --build-arg version=${VERSION} --build-arg buildtime=${BUILD} .
 	docker image prune -f
 
 clean:

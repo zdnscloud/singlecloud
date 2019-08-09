@@ -10,6 +10,7 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -61,7 +62,10 @@ func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, mgr *ZKEManag
 		case <-ctx.Done():
 			return
 		default:
-			kubeClient, err := client.New(k8sConfig, client.Options{})
+			var options client.Options
+			options.Scheme = client.GetDefaultScheme()
+			storagev1.AddToScheme(options.Scheme)
+			kubeClient, err := client.New(k8sConfig, options)
 			if err == nil {
 				c.KubeClient = kubeClient
 				if err := c.setCache(k8sConfig); err != nil {
