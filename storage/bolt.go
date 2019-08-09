@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/boltdb/bolt"
 )
 
 const (
-	dbFileName = "singlecloud.db"
+	dbFileName  = "singlecloud.db"
+	openTimeout = 5 * time.Second
 )
 
 type Storage struct {
@@ -27,7 +29,9 @@ func New(fileDir string) (DB, error) {
 }
 
 func CreateWithPath(filePath string) (DB, error) {
-	db, err := bolt.Open(filePath, 0664, nil)
+	db, err := bolt.Open(filePath, 0664, &bolt.Options{
+		Timeout: openTimeout,
+	})
 	if err != nil {
 		return nil, err
 	}
