@@ -1,6 +1,8 @@
 package client
 
 import (
+	"sync"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -9,10 +11,16 @@ import (
 	apiregistrationv1beta1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1"
 )
 
+var defaultSmInitOnce sync.Once
+var defaultScheme *runtime.Scheme
+
 func GetDefaultScheme() *runtime.Scheme {
-	sm := scheme.Scheme
-	apiregistrationv1beta1.AddToScheme(sm)
-	apiregistrationv1.AddToScheme(sm)
-	apiextensionsv1beta1.AddToScheme(sm)
-	return sm
+	defaultSmInitOnce.Do(func() {
+		defaultScheme = scheme.Scheme
+		apiregistrationv1beta1.AddToScheme(defaultScheme)
+		apiregistrationv1.AddToScheme(defaultScheme)
+		apiextensionsv1beta1.AddToScheme(defaultScheme)
+	})
+
+	return defaultScheme
 }

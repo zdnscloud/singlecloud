@@ -18,17 +18,17 @@ import (
 )
 
 func CreateResourceFromYaml(cli client.Client, yaml string) error {
-	return mapOnRuntimeObject(yaml, cli.Create)
+	return MapOnRuntimeObject(yaml, cli.Create)
 }
 
 func DeleteResourceFromYaml(cli client.Client, yaml string) error {
-	return mapOnRuntimeObject(yaml, func(ctx context.Context, obj runtime.Object) error {
+	return MapOnRuntimeObject(yaml, func(ctx context.Context, obj runtime.Object) error {
 		return cli.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground))
 	})
 }
 
 func UpdateResourceFromYaml(cli client.Client, yaml string) error {
-	return mapOnRuntimeObject(yaml, cli.Update)
+	return MapOnRuntimeObject(yaml, cli.Update)
 }
 
 func mapOnYamlDocument(data string, fn func([]byte) error) error {
@@ -58,7 +58,7 @@ func mapOnYamlDocument(data string, fn func([]byte) error) error {
 	return nil
 }
 
-func mapOnRuntimeObject(data string, fn func(context.Context, runtime.Object) error) error {
+func MapOnRuntimeObject(data string, fn func(context.Context, runtime.Object) error) error {
 	decode := scheme.Codecs.UniversalDeserializer().Decode
 	return mapOnYamlDocument(data, func(doc []byte) error {
 		obj, _, err := decode(doc, nil, nil)

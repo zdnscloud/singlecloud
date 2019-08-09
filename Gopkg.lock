@@ -465,7 +465,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0e4a77ffb942802a87c77606001a50a812e9444dff9289a0aecda817154d2557"
+  digest = "1:396b0c9fafb2bacff035270a6832326268ebfb4c1cc771e9853ad65ee44b6258"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -483,7 +483,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "303979a5e331e5ec2619cd1ac60ce42ce90bb629"
+  revision = "c7fc3fc1bb20ac9fcebb2500a8f737e7d3db2b4e"
 
 [[projects]]
   branch = "master"
