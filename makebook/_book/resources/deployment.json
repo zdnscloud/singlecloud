@@ -1,0 +1,142 @@
+{
+    "resourceType": "deployment",
+    "collectionName": "deployments",
+    "parentResources": [ "namespace" ],
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "replicas": {"type": "int"},
+        "containers": {"type": "array", "elemType": "container"},
+        "advancedOptions": {"type": "advancedOptions"},
+        "persistentVolumes": {"type": "array", "elemType": "persistentVolume"}
+    },
+
+    "subResources": {
+        "container": {
+            "name": {"type": "string"},
+            "image": {"type": "string"},
+            "command": {"type": "array", "elemType": "string"},
+            "args": {"type": "array", "elemType": "string"},
+            "exposedPorts":{"type": "array", "elemType": "containerPort"},
+            "env": {"type": "array", "elemType": "envVar"},
+            "volumes": {"type": "array", "elemType": "volume"}
+        },
+
+        "volume": {
+            "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+            "name": {"type": "string"},
+            "mountPath": {"type": "string"}
+        },
+
+        "envVar": {
+            "name": {"type": "string"},
+            "value": {"type": "string"}
+        },
+
+        "containerPort": {
+            "name" : {"type": "string"},
+            "port" : {"type": "int"},
+            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
+        },
+
+        "advancedOptions": {
+            "deletePVsWhenDeleteWorkload": {"type": "bool"},
+            "reloadWhenConfigChange": {"type": "bool"},
+            "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
+            "exposedServices": {"type": "array", "elemType": "exposedService"},
+            "exposedMetric": {"type": "exposedMetric"}
+        },
+
+        "exposedService": {
+            "containerPortName" : {"type": "string"},
+            "servicePort" : {"type": "int"},
+            "autoCreateIngress" : {"type": "bool"},
+            "ingressHost" : {"type": "string"},
+            "ingressPath" : {"type": "string"},
+            "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
+            "ingressPort" : {"type": "int"}
+        },
+
+        "exposedMetric": {
+            "path" : {"type": "string"},
+            "port" : {"type": "int"}
+        },
+
+        "persistentVolume": {
+            "name": {"type": "string"},
+            "size": {"type": "string"},
+            "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
+        }
+    },
+
+    "resourceMethods": [ "GET", "PUT", "DELETE" ],
+    "collectionMethods": [ "POST", "GET" ],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "replicas": {"type": "int", "required": true},
+            "containers":  {"type": "array", "elemType": "container", "required": true},
+            "advancedOptions": {"type": "advancedOptions"},
+            "persistentVolumes": {"type": "array", "elemType": "persistentVolume"}
+        },
+
+        "subResources": {
+            "container": {
+                "name": {"type": "string", "required": true},
+                "image": {"type": "string", "required": true},
+                "command": {"type": "array", "elemType": "string"},
+                "args": {"type": "array", "elemType": "string"},
+                "exposedPorts":{"type": "array", "elemType": "containerPort"},
+                "env": {"type": "array", "elemType": "envVar"},
+                "volumes": {"type": "array", "elemType": "volume"}
+            },
+
+            "volume": {
+                "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+                "name": {"type": "string"},
+                "mountPath": {"type": "string"}
+            },
+
+            "envVar": {
+                "name": {"type": "string"},
+                "value": {"type": "string"}
+            },
+
+            "containerPort": {
+                "name" : {"type": "string"},
+                "port" : {"type": "int", "required": true},
+                "protocol": {"type": "enum", "validValues": ["TCP", "UDP"], "required": true}
+            },
+
+            "advancedOptions": {
+                "deletePVsWhenDeleteWorkload": {"type": "bool"},
+                "reloadWhenConfigChange": {"type": "bool"},
+                "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
+                "exposedServices": {"type": "array", "elemType": "exposedService"},
+                "exposedMetric": {"type": "exposedMetric"}
+            },
+
+            "exposedService": {
+                "containerPortName" : {"type": "string"},
+                "servicePort" : {"type": "int"},
+                "autoCreateIngress" : {"type": "bool"},
+                "ingressHost" : {"type": "string"},
+                "ingressPath" : {"type": "string"},
+                "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
+                "ingressPort" : {"type": "int"}
+            },
+
+            "exposedMetric": {
+                "path" : {"type": "string"},
+                "port" : {"type": "int"}
+            },
+
+            "persistentVolume": {
+                "name": {"type": "string"},
+                "size": {"type": "string"},
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
+            }
+        }
+    }
+}

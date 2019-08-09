@@ -1,0 +1,69 @@
+{
+    "resourceType": "user",
+    "collectionName": "users",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "password": {"type": "string"},
+        "projects": {"type": "array", "elemType": "project"}
+    },
+
+    "subResources": {
+        "project": {
+            "cluster": {"type": "string"},
+            "namespace": {"type": "string"}
+        }
+    },
+
+    "resourceMethods": [ "GET", "DELETE", "PUT" ],
+    "collectionMethods": [ "GET", "POST" ],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "password": {"type": "string", "required": true},
+            "projects":  {"type": "array", "elemType": "project"}
+        },
+
+        "subResources": {
+            "project": {
+                "cluster": {"type": "string", "required": true},
+                "namespace": {"type": "string", "required": true}
+            }
+        }
+    },
+
+    "putParameters": {
+        "fields": {
+            "password": {"type": "string", "required": true},
+            "projects":  {"type": "array", "elemType": "project"}
+        },
+
+        "subResources": {
+            "project": {
+                "cluster": {"type": "string", "required": true},
+                "namespace": {"type": "string", "required": true}
+            }
+        }
+    },
+
+    "resourceActions":[ 
+        {
+            "name": "login",
+            "input": {
+                "password": {"type": "string"}
+            },
+            "output": {
+                "token": {"type": "string"}
+            }
+        } ,
+
+        {
+            "name": "resetPassword",
+            "input": {
+                "oldPassword": {"type": "string"},
+                "newPassword": {"type": "string"}
+            }
+        }
+    ]
+}

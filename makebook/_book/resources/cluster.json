@@ -1,0 +1,30 @@
+{
+    "resourceType": "cluster",
+    "collectionName": "clusters",
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "status": {"type": "string"},
+        "nodeCount": {"type": "uint32"},
+        "version": {"type": "string"},
+        "cpu": {"type": "int"},
+        "cpuUsed": {"type": "int"},
+        "cpuUsedRatio": {"type": "string"},
+        "memory": { "type": "int"},
+        "memoryUsed": { "type": "int"},
+        "memoryUsedRatio": {"type": "string"},
+        "pod": { "type": "int"},
+        "podUsed": { "type": "int"},
+        "podUsedRatio": {"type": "string"}
+    },
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "yaml_": {"type": "string", "required": true}
+        }
+    },
+     
+    "resourceMethods": [ "GET", "DELETE"],
+    "collectionMethods": [ "GET", "POST" ]
+}
