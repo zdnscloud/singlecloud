@@ -7,7 +7,7 @@ import (
 
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
-	"github.com/zdnscloud/singlecloud/pkg/handler"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 const MaxEventCount = 4096
@@ -31,7 +31,7 @@ func (mgr *WatcherManager) eventLoop() *EventWatcher {
 	for {
 		event := <-mgr.clusterEventCh
 		switch e := event.(type) {
-		case handler.AddCluster:
+		case zke.AddCluster:
 			cluster := e.Cluster
 			mgr.lock.Lock()
 			_, ok := mgr.watchers[cluster.Name]
@@ -46,7 +46,7 @@ func (mgr *WatcherManager) eventLoop() *EventWatcher {
 				}
 			}
 			mgr.lock.Unlock()
-		case handler.DeleteCluster:
+		case zke.DeleteCluster:
 			cluster := e.Cluster
 			mgr.lock.Lock()
 			watcher, ok := mgr.watchers[cluster.Name]
@@ -55,6 +55,16 @@ func (mgr *WatcherManager) eventLoop() *EventWatcher {
 				delete(mgr.watchers, cluster.Name)
 			} else {
 				log.Warnf("event watcher unknown cluster %s", cluster.Name)
+			}
+			mgr.lock.Unlock()
+		case zke.UpdateCluster:
+			cluster := e.Cluster
+			mgr.lock.Lock()
+			watcher, err := NewEventWatcher(cluster.Cache, MaxEventCount)
+			if err != nil {
+				log.Warnf("create event watcher for cluster %s failed: %s", cluster.Name, err.Error())
+			} else {
+				mgr.watchers[cluster.Name] = watcher
 			}
 			mgr.lock.Unlock()
 		}

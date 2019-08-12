@@ -1,21 +1,9 @@
 package globaldns
 
-type FullState struct {
-	DesiredState State `json:"desiredState,omitempty"`
+type ZKEConfig struct {
+	Option ZKEConfigOption `json:"option,omitempty"`
 }
 
-type State struct {
-	ZKEConfig ZcloudKubernetesEngineConfig `json:"zkeConfig,omitempty"`
-}
-
-type ZcloudKubernetesEngineConfig struct {
-	Services ZKEConfigServices `json:"services,omitempty"`
-}
-
-type ZKEConfigServices struct {
-	Kubelet KubeletService `json:"kubelet,omitempty"`
-}
-
-type KubeletService struct {
+type ZKEConfigOption struct {
 	ClusterDomain string `json:"clusterDomain,omitempty"`
 }

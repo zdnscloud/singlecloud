@@ -15,16 +15,16 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
-	"github.com/zdnscloud/singlecloud/pkg/handler"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 const (
 	KubeSystemNamespace = "kube-system"
-	FullClusterState    = "full-cluster-state"
+	ClusterConfig       = "cluster-config"
 )
 
 var (
-	GetFullClusterStateOption = k8stypes.NamespacedName{KubeSystemNamespace, FullClusterState}
+	GetClusterConfigOption = k8stypes.NamespacedName{KubeSystemNamespace, ClusterConfig}
 )
 
 type GlobalDNS struct {
@@ -54,7 +54,7 @@ func (g *GlobalDNS) eventLoop() {
 	for {
 		event := <-g.clusterEventCh
 		switch e := event.(type) {
-		case handler.AddCluster:
+		case zke.AddCluster:
 			cluster := e.Cluster
 			g.lock.Lock()
 			err := g.newClusterDNSSyncer(cluster.Name, cluster.Cache)
@@ -62,7 +62,7 @@ func (g *GlobalDNS) eventLoop() {
 				log.Warnf("create globaldns syncer for cluster %s failed: %s", cluster.Name, err.Error())
 			}
 			g.lock.Unlock()
-		case handler.DeleteCluster:
+		case zke.DeleteCluster:
 			cluster := e.Cluster
 			g.lock.Lock()
 			syncer, ok := g.clusterDNSSyncers[cluster.Name]
@@ -83,28 +83,28 @@ func (g *GlobalDNS) newClusterDNSSyncer(clusterName string, c cache.Cache) error
 	}
 
 	k8sconfigmap := &corev1.ConfigMap{}
-	if err := c.Get(context.TODO(), GetFullClusterStateOption, k8sconfigmap); err != nil {
+	if err := c.Get(context.TODO(), GetClusterConfigOption, k8sconfigmap); err != nil {
 		return fmt.Errorf("get full-cluster-state configmap failed: %s", err.Error())
 	}
 
-	fullState := &FullState{}
-	if err := json.Unmarshal([]byte(k8sconfigmap.Data[FullClusterState]), fullState); err != nil {
+	var zkeConfig ZKEConfig
+	if err := json.Unmarshal([]byte(k8sconfigmap.Data[ClusterConfig]), &zkeConfig); err != nil {
 		return fmt.Errorf("unmarshal full-cluster-state configmap failed: %s", err.Error())
 	}
 
-	if fullState.DesiredState.ZKEConfig.Services.Kubelet.ClusterDomain == "" {
+	clusterDomain := zkeConfig.Option.ClusterDomain
+	if clusterDomain == "" {
 		return fmt.Errorf("cluster %s zone should not be empty", clusterName)
 	}
 
-	zoneNameStr := fullState.DesiredState.ZKEConfig.Services.Kubelet.ClusterDomain
-	zoneName, err := g53.NameFromString(zoneNameStr)
+	zoneName, err := g53.NameFromString(clusterDomain)
 	if err != nil {
-		return fmt.Errorf("parse cluster %s zone name %s failed: %v", clusterName, zoneNameStr, err.Error())
+		return fmt.Errorf("parse cluster %s zone name %s failed: %v", clusterName, clusterDomain, err.Error())
 	}
 
 	for cluster, syncer := range g.clusterDNSSyncers {
 		if syncer.GetZoneName().Equals(zoneName) {
-			return fmt.Errorf("duplicate cluster zone %v, the zone has been belongs to cluster %v", zoneNameStr, cluster)
+			return fmt.Errorf("duplicate cluster zone %v, the zone has been belongs to cluster %v", clusterDomain, cluster)
 		}
 	}
 

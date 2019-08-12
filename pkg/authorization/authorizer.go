@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -29,28 +30,36 @@ type Projects []types.Project
 type Authorizer struct {
 	users map[string]Projects
 	lock  sync.RWMutex
+	db    storage.Table
 }
 
-func New() *Authorizer {
+func New(db storage.DB) (*Authorizer, error) {
 	auth := &Authorizer{
 		users: make(map[string]Projects),
 	}
 
-	adminUser.SetID(types.Administrator)
-	adminUser.SetType(types.UserType)
-	adminUser.SetCreationTimestamp(time.Now())
-	auth.AddUser(adminUser)
-	return auth
+	if err := auth.loadUsers(db); err != nil {
+		return nil, err
+	}
+
+	if _, ok := auth.users[types.Administrator]; ok == false {
+		adminUser.SetID(types.Administrator)
+		adminUser.SetType(types.UserType)
+		adminUser.SetCreationTimestamp(time.Now())
+		auth.AddUser(adminUser)
+	}
+
+	return auth, nil
 }
 
-func (m *Authorizer) Authorize(userName, cluster, namespace string) bool {
+func (a *Authorizer) Authorize(userName, cluster, namespace string) bool {
 	if userName == types.Administrator {
 		return true
 	}
 
-	m.lock.RLock()
-	projects, ok := m.users[userName]
-	m.lock.RUnlock()
+	a.lock.RLock()
+	projects, ok := a.users[userName]
+	a.lock.RUnlock()
 	if ok == false {
 		return false
 	}
@@ -65,66 +74,87 @@ func (m *Authorizer) Authorize(userName, cluster, namespace string) bool {
 	return false
 }
 
-func (m *Authorizer) AddUser(user *types.User) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (a *Authorizer) AddUser(user *types.User) error {
+	a.lock.Lock()
+	defer a.lock.Unlock()
 
 	name := user.GetID()
-	if _, ok := m.users[name]; ok {
-		return fmt.Errorf("user %s already exists", user)
+	if _, ok := a.users[name]; ok {
+		return fmt.Errorf("user %s already exists", name)
 	} else {
-		m.users[name] = user.Projects
+		if err := a.addUser(user); err != nil {
+			return err
+		}
+		a.users[name] = user.Projects
 		return nil
 	}
 }
 
-func (m *Authorizer) GetUser(userName string) *types.User {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	if projects, ok := m.users[userName]; ok {
-		return &types.User{
+func (a *Authorizer) HasUser(userName string) bool {
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+	_, ok := a.users[userName]
+	return ok
+}
+
+func (a *Authorizer) GetUser(userName string) *types.User {
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+	if projects, ok := a.users[userName]; ok {
+		user := &types.User{
 			Name:     userName,
 			Projects: projects,
 		}
+		user.SetID(userName)
+		return user
 	} else {
 		return nil
 	}
 }
 
-func (m *Authorizer) ListUser() []*types.User {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	users := make([]*types.User, 0, len(m.users))
-	for name, projects := range m.users {
-		users = append(users, &types.User{
+func (a *Authorizer) ListUser() []*types.User {
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+	users := make([]*types.User, 0, len(a.users))
+	for name, projects := range a.users {
+		user := &types.User{
 			Name:     name,
 			Projects: projects,
-		})
+		}
+		user.SetID(name)
+		users = append(users, user)
 	}
 	return users
 }
 
-func (m *Authorizer) DeleteUser(user string) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (a *Authorizer) DeleteUser(user string) error {
+	a.lock.Lock()
+	defer a.lock.Unlock()
 
-	if _, ok := m.users[user]; ok {
-		delete(m.users, user)
+	if _, ok := a.users[user]; ok {
+		if err := a.deleteUser(user); err != nil {
+			return err
+		}
+		delete(a.users, user)
 		return nil
 	} else {
 		return fmt.Errorf("user %s doesn't exist", user)
 	}
 }
 
-func (m *Authorizer) UpdateUser(user *types.User) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (a *Authorizer) UpdateUser(user *types.User) error {
+	a.lock.Lock()
+	defer a.lock.Unlock()
 
 	name := user.GetID()
-	if _, ok := m.users[name]; ok == false {
-		return fmt.Errorf("user %s doesn't exist", user)
+	if _, ok := a.users[name]; ok == false {
+		return fmt.Errorf("user %s doesn't exist", name)
 	} else {
-		m.users[name] = user.Projects
+		if err := a.updateUser(user); err != nil {
+			return err
+		}
+
+		a.users[name] = user.Projects
 		return nil
 	}
 }

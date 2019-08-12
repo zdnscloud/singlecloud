@@ -12,7 +12,9 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
+	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 )
 
@@ -28,9 +30,9 @@ type App struct {
 	chartDir       string
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, db storage.DB, chartDir string) *App {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB, chartDir string) *App {
 	return &App{
-		clusterManager: newClusterManager(authenticator, authorizer, eventBus, db),
+		clusterManager: newClusterManager(authenticator, authorizer, eventBus, agent, db),
 		chartDir:       chartDir,
 	}
 }
@@ -66,6 +68,14 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.User{}, userManager, types.SetUserSchema)
 	schemas.MustImportAndCustomize(&Version, types.PersistentVolumeClaim{}, newPersistentVolumeClaimManager(a.clusterManager), types.SetPersistentVolumeClaimSchema)
 	schemas.MustImportAndCustomize(&Version, types.PersistentVolume{}, newPersistentVolumeManager(a.clusterManager), types.SetPersistentVolumeSchema)
+	schemas.MustImportAndCustomize(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager), types.SetStorageClusterSchema)
+	schemas.MustImportAndCustomize(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager), types.SetBlockDeviceSchema)
+
+	schemas.MustImportAndCustomize(&Version, types.PodNetwork{}, newPodNetworkManager(a.clusterManager), types.SetPodNetworkSchema)
+	schemas.MustImportAndCustomize(&Version, types.NodeNetwork{}, newNodeNetworkManager(a.clusterManager), types.SetNodeNetworkSchema)
+	schemas.MustImportAndCustomize(&Version, types.ServiceNetwork{}, newServiceNetworkManager(a.clusterManager), types.SetServiceNetworkSchema)
+	schemas.MustImportAndCustomize(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager), types.SetInnerServiceSchema)
+	schemas.MustImportAndCustomize(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager), types.SetOuterServiceSchema)
 
 	schemas.MustImportAndCustomize(&Version, types.Chart{}, newChartManager(a.chartDir), types.SetChartSchema)
 	schemas.MustImportAndCustomize(&Version, types.Application{}, newApplicationManager(a.clusterManager, a.chartDir), types.SetApplicationSchema)
@@ -92,5 +102,10 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 	podLogPath := fmt.Sprintf(WSPodLogPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
 	router.GET(podLogPath, func(c *gin.Context) {
 		a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
+	})
+
+	zkeLogPath := fmt.Sprintf(zke.WSZKELogPathTemp, ":cluster") + "/*actions"
+	router.GET(zkeLogPath, func(c *gin.Context) {
+		a.clusterManager.zkeManager.OpenLog(c.Param("cluster"), c.Request, c.Writer)
 	})
 }

@@ -184,20 +184,20 @@ func getNodeMetrics(cli client.Client, name string) map[string]metricsapi.NodeMe
 
 var (
 	zkeRoleLabelPrefix = "node-role.kubernetes.io/"
-	zkeRoles           = []string{
-		"controlplane", "etcd", "worker", "edge", "storage",
+	zkeRoles           = []types.NodeRole{
+		types.RoleControlPlane, types.RoleEtcd, types.RoleWorker, types.RoleEdge, types.RoleStorage,
 	}
 )
 
-func getRoleFromLabels(labels map[string]string) []string {
+func getRoleFromLabels(labels map[string]string) []types.NodeRole {
 	hasLabel := func(lbs map[string]string, lb string) bool {
 		v, ok := lbs[lb]
 		return ok && v == "true"
 	}
 
-	var roles []string
+	var roles []types.NodeRole
 	for _, r := range zkeRoles {
-		if hasLabel(labels, zkeRoleLabelPrefix+r) {
+		if hasLabel(labels, zkeRoleLabelPrefix+string(r)) {
 			roles = append(roles, r)
 		}
 	}

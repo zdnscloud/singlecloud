@@ -1,0 +1,50 @@
+{
+    "resourceType":"storagecluster",
+    "collectionName":"storageclusters",
+    "parentResources": [ "cluster" ],
+
+    "resourceFields":{
+        "name":{"type":"string"},
+        "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
+        "hosts":{"type":"array","elemType":"string"},
+        "phase":{"type":"string"},
+        "size":{"type":"string"},
+        "usedsize":{"type":"string"},
+        "freesize":{"type":"string"},
+        "nodes":{"type":"array","elemType":"storagenode"},
+        "pvs":{"type":"array","elemType":"storagepv"}
+    },
+    "subResources":{
+        "storagenode":{
+            "name":{"type":"string"},
+            "size":{"type":"string"},
+            "usedsize":{"type":"string"},
+            "freesize":{"type":"string"}
+        },
+        "storagepv":{
+            "name":{"type":"string"},
+            "size":{"type":"string"},
+            "usedsize":{"type":"string"},
+            "freesize":{"type":"string"},
+            "pods":{"type":"array","elemType":"storagepod"},
+            "node":{"type":"string"}
+        },
+        "storagepod":{
+            "name":{"type":"string"}
+        }
+    },
+    "resourceMethods":["GET","PUT","DELETE"],
+    "collectionMethods":["POST","GET"],
+    "postParameters":{
+        "fields":{
+            "name":{"type":"string", "required": true},
+            "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"], "required": true},
+            "hosts":{"type":"array","elemType":"string", "required": true}
+        }
+    },
+    "putParameters":{
+        "fields":{
+            "hosts":{"type":"array","elemType":"string", "required": true}
+        }
+    }
+}

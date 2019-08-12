@@ -12,11 +12,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/user"
-	"path/filepath"
+	"time"
 
 	"github.com/kyokomi/emoji"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	zkecore "github.com/zdnscloud/zke/core"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -29,14 +30,6 @@ var (
 	cyan    = string([]byte{27, 91, 57, 55, 59, 52, 54, 109})
 	reset   = string([]byte{27, 91, 48, 109})
 )
-
-func getDefaultConfigPath() string {
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatalf("get current user failed:%s", err.Error())
-	}
-	return filepath.Join(usr.HomeDir, ".kube", "config")
-}
 
 func login(addr string, user, password string) (string, error) {
 	client := &http.Client{}
@@ -88,7 +81,7 @@ func createCluster(addr, token, clusterName string, data []byte) error {
 	errInfo := struct {
 		Message string `json:"message"`
 	}{}
-	json.Unmarshal(body, &errInfo)
+	yaml.Unmarshal(body, &errInfo)
 	return errors.New(errInfo.Message)
 }
 
@@ -158,23 +151,37 @@ func createZcloudProxyDeployment(addr, token, clusterName string) error {
 	return errors.New(errInfo.Message)
 }
 
+func getClusterName(stateJson []byte) (string, error) {
+	state := &zkecore.FullState{}
+
+	if err := json.Unmarshal(stateJson, state); err != nil {
+		return "", err
+	}
+
+	return state.CurrentState.ZKEConfig.ClusterName, nil
+}
+
 func main() {
-	var addr, k8sconfig, clusterName, adminPassword string
+	var addr, clusterState, clusterName, adminPassword string
 	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
-	flag.StringVar(&k8sconfig, "k8sconfig", getDefaultConfigPath(), "k8s config file path")
-	flag.StringVar(&clusterName, "name", "local", "import cluster with which name")
+	flag.StringVar(&clusterState, "clusterstate", "cluster.zkestate", "cluster state file path")
 	flag.StringVar(&adminPassword, "passwd", "zdns", "admin password for singlecloud")
 	flag.Parse()
 
-	f, err := os.Open(k8sconfig)
+	f, err := os.Open(clusterState)
 	if err != nil {
-		log.Fatalf("open %s failed:%s", k8sconfig, err.Error())
+		log.Fatalf("open %s failed:%s", clusterState, err.Error())
 	}
 	defer f.Close()
 
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
-		log.Fatalf("read %s failed:%s", k8sconfig, err.Error())
+		log.Fatalf("read %s failed:%s", clusterState, err.Error())
+	}
+
+	clusterName, err = getClusterName(data)
+	if err != nil {
+		log.Fatalf("get cluster name failed from %s:%s", clusterState, err.Error())
 	}
 
 	token, err := login(addr, "admin", adminPassword)
@@ -186,6 +193,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("create cluster failed:%s", err.Error())
 	}
+
+	time.Sleep(time.Second * 5)
 
 	err = deleteZcloudProxyDeployment(addr, token, clusterName)
 	if err != nil {
