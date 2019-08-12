@@ -13,6 +13,5 @@ FROM zdnscloud/singlecloud-ui:latest AS uibuild
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 COPY --from=build /go/src/github.com/zdnscloud/singlecloud/singlecloud /usr/local/bin/
-COPY --from=uibuild /www /www
 
 ENTRYPOINT ["singlecloud"]
