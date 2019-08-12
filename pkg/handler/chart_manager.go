@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -42,7 +43,7 @@ func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
 		if cht.IsDir() {
 			versions, description, err := listVersions(path.Join(m.chartDir, cht.Name()))
 			if err != nil {
-				log.Warnf("list charts info failed:%s", err.Error())
+				log.Warnf("list charts info when get chart %s failed:%s", cht.Name(), err.Error())
 				return nil
 			} else {
 				chart := &types.Chart{
@@ -94,10 +95,12 @@ func listVersions(chartPath string) ([]types.ChartVersion, string, error) {
 	}
 	for _, versionDir := range versionDirs {
 		if versionDir.IsDir() {
-			config := ""
+			var config []map[string]interface{}
 			content, err := ioutil.ReadFile(path.Join(chartPath, versionDir.Name(), configPath))
 			if err == nil {
-				config = string(content)
+				if err := json.Unmarshal(content, &config); err != nil {
+					return nil, "", fmt.Errorf("unmarshal config file failed: %s", err.Error())
+				}
 			}
 
 			if description.Description == "" {

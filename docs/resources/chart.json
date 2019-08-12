@@ -12,7 +12,7 @@
     "subResources": {
         "chartVersion": {
             "version": {"type": "string"},
-            "config": {"type": "json"}
+            "config": {"type": "array", "elemType": "json"}
         }
     },
 

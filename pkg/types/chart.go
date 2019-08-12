@@ -19,8 +19,8 @@ type Chart struct {
 }
 
 type ChartVersion struct {
-	Version string `json:"version"`
-	Config  string `json:"config,omitempty"`
+	Version string                   `json:"version"`
+	Config  []map[string]interface{} `json:"config,omitempty"`
 }
 
 type Charts []*Chart
