@@ -379,6 +379,10 @@ func createAppResources(cli client.Client, namespace, urlPrefix string, manifest
 	var appResources types.AppResources
 	for i, manifest := range manifests {
 		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
+			if obj == nil {
+				return fmt.Errorf("cann`t unmarshal file %s to k8s runtime object\n", manifest.File)
+			}
+
 			gvk := obj.GetObjectKind().GroupVersionKind()
 			metaObj, err := meta.Accessor(obj)
 			if err != nil {
