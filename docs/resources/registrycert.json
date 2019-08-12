@@ -1,0 +1,32 @@
+{
+    "resourceType": "registrycert",
+    "collectionName": "registrycerts",
+    "parentResources": [],
+
+    "resourceFields": {
+        "registry": {
+            "type": "string"
+        },
+        "cert": {
+            "type": "string"
+        },
+        "clusters": {
+            "type": "array",
+            "elemType": "cluster"
+        }
+    },
+    "subResources": {
+        "cluster": {
+            "name": {
+                "type": "string"
+            },
+            "nodes": {
+                "type": "array",
+                "elemType": "string"
+            }
+        }
+    },
+
+    "resourceMethods": ["GET", "PUT", "DELETE"],
+    "collectionMethods": ["GET"]
+}

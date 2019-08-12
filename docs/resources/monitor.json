@@ -1,0 +1,54 @@
+{
+    "resourceType": "monitor",
+    "collectionName": "monitors",
+    "parentResources": ["cluster"],
+
+    "resourceFields": {
+        "ingressDomain": {
+            "type": "string"
+        },
+        "storageClass": {
+            "type": "enum",
+            "validValues": ["cephfs", "lvm"]
+        },
+        "storageSize": {
+            "type": "int"
+        },
+        "prometheusRetention": {
+            "type": "int"
+        },
+        "scrapeInterval": {
+            "type": "int"
+        },
+        "adminPassword": {
+            "type": "string"
+        }
+    },
+    "resourceMethods": ["GET", "DELETE"],
+    "collectionMethods": ["GET", "POST"],
+    "postParameters": {
+        "fields": {
+            "ingressDomain": {
+                "type": "string"
+            },
+            "storageClass": {
+                "type": "enum",
+                "validValues": ["cephfs", "lvm"],
+                "required": true
+            },
+            "storageSize": {
+                "type": "int"
+            },
+            "prometheusRetention": {
+                "type": "int"
+            },
+            "scrapeInterval": {
+                "type": "int"
+            },
+            "adminPassword": {
+                "type": "string",
+                "required": true
+            }
+        }
+    }
+}
