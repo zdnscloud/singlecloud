@@ -223,18 +223,6 @@ func (m *UserQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 
 		if err := deleteNamespace(cluster.KubeClient, quota.Namespace); err != nil && apierrors.IsNotFound(err) == false {
 			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
-		} else if err == nil {
-			authorizer := m.clusters.GetAuthorizer()
-			user := authorizer.GetUser(quota.UserName)
-			if user != nil {
-				for i, project := range user.Projects {
-					if project.Cluster == quota.ClusterName && project.Namespace == quota.Namespace {
-						user.Projects = append(user.Projects[:i], user.Projects[i+1:]...)
-						break
-					}
-				}
-				authorizer.UpdateUser(user)
-			}
 		}
 	}
 
@@ -248,6 +236,19 @@ func (m *UserQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 			fmt.Sprintf("delete user quota failed: %v", err.Error()))
 	}
 
+	if quota.ClusterName != "" {
+		authorizer := m.clusters.GetAuthorizer()
+		user := authorizer.GetUser(quota.UserName)
+		if user != nil {
+			for i, project := range user.Projects {
+				if project.Cluster == quota.ClusterName && project.Namespace == quota.Namespace {
+					user.Projects = append(user.Projects[:i], user.Projects[i+1:]...)
+					break
+				}
+			}
+			authorizer.UpdateUser(user)
+		}
+	}
 	return nil
 }
 
