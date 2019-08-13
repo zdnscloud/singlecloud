@@ -77,7 +77,7 @@ func (m *ApplicationManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 	}
 
 	retApp := *app
-	retApp.Configs = ""
+	retApp.Configs = nil
 	retApp.Manifests = nil
 	return &retApp, nil
 }
@@ -107,7 +107,7 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 			return nil
 		}
 
-		app.Configs = ""
+		app.Configs = nil
 		app.Manifests = nil
 		apps = append(apps, &app)
 	}
@@ -418,7 +418,7 @@ func createAppResources(cli client.Client, namespace, urlPrefix string, manifest
 }
 
 func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]interface{}, error) {
-	if app.Configs == "" {
+	if app.Configs == nil {
 		return nil, nil
 	}
 
@@ -438,7 +438,7 @@ func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]
 	valPtr := reflect.New(val.Type())
 	valPtr.Elem().Set(val)
 	obj := valPtr.Interface()
-	if err := json.Unmarshal([]byte(app.Configs), obj); err != nil {
+	if err := json.Unmarshal(app.Configs, obj); err != nil {
 		return nil, fmt.Errorf("unmarshal application %s config failed: %v", app.Name, err.Error())
 	}
 
