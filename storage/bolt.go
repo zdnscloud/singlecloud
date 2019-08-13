@@ -133,7 +133,9 @@ func (m *TableTX) Update(key string, value []byte) error {
 
 func (m *TableTX) Get(key string) ([]byte, error) {
 	if v := m.bucket.Get([]byte(key)); v != nil {
-		return v, nil
+		tmp := make([]byte, len(v))
+		copy(tmp, v)
+		return tmp, nil
 	} else {
 		return nil, fmt.Errorf("no found resource by key %s", key)
 	}
@@ -142,7 +144,9 @@ func (m *TableTX) Get(key string) ([]byte, error) {
 func (m *TableTX) List() (map[string][]byte, error) {
 	resourceMap := make(map[string][]byte)
 	if err := m.bucket.ForEach(func(k, v []byte) error {
-		resourceMap[string(k)] = v
+		tmp := make([]byte, len(v))
+		copy(tmp, v)
+		resourceMap[string(k)] = tmp
 		return nil
 	}); err != nil {
 		return nil, err

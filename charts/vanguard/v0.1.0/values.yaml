@@ -1,0 +1,56 @@
+configmap:
+  server:
+    addr: 
+    - 0.0.0.0:53
+    http_cmd_addr: 0.0.0.0:9000
+    handler_count: 512 
+    enable_tcp: false
+  enable_modules:
+  - query_log
+  - view
+  - cache
+  - forwarder
+  - recursor
+  - kubernetes
+  logger:
+    query_log: 
+      enable: true
+      qlog_extension: true
+    general_log:
+      enable: false
+  cache: 
+    enable: true
+    short_answer: true
+    prefetch: false
+  forwarder:
+    forward_zone_for_view:
+    - view: "default"
+      zones:
+      - name: "cn"
+        forward_style: "rtt"
+        forwarders:
+        - 114.114.114.114:53
+  recursor:
+  - view: default
+    enable: true
+  resolver:
+    check_cname_indirect: false
+  kubernetes:
+    cluster_dns_server: "10.43.0.10"
+    cluster_domain: "cluster.local"
+    cluster_cidr: "10.42.0.0/16"
+    cluster_service_ip_range: "10.43.0.0/16"
+
+deployment:
+  replicas: 1
+  image:
+    repository: zdnscloud/vanguard
+    tag: v0.1
+    pullPolicy: IfNotPresent
+  livenessProbe:
+    httpGet:
+      port: 9000
+
+service:
+  port: 53
+  protocol: UDP

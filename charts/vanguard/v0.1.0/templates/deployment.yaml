@@ -1,0 +1,47 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ template "vanguard.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  name: {{ template "vanguard.fullname" . }}
+spec:
+  replicas: {{ .Values.deployment.replicas}}
+  selector:
+    matchLabels:
+      app: {{ template "vanguard.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "vanguard.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ template "vanguard.serviceAccount.name" . }}
+      containers:
+        - name: {{ template "vanguard.name" . }}
+          image: "{{ .Values.deployment.image.repository }}:{{ .Values.deployment.image.tag }}"
+          imagePullPolicy: {{ .Values.deployment.image.pullPolicy }}
+          livenessProbe:
+            httpGet:
+              path: /health 
+              port: {{ .Values.deployment.livenessProbe.httpGet.port }} 
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            periodSeconds: 15
+            failureThreshold: 2
+          ports:
+          - containerPort: 53
+            name: dns-port
+            protocol: UDP
+          - containerPort: 9000
+            name: cmd-port
+            protocol: TCP
+          volumeMounts:
+          - name: vanguard-cfg
+            mountPath: /etc/vanguard
+      volumes:
+      - name: vanguard-cfg
+        configMap:
+          name: {{ template "vanguard.fullname" . }}

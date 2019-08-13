@@ -3,6 +3,7 @@ package cmd
 import (
 	"io/ioutil"
 
+	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/types"
@@ -30,7 +31,7 @@ func writeConfig(cluster *types.ZKEConfig, configFile string) error {
 
 func generateConfig(ctx *cli.Context) error {
 	cluster := types.ZKEConfig{}
-	cluster.ConfigVersion = defaultConfigVersion
+	cluster.ConfigVersion = core.DefaultConfigVersion
 	cluster.Nodes = make([]types.ZKEConfigNode, 1)
 	return writeConfig(&cluster, pki.ClusterConfig)
 }

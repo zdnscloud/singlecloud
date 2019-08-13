@@ -61,7 +61,7 @@ var (
 			NodeAgent:                 "zdnscloud/node-agent:v1.2",
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.5",
-			StorageOperator:           "zdnscloud/storage-operator:v1.4",
+			StorageOperator:           "zdnscloud/storage-operator:v1.5",
 		},
 		"v1.13.9": {
 			Etcd:                      "zdnscloud/coreos-etcd:v3.2.24",
@@ -84,7 +84,7 @@ var (
 			NodeAgent:                 "zdnscloud/node-agent:v1.2",
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.5",
-			StorageOperator:           "zdnscloud/storage-operator:v1.4",
+			StorageOperator:           "zdnscloud/storage-operator:v1.5",
 		},
 	}
 )

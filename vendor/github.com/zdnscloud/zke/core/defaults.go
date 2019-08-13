@@ -65,6 +65,7 @@ const (
 		cluster: Default
 	`
 	DefaultAuthnCacheTimeout = "5s"
+	DefaultConfigVersion     = "v1.0.10"
 )
 
 var DefaultUpstreamDNS = []string{"114.114.114.114", "223.5.5.5"}
@@ -74,7 +75,7 @@ func (c *Cluster) setClusterDefaults(ctx context.Context) error {
 		c.ClusterName = DefaultClusterName
 	}
 	if len(c.ConfigVersion) == 0 {
-		c.ConfigVersion = "v1.0.8"
+		c.ConfigVersion = DefaultConfigVersion
 	}
 
 	c.setClusterOptionDefaults()

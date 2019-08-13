@@ -29,11 +29,13 @@ func main() {
 	var casServer string
 	var globaldnsAddr string
 	var showVersion bool
+	var chartDir string
 	var dbFilePath string
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
 	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
+	flag.StringVar(&chartDir, "chart", "", "chart path")
 	flag.StringVar(&dbFilePath, "db", "", "db file path")
 	flag.Parse()
 
@@ -73,7 +75,7 @@ func main() {
 	}
 
 	agent := clusteragent.New()
-	app := handler.NewApp(authenticator, authorizer, eventBus, agent, db)
+	app := handler.NewApp(authenticator, authorizer, eventBus, agent, db, chartDir)
 
 	if err := server.RegisterHandler(authenticator); err != nil {
 		log.Fatalf("register redirect handler failed:%s", err.Error())

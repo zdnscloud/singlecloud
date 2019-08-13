@@ -11,6 +11,7 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
+	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -26,11 +27,13 @@ var (
 
 type App struct {
 	clusterManager *ClusterManager
+	chartDir       string
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB) *App {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB, chartDir string) *App {
 	return &App{
 		clusterManager: newClusterManager(authenticator, authorizer, eventBus, agent, db),
+		chartDir:       chartDir,
 	}
 }
 
@@ -74,6 +77,10 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager), types.SetInnerServiceSchema)
 	schemas.MustImportAndCustomize(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager), types.SetOuterServiceSchema)
 
+	schemas.MustImportAndCustomize(&Version, types.Chart{}, newChartManager(a.chartDir), types.SetChartSchema)
+	schemas.MustImportAndCustomize(&Version, types.Application{}, newApplicationManager(a.clusterManager, a.chartDir), types.SetApplicationSchema)
+	schemas.MustImport(&Version, charts.Redis{})
+	schemas.MustImport(&Version, charts.Vanguard{})
 	schemas.MustImportAndCustomize(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager), types.SetUserQuotaSchema)
 
 	server := api.NewAPIServer()

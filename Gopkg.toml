@@ -70,8 +70,21 @@
   name = "github.com/zdnscloud/vanguard"
 
 [[constraint]]
+  branch = "dev-v3"
+  name = "helm.sh/helm"
+  source = "https://github.com/helm/helm.git"
+
+[[override]]
+  name = "k8s.io/client-go"
+  version = "v10.0.0"
+
+[[constraint]]
   branch = "master"
   name = "github.com/zdnscloud/zke"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/boltdb/bolt"
 
 [[override]]
   branch = "release-1.13"
