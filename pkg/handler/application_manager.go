@@ -343,11 +343,12 @@ func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *ty
 	for fileName, content := range files {
 		if strings.HasSuffix(fileName, notesFileSuffix) {
 			delete(files, fileName)
+		} else {
+			manifests = append(manifests, types.Manifest{
+				File:    fileName,
+				Content: content,
+			})
 		}
-		manifests = append(manifests, types.Manifest{
-			File:    fileName,
-			Content: content,
-		})
 	}
 
 	return manifests, nil
