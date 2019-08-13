@@ -22,6 +22,9 @@
         },
         "adminPassword": {
             "type": "string"
+        },
+        "redirectUrl": {
+            "type": "string"
         }
     },
     "resourceMethods": ["GET", "DELETE"],

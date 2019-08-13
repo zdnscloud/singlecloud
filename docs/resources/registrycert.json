@@ -1,32 +1,31 @@
 {
     "resourceType": "registrycert",
     "collectionName": "registrycerts",
-    "parentResources": [],
+    "parentResources": ["registry"],
 
     "resourceFields": {
-        "registry": {
+        "registryDomain": {
             "type": "string"
         },
         "cert": {
             "type": "string"
         },
         "clusters": {
-            "type": "array",
-            "elemType": "cluster"
+            "type": "map",
+            "keyType": "string",
+            "valueType": "cluster"
         }
     },
     "subResources": {
         "cluster": {
-            "name": {
-                "type": "string"
-            },
-            "nodes": {
-                "type": "array",
-                "elemType": "string"
-            }
-        }
-    },
-
-    "resourceMethods": ["GET", "PUT", "DELETE"],
-    "collectionMethods": ["GET"]
+            "type": "array",
+            "elemType": "node"
+        },
+        "node": {
+            "name": "string",
+            "isDeployed": "bool"
+        },
+        "resourceMethods": ["GET", "PUT", "DELETE"],
+        "collectionMethods": ["GET"]
+    }
 }
