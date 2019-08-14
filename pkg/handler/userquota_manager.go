@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -297,13 +298,10 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 			fmt.Sprintf("approval user quota %s failed: only approval request that status is processing", userQuotaID))
 	}
 
-	var k8sResourceQuota *corev1.ResourceQuota
-	var k8sResourceList corev1.ResourceList
+	var oldK8sResourceQuota *corev1.ResourceQuota
 	resourceQuota := &types.ResourceQuota{
 		Name: quota.Namespace,
 		Limits: map[string]string{
-			"limits.cpu":       quota.CPU,
-			"limits.memory":    quota.Memory,
 			"requests.storage": quota.Storage,
 		},
 	}
@@ -329,21 +327,8 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 					quota.UserName, quota.Namespace, err.Error()))
 		}
 	} else {
-		k8sResourceQuota, err = getResourceQuota(cluster.KubeClient, quota.Namespace, quota.Namespace)
+		oldK8sResourceQuota, err = updateResourceQuota(cluster.KubeClient, quota.Namespace, resourceQuota.Limits)
 		if err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("update user %s resourcequota with namespace %s failed %s",
-					quota.UserName, quota.Namespace, err.Error()))
-		}
-		k8sHard, err := scQuotaResourceListToK8sResourceList(resourceQuota.Limits)
-		if err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("update user %s resourcequota with namespace %s failed %s",
-					quota.UserName, quota.Namespace, err.Error()))
-		}
-		k8sResourceList = k8sResourceQuota.Spec.Hard
-		k8sResourceQuota.Spec.Hard = k8sHard
-		if err := cluster.KubeClient.Update(context.TODO(), k8sResourceQuota); err != nil {
 			return resttypes.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("update user %s resourcequota with namespace %s failed %s",
 					quota.UserName, quota.Namespace, err.Error()))
@@ -361,8 +346,7 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 		if exists == false {
 			deleteNamespace(cluster.KubeClient, quota.Namespace)
 		} else {
-			k8sResourceQuota.Spec.Hard = k8sResourceList
-			cluster.KubeClient.Update(context.TODO(), k8sResourceQuota)
+			cluster.KubeClient.Update(context.TODO(), oldK8sResourceQuota)
 		}
 	}
 
@@ -456,6 +440,28 @@ func setUserQuotaByAdmin(userQuota *types.UserQuota, clusterName, reason, status
 	userQuota.RejectionReason = reason
 	userQuota.Status = status
 	userQuota.ResponseTimestamp = resttypes.ISOTime(time.Now())
+}
+
+func updateResourceQuota(cli client.Client, namespace string, limits map[string]string) (*corev1.ResourceQuota, error) {
+	k8sResourceQuota, err := getResourceQuota(cli, namespace, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	k8sHard, err := scQuotaResourceListToK8sResourceList(limits)
+	if err != nil {
+		return nil, err
+	}
+
+	oldHard := k8sResourceQuota.Spec.Hard
+	k8sResourceQuota.Spec.Hard = k8sHard
+	if err := cli.Update(context.TODO(), k8sResourceQuota); err != nil {
+		return nil, err
+	}
+
+	k8sResourceQuota.ResourceVersion = ""
+	k8sResourceQuota.Spec.Hard = oldHard
+	return k8sResourceQuota, nil
 }
 
 func storageResourceValueToSCUserQuota(value []byte) (*types.UserQuota, error) {
