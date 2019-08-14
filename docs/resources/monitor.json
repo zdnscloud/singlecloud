@@ -27,7 +27,7 @@
             "type": "string"
         }
     },
-    "resourceMethods": ["GET", "DELETE"],
+    "resourceMethods": ["DELETE"],
     "collectionMethods": ["GET", "POST"],
     "postParameters": {
         "fields": {

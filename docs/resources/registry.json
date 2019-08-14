@@ -1,12 +1,9 @@
 {
     "resourceType": "registry",
-    "collectionName": "registrys",
+    "collectionName": "registries",
     "parentResources": [],
 
     "resourceFields": {
-        "name": {
-            "type": "string"
-        },
         "cluster": {
             "type": "string"
         },
@@ -27,14 +24,10 @@
             "type": "string"
         }
     },
-    "resourceMethods": ["GET", "DELETE"],
+    "resourceMethods": ["DELETE"],
     "collectionMethods": ["GET", "POST"],
     "postParameters": {
         "fields": {
-            "name": {
-                "type": "string",
-                "required": true
-            },
             "cluster": {
                 "type": "string",
                 "required": true
@@ -51,7 +44,8 @@
                 "type": "int"
             },
             "adminPassword": {
-                "type": "string"
+                "type": "string",
+                "required": true
             }
         }
     }
