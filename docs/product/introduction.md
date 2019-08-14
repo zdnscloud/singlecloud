@@ -8,15 +8,13 @@ Kubernetes不仅已经成为的容器编排标准，它也正在迅速成为各�
 
 Zcloud支持企业使用统一认证系统中的账户进行身份验证并管理Kubernetes集群。IT管理员可以在单个页面对所有Kubernetes集群的健康状况和容量进行监控。
 
-Zcloud为DevOps工程师提供了一个直观的用户界面来管理他们的服务容器，用户不需要深入了解Kubernetes概念就可以开始使用Zcloud。 Zcloud包含应用商店，支持一键式部署Helm模板。Zcloud通过各种云、本地生态系统产品认证，其中包括安全工具，监控系统，容器仓库以及存储和网络驱动程序。下图说明了Zcloud在IT和DevOps组织中扮演的角色。每个团队都会在他们选择的公有云或私有云上部署应用程序。
-
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image002.jpg)
+Zcloud为DevOps工程师提供了一个直观的用户界面来管理他们的服务容器，用户不需要深入了解Kubernetes概念就可以开始使用Zcloud。 Zcloud包含应用商店，支持一键式部署Helm模板。Zcloud通过各种云、本地生态系统产品认证，其中包括安全工具，监控系统，容器仓库以及存储和网络驱动程序。
 
 
 
 # 1.1 架构设计
 
-本节介绍Zcloud如何与Docker和Kubernetes进行交互。
+![img](architecture.jpg)
 
 ## 1.1.1 Docker
 
@@ -44,7 +42,35 @@ Kubernetes已成为容器集群管理标准，通过YAML文件来管理配置应
 
 Zcloud server软件运行在独立的linux服务器上，不建议运行在kubernetes的节点上。Zcloud server本身是无状态的，可以随时重启或更新。下图说明了Zcloud的运行架构。该图描绘了管理一个kubernetes集群的Zcloud。
 
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image004.jpg)
+```
+                                 +-------------------------------------------------------------+
+                                 | k8s cluster deployed by zke                                 |
+                                 |   +---------------------------------+      +-------------+  |
+                                 |   |control plane                    |      |kubeproxy    |  |
+                                 |   |                   +-----+       |      |kubelet      |  |
+                                 |   |                   |etcd |       |      |             |  |
+    +-------------+              |   |+------------+     +-----+       |      |node agent   |  |
+    |    Zcloud   |              |   ||            |     +----------+  |      +-------------+  |
+    |             |        +-----|----> api server <--+  |controller|  |                       |
+    |             |        |     |   ||            |  |  +----------+  |      +-------------+  |
+    |             |        |     |   |+------------+  |  +----------+  |      |kubeproxy    |  |
+    | web server  |        |     |   |                |  |scheduler |  |      |kubelet      |  |
+    | k8s client +|--------+     |   |                |  +----------+  |      |             |  |
+    |             |              |   +----------------|----------------+      |node agent   |  |
+    |             |              |                    |                       +-------------+  |
+    |agent manager<--------+     |                    |    +-------------+                     |
+    |             |        |     |                    |    |kubeproxy    |    +-------------+  |
+    +-------------+        |     |                    |    |kubelet      |    |kubeproxy    |  |
+                           |     |   +------------+   |    |             |    |kubelet      |  |
+                           |     |   |kubeproxy   |   +--->|cluster      |    |             |  |
+                           |     |   |kubelet     |   +--->|agent        |    |node agent   |  |
+                           |     |   |            |   |    |             |    +-------------+  |
+                           +-----|--->Zcloud proxy+---+    |node agent   |                     |
+                                 |   |node agent  |        +-------------+                     |
+                                 |   +------------+                                            |
+                                 |                                                             |
+                                 +-------------------------------------------------------------+
+```
 
 在本节中，我们将介绍每个Zcloud server组件的功能:
 
@@ -78,45 +104,45 @@ Zcloud可视化管理WEB UI。提供用户、集群、存储、网络等功能�
 
 全局层主要对Zcloud server自身的基础配置，比如资源申请、用户管理等。
 
-\1.      全局菜单
+1. 全局菜单
 
 用于列出所有被纳管的k8s集群。
 
-\2.      用户
+2. 用户
 
 用于管理所有Zcloud用户，比如密码、权限等。
 
-\3.      资源申请
+3. 资源申请
 
 用于新用户登录后，对想要使用的资源进行申请，管理员负责审批。
 
 ## 1.2.1集群层
 
-\1.      集群
+1. 集群
 
 显示当前集群的资源配置情况，各系统组件的健康状态；
 
-\2.      主机
+2. 主机
 
 当前集群中添加的所有主机
 
-\3.      命名空间
+3. 命名空间
 
 当前集群中创建的命名空间与资源配额。
 
-\4.      应用管理
+4. 应用管理
 
 集群内部所有工作负载与配置
 
-\5.      存储
+5. 存储
 
 存储卷、本地存储、网络存储
 
-\6.      网络
+6. 网络
 
 当前集群使用的网络与IP情况
 
-\7.      服务链
+7. 服务链
 
 展示当前集群的server与已创建的资源关系链。
 
@@ -144,7 +170,7 @@ Zcloud可视化管理WEB UI。提供用户、集群、存储、网络等功能�
 - 本地虚拟机
 - 本地物理机
 
-**注意****:**在使用云主机时，您需要允许TCP/80和TCP/443入站通信端口。请查阅您的云主机文档以获取有关端口配置的信息。有关端口要求的完整列表，请查阅2.3端口需求。
+**注意**:在使用云主机时，您需要允许TCP/80和TCP/443入站通信端口。请查阅您的云主机文档以获取有关端口配置的信息。有关端口要求的完整列表，请查阅2.3端口需求。
 
 根据以下要求配置主机:
 
@@ -158,9 +184,9 @@ Ubuntu操作系统有Desktop和Server版本，选择安装server版本
 - CPU: 2C
 - 内存: 4GB
 
-**注意****:**此配置仅为满足小规模测试环境的最低配置。
+**注意**:此配置仅为满足小规模测试环境的最低配置。
 
-**软件需求****：**
+**软件需求**：
 
 ·              软件: Docker
 
@@ -170,15 +196,15 @@ Ubuntu操作系统有Desktop和Server版本，选择安装server版本
   - 18.06.x
   - 18.09.x
 
-**注意****:**有关Docker安装说明,请访问其[文档](https://docs.docker.com/install/)。软件需求要应用于所有节点。主机的更详细配置说明，请查看2.1 基础环境配置。
+**注意**:有关Docker安装说明,请访问其[文档](https://docs.docker.com/install/)。软件需求要应用于所有节点。主机的更详细配置说明，请查看2.1 基础环境配置。
 
 ## 1.3.3安装Zcloud
 
 要想在主机上安装Zcloud，需要先登录到主机上，接着进行以下步骤：
 
-\1.      通过shell工具(例如PuTTy或远程终端连接)登录到主机
+1. 通过shell工具(例如PuTTy或远程终端连接)登录到主机
 
-\2.      在shell中执行以下命令:
+2. 在shell中执行以下命令:
 
 ```
   docker run -d -p 80:80 --name singlecloud \
@@ -192,53 +218,46 @@ Ubuntu操作系统有Desktop和Server版本，选择安装server版本
 
 登录并开始使用Zcloud。在地址栏输入http://<IP>:<PORT>/login，用户名admin，密码默认为zdns。
 
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image006.jpg)
+![img](login.jpg)
 
 ## 1.3.5创建K8S集群
 
 创建Kubernetes集群，可以使用**自定义**选项。您可以添加云主机、内部虚拟机或物理主机作为集群节点，节点可以运行任何一种或多种主流Linux发行版。
 
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image008.png)
-
-详细说明参数
+![img](create-cluster.jpg)
 
 点击保存后，页面会跳转到全局的集群列表页面，可以看到当前集群的状态。
 
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image010.png)
-
-并且可以在页面上查看正在安装集群的日志
-
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image012.png)
-
-集群安装完成后，可进行集群进行操作
-
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image014.png)
-
-## 1.3.6部署无状态服务
-
-无状态服务是一个对象，包括pod以及部署应用程序所需的其他文件和信息。我们以nginx为例:
-
-选择部署的目标集群和命名空间
-
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image015.png)
-
-进入部署无状态服务页面，点击新建
-
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image017.png)
-
-详细说明参数
-
-点击保存，页面跳转到无状态服务详情页
-
-![img](file:///C:\Users\CRAZY-~1\AppData\Local\Temp\msohtmlclip1\01\clip_image019.png)
-
-通过配置的入口域名去访问nginx服务，如果没有设置global dns，所通过服务端口访问nginx服务。
+![img](cluster-status.jpg)
 
 # 1.4 功能列表
 
-
-
-需要跟rancher一样细化
+- 全局
+  - 集群列表
+  - 全局配置
+- 集群管理
+  - 概况
+  - 命名空间
+  - 节点
+  - 存储
+  - 网络
+- 容器管理
+  - 容器监控
+  - 镜像管理
+- 应用商店
+  - 本地应用模版
+- 应用管理
+  - 物理资源
+  - 应用列表
+  - 应用拓扑
+- 基础资源
+  - 无状态副本、有状态副本、守护进程、定时任务、任务、服务、服务入口、配置字典、保密字典
+- 资源申请
+  - 申请列表
+- 用户管理
+  - 用户创建、删除、编辑
+- 镜像仓库（跳转）
+- 监控中心（跳转）
 
 # 2准备
 
@@ -495,11 +514,11 @@ Docker-Engine Docker官方已经不推荐使用，请安装Docker-CE。
 
 对于通过systemd来管理服务的系统(比如CentOS7.X、Ubuntu16.X), Docker有两处可以配置参数: 一个是`docker.service`服务配置文件,一个是Docker daemon配置文件daemon.json。
 
-\1.           `docker.service`
+1. `docker.service`
 
 对于CentOS系统，`docker.service`默认位于`/usr/lib/systemd/system/docker.service`；对于Ubuntu系统，`docker.service`默认位于`/lib/systemd/system/docker.service`
 
-\2.           `daemon.json`
+2. `daemon.json`
 
 daemon.json默认位于`/etc/docker/daemon.json`，如果没有可手动创建，基于systemd管理的系统都是相同的路径。通过修改`daemon.json`来改过Docker配置，也是Docker官方推荐的方法。
 
@@ -628,30 +647,3 @@ Ubuntu、Centos操作系统有Desktop和Server版本，选择请安装server版�
 
 必须打开的端口根据托管集群节点的计算机类型而变化，例如，如果要在基础结构托管的节点上部署Zcloud，则必须为SSH打开`22`端口。下图描绘了需要为每种集群类型打开的端口。
 
-# 3安装
-
-# 4升级
-
-# 5、备份和恢复
-
-## 5.1 备份
-
-## 5.2 恢复
-
-## 5.3 ETCD集群容错表
-
-建议在ETCD集群中使用奇数个成员,通过添加额外成员可以获得更高的失败容错，具体详情可以查阅
-
-| **集群大小** | **MAJORITY** | **失败容错** |
-| ------------ | ------------ | ------------ |
-| 1            | 1            | 0            |
-| 2            | 2            | 0            |
-| 3            | 2            | **1**        |
-| 4            | 3            | 1            |
-| 5            | 3            | **2**        |
-| 6            | 4            | 2            |
-| 7            | 4            | **3**        |
-| 8            | 5            | 3            |
-| 9            | 5            | **4**        |
-
- 
