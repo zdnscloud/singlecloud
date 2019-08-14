@@ -42,19 +42,7 @@
         "advancedOptions": {
             "deletePVsWhenDeleteWorkload": {"type": "bool"},
             "reloadWhenConfigChange": {"type": "bool"},
-            "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
-            "exposedServices": {"type": "array", "elemType": "exposedService"},
             "exposedMetric": {"type": "exposedMetric"}
-        },
-
-        "exposedService": {
-            "containerPortName" : {"type": "string"},
-            "servicePort" : {"type": "int"},
-            "autoCreateIngress" : {"type": "bool"},
-            "ingressHost" : {"type": "string"},
-            "ingressPath" : {"type": "string"},
-            "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
-            "ingressPort" : {"type": "int"}
         },
 
         "exposedMetric": {
@@ -112,19 +100,7 @@
             "advancedOptions": {
                 "deletePVsWhenDeleteWorkload": {"type": "bool"},
                 "reloadWhenConfigChange": {"type": "bool"},
-                "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
-                "exposedServices": {"type": "array", "elemType": "exposedService"},
                 "exposedMetric": {"type": "exposedMetric"}
-            },
-
-            "exposedService": {
-                "containerPortName" : {"type": "string"},
-                "servicePort" : {"type": "int"},
-                "autoCreateIngress" : {"type": "bool"},
-                "ingressHost" : {"type": "string"},
-                "ingressPath" : {"type": "string"},
-                "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
-                "ingressPort" : {"type": "int"}
             },
 
             "exposedMetric": {

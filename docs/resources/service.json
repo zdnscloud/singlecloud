@@ -6,6 +6,7 @@
     "resourceFields": {
         "name": {"type": "string"},
         "serviceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
+        "headless": {"type": "bool"},
         "exposedPorts": {"type": "array", "elemType": "servicePort"}
     },
 
@@ -25,6 +26,7 @@
         "fields": {
             "name": {"type": "string", "required": true},
             "serviceType": {"type": "enum", "validValues": ["clusterip", "nodeport"], "required": true},
+            "headless": {"type": "bool"},
             "exposedPorts":  {"type": "array", "elemType": "servicePort", "required": true}
         },
 

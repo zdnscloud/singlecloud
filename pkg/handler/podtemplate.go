@@ -15,7 +15,6 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -469,94 +468,4 @@ func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.Expose
 		}
 	}
 	return types.ExposedMetric{}
-}
-
-func createServiceAndIngress(cli client.Client, namespace string, workload interface{}) *resttypes.APIError {
-	structVal := reflect.ValueOf(workload).Elem()
-	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
-	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
-	serviceName := structVal.FieldByName("Name").String()
-
-	headless := false
-	if _, ok := workload.(*types.StatefulSet); ok {
-		headless = true
-	}
-
-	containerPorts := make(map[string]types.ContainerPort)
-	for _, container := range containers {
-		for _, port := range container.ExposedPorts {
-			containerPorts[port.Name] = port
-		}
-	}
-
-	var servicePorts []types.ServicePort
-	var rules []types.IngressRule
-	for _, s := range advancedOpts.ExposedServices {
-		containerPort, ok := containerPorts[s.ContainerPortName]
-		if ok == false {
-			return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("unknown container port with name:%s", s.ContainerPortName))
-		}
-
-		servicePorts = append(servicePorts, types.ServicePort{
-			Name:       containerPort.Name,
-			Port:       s.ServicePort,
-			TargetPort: containerPort.Port,
-			Protocol:   string(scIngressProtocolToK8SProtocol(s.IngressProtocol)),
-		})
-
-		if s.AutoCreateIngress {
-			rules = append(rules, types.IngressRule{
-				Host:     s.IngressHost,
-				Port:     s.IngressPort,
-				Protocol: s.IngressProtocol,
-				Paths: []types.IngressPath{
-					types.IngressPath{
-						Path:        s.IngressPath,
-						ServiceName: serviceName,
-						ServicePort: s.ServicePort,
-					},
-				},
-			})
-		}
-	}
-
-	if len(servicePorts) > 0 {
-		service := &types.Service{
-			Name:         serviceName,
-			ServiceType:  advancedOpts.ExposedServiceType,
-			ExposedPorts: servicePorts,
-		}
-
-		if err := createService(cli, namespace, service, headless); err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
-		}
-
-		if len(rules) > 0 {
-			ingress := &types.Ingress{
-				Name:  serviceName,
-				Rules: rules,
-			}
-
-			if err := createIngress(cli, namespace, ingress); err != nil {
-				deleteService(cli, namespace, serviceName)
-				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
-			}
-		}
-	}
-
-	return nil
-}
-
-func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts string) {
-	var advancedOpts types.AdvancedOptions
-	json.Unmarshal([]byte(opts), &advancedOpts)
-	if len(advancedOpts.ExposedServices) > 0 {
-		deleteService(cli, namespace, serviceName)
-		for _, s := range advancedOpts.ExposedServices {
-			if s.AutoCreateIngress {
-				deleteIngress(cli, namespace, serviceName)
-				break
-			}
-		}
-	}
 }

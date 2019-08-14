@@ -11,6 +11,7 @@
     "subResources": {
         "ingressRule": {
             "host": {"type": "string"},
+            "port": {"type": "int"},
             "protocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
             "paths": {"type": "array", "elemType": "ingressPath"}
         },
@@ -33,6 +34,7 @@
         "subResources": {
             "ingressRule": {
                 "host": {"type": "string", "required": true},
+                "port": {"type": "int"},
                 "protocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
                 "paths": {"type": "array", "elemType": "ingressPath", "required": true}
             },

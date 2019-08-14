@@ -34,13 +34,7 @@ func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 
 	namespace := ctx.Object.GetParent().GetID()
 	deploy := ctx.Object.(*types.Deployment)
-	if err := createServiceAndIngress(cluster.KubeClient, namespace, deploy); err != nil {
-		return nil, err
-	}
-
 	if err := createDeployment(cluster.KubeClient, namespace, deploy); err != nil {
-		advancedOpts, _ := json.Marshal(deploy.AdvancedOptions)
-		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.Name, string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate deploy name %s", deploy.Name))
 		} else {
@@ -159,11 +153,6 @@ func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 
 	if err := deleteDeployment(cluster.KubeClient, namespace, deploy.GetID()); err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
-	}
-
-	opts, ok := k8sDeploy.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
-		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
 	}
 
 	if delete, ok := k8sDeploy.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
