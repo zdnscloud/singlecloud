@@ -35,6 +35,9 @@ func newMonitorManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *
 }
 
 func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can enable cluster monitor")
+	}
 	monitor := ctx.Object.(*types.Monitor)
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
@@ -68,6 +71,9 @@ func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
 }
 
 func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can disable cluster monitor")
+	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")

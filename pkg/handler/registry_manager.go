@@ -82,6 +82,9 @@ func newRegistryManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) 
 }
 
 func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create registry")
+	}
 	r := ctx.Object.(*types.Registry)
 	cluster := m.clusters.GetClusterByName(r.Cluster)
 	if cluster == nil {
@@ -114,6 +117,9 @@ func (m *RegistryManager) List(ctx *resttypes.Context) interface{} {
 }
 
 func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete registry")
+	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
