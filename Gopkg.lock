@@ -519,7 +519,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8ab9b7679209ff342040877aabcf39df4cf946cc291ad8d92989b8c4f8477ec8"
+  digest = "1:fc14e4757e3280fc1be5f15cad43b919ce6ae2410ff61c00a21c6661dabc29a3"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -539,6 +539,7 @@
     "stringtool",
     "unittest",
     "uuid",
+    "x509",
   ]
   pruneopts = "UT"
   revision = "7eb205536ab847a023df949a9d333c0f41bfd9f3"
@@ -1049,6 +1050,7 @@
     "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/unittest",
     "github.com/zdnscloud/cement/uuid",
+    "github.com/zdnscloud/cement/x509",
     "github.com/zdnscloud/g53",
     "github.com/zdnscloud/gok8s/cache",
     "github.com/zdnscloud/gok8s/client",

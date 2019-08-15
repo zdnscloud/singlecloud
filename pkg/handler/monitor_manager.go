@@ -40,14 +40,13 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
-	url := genUrlPrefix(ctx, cluster.Name, monitorNameSpace)
 
 	app, err := genMonitorApplication(monitor)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
 	app.SetID(app.Name)
-	if err := m.apps.create(ctx, cluster.KubeClient, monitorNameSpace, url, app); err != nil {
+	if err := m.apps.create(ctx, cluster, monitorNameSpace, app); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
 	}
 	monitor.SetID(app.Name)
@@ -87,7 +86,7 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if err := m.deleteFromDB(); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
 	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, monitorAppName, app)
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, monitorNameSpace), monitorNameSpace, app)
 	return nil
 }
 
@@ -104,16 +103,16 @@ func genMonitorApplication(m *types.Monitor) (*types.Application, error) {
 	}, nil
 }
 
-func genMonitorConfigs(m *types.Monitor) (string, error) {
+func genMonitorConfigs(m *types.Monitor) ([]byte, error) {
 	p := charts.Prometheus{
 		IngressDomain: []string{m.IngressDomain},
 		AdminPassword: m.AdminPassword,
 	}
 	content, err := json.Marshal(&p)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(content), nil
+	return content, nil
 }
 
 func (m *MonitorManager) addToDB(monitor *types.Monitor) error {

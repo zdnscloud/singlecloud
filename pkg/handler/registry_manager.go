@@ -83,7 +83,6 @@ func newRegistryManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) 
 
 func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
 	r := ctx.Object.(*types.Registry)
-	url := genUrlPrefix(ctx, r.Cluster, registryNameSpace)
 	cluster := m.clusters.GetClusterByName(r.Cluster)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
@@ -93,7 +92,7 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
 	app.SetID(app.Name)
-	if err := m.apps.create(ctx, cluster.KubeClient, registryNameSpace, url, app); err != nil {
+	if err := m.apps.create(ctx, cluster, registryNameSpace, app); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create registry application failed %s", err.Error()))
 	}
 	r.SetID(registryAppName)
@@ -134,7 +133,7 @@ func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete registry from db failed: %s", err.Error()))
 	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, registryNameSpace, app)
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, registryNameSpace), registryNameSpace, app)
 	return nil
 }
 
@@ -151,7 +150,7 @@ func genRegistryApplication(r *types.Registry) (*types.Application, error) {
 	}, nil
 }
 
-func genRegistryConfigs(r *types.Registry) (string, error) {
+func genRegistryConfigs(r *types.Registry) ([]byte, error) {
 	ca := x509.Certificate{
 		Cert: zcloudCaCert,
 		Key:  zcloudCaKey,
@@ -159,7 +158,7 @@ func genRegistryConfigs(r *types.Registry) (string, error) {
 
 	tls, err := x509.GenerateSignedCertificate(r.IngressDomain, nil, []interface{}{r.IngressDomain}, 7300, ca)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	harbor := charts.Harbor{
 		IngressDomain:       r.IngressDomain,
@@ -173,9 +172,9 @@ func genRegistryConfigs(r *types.Registry) (string, error) {
 	}
 	content, err := json.Marshal(&harbor)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(content), nil
+	return content, nil
 }
 
 func (m *RegistryManager) addToDB(r *types.Registry) error {
