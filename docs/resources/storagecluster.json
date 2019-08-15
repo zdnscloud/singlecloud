@@ -19,7 +19,8 @@
             "name":{"type":"string"},
             "size":{"type":"string"},
             "usedsize":{"type":"string"},
-            "freesize":{"type":"string"}
+            "freesize":{"type":"string"},
+            "stat":{"type":"bool"}
         },
         "storagepv":{
             "name":{"type":"string"},
