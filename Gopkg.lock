@@ -444,7 +444,7 @@
   name = "github.com/prometheus/client_model"
   packages = ["go"]
   pruneopts = "UT"
-  revision = "fd36f4220a901265f90734c3183c5f0c91daa0b8"
+  revision = "14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016"
 
 [[projects]]
   digest = "1:8dcedf2e8f06c7f94e48267dea0bc0be261fa97b377f3ae3e87843a92a549481"
@@ -541,7 +541,7 @@
     "uuid",
   ]
   pruneopts = "UT"
-  revision = "1dc2ee005fab91ce777c8e04129238a6f42a07be"
+  revision = "7eb205536ab847a023df949a9d333c0f41bfd9f3"
 
 [[projects]]
   branch = "master"
@@ -557,7 +557,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c906f1b6c1cdfc385fd824d3001ce40027f5373467d6de478cb61a46511d3d85"
+  digest = "1:b41c38ef320bfc7d195e026e8fb45c8b7b79470928aa523095d2b16a9b9ecf42"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -576,15 +576,15 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "c7fc3fc1bb20ac9fcebb2500a8f737e7d3db2b4e"
+  revision = "984bf53d1bc17cf4b52baa608088b9b788414c74"
 
 [[projects]]
   branch = "master"
-  digest = "1:1f2d81341a08a1c896fe90bbe9226b4d9423437e3d774897c03490196ccf2e6d"
+  digest = "1:2877c96edcef0049e0e97b4fc5aa431ed8e78f0f78d7951a5f4c2a6f8f969217"
   name = "github.com/zdnscloud/goproxy"
   packages = ["."]
   pruneopts = "UT"
-  revision = "dc4bd46bd9df2073d78a118a85488aed28e8b3c9"
+  revision = "89eeea17b1b41d16b8ec2cda9783ad2a34a404b9"
 
 [[projects]]
   branch = "master"
@@ -607,7 +607,7 @@
   name = "github.com/zdnscloud/immense"
   packages = ["pkg/apis/zcloud/v1"]
   pruneopts = "UT"
-  revision = "6c2a552d0b407635bf7ee97353b9fd63eae1422d"
+  revision = "f2245366d4fec9527dc5f8fc57016d3825e344e8"
 
 [[projects]]
   branch = "master"
@@ -633,7 +633,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9ece290c14cf6a3a7ae906f64e6587789700f76ad0d8e31c633a139d33e907a8"
+  digest = "1:1ba155894fd7266c5012cf781dd1bbbc3221fbc87a77accc5774edff11ea1a08"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -661,7 +661,7 @@
     "zcloud/storage",
   ]
   pruneopts = "UT"
-  revision = "a4f377c35e39a89731fefbb9efbe367e3ae8b458"
+  revision = "a0d3fdacc379306f91c7a80bd27fd43dfb18ce57"
 
 [[projects]]
   branch = "master"
@@ -684,7 +684,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3fa9cdf9e0e7f1b1d888b55a710bc90ce5ab1f27feac343cebee6e0b7f31e2d4"
+  digest = "1:03889bda9d5d0b86ee7a16eaf733db664bdba2ce0408f3c41309338f3be10b8b"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -697,7 +697,7 @@
     "proxy",
   ]
   pruneopts = "UT"
-  revision = "ca1201d0de80cfde86cb01aea620983605dfe99b"
+  revision = "74dc4d7220e7acc4e100824340f3e66577424772"
 
 [[projects]]
   branch = "master"
@@ -712,7 +712,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a65b11596dfef5b1fac0574e393384445fe7d0a2c173bf8952faa3d2054b4521"
+  digest = "1:6c97b4baa9cf774b42192e23632afc7dee7b899d4a3dc98057d24708ce1f60ac"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -720,7 +720,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "9eafafc0a87e0fd0aeeba439a4573537970c44c7"
+  revision = "fde4db37ae7ad8191b03d30d27f258b5291ae4e3"
 
 [[projects]]
   digest = "1:8d8faad6b12a3a4c819a3f9618cb6ee1fa1cfc33253abeeea8b55336721e3405"
@@ -797,7 +797,7 @@
 
 [[projects]]
   branch = "dev-v3"
-  digest = "1:638724dff6bdef2d369fe2cb1ff86bfde78f52960669f04b33d92c7395e4827f"
+  digest = "1:853651bc53180e8b78cf7251973a2c2c102a106e3ff9c9596acd5ed2b5340836"
   name = "helm.sh/helm"
   packages = [
     "internal/ignore",
@@ -808,7 +808,7 @@
     "pkg/engine",
   ]
   pruneopts = "UT"
-  revision = "d67795216535e214f2ad28928fba432a05676905"
+  revision = "130f7934ffb7dc63e41e66273cf0875d521e1ec7"
   source = "https://github.com/helm/helm.git"
 
 [[projects]]
@@ -1089,22 +1089,14 @@
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
-    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
-    "k8s.io/apimachinery/pkg/util/runtime",
-    "k8s.io/apimachinery/pkg/util/wait",
-    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
-    "k8s.io/client-go/tools/cache",
-    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/remotecommand",
-    "k8s.io/client-go/util/workqueue",
-    "k8s.io/klog",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"

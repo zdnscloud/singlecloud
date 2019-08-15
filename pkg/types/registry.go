@@ -12,11 +12,10 @@ func SetRegistrySchema(schema *resttypes.Schema, handler resttypes.Handler) {
 
 type Registry struct {
 	resttypes.Resource `json:",inline"`
-	Name               string `json:"name"`
 	Cluster            string `json:"cluster"`
 	IngressDomain      string `json:"ingressDomain"`
 	StorageClass       string `json:"storageClass"`
-	StorageSize        string `json:"storageSize"`
+	StorageSize        int    `json:"storageSize"`
 	AdminPassword      string `json:"adminPassword"`
 	RedirectUrl        string `json:"redirectUrl"`
 }
