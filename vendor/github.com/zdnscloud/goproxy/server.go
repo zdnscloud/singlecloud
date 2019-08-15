@@ -71,7 +71,7 @@ func (s *Server) registerAgent(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Infof("register agent with key %s", agentKey)
+	log.Infof("register agent with key %s from %v", agentKey, wsConn.RemoteAddr())
 	session.Serve()
 	s.sessions.removeAgent(agentKey)
 	log.Infof("remove agent with key %s", agentKey)
