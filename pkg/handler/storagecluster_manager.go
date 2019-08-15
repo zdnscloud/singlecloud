@@ -192,7 +192,7 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, agent *clusteragent.AgentManage
 
 func getStatusInfo(cluster string, agent *clusteragent.AgentManager, storagetype string) (types.Storage, error) {
 	var info types.Storage
-	url := "/apis/agent.zcloud.cn/v1/storages/"
+	url := "/apis/agent.zcloud.cn/v1/storages"
 	res, err := agent.GetData(cluster, url)
 	if err != nil {
 		return info, err
