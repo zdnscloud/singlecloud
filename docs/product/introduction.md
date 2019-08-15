@@ -42,36 +42,7 @@ Kubernetes已成为容器集群管理标准，通过YAML文件来管理配置应
 
 Zcloud server软件运行在独立的linux服务器上，不建议运行在kubernetes的节点上。Zcloud server本身是无状态的，可以随时重启或更新。下图说明了Zcloud的运行架构。该图描绘了管理一个kubernetes集群的Zcloud。
 
-```
-                                 +-------------------------------------------------------------+
-                                 | k8s cluster deployed by zke                                 |
-                                 |   +---------------------------------+      +-------------+  |
-                                 |   |control plane                    |      |kubeproxy    |  |
-                                 |   |                   +-----+       |      |kubelet      |  |
-                                 |   |                   |etcd |       |      |             |  |
-    +-------------+              |   |+------------+     +-----+       |      |node agent   |  |
-    |    Zcloud   |              |   ||            |     +----------+  |      +-------------+  |
-    |             |        +-----|----> api server <--+  |controller|  |                       |
-    |             |        |     |   ||            |  |  +----------+  |      +-------------+  |
-    |             |        |     |   |+------------+  |  +----------+  |      |kubeproxy    |  |
-    | web server  |        |     |   |                |  |scheduler |  |      |kubelet      |  |
-    | k8s client +|--------+     |   |                |  +----------+  |      |             |  |
-    |             |              |   +----------------|----------------+      |node agent   |  |
-    |             |              |                    |                       +-------------+  |
-    |agent manager<--------+     |                    |    +-------------+                     |
-    |             |        |     |                    |    |kubeproxy    |    +-------------+  |
-    +-------------+        |     |                    |    |kubelet      |    |kubeproxy    |  |
-                           |     |   +------------+   |    |             |    |kubelet      |  |
-                           |     |   |kubeproxy   |   +--->|cluster      |    |             |  |
-                           |     |   |kubelet     |   +--->|agent        |    |node agent   |  |
-                           |     |   |            |   |    |             |    +-------------+  |
-                           +-----|--->Zcloud proxy+---+    |node agent   |                     |
-                                 |   |node agent  |        +-------------+                     |
-                                 |   +------------+                                            |
-                                 |                                                             |
-                                 +-------------------------------------------------------------+
-```
-
+![img](architecture_back.jpg)
 在本节中，我们将介绍每个Zcloud server组件的功能:
 
 **Zcloud server**
