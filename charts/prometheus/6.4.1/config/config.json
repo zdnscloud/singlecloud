@@ -1,0 +1,34 @@
+[{
+        "label": "ingressDomain",
+        "jsonKey": "grafana.ingress.hosts",
+        "type": "array",
+        "elemType": "string",
+        "required": "true",
+        "description": "the ingress domain of cluster monitor service",
+        "default": ["monitor.cluster.local"]
+    },
+    {
+        "label": "prometheusRetention",
+        "jsonKey": "prometheus.prometheusSpec.retention",
+        "type": "string",
+        "required": "false",
+        "description": "prometheus data retention(day)",
+        "default": "10d"
+    },
+    {
+        "label": "scrapeInterval",
+        "jsonKey": "prometheus.prometheusSpec.scrapeInterval",
+        "type": "string",
+        "required": "false",
+        "description": "prometheus scrape interval(s)",
+        "default": ""
+    },
+    {
+        "label": "adminPassword",
+        "jsonKey": "grafana.adminPassword",
+        "type": "string",
+        "required": "false",
+        "description": "monitor grafana dashboard admin password",
+        "default": "admin"
+    }
+]

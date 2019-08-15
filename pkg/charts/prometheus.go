@@ -1,8 +1,8 @@
 package charts
 
 type Prometheus struct {
-	IngressDomain string `json:"ingressDomain"`
-	StorageClass  string `json:"storageClass"`
-	StorageSize   string `json:"storageSize"`
-	AdminPassword string `json:"adminPassword"`
+	IngressDomain       []string `json:"ingressDomain"`
+	PrometheusRetention string   `json:"prometheusRetention"`
+	ScrapeInterval      string   `json:"scrapeInterval"`
+	AdminPassword       string   `json:"adminPassword"`
 }

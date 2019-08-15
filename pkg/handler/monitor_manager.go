@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -10,9 +11,9 @@ import (
 )
 
 const (
-	monitorNameSpace    = "zcloud"
-	monitorAppName      = "zcloud-registry"
-	monitorChartName    = "prometheus-operator"
+	monitorNameSpace    = "zcloud-monitor1"
+	monitorAppName      = "zcloud-monitor1"
+	monitorChartName    = "prometheus"
 	monitorChartVersion = "6.4.1"
 )
 
@@ -30,15 +31,38 @@ func newMonitorManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *
 }
 
 func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
-	return nil, nil
-}
+	monitor := ctx.Object.(*types.Monitor)
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+	url := genUrlPrefix(ctx, cluster.Name, monitorNameSpace)
 
-func (m *MonitorManager) Get(ctx *resttypes.Context) interface{} {
-	return nil
+	app, err := genMonitorApplication(monitor)
+	if err != nil {
+		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
+	}
+	app.SetID(app.Name)
+	if err := m.apps.create(ctx, cluster.KubeClient, monitorNameSpace, url, app); err != nil {
+		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
+	}
+	monitor.SetID(app.Name)
+	return monitor, nil
 }
 
 func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
 	monitors := []*types.Monitor{}
+	monitor := &types.Monitor{
+		IngressDomain:       "monitor.cluster.w",
+		StorageClass:        "lvm",
+		StorageSize:         50,
+		PrometheusRetention: 10,
+		ScrapeInterval:      15,
+		AdminPassword:       "admin",
+		RedirectUrl:         "http://monitor.cluster.w",
+	}
+	monitor.SetID(monitorAppName)
+	monitors = append(monitors, monitor)
 	return monitors
 }
 
@@ -52,13 +76,19 @@ func genMonitorApplication(m *types.Monitor) (*types.Application, error) {
 		return nil, err
 	}
 	return &types.Application{
-		Configs: config,
+		Name:         monitorAppName,
+		ChartName:    monitorChartName,
+		ChartVersion: monitorChartVersion,
+		Configs:      config,
 	}, nil
 }
 
 func genMonitorConfigs(m *types.Monitor) (string, error) {
-	harbor := charts.Harbor{}
-	content, err := json.Marshal(&harbor)
+	p := charts.Prometheus{
+		IngressDomain: []string{m.IngressDomain},
+		AdminPassword: m.AdminPassword,
+	}
+	content, err := json.Marshal(&p)
 	if err != nil {
 		return "", err
 	}

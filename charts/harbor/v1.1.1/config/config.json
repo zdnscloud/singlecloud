@@ -17,10 +17,10 @@
     {
         "label": "storageSize",
         "jsonKey": "persistence.persistentVolumeClaim.registry.size",
-        "type": "int",
+        "type": "string",
         "required": "false",
         "description": "registry component storage size(Gi)",
-        "default": 50
+        "default": "50Gi"
     },
     {
         "label": "adminPassword",
