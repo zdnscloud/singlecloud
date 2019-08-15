@@ -28,6 +28,7 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	restutil "github.com/zdnscloud/gorest/util"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 )
 
@@ -66,8 +67,7 @@ func (m *ApplicationManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 	namespace := ctx.Object.GetParent().GetID()
 	app := ctx.Object.(*types.Application)
 	app.SetID(app.Name)
-	urlPrefix := genUrlPrefix(ctx, cluster.Name, namespace)
-	if err := m.create(ctx, cluster.KubeClient, namespace, urlPrefix, app); err != nil {
+	if err := m.create(ctx, cluster, namespace, app); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource,
 				fmt.Sprintf("duplicate chart %s with name %s", app.ChartName, app.Name))
@@ -77,7 +77,7 @@ func (m *ApplicationManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 	}
 
 	retApp := *app
-	retApp.Configs = ""
+	retApp.Configs = nil
 	retApp.Manifests = nil
 	return &retApp, nil
 }
@@ -89,7 +89,7 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 	}
 
 	namespace := ctx.Object.GetParent().GetID()
-	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), namespace)
+	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, namespace))
 	if err != nil {
 		log.Warnf("list applications failed %s", err.Error())
 		return nil
@@ -107,7 +107,7 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 			return nil
 		}
 
-		app.Configs = ""
+		app.Configs = nil
 		app.Manifests = nil
 		apps = append(apps, &app)
 	}
@@ -124,7 +124,8 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 
 	namespace := ctx.Object.GetParent().GetID()
 	appName := ctx.Object.GetID()
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), namespace, appName, types.AppStatusDelete)
+	tableName := genAppTableName(cluster.Name, namespace)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), tableName, appName, types.AppStatusDelete)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound,
@@ -135,23 +136,23 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 		}
 	}
 
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, namespace, app)
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, namespace, app)
 	return nil
 }
 
-func deleteApplication(db storage.DB, cli client.Client, namespace string, app *types.Application) {
+func deleteApplication(db storage.DB, cli client.Client, tableName, namespace string, app *types.Application) {
 	if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
 		app.Status = types.AppStatusFailed
-		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
 			log.Warnf("delete application %s resources failed, update status get error: %s", app.Name, err.Error())
 		}
 		log.Warnf("delete application %s resources failed: %s", app.Name, err.Error())
 		return
 	}
 
-	if err := deleteApplicationFromDB(db, namespace, app.GetID()); err != nil {
+	if err := deleteApplicationFromDB(db, tableName, app.GetID()); err != nil {
 		app.Status = types.AppStatusFailed
-		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
 			log.Warnf("delete application %s failed, update status get error: %s", app.Name, err.Error())
 		}
 
@@ -159,8 +160,8 @@ func deleteApplication(db storage.DB, cli client.Client, namespace string, app *
 	}
 }
 
-func updateApplicationStatusFromDB(db storage.DB, namespace, name, status string) (*types.Application, error) {
-	tx, err := BeginTableTransaction(db, genAppTableName(namespace))
+func updateApplicationStatusFromDB(db storage.DB, tableName, name, status string) (*types.Application, error) {
+	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -221,8 +222,8 @@ func deleteAppResources(cli client.Client, namespace string, manifests []types.M
 	return nil
 }
 
-func deleteApplicationFromDB(db storage.DB, namespace, name string) error {
-	tx, err := BeginTableTransaction(db, genAppTableName(namespace))
+func deleteApplicationFromDB(db storage.DB, tableName, name string) error {
+	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return err
 	}
@@ -235,7 +236,7 @@ func deleteApplicationFromDB(db storage.DB, namespace, name string) error {
 	return tx.Commit()
 }
 
-func (m *ApplicationManager) create(ctx *resttypes.Context, cli client.Client, namespace, url string, app *types.Application) error {
+func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
 	chartPath := path.Join(m.chartDir, app.ChartName, app.ChartVersion)
 	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
 		return err
@@ -246,7 +247,7 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cli client.Client, n
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	if exists, err := hasNamespace(cli, namespace); err != nil {
+	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
 		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
 	} else if exists == false {
 		return fmt.Errorf("namespace %s is not found", namespace)
@@ -255,21 +256,22 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cli client.Client, n
 	app.Manifests = manifests
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
-	if err := addOrUpdateAppToDB(m.clusters.GetDB(), namespace, app, true); err != nil {
+	tableName := genAppTableName(cluster.Name, namespace)
+	if err := addOrUpdateAppToDB(m.clusters.GetDB(), tableName, app, true); err != nil {
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
 
-	go createApplication(m.clusters.GetDB(), cli, namespace, url, app)
+	go createApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, namespace, genUrlPrefix(ctx, cluster.Name, namespace), app)
 	return nil
 }
 
-func addOrUpdateAppToDB(db storage.DB, namespace string, app *types.Application, isCreate bool) error {
+func addOrUpdateAppToDB(db storage.DB, tableName string, app *types.Application, isCreate bool) error {
 	value, err := json.Marshal(app)
 	if err != nil {
 		return fmt.Errorf("marshal application %s failed: %s", app.Name, err.Error())
 	}
 
-	tx, err := BeginTableTransaction(db, genAppTableName(namespace))
+	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return err
 	}
@@ -288,8 +290,8 @@ func addOrUpdateAppToDB(db storage.DB, namespace string, app *types.Application,
 	return tx.Commit()
 }
 
-func getApplicationsFromDB(db storage.DB, namespace string) (map[string][]byte, error) {
-	tx, err := BeginTableTransaction(db, genAppTableName(namespace))
+func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, error) {
+	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -343,21 +345,22 @@ func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *ty
 	for fileName, content := range files {
 		if strings.HasSuffix(fileName, notesFileSuffix) {
 			delete(files, fileName)
+		} else {
+			manifests = append(manifests, types.Manifest{
+				File:    fileName,
+				Content: content,
+			})
 		}
-		manifests = append(manifests, types.Manifest{
-			File:    fileName,
-			Content: content,
-		})
 	}
 
 	return manifests, nil
 }
 
-func createApplication(db storage.DB, cli client.Client, namespace, url string, app *types.Application) {
-	appResources, err := createAppResources(cli, namespace, url, app.Manifests)
+func createApplication(db storage.DB, cli client.Client, tableName, namespace, urlPrefix string, app *types.Application) {
+	appResources, err := createAppResources(cli, namespace, urlPrefix, app.Manifests)
 	if err != nil {
 		app.Status = types.AppStatusFailed
-		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
 			log.Warnf("create application %s resoures failed, update status get error: %s", app.Name, err.Error())
 		}
 		log.Warnf("create application %s resources failed: %s", app.Name, err.Error())
@@ -366,9 +369,9 @@ func createApplication(db storage.DB, cli client.Client, namespace, url string, 
 
 	app.AppResources = appResources
 	app.Status = types.AppStatusSucceed
-	if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+	if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
 		app.Status = types.AppStatusFailed
-		if err := addOrUpdateAppToDB(db, namespace, app, false); err != nil {
+		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
 			log.Warnf("update application %s status failed, update status get error: %s", app.Name, err.Error())
 		}
 		log.Warnf("update application %s status to succeed failed: %s", app.Name, err.Error())
@@ -418,7 +421,7 @@ func createAppResources(cli client.Client, namespace, urlPrefix string, manifest
 }
 
 func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]interface{}, error) {
-	if app.Configs == "" {
+	if app.Configs == nil {
 		return nil, nil
 	}
 
@@ -438,7 +441,7 @@ func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]
 	valPtr := reflect.New(val.Type())
 	valPtr.Elem().Set(val)
 	obj := valPtr.Interface()
-	if err := json.Unmarshal([]byte(app.Configs), obj); err != nil {
+	if err := json.Unmarshal(app.Configs, obj); err != nil {
 		return nil, fmt.Errorf("unmarshal application %s config failed: %v", app.Name, err.Error())
 	}
 
@@ -468,12 +471,13 @@ func genUrlPrefix(ctx *resttypes.Context, clusterName, namespace string) string 
 	}
 }
 
-func genAppTableName(namespace string) string {
-	return namespace + "_" + AppTableSuffix
+func genAppTableName(clusterName, namespace string) string {
+	return clusterName + "_" + namespace + "_" + AppTableSuffix
 }
 
-func clearApplications(db storage.DB, cli client.Client, namespace string) error {
-	appValues, err := getApplicationsFromDB(db, namespace)
+func clearApplications(db storage.DB, cli client.Client, clusterName, namespace string) error {
+	tableName := genAppTableName(clusterName, namespace)
+	appValues, err := getApplicationsFromDB(db, tableName)
 	if err != nil {
 		return fmt.Errorf("get applications from db failed: %s", err.Error())
 	}
@@ -489,7 +493,7 @@ func clearApplications(db storage.DB, cli client.Client, namespace string) error
 		}
 
 		app.Status = types.AppStatusDelete
-		if err := addOrUpdateAppToDB(db, namespace, &app, false); err != nil {
+		if err := addOrUpdateAppToDB(db, tableName, &app, false); err != nil {
 			return fmt.Errorf("update application %s status to delete failed: %s", app.Name, err.Error())
 		}
 
@@ -498,7 +502,6 @@ func clearApplications(db storage.DB, cli client.Client, namespace string) error
 		}
 	}
 
-	tableName := genAppTableName(namespace)
 	if err := db.DeleteTable(tableName); err != nil {
 		return fmt.Errorf("delete application table %s failed: %s", tableName, err.Error())
 	}

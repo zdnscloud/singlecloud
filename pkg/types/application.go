@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/json"
+
 	resttypes "github.com/zdnscloud/gorest/types"
 )
 
@@ -20,13 +22,13 @@ func SetApplicationSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 
 type Application struct {
 	resttypes.Resource `json:",inline"`
-	Name               string        `json:"name"`
-	ChartName          string        `json:"chartName"`
-	ChartVersion       string        `json:"chartVersion"`
-	Status             string        `json:"status"`
-	AppResources       []AppResource `json:"appResources,omitempty"`
-	Configs            string        `json:"configs,omitempty"`
-	Manifests          []Manifest    `json:"manifests,omitempty"`
+	Name               string          `json:"name"`
+	ChartName          string          `json:"chartName"`
+	ChartVersion       string          `json:"chartVersion"`
+	Status             string          `json:"status"`
+	AppResources       []AppResource   `json:"appResources,omitempty"`
+	Configs            json.RawMessage `json:"configs,omitempty"`
+	Manifests          []Manifest      `json:"manifests,omitempty"`
 }
 
 type AppResource struct {
