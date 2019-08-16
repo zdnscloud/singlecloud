@@ -2,6 +2,7 @@ package types
 
 import (
 	resttypes "github.com/zdnscloud/gorest/types"
+	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 )
 
 func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler) {
@@ -13,15 +14,16 @@ func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler
 
 type StorageCluster struct {
 	resttypes.Resource `json:",inline"`
-	Name               string        `json:"name" rest:"required=true"`
-	StorageType        string        `json:"storagetype" rest:"required=true,options=lvm|ceph"`
-	Hosts              []string      `json:"hosts" rest:"required=true"`
-	Phase              string        `json:"phase"`
-	Size               string        `json:"size"`
-	UsedSize           string        `json:"usedsize"`
-	FreeSize           string        `json:"freesize"`
-	Nodes              []StorageNode `json:"nodes"`
-	PVs                []PV          `json:"pvs"`
+	Name               string               `json:"name" rest:"required=true"`
+	StorageType        string               `json:"storagetype" rest:"required=true,options=lvm|ceph"`
+	Hosts              []string             `json:"hosts" rest:"required=true"`
+	Config             []storagev1.HostInfo `json:"config"`
+	Phase              string               `json:"phase"`
+	Size               string               `json:"size"`
+	UsedSize           string               `json:"usedsize"`
+	FreeSize           string               `json:"freesize"`
+	Nodes              []StorageNode        `json:"nodes"`
+	PVs                []PV                 `json:"pvs"`
 }
 
 var StorageClusterType = resttypes.GetResourceType(StorageCluster{})
@@ -51,8 +53,15 @@ type StorageNode struct {
 	UsedSize string `json:"usedsize"`
 	FreeSize string `json:"freesize"`
 	Stat     bool   `json:"stat"`
+	//Devs     []DevCfg `json:"devs"`
 }
 
 type StoragePod struct {
 	Name string `json:"name"`
 }
+
+/*
+type DevCfg struct {
+	Name string `json:"name"`
+	Size string `json:"size"`
+}*/

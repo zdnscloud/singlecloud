@@ -55,7 +55,13 @@ func getAllDevices(cluster string, agent *clusteragent.AgentManager) ([]types.Bl
 	if err != nil {
 		return nets, err
 	}
+	if res == nil {
+		return nets, err
+	}
 	s := reflect.ValueOf(res)
+	if s.Len() == 0 {
+		return nets, nil
+	}
 	for i := 0; i < s.Len(); i++ {
 		newp := new(types.BlockDevice)
 		p := s.Index(i).Interface()

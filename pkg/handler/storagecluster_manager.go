@@ -178,6 +178,7 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, agent *clusteragent.AgentManage
 		Name:        k8sStorageCluster.Name,
 		StorageType: k8sStorageCluster.Spec.StorageType,
 		Hosts:       k8sStorageCluster.Spec.Hosts,
+		Config:      k8sStorageCluster.Status.Config,
 		Phase:       k8sStorageCluster.Status.Phase,
 		Size:        info.Size,
 		UsedSize:    info.UsedSize,
