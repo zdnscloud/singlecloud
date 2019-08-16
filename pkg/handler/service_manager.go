@@ -180,6 +180,7 @@ func k8sServiceToSCService(k8sService *corev1.Service) *types.Service {
 	service := &types.Service{
 		Name:         k8sService.Name,
 		ServiceType:  strings.ToLower(string(k8sService.Spec.Type)),
+		ClusterIP:    k8sService.Spec.ClusterIP,
 		ExposedPorts: ports,
 	}
 	service.SetID(k8sService.Name)
