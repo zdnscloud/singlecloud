@@ -88,6 +88,7 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
+	isAdminUser := isAdmin(getCurrentUser(ctx))
 	namespace := ctx.Object.GetParent().GetID()
 	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, namespace))
 	if err != nil {
@@ -105,6 +106,10 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 		if err := json.Unmarshal(value, &app); err != nil {
 			log.Warnf("list applications failed %s", err.Error())
 			return nil
+		}
+
+		if isAdminUser == false && app.SystemChart {
+			continue
 		}
 
 		app.Configs = nil
@@ -125,7 +130,7 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 	namespace := ctx.Object.GetParent().GetID()
 	appName := ctx.Object.GetID()
 	tableName := genAppTableName(cluster.Name, namespace)
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), tableName, appName, types.AppStatusDelete)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound,
@@ -160,7 +165,7 @@ func deleteApplication(db storage.DB, cli client.Client, tableName, namespace st
 	}
 }
 
-func updateApplicationStatusFromDB(db storage.DB, tableName, name, status string) (*types.Application, error) {
+func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, status string) (*types.Application, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
@@ -175,6 +180,10 @@ func updateApplicationStatusFromDB(db storage.DB, tableName, name, status string
 	var app types.Application
 	if err := json.Unmarshal(value, &app); err != nil {
 		return nil, err
+	}
+
+	if isAdmin(userName) == false && app.SystemChart {
+		return nil, fmt.Errorf("user %s no authority to delete application %s", userName, name)
 	}
 
 	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
@@ -241,6 +250,17 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
 		return err
 	}
+
+	info, err := getChartInfo(chartPath)
+	if err != nil {
+		return fmt.Errorf("load chart %s with version %s info failed: %s", app.ChartName, app.ChartVersion, err.Error())
+	}
+
+	if isAdmin(getCurrentUser(ctx)) == false && info.SystemChart {
+		return fmt.Errorf("user %s no authority to create application with chart %s", getCurrentUser(ctx), app.ChartName)
+	}
+
+	app.SystemChart = info.SystemChart
 
 	manifests, err := loadChartFiles(ctx, namespace, chartPath, app)
 	if err != nil {
