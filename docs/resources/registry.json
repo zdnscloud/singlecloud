@@ -37,15 +37,13 @@
             },
             "storageClass": {
                 "type": "enum",
-                "validValues": ["cephfs", "lvm"],
-                "required": true
+                "validValues": ["cephfs", "lvm"]
             },
             "storageSize": {
                 "type": "int"
             },
             "adminPassword": {
-                "type": "string",
-                "required": true
+                "type": "string"
             }
         }
     }
