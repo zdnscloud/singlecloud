@@ -93,14 +93,6 @@ func scProtocolToK8SProtocol(protocol string) (p corev1.Protocol, err error) {
 	return
 }
 
-func scIngressProtocolToK8SProtocol(protocol types.IngressProtocol) corev1.Protocol {
-	if protocol == types.IngressProtocolUDP {
-		return corev1.ProtocolUDP
-	} else {
-		return corev1.ProtocolTCP
-	}
-}
-
 func scServiceTypeToK8sServiceType(typ string) (p corev1.ServiceType, err error) {
 	switch strings.ToLower(typ) {
 	case "clusterip":
