@@ -124,8 +124,16 @@ func getIngresss(cli client.Client, namespace string) (*extv1beta1.IngressList, 
 }
 
 func createIngress(cli client.Client, namespace string, ingress *types.Ingress) error {
-	if err := validateAndSortRules(ingress.Rules); err != nil {
+	if k8sIngress, err := scIngressTok8sIngress(namespace, ingress); err != nil {
 		return err
+	} else {
+		return cli.Create(context.TODO(), k8sIngress)
+	}
+}
+
+func scIngressTok8sIngress(namespace string, ingress *types.Ingress) (*extv1beta1.Ingress, error) {
+	if err := validateAndSortRules(ingress.Rules); err != nil {
+		return nil, err
 	}
 
 	var httpRules []extv1beta1.IngressRule
@@ -163,9 +171,7 @@ func createIngress(cli client.Client, namespace string, ingress *types.Ingress) 
 	k8sIngress.Spec = extv1beta1.IngressSpec{
 		Rules: httpRules,
 	}
-
-	return cli.Create(context.TODO(), k8sIngress)
-
+	return k8sIngress, nil
 }
 
 func deleteIngress(cli client.Client, namespace, name string) error {
@@ -231,15 +237,9 @@ func (a SortedIngressRule) Less(i, j int) bool {
 	if a[i].Path != a[j].Path {
 		return a[i].Path < a[j].Path
 	}
-	if a[i].ServiceName != a[j].ServiceName {
-		return a[i].ServiceName < a[j].ServiceName
-	}
-	if a[i].ServicePort != a[j].ServicePort {
-		return a[i].ServicePort < a[j].ServicePort
-	}
 	return false
 }
 
 func isIngressRuleEqual(r1, r2 *types.IngressRule) bool {
-	return r1.Host == r2.Host && r1.Path == r2.Path && r1.ServiceName == r2.ServiceName && r1.ServicePort == r2.ServicePort
+	return r1.Host == r2.Host && r1.Path == r2.Path
 }
