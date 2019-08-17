@@ -5,13 +5,14 @@
 
     "resourceFields":{
         "name":{"type":"string"},
-        "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"]},
+        "storageType":{"type":"enum", "validValues": ["lvm", "ceph"]},
         "hosts":{"type":"array","elemType":"string"},
         "config":{"type":"array","elemType":"storagecfg"},
+        "freeDevs":{"type":"array","elemType":"storagecfg"},
         "phase":{"type":"string"},
         "size":{"type":"string"},
-        "usedsize":{"type":"string"},
-        "freesize":{"type":"string"},
+        "usedSize":{"type":"string"},
+        "freeSize":{"type":"string"},
         "nodes":{"type":"array","elemType":"storagenode"},
         "pvs":{"type":"array","elemType":"storagepv"}
     },
@@ -19,15 +20,15 @@
         "storagenode":{
             "name":{"type":"string"},
             "size":{"type":"string"},
-            "usedsize":{"type":"string"},
-            "freesize":{"type":"string"},
+            "usedSize":{"type":"string"},
+            "freeSize":{"type":"string"},
             "stat":{"type":"bool"}
         },
         "storagepv":{
             "name":{"type":"string"},
             "size":{"type":"string"},
-            "usedsize":{"type":"string"},
-            "freesize":{"type":"string"},
+            "usedSize":{"type":"string"},
+            "freeSize":{"type":"string"},
             "pods":{"type":"array","elemType":"storagepod"},
             "node":{"type":"string"}
         },
@@ -35,8 +36,8 @@
             "name":{"type":"string"}
         },
         "storagecfg":{
-            "nodename":{"type":"string"},
-            "blockdevices":{"type":"array","elemType":"storagedev"}
+            "nodeName":{"type":"string"},
+            "blockDevices":{"type":"array","elemType":"storagedev"}
         },
         "storagedev":{
             "name":{"type":"string"},

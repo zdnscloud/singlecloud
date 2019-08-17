@@ -19,8 +19,8 @@ type ClusterSpec struct {
 }
 
 type HostInfo struct {
-	NodeName     string `json:"nodename"`
-	BlockDevices []Dev  `json:"blockdevices"`
+	NodeName     string `json:"nodeName"`
+	BlockDevices []Dev  `json:"blockDevices"`
 }
 
 type Dev struct {

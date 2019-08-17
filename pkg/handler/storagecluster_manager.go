@@ -175,14 +175,20 @@ func scStorageToK8sStorage(storagecluster *types.StorageCluster) *storagev1.Clus
 func k8sStorageToSCStorage(cluster *zke.Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
 	info, err := getStatusInfo(cluster.Name, agent, k8sStorageCluster.Spec.StorageType)
 	if err != nil {
-		log.Warnf("get clusterinfo from clusteragent failed:%s", err.Error())
+		log.Warnf("get storages from clusteragent failed:%s", err.Error())
 	}
+	freedevs, err := getBlockDevices(cluster.Name, cluster.KubeClient, agent)
+	if err != nil {
+		log.Warnf("get blockdevices from clusteragent failed:%s", err.Error())
+	}
+
 	storagecluster := &types.StorageCluster{
 		Name:        k8sStorageCluster.Name,
 		StorageType: k8sStorageCluster.Spec.StorageType,
 		Hosts:       k8sStorageCluster.Spec.Hosts,
 		Config:      k8sStorageCluster.Status.Config,
 		Phase:       k8sStorageCluster.Status.Phase,
+		FreeDevs:    freedevs,
 		Size:        info.Size,
 		UsedSize:    info.UsedSize,
 		FreeSize:    info.FreeSize,
