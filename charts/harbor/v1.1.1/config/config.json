@@ -1,18 +1,34 @@
 [{
-        "label": "ingressDomain",
-        "jsonKey": "expose.ingress.hosts.core",
+        "label": "coreServiceDomain",
+        "jsonKey": "ingress.core",
         "type": "string",
         "required": "true",
-        "description": "the ingress domain of harbor registry service",
+        "description": "the ingress domain of harbor core registry service",
         "default": "registry.cluster.local"
     },
     {
-        "label": "externalURL",
-        "jsonKey": "externalURL",
+        "label": "caCert",
+        "jsonKey": "ingress.caCrt",
         "type": "string",
-        "required": "true",
-        "description": "the external url of harbor registry service",
-        "default": "https://registry.cluster.local"
+        "required": "false",
+        "description": "the ca cert of harbor registry service",
+        "default": ""
+    },
+    {
+        "label": "tlsCert",
+        "jsonKey": "ingress.tlsCrt",
+        "type": "string",
+        "required": "false",
+        "description": "the tls cert of harbor registry service",
+        "default": ""
+    },
+    {
+        "label": "tlsKey",
+        "jsonKey": "ingress.tlsKey",
+        "type": "string",
+        "required": "false",
+        "description": "the tls key of harbor registry service",
+        "default": ""
     },
     {
         "label": "storageClass",
@@ -24,11 +40,19 @@
     },
     {
         "label": "storageSize",
-        "jsonKey": "persistence.persistentVolumeClaim.registry.size",
+        "jsonKey": "persistence.registryStorageSize",
         "type": "string",
         "required": "false",
         "description": "registry component storage size(Gi)",
         "default": "50Gi"
+    },
+    {
+        "label": "externalURL",
+        "jsonKey": "externalURL",
+        "type": "string",
+        "required": "true",
+        "description": "the external url of harbor registry service",
+        "default": "https://registry.cluster.local"
     },
     {
         "label": "adminPassword",
@@ -37,29 +61,5 @@
         "required": "false",
         "description": "harbor admin password",
         "default": "admin"
-    },
-    {
-        "label": "caCert",
-        "jsonKey": "expose.ingress.tls.caCrt",
-        "type": "string",
-        "required": "false",
-        "description": "the ca cert of harbor registry service",
-        "default": ""
-    },
-    {
-        "label": "tlsCert",
-        "jsonKey": "expose.ingress.tls.tlsCrt",
-        "type": "string",
-        "required": "false",
-        "description": "the tls cert of harbor registry service",
-        "default": ""
-    },
-    {
-        "label": "tlsKey",
-        "jsonKey": "expose.ingress.tls.tlsKey",
-        "type": "string",
-        "required": "false",
-        "description": "the tls key of harbor registry service",
-        "default": ""
     }
 ]

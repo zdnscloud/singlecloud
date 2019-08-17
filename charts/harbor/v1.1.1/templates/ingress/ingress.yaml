@@ -1,5 +1,5 @@
 {{- if eq .Values.expose.type "ingress" }}
-{{- $ingress := .Values.expose.ingress -}}
+{{- $ingress := .Values.ingress -}}
 {{- $tls := .Values.expose.tls -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -17,9 +17,9 @@ spec:
     {{- else }}
   - secretName: "{{ template "harbor.ingress" . }}"
     {{- end }}
-    {{- if $ingress.hosts.core }}
+    {{- if $ingress.core }}
     hosts:
-    - {{ $ingress.hosts.core }}
+    - {{ $ingress.core }}
     {{- end }}
   {{- if .Values.notary.enabled }}
     {{- if $tls.notarySecretName }}
@@ -29,13 +29,13 @@ spec:
     {{- else }}
   - secretName: "{{ template "harbor.ingress" . }}"
     {{- end }}
-    {{- if $ingress.hosts.notary }}
+    {{- if $ingress.notary }}
     hosts:
-    - {{ $ingress.hosts.notary }}
+    - {{ $ingress.notary }}
     {{- end }}
   {{- end }}
   {{- end }}
-{{- if  eq .Values.expose.ingress.controller "gce" }}
+{{- if  eq .Values.ingress.controller "gce" }}
   rules:
   - http:
       paths:
@@ -63,8 +63,8 @@ spec:
         backend:
           serviceName: {{ template "harbor.core" . }}
           servicePort: 80
-    {{- if $ingress.hosts.core }}
-    host: {{ $ingress.hosts.core }}
+    {{- if $ingress.core }}
+    host: {{ $ingress.core }}
     {{- end }}
   {{- if .Values.notary.enabled }}
   - http:
@@ -73,8 +73,8 @@ spec:
         backend:
           serviceName: {{ template "harbor.notary-server" . }}
           servicePort: 4443
-    {{- if $ingress.hosts.notary }}
-    host: {{ $ingress.hosts.notary }}
+    {{- if $ingress.notary }}
+    host: {{ $ingress.notary }}
     {{- end }}
   {{- end }}
 {{- else }}
@@ -105,8 +105,8 @@ spec:
         backend:
           serviceName: {{ template "harbor.core" . }}
           servicePort: 80
-    {{- if $ingress.hosts.core }}
-    host: {{ $ingress.hosts.core }}
+    {{- if $ingress.core }}
+    host: {{ $ingress.core }}
     {{- end }}
   {{- if .Values.notary.enabled }}
   - http:
@@ -115,8 +115,8 @@ spec:
         backend:
           serviceName: {{ template "harbor.notary-server" . }}
           servicePort: 4443
-    {{- if $ingress.hosts.notary }}
-    host: {{ $ingress.hosts.notary }}
+    {{- if $ingress.notary }}
+    host: {{ $ingress.notary }}
     {{- end }}
   {{- end }}
 {{- end }}

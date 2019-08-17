@@ -1,12 +1,20 @@
 package charts
 
 type Harbor struct {
-	IngressDomain string `json:"ingressDomain"`
-	StorageClass  string `json:"storageClass"`
-	StorageSize   string `json:"storageSize"`
-	AdminPassword string `json:"adminPassword"`
-	CaCert        string `json:"caCert"`
-	TlsCert       string `json:"tlsCert"`
-	TlsKey        string `json:"tlsKey"`
-	ExternalURL   string `json:"externalURL"`
+	Ingress       HarborIngress     `json:"ingress"`
+	Persistence   HarborPersistence `json:"persistence"`
+	AdminPassword string            `json:"harborAdminPassword"`
+	ExternalURL   string            `json:"externalURL"`
+}
+
+type HarborPersistence struct {
+	StorageClass string `json:"storageClass"`
+	StorageSize  string `json:"registryStorageSize"`
+}
+
+type HarborIngress struct {
+	Core   string `json:"core"`
+	CaCrt  string `json:"caCrt"`
+	TlsCrt string `json:"tlsCrt"`
+	TlsKey string `json:"tlsKey"`
 }

@@ -1,3 +1,18 @@
+ingress:
+    core: registry.cluster.w
+    notary: notary.cluster.w
+    caCrt: ""
+    tlsCrt: ""
+    tlsKey: ""
+    # set to the type of ingress controller if it has specific requirements.
+    # leave as `default` for most ingress controllers.
+    # set to `gce` if using the GCE ingress controller
+    controller: default
+    annotations:
+      ingress.kubernetes.io/ssl-redirect: "true"
+      ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
 expose:
   # Set the way how to expose the service. Set the type as "ingress", 
   # "clusterIP", "nodePort" or "loadBalancer" and fill the information 
@@ -23,22 +38,6 @@ expose:
     # The commmon name used to generate the certificate, it's necessary
     # when the type isn't "ingress" and "secretName" is null
     commonName: ""
-    tlsCrt: ""
-    tlsKey: ""
-    caCrt: ""
-  ingress:
-    hosts:
-      core: ""
-      notary: notary.harbor.cluster.w
-    # set to the type of ingress controller if it has specific requirements.
-    # leave as `default` for most ingress controllers.
-    # set to `gce` if using the GCE ingress controller
-    controller: default
-    annotations:
-      ingress.kubernetes.io/ssl-redirect: "true"
-      ingress.kubernetes.io/proxy-body-size: "0"
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      nginx.ingress.kubernetes.io/proxy-body-size: "0"
   clusterIP:
     # The name of ClusterIP service
     name: harbor
@@ -95,7 +94,7 @@ expose:
 # the IP address of k8s node 
 # 
 # If Harbor is deployed behind the proxy, set it as the URL of proxy
-externalURL: ""
+externalURL: "https://registry.cluster.w"
 
 # The persistence is enabled by default and a default StorageClass
 # is needed in the k8s cluster to provision volumes dynamicly. 
@@ -109,7 +108,8 @@ persistence:
   # Setting it to "keep" to avoid removing PVCs during a helm delete 
   # operation. Leaving it empty will delete PVCs after the chart deleted
   resourcePolicy: "keep"
-  storageClass: ""
+  storageClass: lvm
+  registryStorageSize: 30Gi
   persistentVolumeClaim:
     registry:
       # Use the existing PVC which must be created manually before bound, 

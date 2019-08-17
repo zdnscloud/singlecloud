@@ -147,20 +147,23 @@ func genRegistryConfigs(cli client.Client, r *types.Registry) ([]byte, error) {
 	}
 
 	harbor := charts.Harbor{
-		IngressDomain: r.IngressDomain,
-		StorageClass:  r.StorageClass,
-		StorageSize:   strconv.Itoa(r.StorageSize) + "Gi",
+		Ingress: charts.HarborIngress{
+			Core:   r.IngressDomain,
+			CaCrt:  ca.Cert,
+			TlsCrt: tls.Cert,
+			TlsKey: tls.Key,
+		},
+		Persistence: charts.HarborPersistence{
+			StorageClass: r.StorageClass,
+			StorageSize:  strconv.Itoa(r.StorageSize) + "Gi",
+		},
 		AdminPassword: r.AdminPassword,
-		CaCert:        ca.Cert,
-		TlsCert:       tls.Cert,
-		TlsKey:        tls.Key,
 		ExternalURL:   "https://" + r.IngressDomain,
 	}
 	content, err := json.Marshal(&harbor)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(string(content))
 	return content, nil
 }
 
