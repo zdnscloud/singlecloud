@@ -89,7 +89,7 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound,
@@ -116,6 +116,7 @@ func genMonitorApplication(cli client.Client, m *types.Monitor) (*types.Applicat
 		ChartName:    monitorChartName,
 		ChartVersion: monitorChartVersion,
 		Configs:      config,
+		SystemChart:  true,
 	}, nil
 }
 

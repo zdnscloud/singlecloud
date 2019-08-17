@@ -17,3 +17,4 @@ home: https://github.com/coreos/prometheus-operator
 keywords:
 - operator
 - prometheus
+systemChart: true

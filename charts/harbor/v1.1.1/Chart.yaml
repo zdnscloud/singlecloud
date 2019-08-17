@@ -17,3 +17,4 @@ maintainers:
 - name: paulczar
   email: username.taken@gmail.com
 engine: gotpl
+systemChart: true

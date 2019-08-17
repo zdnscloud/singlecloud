@@ -92,7 +92,7 @@ func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, registryNameSpace), registryAppName, types.AppStatusDelete)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, registryNameSpace), registryAppName, types.AppStatusDelete)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound,
@@ -120,6 +120,7 @@ func genRegistryApplication(cli client.Client, r *types.Registry) (*types.Applic
 		ChartName:    registryChartName,
 		ChartVersion: registryChartVersion,
 		Configs:      config,
+		SystemChart:  true,
 	}, nil
 }
 
