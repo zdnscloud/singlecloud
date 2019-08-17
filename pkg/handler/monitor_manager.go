@@ -3,22 +3,25 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
+	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
-	monitorNameSpace    = "zcloud"
-	monitorAppName      = "zcloud-monitor"
-	monitorChartName    = "prometheus"
-	monitorChartVersion = "6.4.1"
-	monitorTableName    = "cluster_monitor"
+	monitorNameSpace         = "zcloud"
+	monitorAppName           = "zcloud-monitor"
+	monitorChartName         = "prometheus"
+	monitorChartVersion      = "6.4.1"
+	monitorTableName         = "cluster_monitor"
+	zcloudDynamicalDnsPrefix = "zc.zdns.cn"
 )
 
 type MonitorManager struct {
@@ -43,8 +46,11 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
+	if existMonitor, _ := m.getFromDB(cluster.Name); existMonitor != nil {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "cluster monitor has enabled")
+	}
 
-	app, err := genMonitorApplication(monitor)
+	app, err := genMonitorApplication(cluster.KubeClient, monitor)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
@@ -54,15 +60,19 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	}
 	monitor.SetID(app.Name)
 	monitor.SetCreationTimestamp(time.Now())
-	if err := m.addToDB(monitor); err != nil {
+	if err := m.addToDB(cluster.Name, monitor); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("add monitor to db failed %s", err.Error()))
 	}
 	return monitor, nil
 }
 
 func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil
+	}
 	monitors := []*types.Monitor{}
-	monitor, err := m.getFromDB()
+	monitor, err := m.getFromDB(cluster.Name)
 	if err != nil {
 		return monitors
 	}
@@ -79,7 +89,7 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), monitorNameSpace, monitorAppName, types.AppStatusDelete)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound,
@@ -89,15 +99,15 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 				fmt.Sprintf("delete cluster monitor application %s failed: %s", monitorAppName, err.Error()))
 		}
 	}
-	if err := m.deleteFromDB(); err != nil {
+	if err := m.deleteFromDB(cluster.Name); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
 	}
 	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, monitorNameSpace), monitorNameSpace, app)
 	return nil
 }
 
-func genMonitorApplication(m *types.Monitor) (*types.Application, error) {
-	config, err := genMonitorConfigs(m)
+func genMonitorApplication(cli client.Client, m *types.Monitor) (*types.Application, error) {
+	config, err := genMonitorConfigs(cli, m)
 	if err != nil {
 		return nil, err
 	}
@@ -109,10 +119,24 @@ func genMonitorApplication(m *types.Monitor) (*types.Application, error) {
 	}, nil
 }
 
-func genMonitorConfigs(m *types.Monitor) ([]byte, error) {
+func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
+	if len(m.IngressDomain) == 0 {
+		firstEdgeNodeIP := getFirstEdgeNodeAddress(cli)
+		if len(firstEdgeNodeIP) == 0 {
+			return nil, fmt.Errorf("can not find edge node for this cluster")
+		}
+		m.IngressDomain = firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+	}
+	m.RedirectUrl = "http://" + m.IngressDomain
 	p := charts.Prometheus{
 		IngressDomain: []string{m.IngressDomain},
 		AdminPassword: m.AdminPassword,
+	}
+	if m.PrometheusRetention > 0 {
+		p.PrometheusRetention = strconv.Itoa(m.PrometheusRetention) + "d"
+	}
+	if m.ScrapeInterval > 0 {
+		p.ScrapeInterval = strconv.Itoa(m.ScrapeInterval) + "s"
 	}
 	content, err := json.Marshal(&p)
 	if err != nil {
@@ -121,7 +145,7 @@ func genMonitorConfigs(m *types.Monitor) ([]byte, error) {
 	return content, nil
 }
 
-func (m *MonitorManager) addToDB(monitor *types.Monitor) error {
+func (m *MonitorManager) addToDB(clusterName string, monitor *types.Monitor) error {
 	value, err := json.Marshal(monitor)
 	if err != nil {
 		return fmt.Errorf("marshal monitor %s failed: %s", monitorAppName, err.Error())
@@ -133,38 +157,51 @@ func (m *MonitorManager) addToDB(monitor *types.Monitor) error {
 	}
 	defer tx.Rollback()
 
-	if err := tx.Add(monitorAppName, value); err != nil {
+	if err := tx.Add(clusterName, value); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-func (m *MonitorManager) getFromDB() (*types.Monitor, error) {
+func (m *MonitorManager) getFromDB(clusterName string) (*types.Monitor, error) {
 	monitor := &types.Monitor{}
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), monitorTableName)
 	if err != nil {
-		return monitor, err
+		return nil, err
 	}
 	defer tx.Commit()
 
-	value, err := tx.Get(monitorAppName)
+	value, err := tx.Get(clusterName)
 	if err != nil {
-		return monitor, err
+		return nil, err
 	}
 
 	err = json.Unmarshal(value, monitor)
 	return monitor, err
 }
 
-func (m *MonitorManager) deleteFromDB() error {
+func (m *MonitorManager) deleteFromDB(clusterName string) error {
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), monitorTableName)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if err := tx.Delete(monitorAppName); err != nil {
+	if err := tx.Delete(clusterName); err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+func getFirstEdgeNodeAddress(cli client.Client) string {
+	nodes, err := getNodes(cli)
+	if err != nil {
+		return ""
+	}
+	for _, n := range nodes {
+		if n.HasRole(types.RoleEdge) {
+			return n.Address
+		}
+	}
+	return ""
 }

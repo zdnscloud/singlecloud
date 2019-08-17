@@ -16,7 +16,7 @@
     },
     {
         "label": "storageClass",
-        "jsonKey": "persistence.persistentVolumeClaim.registry.storageClass",
+        "jsonKey": "persistence.storageClass",
         "type": "enum",
         "required": "true",
         "description": "registry component storageClass type",

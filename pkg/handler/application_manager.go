@@ -445,11 +445,14 @@ func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]
 		return nil, fmt.Errorf("unmarshal application %s config failed: %v", app.Name, err.Error())
 	}
 
+	fmt.Println(obj)
+
 	m, err := restHandler.ObjectToMap(chartCtx, obj)
 	if err != nil {
 		return nil, fmt.Errorf("create application %s config is invalid: %v", app.ChartName, err.Error())
 	}
 
+	fmt.Println(m)
 	return m, nil
 }
 

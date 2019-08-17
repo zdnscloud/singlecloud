@@ -210,9 +210,8 @@ kubeDns:
     dnsmasqRelabelings: []
 
 kubeEtcd:
-  enabled: true
-  endpoints: 
-  - 202.173.9.61
+  enabled: false
+  endpoints: []
   service:
     port: 2379
     targetPort: 2379
