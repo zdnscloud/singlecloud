@@ -117,6 +117,9 @@ func (m StorageClusterManager) Update(ctx *resttypes.Context) (interface{}, *res
 	}
 
 	storagecluster := ctx.Object.(*types.StorageCluster)
+	if len(storagecluster.Hosts) == 0 {
+		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, storagecluster must keep at least one node,suggest delete the storagecluster"))
+	}
 	if err := updateStorageCluster(cluster.KubeClient, storagecluster); err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed %s", err.Error()))
 	} else {
