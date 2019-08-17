@@ -22,6 +22,11 @@ const (
 	IconFormat    = ".png"
 )
 
+type ChartInfo struct {
+	Description string `yaml:"description"`
+	SystemChart bool   `yaml:"systemChart"`
+}
+
 type ChartManager struct {
 	api.DefaultHandler
 	chartDir string
@@ -32,6 +37,7 @@ func newChartManager(chartDir string) *ChartManager {
 }
 
 func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
+	isAdminUser := isAdmin(getCurrentUser(ctx))
 	chts, err := ioutil.ReadDir(m.chartDir)
 	if err != nil {
 		log.Warnf("list charts info failed:%s", err.Error())
@@ -41,11 +47,15 @@ func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
 	var charts types.Charts
 	for _, cht := range chts {
 		if cht.IsDir() {
-			versions, description, err := listVersions(path.Join(m.chartDir, cht.Name()))
+			versions, description, isSystemChart, err := listVersions(path.Join(m.chartDir, cht.Name()))
 			if err != nil {
 				log.Warnf("list charts info when get chart %s failed:%s", cht.Name(), err.Error())
 				return nil
 			} else {
+				if isAdminUser == false && isSystemChart {
+					continue
+				}
+
 				chart := &types.Chart{
 					Name:        cht.Name(),
 					Description: description,
@@ -70,9 +80,14 @@ func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
 
 func (m *ChartManager) Get(ctx *resttypes.Context) interface{} {
 	chart := ctx.Object.(*types.Chart)
-	versions, description, err := listVersions(path.Join(m.chartDir, chart.GetID()))
+	versions, description, isSystemChart, err := listVersions(path.Join(m.chartDir, chart.GetID()))
 	if err != nil {
 		log.Warnf("get chart %s failed:%s", chart.Name, err.Error())
+		return nil
+	}
+
+	if isAdmin(getCurrentUser(ctx)) == false && isSystemChart {
+		log.Warnf("no found chart %s for user %s", chart.Name, getCurrentUser(ctx))
 		return nil
 	}
 
@@ -83,30 +98,29 @@ func (m *ChartManager) Get(ctx *resttypes.Context) interface{} {
 	return chart
 }
 
-func listVersions(chartPath string) ([]types.ChartVersion, string, error) {
+func listVersions(chartPath string) ([]types.ChartVersion, string, bool, error) {
 	versionDirs, err := ioutil.ReadDir(chartPath)
 	if err != nil {
-		return nil, "", err
+		return nil, "", false, err
 	}
 
 	var versions []types.ChartVersion
-	var description struct {
-		Description string `yaml:"description"`
-	}
+	var chartInfo ChartInfo
 	for _, versionDir := range versionDirs {
 		if versionDir.IsDir() {
 			var config []map[string]interface{}
 			content, err := ioutil.ReadFile(path.Join(chartPath, versionDir.Name(), configPath))
 			if err == nil {
 				if err := json.Unmarshal(content, &config); err != nil {
-					return nil, "", fmt.Errorf("unmarshal config file failed: %s", err.Error())
+					return nil, "", false, fmt.Errorf("unmarshal config file failed: %s", err.Error())
 				}
 			}
 
-			if description.Description == "" {
-				chartYaml, err := ioutil.ReadFile(path.Join(chartPath, versionDir.Name(), chartYamlFile))
-				if err == nil {
-					yaml.Unmarshal(chartYaml, &description)
+			if chartInfo.Description == "" {
+				if info, err := getChartInfo(path.Join(chartPath, versionDir.Name())); err != nil {
+					return nil, "", false, err
+				} else {
+					chartInfo = *info
 				}
 			}
 
@@ -115,9 +129,23 @@ func listVersions(chartPath string) ([]types.ChartVersion, string, error) {
 				Config:  config,
 			})
 		} else if versionDir.Name() == chartYamlFile {
-			return nil, "", fmt.Errorf("chart all files must be in a version dir")
+			return nil, "", false, fmt.Errorf("chart all files must be in a version dir")
 		}
 	}
 
-	return versions, description.Description, nil
+	return versions, chartInfo.Description, chartInfo.SystemChart, nil
+}
+
+func getChartInfo(chartYamlPath string) (*ChartInfo, error) {
+	var info ChartInfo
+	chartYaml, err := ioutil.ReadFile(path.Join(chartYamlPath, chartYamlFile))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := yaml.Unmarshal(chartYaml, &info); err != nil {
+		return nil, err
+	}
+
+	return &info, nil
 }
