@@ -48,9 +48,17 @@ spec:
   securityContext:
 {{ toYaml .Values.alertmanager.alertmanagerSpec.securityContext | indent 4 }}
 {{- end }}
-{{- if .Values.alertmanager.alertmanagerSpec.storage }}
+{{- if .Values.alertmanager.alertmanagerSpec.storageClass }}
   storage:
-{{ toYaml .Values.alertmanager.alertmanagerSpec.storage | indent 4 }}
+# {{ toYaml .Values.alertmanager.alertmanagerSpec.storage | indent 4 }}
+    volumeClaimTemplate:
+      spec:
+        storageClassName: {{ .Values.alertmanager.alertmanagerSpec.storageClass}}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.alertmanager.alertmanagerSpec.storageSize}}
+      selector: {}
 {{- end }}
 {{- if .Values.alertmanager.alertmanagerSpec.podMetadata }}
   podMetadata:

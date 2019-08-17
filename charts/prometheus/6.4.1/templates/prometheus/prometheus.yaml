@@ -124,9 +124,17 @@ spec:
 {{ else }}
   ruleSelector: {}
 {{- end }}
-{{- if .Values.prometheus.prometheusSpec.storageSpec }}
+{{- if .Values.prometheus.prometheusSpec.storageClass }}
   storage:
-{{ toYaml .Values.prometheus.prometheusSpec.storageSpec | indent 4 }}
+# {{ toYaml .Values.prometheus.prometheusSpec.storageSpec | indent 4 }}
+    volumeClaimTemplate:
+      spec:
+        storageClassName: {{ .Values.prometheus.prometheusSpec.storageClass}}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.prometheus.prometheusSpec.storageSize }}
+      selector: {}
 {{- end }}
 {{- if .Values.prometheus.prometheusSpec.podMetadata }}
   podMetadata:

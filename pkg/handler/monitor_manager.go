@@ -129,15 +129,32 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 		m.IngressDomain = firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
+
 	p := charts.Prometheus{
-		IngressDomain: []string{m.IngressDomain},
-		AdminPassword: m.AdminPassword,
+		Grafana: charts.PrometheusGrafana{
+			Ingress: charts.PrometheusGrafanaIngress{
+				Hosts: []string{m.IngressDomain},
+			},
+			AdminPassword: m.AdminPassword,
+		},
+		Prometheus: charts.PrometheusPrometheus{
+			PrometheusSpec: charts.PrometheusSpec{
+				StorageClass: m.StorageClass,
+				StorageSize:  strconv.Itoa(m.StorageSize) + "Gi",
+			},
+		},
+		AlertManager: charts.PrometheusAlertManager{
+			AlertManagerSpec: charts.AlertManagerSpec{
+				StorageClass: m.StorageClass,
+			},
+		},
 	}
+
 	if m.PrometheusRetention > 0 {
-		p.PrometheusRetention = strconv.Itoa(m.PrometheusRetention) + "d"
+		p.Prometheus.PrometheusSpec.Retention = strconv.Itoa(m.PrometheusRetention) + "d"
 	}
 	if m.ScrapeInterval > 0 {
-		p.ScrapeInterval = strconv.Itoa(m.ScrapeInterval) + "s"
+		p.Prometheus.PrometheusSpec.ScrapeInterval = strconv.Itoa(m.ScrapeInterval) + "s"
 	}
 	content, err := json.Marshal(&p)
 	if err != nil {

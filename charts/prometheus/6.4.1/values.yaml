@@ -95,7 +95,8 @@ alertmanager:
     logLevel: info
     replicas: 1
     retention: 120h
-    storage: {}
+    storageClass: lvm
+    storageSize: 5Gi
     externalUrl:
     routePrefix: /
     paused: false
@@ -122,8 +123,7 @@ grafana:
     enabled: true
     annotations: {}
     labels: {}
-    hosts: 
-    - monitor.cluster.w
+    hosts: []
     path: /
     tls: []
   sidecar:
@@ -427,7 +427,8 @@ prometheus:
     remoteRead: []
     remoteWrite: []
     resources: {}
-    storageSpec: {}
+    storageClass: lvm
+    storageSize: 20Gi
     additionalScrapeConfigs: []
     additionalAlertManagerConfigs: []
     additionalAlertRelabelConfigs: []
