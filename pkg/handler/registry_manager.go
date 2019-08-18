@@ -130,7 +130,7 @@ func genRegistryConfigs(cli client.Client, r *types.Registry) ([]byte, error) {
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		r.IngressDomain = firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		r.IngressDomain = "registry." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
 	}
 	r.RedirectUrl = "https://" + r.IngressDomain
 

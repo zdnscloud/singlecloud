@@ -126,7 +126,7 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		m.IngressDomain = firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		m.IngressDomain = "monitor." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
 
