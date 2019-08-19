@@ -1,0 +1,24 @@
+{
+    "errorCode":[
+        {"type": "error", "status": 401, "code": "Unauthorized", "message": "Authentication is not sent or is invalid", "folderName": ""},
+        {"type": "error", "status": 403, "code": "PermissionDenied", "message": "Authenticated user is not allowed access.", "folderName": ""},
+        {"type": "error", "status": 404, "code": "NotFound", "message": "No found resource", "folderName": ""},
+        {"type": "error", "status": 405, "code": "MethodNotAllowed", "message": "The HTTP method is not allowed.", "folderName": ""},
+        {"type": "error", "status": 409, "code": "Conflict", "message": "Request conflicts with the current resource.", "folderName": ""},
+        {"type": "error", "status": 422, "code": "InvalidFormat", "message": "Request has invalid value", "folderName": ""},
+        {"type": "error", "status": 422, "code": "NotNullable", "message": "Values can not be null", "folderName": ""},        
+        {"type": "error", "status": 422, "code": "MinLimitExceeded", "message": "The field value can not less than min", "folderName": ""},
+        {"type": "error", "status": 422, "code": "MaxLimitExceeded", "message": "The field value can not exceed max", "folderName": ""},
+        {"type": "error", "status": 422, "code": "MinLengthExceeded", "message": "The field length can not less than min", "folderName": ""},
+        {"type": "error", "status": 422, "code": "MaxLengthExceeded", "message": "The field length can not exceed max", "folderName": ""},
+        {"type": "error", "status": 422, "code": "InvalidOption", "message": "The field option is invalid", "folderName": ""},
+        {"type": "error", "status": 422, "code": "InvalidCharacters", "message": "The field character is invalid", "folderName": ""},
+        {"type": "error", "status": 422, "code": "MissingRequired", "message": "The field required is missing", "folderName": ""},
+        {"type": "error", "status": 422, "code": "InvalidCSRFToken", "message": "Failed to parse cookies", "folderName": ""},
+        {"type": "error", "status": 422, "code": "InvalidAction", "message": "The action is invalid", "folderName": ""},
+        {"type": "error", "status": 422, "code": "InvalidBodyContent", "message": "The requested body is invalid", "folderName": ""},
+        {"type": "error", "status": 422, "code": "InvalidType", "message": "The field type is invalid", "folderName": ""},
+        {"type": "error", "status": 500, "code": "ServerError", "message": "Failed process request", "folderName": ""},
+        {"type": "error", "status": 503, "code": "ClusterUnavailable", "message": "The cluster is unavilable", "folderName": ""}
+    ]
+}

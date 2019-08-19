@@ -1,0 +1,18 @@
+{
+    "resourceType": "namespace",
+    "collectionName": "namespaces",
+    "parentResources": [ "cluster" ],
+
+    "resourceFields": {
+        "name": {"type": "string"}
+    },
+
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "POST", "GET" ],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true}
+        }
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "resourceType": "service",
+    "collectionName": "services",
+    "parentResources": [ "namespace" ],
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "serviceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
+        "exposedPorts": {"type": "array", "elemType": "servicePort"}
+    },
+
+    "subResources": {
+        "servicePort": {
+            "name": {"type": "string"},
+            "port": {"type": "int"},
+            "targetPort": {"type": "int"},
+            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
+        }
+    },
+
+    "resourceMethods": [ "GET", "DELETE" ],
+    "collectionMethods": [ "POST", "GET" ],
+        
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "serviceType": {"type": "enum", "validValues": ["clusterip", "nodeport"], "required": true},
+            "exposedPorts":  {"type": "array", "elemType": "servicePort", "required": true}
+        },
+
+        "subResources": {
+            "servicePort": {
+                "name": {"type": "string", "required": true},
+                "port": {"type": "int", "required": true},
+                "targetPort": {"type": "int", "required": true},
+                "protocol": {"type": "enum", "validValues": ["tcp", "udp"], "required": true}
+            }
+        }
+    }
+}
