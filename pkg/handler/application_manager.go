@@ -256,7 +256,8 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 		return fmt.Errorf("load chart %s with version %s info failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	if isAdmin(getCurrentUser(ctx)) == false && info.SystemChart {
+	isAdminUser := isAdmin(getCurrentUser(ctx))
+	if isAdminUser == false && info.SystemChart {
 		return fmt.Errorf("user %s no authority to create application with chart %s", getCurrentUser(ctx), app.ChartName)
 	}
 
@@ -281,7 +282,8 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
 
-	go createApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, namespace, genUrlPrefix(ctx, cluster.Name, namespace), app)
+	go createApplication(m.clusters.GetDB(), cluster.KubeClient, isAdminUser, tableName, namespace,
+		genUrlPrefix(ctx, cluster.Name, namespace), app)
 	return nil
 }
 
@@ -376,8 +378,8 @@ func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *ty
 	return manifests, nil
 }
 
-func createApplication(db storage.DB, cli client.Client, tableName, namespace, urlPrefix string, app *types.Application) {
-	appResources, err := createAppResources(cli, namespace, urlPrefix, app.Manifests)
+func createApplication(db storage.DB, cli client.Client, isAdmin bool, tableName, namespace, urlPrefix string, app *types.Application) {
+	appResources, err := createAppResources(cli, isAdmin, namespace, urlPrefix, app.Manifests)
 	if err != nil {
 		app.Status = types.AppStatusFailed
 		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
@@ -398,7 +400,7 @@ func createApplication(db storage.DB, cli client.Client, tableName, namespace, u
 	}
 }
 
-func createAppResources(cli client.Client, namespace, urlPrefix string, manifests []types.Manifest) (types.AppResources, error) {
+func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix string, manifests []types.Manifest) (types.AppResources, error) {
 	var appResources types.AppResources
 	for i, manifest := range manifests {
 		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
@@ -412,7 +414,14 @@ func createAppResources(cli client.Client, namespace, urlPrefix string, manifest
 				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
 			}
 
-			metaObj.SetNamespace(namespace)
+			if nm := metaObj.GetNamespace(); nm != "" {
+				if isAdmin == false {
+					return fmt.Errorf("chart file %s should not has namespace", manifest.File)
+				}
+			} else {
+				metaObj.SetNamespace(namespace)
+			}
+
 			if err := cli.Create(ctx, obj); err != nil {
 				if apierrors.IsAlreadyExists(err) {
 					manifests[i].Duplicate = true
