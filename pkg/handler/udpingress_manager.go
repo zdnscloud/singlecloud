@@ -165,12 +165,18 @@ func getTransportLayerIngress(cli client.Client, namespace, name string) ([]*typ
 				return nil, fmt.Errorf("nginx config map %s has invalid service port %s", NginxUDPConfigMapName, c.Name)
 			}
 
+			namespaceAndService := strings.Split(serviceAndPort[0], "/")
+			if len(namespaceAndService) == 2 {
+				name = namespaceAndService[1]
+			}
+
 			udpIngress := &types.UdpIngress{
 				Port:        port,
 				ServiceName: name,
 				ServicePort: svcPort,
 			}
 			udpIngress.SetID(name)
+			udpIngress.SetType(types.UdpIngressType)
 			ingresses = append(ingresses, udpIngress)
 		}
 	}

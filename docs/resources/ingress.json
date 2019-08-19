@@ -14,7 +14,7 @@
             "path": {"type": "string"},
             "serviceName": {"type": "string"},
             "servicePort": {"type": "int"}
-        },
+        }
     },
 
     "resourceMethods": [ "GET", "DELETE" ],
