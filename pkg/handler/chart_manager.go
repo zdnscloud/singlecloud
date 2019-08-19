@@ -76,6 +76,7 @@ func (m *ChartManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
+	chart.Name = chart.GetID()
 	chart.Description = description
 	chart.Icon = IconPrefix + chart.Name + IconFormat
 	chart.Versions = versions
