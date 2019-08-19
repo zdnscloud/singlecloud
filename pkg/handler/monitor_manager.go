@@ -158,7 +158,6 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 		return nil, fmt.Errorf("can not get etcd nodes info for this cluster")
 	}
 	p.KubeEtcd.EndPoints = etcds
-	fmt.Println(p.KubeEtcd.EndPoints)
 
 	if m.PrometheusRetention > 0 {
 		p.Prometheus.PrometheusSpec.Retention = strconv.Itoa(m.PrometheusRetention) + "d"
