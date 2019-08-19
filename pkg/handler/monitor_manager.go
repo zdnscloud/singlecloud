@@ -133,7 +133,7 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 	p := charts.Prometheus{
 		Grafana: charts.PrometheusGrafana{
 			Ingress: charts.PrometheusGrafanaIngress{
-				Hosts: []string{m.IngressDomain},
+				Hosts: m.IngressDomain,
 			},
 			AdminPassword: m.AdminPassword,
 		},

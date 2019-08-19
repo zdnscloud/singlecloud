@@ -7,9 +7,7 @@
    {{ template "grafana.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
 {{ if .Values.ingress.enabled }}
    From outside the cluster, the server URL(s) are:
-{{- range .Values.ingress.hosts }}
-     http://{{ . }}
-{{- end }}
+     http://{{ .Values.ingress.hosts }}
 {{ else }}
    Get the Grafana URL to visit by running these commands in the same shell:
 {{ if contains "NodePort" .Values.service.type -}}

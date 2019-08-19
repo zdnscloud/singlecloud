@@ -12,7 +12,7 @@ type PrometheusGrafana struct {
 }
 
 type PrometheusGrafanaIngress struct {
-	Hosts []string `json:"hosts"`
+	Hosts string `json:"hosts"`
 }
 
 type PrometheusPrometheus struct {

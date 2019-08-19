@@ -1,11 +1,10 @@
 [{
         "label": "ingressDomain",
         "jsonKey": "grafana.ingress.hosts",
-        "type": "array",
-        "elemType": "string",
+        "type": "string",
         "required": "true",
         "description": "the ingress domain of cluster monitor service",
-        "default": ["monitor.cluster.local"]
+        "default": "monitor.cluster.local"
     },
     {
         "label": "adminPassword",
@@ -29,7 +28,7 @@
         "type": "string",
         "required": "false",
         "description": "prometheus scrape interval(s)",
-        "default": ""
+        "default": "15s"
     },
     {
         "label": "prometheusStorageClass",
