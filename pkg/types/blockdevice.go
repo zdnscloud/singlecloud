@@ -17,9 +17,6 @@ type BlockDevice struct {
 }
 
 type Dev struct {
-	Name       string `json:"name"`
-	Size       string `json:"size"`
-	Parted     bool   `json:"parted"`
-	Filesystem bool   `json:"filesystem"`
-	Mount      bool   `json:"mount"`
+	Name string `json:"name"`
+	Size string `json:"size"`
 }
