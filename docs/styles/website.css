@@ -2,3 +2,36 @@
 .gb-page-header .container .logo h1 {
     font-size: 24px ;
 }
+
+.book-summary {
+    background-color: #0b334e;
+    color: #ffffff;
+}
+
+.book-summary > #book-search-input {
+    display: none;
+}
+
+.book-summary ul.summary li.header {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+}
+
+.book-summary ul.summary li.active>a {
+    background-color: #07A6F0;
+    color: #ffffff;
+}
+
+.book-body {
+    background-color: #EFF4F9;
+    color: #576067;
+}
+
+.body-inner > .book-header {
+    visibility: hidden;
+}
+
+.book-summary ul.summary li a, 
+.book-summary ul.summary li span {
+    color: #ffffff;
+}
