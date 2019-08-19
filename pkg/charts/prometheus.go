@@ -4,7 +4,7 @@ type Prometheus struct {
 	Grafana      PrometheusGrafana      `json:"grafana"`
 	Prometheus   PrometheusPrometheus   `json:"prometheus"`
 	AlertManager PrometheusAlertManager `json:"alertmanager"`
-	KubeEtcd     PrometheusEtcd         `json:"kubeetcd"`
+	KubeEtcd     PrometheusEtcd         `json:"kubeEtcd"`
 }
 
 type PrometheusGrafana struct {
