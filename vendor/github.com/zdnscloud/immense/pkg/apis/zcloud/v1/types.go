@@ -25,7 +25,7 @@ type HostInfo struct {
 
 type Dev struct {
 	Name string `json:"name"`
-	Size string `json:"szie"`
+	Size string `json:"size"`
 }
 
 // ClusterStatus defines the observed state of Cluster
