@@ -580,11 +580,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:1f2d81341a08a1c896fe90bbe9226b4d9423437e3d774897c03490196ccf2e6d"
+  digest = "1:2877c96edcef0049e0e97b4fc5aa431ed8e78f0f78d7951a5f4c2a6f8f969217"
   name = "github.com/zdnscloud/goproxy"
   packages = ["."]
   pruneopts = "UT"
-  revision = "dc4bd46bd9df2073d78a118a85488aed28e8b3c9"
+  revision = "89eeea17b1b41d16b8ec2cda9783ad2a34a404b9"
 
 [[projects]]
   branch = "master"
