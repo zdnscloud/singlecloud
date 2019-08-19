@@ -219,12 +219,12 @@ kubeEtcd:
       component: etcd
   serviceMonitor:
     interval: ""
-    scheme: http
+    scheme: https
     insecureSkipVerify: false
     serverName: ""
-    caFile: ""
-    certFile: ""
-    keyFile: ""
+    caFile: /etc/prometheus/secrets/zcloud-monitor-etcd-client-cert/etcd-ca
+    certFile: /etc/prometheus/secrets/zcloud-monitor-etcd-client-cert/etcd-client
+    keyFile: /etc/prometheus/secrets/zcloud-monitor-etcd-client-cert/etcd-client-key
     metricRelabelings: []
     relabelings: []
 
@@ -405,7 +405,7 @@ prometheus:
     prometheusExternalLabelNameClear: false
     externalUrl: ""
     nodeSelector: {}
-    secrets: []
+    secrets: ["zcloud-monitor-etcd-client-cert"]
     configMaps: []
     query: {}
     ruleNamespaceSelector: {}

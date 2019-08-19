@@ -4,6 +4,7 @@ type Prometheus struct {
 	Grafana      PrometheusGrafana      `json:"grafana"`
 	Prometheus   PrometheusPrometheus   `json:"prometheus"`
 	AlertManager PrometheusAlertManager `json:"alertmanager"`
+	KubeEtcd     PrometheusEtcd         `json:"kubeetcd"`
 }
 
 type PrometheusGrafana struct {
@@ -33,4 +34,9 @@ type PrometheusAlertManager struct {
 type AlertManagerSpec struct {
 	StorageClass string `json:"storageClass"`
 	StorageSize  string `json:"storageSize"`
+}
+
+type PrometheusEtcd struct {
+	Enabled   bool     `json:"enabled"`
+	EndPoints []string `json:"endpoints"`
 }

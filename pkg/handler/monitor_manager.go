@@ -148,7 +148,16 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 				StorageClass: m.StorageClass,
 			},
 		},
+		KubeEtcd: charts.PrometheusEtcd{
+			Enabled: true,
+		},
 	}
+
+	etcds := getClusterEtcds(cli)
+	if len(etcds) == 0 {
+		return nil, fmt.Errorf("can not get etcd nodes info for this cluster")
+	}
+	p.KubeEtcd.EndPoints = etcds
 
 	if m.PrometheusRetention > 0 {
 		p.Prometheus.PrometheusSpec.Retention = strconv.Itoa(m.PrometheusRetention) + "d"
@@ -222,4 +231,18 @@ func getFirstEdgeNodeAddress(cli client.Client) string {
 		}
 	}
 	return ""
+}
+
+func getClusterEtcds(cli client.Client) []string {
+	nodes, err := getNodes(cli)
+	if err != nil {
+		return nil
+	}
+	etcds := []string{}
+	for _, n := range nodes {
+		if n.HasRole(types.RoleEtcd) {
+			etcds = append(etcds, n.Address)
+		}
+	}
+	return etcds
 }
