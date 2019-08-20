@@ -215,7 +215,10 @@ func deleteAppResources(cli client.Client, namespace string, manifests []types.M
 				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
 			}
 
-			metaObj.SetNamespace(namespace)
+			if metaObj.GetNamespace() == "" {
+				metaObj.SetNamespace(namespace)
+			}
+
 			if err := cli.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil {
 				if apierrors.IsNotFound(err) == false {
 					return fmt.Errorf("delete resource with file %s failed: %s", manifest.File, err.Error())
@@ -283,7 +286,7 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 	}
 
 	go createApplication(m.clusters.GetDB(), cluster.KubeClient, isAdminUser, tableName, namespace,
-		genUrlPrefix(ctx, cluster.Name, namespace), app)
+		genUrlPrefix(ctx, cluster.Name), app)
 	return nil
 }
 
@@ -418,6 +421,7 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				if isAdmin == false {
 					return fmt.Errorf("chart file %s should not has namespace", manifest.File)
 				}
+				namespace = nm
 			} else {
 				metaObj.SetNamespace(namespace)
 			}
@@ -436,7 +440,7 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				appResources = append(appResources, types.AppResource{
 					Name: metaObj.GetName(),
 					Type: typ,
-					Link: path.Join(urlPrefix, restutil.GuessPluralName(typ)),
+					Link: path.Join(urlPrefix, namespace, restutil.GuessPluralName(typ), metaObj.GetName()),
 				})
 			}
 			return nil
@@ -482,21 +486,21 @@ func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]
 	return m, nil
 }
 
-func genUrlPrefix(ctx *resttypes.Context, clusterName, namespace string) string {
+func genUrlPrefix(ctx *resttypes.Context, clusterName string) string {
 	req := ctx.Request
 	scheme := "http"
 	if req.TLS != nil {
 		scheme = "https"
 	}
 
-	urls := strings.SplitAfterN(req.URL.Path, "/namespaces/"+namespace, 2)
+	urls := strings.SplitAfterN(req.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", clusterName), 2)
 	if len(urls) == 2 {
 		return fmt.Sprintf("%s://%s%s", scheme, req.Host, urls[0])
 	} else {
 		apiVersion := ctx.Object.GetSchema().Version
 		return path.Join(fmt.Sprintf("%s://%s", scheme, req.Host),
 			resttypes.GroupPrefix, apiVersion.Group, apiVersion.Version,
-			fmt.Sprintf("/clusters/%s/namespaces/%s", clusterName, namespace))
+			fmt.Sprintf("/clusters/%s/namespaces/", clusterName))
 	}
 }
 
