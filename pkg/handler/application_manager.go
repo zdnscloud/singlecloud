@@ -417,11 +417,12 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
 			}
 
+			tmpNS := namespace
 			if nm := metaObj.GetNamespace(); nm != "" {
 				if isAdmin == false {
 					return fmt.Errorf("chart file %s should not has namespace", manifest.File)
 				}
-				namespace = nm
+				tmpNS = nm
 			} else {
 				metaObj.SetNamespace(namespace)
 			}
@@ -440,7 +441,7 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				appResources = append(appResources, types.AppResource{
 					Name: metaObj.GetName(),
 					Type: typ,
-					Link: path.Join(urlPrefix, namespace, restutil.GuessPluralName(typ), metaObj.GetName()),
+					Link: path.Join(urlPrefix, tmpNS, restutil.GuessPluralName(typ), metaObj.GetName()),
 				})
 			}
 			return nil
