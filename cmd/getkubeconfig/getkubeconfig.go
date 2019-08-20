@@ -25,11 +25,19 @@ func login(addr string, user, password string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 	token := struct {
 		Token string `json:"token"`
 	}{}
-	json.Unmarshal(body, &token)
+	if err := json.Unmarshal(body, &token); err != nil {
+		return "", err
+	}
+	if token.Token == "" {
+		return "", fmt.Errorf("got empty token please check password")
+	}
 	return token.Token, nil
 }
 
