@@ -2,7 +2,6 @@ package charts
 
 type Vanguard struct {
 	Deployment VanguardDeploy    `json:"deployment"`
-	Service    VanguardService   `json:"service"`
 	Configmap  VanguardConfigmap `json:"configmap"`
 }
 
@@ -23,11 +22,6 @@ type LivenessProbe struct {
 
 type ProbeHttpGet struct {
 	Port int `json:"port" rest:"required=false,default=9000"`
-}
-
-type VanguardService struct {
-	Port     int    `json:"port" rest:"required=false,default=53"`
-	Protocol string `json:"protocol" rest:"required=false,default=UDP,options=UDP|TCP"`
 }
 
 type VanguardConfigmap struct {

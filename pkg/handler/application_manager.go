@@ -408,7 +408,7 @@ func createAppResources(cli client.Client, namespace, urlPrefix string, manifest
 				appResources = append(appResources, types.AppResource{
 					Name: metaObj.GetName(),
 					Type: typ,
-					Link: path.Join(urlPrefix, restutil.GuessPluralName(typ)),
+					Link: path.Join(urlPrefix, restutil.GuessPluralName(typ), metaObj.GetName()),
 				})
 			}
 			return nil
