@@ -9,10 +9,10 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -22,6 +22,8 @@ const (
 	monitorChartVersion      = "6.4.1"
 	monitorTableName         = "cluster_monitor"
 	zcloudDynamicalDnsPrefix = "zc.zdns.cn"
+	monitorAppStorageClass   = "lvm"
+	monitorAppStorageSize    = "10Gi"
 )
 
 type MonitorManager struct {
@@ -50,7 +52,7 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "cluster monitor has enabled")
 	}
 
-	app, err := genMonitorApplication(cluster.KubeClient, monitor)
+	app, err := genMonitorApplication(cluster.KubeClient, monitor, cluster.Name)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
@@ -89,25 +91,21 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return resttypes.NewAPIError(resttypes.NotFound,
-				fmt.Sprintf("cluster monitor application %s doesn't exist", monitorAppName))
-		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("delete cluster monitor application %s failed: %s", monitorAppName, err.Error()))
-		}
-	}
 	if err := m.deleteFromDB(cluster.Name); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
+	}
+
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
+	if err != nil {
+		log.Errorf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error())
+		return nil
 	}
 	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, monitorNameSpace), monitorNameSpace, app)
 	return nil
 }
 
-func genMonitorApplication(cli client.Client, m *types.Monitor) (*types.Application, error) {
-	config, err := genMonitorConfigs(cli, m)
+func genMonitorApplication(cli client.Client, m *types.Monitor, clusterName string) (*types.Application, error) {
+	config, err := genMonitorConfigs(cli, m, clusterName)
 	if err != nil {
 		return nil, err
 	}
@@ -120,13 +118,13 @@ func genMonitorApplication(cli client.Client, m *types.Monitor) (*types.Applicat
 	}, nil
 }
 
-func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
+func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) ([]byte, error) {
 	if len(m.IngressDomain) == 0 {
 		firstEdgeNodeIP := getFirstEdgeNodeAddress(cli)
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		m.IngressDomain = "monitor." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		m.IngressDomain = monitorAppName + "-" + monitorNameSpace + "-svc-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
 
@@ -139,11 +137,14 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 		},
 		Prometheus: charts.PrometheusPrometheus{
 			PrometheusSpec: charts.PrometheusSpec{
-				StorageSize: strconv.Itoa(m.StorageSize) + "Gi",
+				StorageClass: monitorAppStorageClass,
+				StorageSize:  monitorAppStorageSize,
 			},
 		},
 		AlertManager: charts.PrometheusAlertManager{
-			AlertManagerSpec: charts.AlertManagerSpec{},
+			AlertManagerSpec: charts.AlertManagerSpec{
+				StorageClass: monitorAppStorageClass,
+			},
 		},
 		KubeEtcd: charts.PrometheusEtcd{
 			Enabled: true,
@@ -165,6 +166,9 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 	if len(m.StorageClass) > 0 {
 		p.AlertManager.AlertManagerSpec.StorageClass = m.StorageClass
 		p.Prometheus.PrometheusSpec.StorageClass = m.StorageClass
+	}
+	if m.StorageSize > 0 {
+		p.Prometheus.PrometheusSpec.StorageSize = strconv.Itoa(m.StorageSize) + "Gi"
 	}
 
 	content, err := json.Marshal(&p)

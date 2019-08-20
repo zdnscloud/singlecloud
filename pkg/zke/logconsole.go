@@ -22,7 +22,7 @@ func (m *ZKEManager) OpenLog(clusterID string, r *http.Request, w http.ResponseW
 	}
 
 	if cluster.logCh == nil {
-		log.Warnf("only cluster in createing and updateing state can open zke log console", clusterID)
+		log.Warnf("cluster %s log channel is empty", clusterID)
 		return
 	}
 	cluster.openLog(r, w)
@@ -50,6 +50,7 @@ func (c *Cluster) openLog(r *http.Request, w http.ResponseWriter) {
 			if !ok {
 				break
 			}
+			log.Infof("", logString)
 			err := session.Send(logString)
 			if err != nil {
 				log.Warnf("send log failed:%s", err.Error())

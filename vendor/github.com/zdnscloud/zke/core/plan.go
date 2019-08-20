@@ -687,6 +687,7 @@ func (c *Cluster) BuildEtcdProcess(host *hosts.Host, etcdHosts []*hosts.Host, pr
 		"key-file":                    pki.GetKeyPath(nodeName),
 		"peer-cert-file":              pki.GetCertPath(nodeName),
 		"peer-key-file":               pki.GetKeyPath(nodeName),
+		"listen-metrics-urls":         "http://" + host.InternalAddress + ":2381",
 	}
 
 	Binds := []string{

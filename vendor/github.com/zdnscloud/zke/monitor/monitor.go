@@ -40,12 +40,6 @@ func DeployMonitoring(ctx context.Context, c *core.Cluster) error {
 			return err
 		}
 
-		err = deployEtcdClientCert(k8sClient, c)
-		if err != nil {
-			log.Infof(ctx, "[Monitor] deploy prometheus etcd client cert secret failed")
-			return err
-		}
-
 		log.Infof(ctx, "[Monitor] Successfully deployed Monitor Plugin")
 		return nil
 	}
@@ -89,21 +83,4 @@ func deployCrdFromBase64(cli client.Client, b64String string) error {
 		return err
 	}
 	return helper.CreateResourceFromYaml(cli, string(yamlBytes))
-}
-
-func getEtcdClient(c *core.Cluster) (string, string, string) {
-	ca := c.Certificates[pki.CACertName].CertificatePEM
-	clientCert := c.Certificates[pki.KubeNodeCertName].CertificatePEM
-	clientKey := c.Certificates[pki.KubeNodeCertName].KeyPEM
-	return b64.StdEncoding.EncodeToString([]byte(ca)), b64.StdEncoding.EncodeToString([]byte(clientCert)), b64.StdEncoding.EncodeToString([]byte(clientKey))
-}
-
-func deployEtcdClientCert(cli client.Client, c *core.Cluster) error {
-	etcdClientCa, etcdClientCert, etcdClientKey := getEtcdClient(c)
-	templateConfig := map[string]interface{}{
-		"EtcdClientCa":   etcdClientCa,
-		"EtcdClientCert": etcdClientCert,
-		"EtcdClientKey":  etcdClientKey,
-	}
-	return k8s.DoCreateFromTemplate(cli, prometheus.EtcdClientCertTemplate, templateConfig)
 }

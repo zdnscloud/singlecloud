@@ -1,6 +1,6 @@
 ingress:
-    core: registry.cluster.w
-    notary: notary.cluster.w
+    core: ""
+    notary: ""
     caCrt: ""
     tlsCrt: ""
     tlsKey: ""
@@ -382,7 +382,7 @@ clair:
   podAnnotations: {}
 
 notary:
-  enabled: true
+  enabled: false
   server:
     image:
       repository: zdnscloud/goharbor-notary-server-photon

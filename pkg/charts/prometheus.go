@@ -33,7 +33,6 @@ type PrometheusAlertManager struct {
 
 type AlertManagerSpec struct {
 	StorageClass string `json:"storageClass"`
-	StorageSize  string `json:"storageSize"`
 }
 
 type PrometheusEtcd struct {

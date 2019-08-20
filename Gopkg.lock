@@ -633,8 +633,8 @@
   revision = "b01ceb172ce64e60ee1f42ca75724ddcf6e76ae7"
 
 [[projects]]
-  branch = "master"
-  digest = "1:ba9a3bafbe830e6d04dad3a6f56cbe01f9c31fd5b4b31c919d2dbaf53600a12d"
+  branch = "prometheus-operator"
+  digest = "1:14349de27fc55438d9e6bc620275e187aa49890bbb8ab4016a8ebd5573f3c313"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -663,7 +663,7 @@
     "zcloud/storage",
   ]
   pruneopts = "UT"
-  revision = "6f62b8aca75c1479ad667acf6aa66bc6009747dc"
+  revision = "737fa01f86edb2e6bf4211f1d986ae6c384b3060"
 
 [[projects]]
   branch = "master"

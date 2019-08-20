@@ -291,6 +291,7 @@ func (m *ZKEManager) get(id string) *Cluster {
 func (m *ZKEManager) moveToreadyWithLock(c *Cluster) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	c.logCh = nil
 	m.readyClusters = append(m.readyClusters, c)
 	for i, cluster := range m.unreadyClusters {
 		if cluster.Name == c.Name {

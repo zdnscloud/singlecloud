@@ -2,6 +2,7 @@ package zke
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
@@ -27,6 +28,9 @@ func validateNodes(c *types.Cluster) error {
 		return err
 	}
 	if err := validateDuplicateNodes(c); err != nil {
+		return err
+	}
+	if err := isSinlecloudInClusterNodes(c); err != nil {
 		return err
 	}
 	return validateNodeCount(c)
@@ -127,6 +131,16 @@ func validateUnallowDeleteNodes(oldCluster, newCluster *types.Cluster) error {
 			if !etcdHosts.Member(n.Address) {
 				return fmt.Errorf("etcd node only can add, %s not in new config", n.Address)
 			}
+		}
+	}
+	return nil
+}
+
+func isSinlecloudInClusterNodes(c *types.Cluster) error {
+	scIp := strings.Split(c.SingleCloudAddress, ":")[0]
+	for _, n := range c.Nodes {
+		if n.Address == scIp {
+			return fmt.Errorf("singlecloud server %s cant't be an node", n.Address)
 		}
 	}
 	return nil
