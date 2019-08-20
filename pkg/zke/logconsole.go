@@ -50,7 +50,7 @@ func (c *Cluster) openLog(r *http.Request, w http.ResponseWriter) {
 			if !ok {
 				break
 			}
-			log.Infof("", logString)
+
 			err := session.Send(logString)
 			if err != nil {
 				log.Warnf("send log failed:%s", err.Error())
