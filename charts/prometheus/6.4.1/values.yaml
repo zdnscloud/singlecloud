@@ -96,7 +96,7 @@ alertmanager:
     replicas: 1
     retention: 120h
     storageClass: lvm
-    storageSize: 5Gi
+    storageSize: 2Gi
     externalUrl:
     routePrefix: /
     paused: false
@@ -211,21 +211,20 @@ kubeDns:
 
 kubeEtcd:
   enabled: true
-  endpoints: 
-  - 202.173.9.61
+  endpoints: []
   service:
-    port: 2379
-    targetPort: 2379
+    port: 2381
+    targetPort: 2381
     selector:
       component: etcd
   serviceMonitor:
     interval: ""
-    scheme: https
+    scheme: http
     insecureSkipVerify: false
     serverName: ""
-    caFile: /etc/prometheus/secrets/zcloud-monitor-etcd-client-cert/etcd-ca
-    certFile: /etc/prometheus/secrets/zcloud-monitor-etcd-client-cert/etcd-client
-    keyFile: /etc/prometheus/secrets/zcloud-monitor-etcd-client-cert/etcd-client-key
+    caFile: ""
+    certFile: ""
+    keyFile: ""
     metricRelabelings: []
     relabelings: []
 
@@ -406,7 +405,7 @@ prometheus:
     prometheusExternalLabelNameClear: false
     externalUrl: ""
     nodeSelector: {}
-    secrets: ["zcloud-monitor-etcd-client-cert"]
+    secrets: []
     configMaps: []
     query: {}
     ruleNamespaceSelector: {}

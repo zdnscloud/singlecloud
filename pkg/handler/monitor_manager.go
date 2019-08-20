@@ -139,14 +139,11 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 		},
 		Prometheus: charts.PrometheusPrometheus{
 			PrometheusSpec: charts.PrometheusSpec{
-				StorageClass: m.StorageClass,
-				StorageSize:  strconv.Itoa(m.StorageSize) + "Gi",
+				StorageSize: strconv.Itoa(m.StorageSize) + "Gi",
 			},
 		},
 		AlertManager: charts.PrometheusAlertManager{
-			AlertManagerSpec: charts.AlertManagerSpec{
-				StorageClass: m.StorageClass,
-			},
+			AlertManagerSpec: charts.AlertManagerSpec{},
 		},
 		KubeEtcd: charts.PrometheusEtcd{
 			Enabled: true,
@@ -165,6 +162,11 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor) ([]byte, error) {
 	if m.ScrapeInterval > 0 {
 		p.Prometheus.PrometheusSpec.ScrapeInterval = strconv.Itoa(m.ScrapeInterval) + "s"
 	}
+	if len(m.StorageClass) > 0 {
+		p.AlertManager.AlertManagerSpec.StorageClass = m.StorageClass
+		p.Prometheus.PrometheusSpec.StorageClass = m.StorageClass
+	}
+
 	content, err := json.Marshal(&p)
 	if err != nil {
 		return nil, err
