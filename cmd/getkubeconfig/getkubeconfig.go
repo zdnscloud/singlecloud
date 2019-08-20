@@ -40,7 +40,10 @@ func hashPassword(password string) string {
 
 func getClusterKubeConfig(addr, token, clusterName string) string {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s?action=getkubeconfig", addr, clusterName)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte{}))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		log.Fatalf("struct getkubeconfig action http request failed %s", err.Error())
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+token)
 	client := &http.Client{}
@@ -50,13 +53,21 @@ func getClusterKubeConfig(addr, token, clusterName string) string {
 	}
 
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("read reposence body failed %s", err.Error())
+	}
 
 	kubeConfig := struct {
 		Name   string `json:"name"`
 		Config string `json:"config"`
 	}{}
-	json.Unmarshal(body, &kubeConfig)
+	if err := json.Unmarshal(body, &kubeConfig); err != nil {
+		log.Fatalf("unmarshal kubeConfig failed %s", err.Error())
+	}
+	if kubeConfig.Config == "" {
+		log.Fatalf("got empty kubeConfig from singlecloud")
+	}
 	return kubeConfig.Config
 }
 
