@@ -280,6 +280,7 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 	app.Manifests = manifests
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
+	app.ChartIcon = genChartIcon(app.ChartName)
 	tableName := genAppTableName(cluster.Name, namespace)
 	if err := addOrUpdateAppToDB(m.clusters.GetDB(), tableName, app, true); err != nil {
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())

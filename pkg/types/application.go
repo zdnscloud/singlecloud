@@ -25,6 +25,7 @@ type Application struct {
 	Name               string          `json:"name"`
 	ChartName          string          `json:"chartName"`
 	ChartVersion       string          `json:"chartVersion"`
+	ChartIcon          string          `json:"chartIcon"`
 	Status             string          `json:"status"`
 	AppResources       []AppResource   `json:"appResources,omitempty"`
 	Configs            json.RawMessage `json:"configs,omitempty"`
