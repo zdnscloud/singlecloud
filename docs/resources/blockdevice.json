@@ -10,10 +10,7 @@
     "subResources":{
         "blockDevice":{
             "name":{"type":"string"},
-            "size":{"type":"string"},
-            "parted":{"type":"bool"},
-            "filesystem":{"type":"bool"},
-            "mount":{"type":"bool"}
+            "size":{"type":"string"}
         }
     },
 
