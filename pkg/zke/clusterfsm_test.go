@@ -18,7 +18,7 @@ const (
 	testClusterName3 = "local3"
 )
 
-// event list: add->update->delete->add->update->delete->delete->update
+// event list: add->delete->add->delete->add->delete->add->delete->delete->delete->add
 func pubEventLoop(eventCh chan interface{}, t *testing.T) {
 	for {
 		obj, ok := <-eventCh
@@ -28,8 +28,6 @@ func pubEventLoop(eventCh chan interface{}, t *testing.T) {
 		switch obj.(type) {
 		case AddCluster:
 			fmt.Println("pubEventLoop receive add cluster event:")
-		case UpdateCluster:
-			fmt.Println("pubEventLoop receive update cluster event")
 		case DeleteCluster:
 			fmt.Println("pubEventLoop receive delete cluster event")
 		}
@@ -49,7 +47,6 @@ func TestClusterFsm(t *testing.T) {
 	if err != nil {
 		fmt.Println("create zkeManager obj failed", err)
 	}
-	go pubEventLoop(mgr.PubEventCh, t)
 
 	// cluster local:Init->Connecting->Running->Unreachable->Running->Updating->Unavailable->Updating->
 	// Running->Updating->Canceling->Unavailable->Deleted
@@ -152,6 +149,7 @@ func TestClusterFsm(t *testing.T) {
 
 	cluster3.fsm.Event(UpdateSuccessEvent, mgr, state) //there will send an update cluster event
 	ut.Equal(t, cluster3.getStatus(), types.CSRunning)
+	go pubEventLoop(mgr.PubEventCh, t)
 	time.Sleep(time.Second * 5)
 	close(mgr.PubEventCh)
 }

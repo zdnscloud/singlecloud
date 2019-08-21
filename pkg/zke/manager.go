@@ -143,6 +143,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 	}
 	c.fsm.Event(UpdateEvent)
 
+	m.sendPubEvent(DeleteCluster{Cluster: c})
 	zkectx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	go c.update(zkectx, state, m)
