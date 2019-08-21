@@ -42,7 +42,7 @@ func (m *UDPIngressManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 	ingress := ctx.Object.(*types.UdpIngress)
 	err := createUDPIngress(cluster.KubeClient, namespace, ingress)
 	if err == nil {
-		ingress.SetID(ingress.ServiceName)
+		ingress.SetID(strconv.Itoa(ingress.Port))
 		return ingress, nil
 	}
 
@@ -102,17 +102,16 @@ func (m *UDPIngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 }
 
-func deleteTransportLayerIngress(cli client.Client, namespace, name string) (bool, error) {
+func deleteTransportLayerIngress(cli client.Client, namespace, port string) (bool, error) {
 	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, NginxUDPConfigMapName)
 	if err != nil {
 		return false, err
 	}
 
-	svcName := fmt.Sprintf("%s/%s", namespace, name)
 	cm := k8sConfigMapToSCConfigMap(k8sCM)
 	for i, c := range cm.Configs {
 		serviceAndPort := strings.Split(c.Data, ":")
-		if len(serviceAndPort) == 2 && serviceAndPort[0] == svcName {
+		if len(serviceAndPort) == 2 && serviceAndPort[1] == port {
 			cm.Configs = append(cm.Configs[:i], cm.Configs[i+1:]...)
 			return true, updateConfigMap(cli, NginxIngressNamespace, cm)
 		}
@@ -175,7 +174,7 @@ func getTransportLayerIngress(cli client.Client, namespace, name string) ([]*typ
 				ServiceName: name,
 				ServicePort: svcPort,
 			}
-			udpIngress.SetID(name)
+			udpIngress.SetID(serviceAndPort[1])
 			udpIngress.SetType(types.UdpIngressType)
 			ingresses = append(ingresses, udpIngress)
 		}
