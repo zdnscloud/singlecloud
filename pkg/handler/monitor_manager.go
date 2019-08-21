@@ -52,6 +52,10 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "cluster monitor has enabled")
 	}
 
+	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("lvm storageclass does't exist in cluster %s", cluster.Name))
+	}
+
 	app, err := genMonitorApplication(cluster.KubeClient, monitor, cluster.Name)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
