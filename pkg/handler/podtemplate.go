@@ -238,7 +238,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 		var env []corev1.EnvVar
 		for i, volume := range c.Volumes {
 			readOnly := true
-			volumeName := VolumeNamePrefix + strconv.Itoa(i)
+			volumeName := c.Name + "-" + VolumeNamePrefix + strconv.Itoa(i)
 			var volumeSource corev1.VolumeSource
 			switch volume.Type {
 			case types.VolumeTypeConfigMap:
