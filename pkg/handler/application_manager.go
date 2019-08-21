@@ -249,6 +249,12 @@ func deleteApplicationFromDB(db storage.DB, tableName, name string) error {
 }
 
 func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
+	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
+		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
+	} else if exists == false {
+		return fmt.Errorf("namespace %s is not found", namespace)
+	}
+
 	chartPath := path.Join(m.chartDir, app.ChartName, app.ChartVersion)
 	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
 		return err
@@ -269,12 +275,6 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 	manifests, err := loadChartFiles(ctx, namespace, chartPath, app)
 	if err != nil {
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
-	}
-
-	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
-		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
-	} else if exists == false {
-		return fmt.Errorf("namespace %s is not found", namespace)
 	}
 
 	app.Manifests = manifests
