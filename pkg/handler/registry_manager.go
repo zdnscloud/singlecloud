@@ -10,7 +10,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/x509"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
@@ -100,17 +99,15 @@ func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, registryNameSpace), registryAppName, types.AppStatusDelete)
+	if err != nil {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error()))
+	}
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, registryNameSpace), registryNameSpace, app)
 	if err := m.deleteFromDB(); err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete registry from db failed: %s", err.Error()))
 	}
-
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, registryNameSpace), registryAppName, types.AppStatusDelete)
-	if err != nil {
-		log.Errorf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error())
-		return nil
-	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, registryNameSpace), registryNameSpace, app)
 	return nil
 }
 

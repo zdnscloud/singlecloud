@@ -9,7 +9,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -95,16 +94,15 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
+	if err != nil {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error()))
+	}
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, monitorNameSpace), monitorNameSpace, app)
+
 	if err := m.deleteFromDB(cluster.Name); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
 	}
-
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
-	if err != nil {
-		log.Errorf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error())
-		return nil
-	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, monitorNameSpace), monitorNameSpace, app)
 	return nil
 }
 
