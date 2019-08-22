@@ -633,7 +633,7 @@
   revision = "b01ceb172ce64e60ee1f42ca75724ddcf6e76ae7"
 
 [[projects]]
-  branch = "prometheus-operator"
+  branch = "master"
   digest = "1:728090ca4fb83cee648568126701375ff99eafed3acd779ad8a0b6b254e9d1e7"
   name = "github.com/zdnscloud/zke"
   packages = [

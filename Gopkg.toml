@@ -79,7 +79,7 @@
   version = "v10.0.0"
 
 [[constraint]]
-  branch = "prometheus-operator"
+  branch = "master"
   name = "github.com/zdnscloud/zke"
 
 [[constraint]]
