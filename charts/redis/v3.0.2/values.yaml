@@ -174,9 +174,9 @@ master:
     ##   GKE, AWS & OpenStack)
     ##
     # storageClass: "-"
-    storageClass: "cephfs"
+    storageClass: "lvm"
     accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
     size: 8Gi
 
 

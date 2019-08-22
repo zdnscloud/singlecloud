@@ -143,6 +143,16 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 	}
 	c.fsm.Event(UpdateEvent)
 
+	select {
+	case _, ok := <-c.stopCh:
+		if !ok {
+			m.sendPubEvent(DeleteCluster{Cluster: c})
+		}
+	default:
+		close(c.stopCh)
+		m.sendPubEvent(DeleteCluster{Cluster: c})
+	}
+
 	zkectx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 	go c.update(zkectx, state, m)
@@ -218,9 +228,17 @@ func (m *ZKEManager) Delete(id string) *resttypes.APIError {
 	if err := deleteState(id, m.db); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster %s from database failed %s", id, err))
 	}
-	m.PubEventCh <- DeleteCluster{
-		Cluster: toDelete,
+
+	select {
+	case _, ok := <-toDelete.stopCh:
+		if !ok {
+			m.sendPubEvent(DeleteCluster{Cluster: toDelete})
+			return nil
+		}
+	default:
+		close(toDelete.stopCh)
 	}
+	m.sendPubEvent(DeleteCluster{Cluster: toDelete})
 	return nil
 }
 

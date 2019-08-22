@@ -64,7 +64,7 @@ var (
 			StorageOperator:           "zdnscloud/storage-operator:v1.8",
 		},
 		"v1.13.9": {
-			Etcd:                      "zdnscloud/coreos-etcd:v3.2.24",
+			Etcd:                      "zdnscloud/coreos-etcd:v3.3.10",
 			Kubernetes:                "zdnscloud/hyperkube:v1.13.9",
 			Alpine:                    "zdnscloud/zke-tools:v0.1.40",
 			NginxProxy:                "zdnscloud/zke-tools:v0.1.40",

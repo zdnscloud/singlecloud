@@ -25,6 +25,7 @@ const (
 	KubeAPIPort         = "6443"
 	EtcdPort1           = "2379"
 	EtcdPort2           = "2380"
+	EtcdPort3           = "2381"
 	ScedulerPort        = "10251"
 	ControllerPort      = "10252"
 	KubeletPort         = "10250"
@@ -69,6 +70,7 @@ const (
 var EtcdPortList = []string{
 	EtcdPort1,
 	EtcdPort2,
+	EtcdPort3,
 }
 
 var ControlPlanePortList = []string{

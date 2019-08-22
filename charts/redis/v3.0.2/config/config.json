@@ -1,7 +1,5 @@
 [
     { "label": "slaveCount", "jsonKey": "cluster.slaveCount", "type": "int", "required": "false", "description": "the number of redis slave", "default": 1},
     { "label": "masterPort", "jsonKey": "master.port", "type": "int", "required": "false", "description": "redis master port", "default": 6379},
-    { "label": "masterPersistentVolume", "jsonKey": "master.persistence.enabled", "type": "bool", "required": "true", "description": "redis if use persistent volume"},
-    { "label": "masterStorageClass", "jsonKey": "master.persistence.storageClass", "type": "enum", "required": "true", "description": "redis master storageclass", "validValues": ["cephfs", "lvm"]},
-    { "label": "masterAccessModes", "jsonKey": "master.persistence.accessModes", "type": "array", "required": "true", "description": "redis master persistent volume access mode", "elemType": "enum", "validValues": ["ReadWriteMany", "ReadWriteOnce"]}
+    { "label": "masterPersistentVolume", "jsonKey": "master.persistence.enabled", "type": "bool", "required": "true", "description": "redis if use persistent volume"}
 ]

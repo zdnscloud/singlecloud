@@ -115,7 +115,7 @@ func (m *NamespaceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 			fmt.Sprintf("can`t delete namespace %s for other user using", namespace.GetID()))
 	}
 
-	if err := clearApplications(m.clusters.GetDB(), cluster.KubeClient, namespace.GetID()); err != nil {
+	if err := clearApplications(m.clusters.GetDB(), cluster.KubeClient, cluster.Name, namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
 			return resttypes.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("delete namespace applications failed: %s", err.Error()))

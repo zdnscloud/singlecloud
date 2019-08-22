@@ -15,7 +15,5 @@ type RedisMaster struct {
 }
 
 type RedisPersistentVolume struct {
-	Enabled      bool     `json:"enabled" rest:"required=true"`
-	StorageClass string   `json:"storageClass" rest:"required=true,options=cephfs|lvm"`
-	AccessModes  []string `json:"accessModes" rest:"required=true,options=ReadWriteMany|ReadWriteOnce"`
+	Enabled bool `json:"enabled" rest:"required=true"`
 }
