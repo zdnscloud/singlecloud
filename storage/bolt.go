@@ -14,6 +14,11 @@ const (
 	openTimeout = 5 * time.Second
 )
 
+var (
+	ErrNotFoundResource  = fmt.Errorf("no found resource in db")
+	ErrDuplicateResource = fmt.Errorf("duplicate resource in db")
+)
+
 type Storage struct {
 	db *bolt.DB
 }
@@ -114,7 +119,7 @@ func (m *TableTX) Commit() error {
 
 func (m *TableTX) Add(key string, value []byte) error {
 	if v := m.bucket.Get([]byte(key)); v != nil {
-		return fmt.Errorf("duplicate resource %s", key)
+		return ErrDuplicateResource
 	}
 	return m.bucket.Put([]byte(key), value)
 }
@@ -125,7 +130,7 @@ func (m *TableTX) Delete(key string) error {
 
 func (m *TableTX) Update(key string, value []byte) error {
 	if v := m.bucket.Get([]byte(key)); v == nil {
-		return fmt.Errorf("no found resource by key %s", key)
+		return ErrNotFoundResource
 	}
 
 	return m.bucket.Put([]byte(key), value)
@@ -137,7 +142,7 @@ func (m *TableTX) Get(key string) ([]byte, error) {
 		copy(tmp, v)
 		return tmp, nil
 	} else {
-		return nil, fmt.Errorf("no found resource by key %s", key)
+		return nil, ErrNotFoundResource
 	}
 }
 

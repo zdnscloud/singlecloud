@@ -132,7 +132,7 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 	tableName := genAppTableName(cluster.Name, namespace)
 	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if err == storage.ErrNotFoundResource {
 			return resttypes.NewAPIError(resttypes.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
 		} else {
