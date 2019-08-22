@@ -8,7 +8,7 @@
         "replicas": {"type": "int"},
         "containers": {"type": "array", "elemType": "container"},
         "advancedOptions": {"type": "advancedOptions"},
-        "persistentClaimVolumes": {"type": "array", "elemType": "persistentClaimVolume"}
+        "persistentVolumes": {"type": "array", "elemType": "persistentVolume"}
     },
 
     "subResources": {
@@ -40,20 +40,9 @@
         },
 
         "advancedOptions": {
-            "relaodWhenConfigChange": {"type": "bool"},
-            "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
-            "exposedServices": {"type": "array", "elemType": "exposedService"},
+            "deletePVsWhenDeleteWorkload": {"type": "bool"},
+            "reloadWhenConfigChange": {"type": "bool"},
             "exposedMetric": {"type": "exposedMetric"}
-        },
-
-        "exposedService": {
-            "containerPortName" : {"type": "string"},
-            "servicePort" : {"type": "int"},
-            "autoCreateIngress" : {"type": "bool"},
-            "ingressHost" : {"type": "string"},
-            "ingressPath" : {"type": "string"},
-            "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
-            "ingressPort" : {"type": "int"}
         },
 
         "exposedMetric": {
@@ -61,7 +50,7 @@
             "port" : {"type": "int"}
         },
 
-        "persistentClaimVolume": {
+        "persistentVolume": {
             "name": {"type": "string"},
             "size": {"type": "string"},
             "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
@@ -77,7 +66,7 @@
             "replicas": {"type": "int", "required": true},
             "containers":  {"type": "array", "elemType": "container", "required": true},
             "advancedOptions": {"type": "advancedOptions"},
-            "persistentClaimVolumes": {"type": "array", "elemType": "persistentClaimVolume"}
+            "persistentVolumes": {"type": "array", "elemType": "persistentVolume"}
         },
 
         "subResources": {
@@ -109,20 +98,9 @@
             },
 
             "advancedOptions": {
-                "relaodWhenConfigChange": {"type": "bool"},
-                "exposedServiceType": {"type": "enum", "validValues": ["clusterip", "nodeport"]},
-                "exposedServices": {"type": "array", "elemType": "exposedService"},
+                "deletePVsWhenDeleteWorkload": {"type": "bool"},
+                "reloadWhenConfigChange": {"type": "bool"},
                 "exposedMetric": {"type": "exposedMetric"}
-            },
-
-            "exposedService": {
-                "containerPortName" : {"type": "string"},
-                "servicePort" : {"type": "int"},
-                "autoCreateIngress" : {"type": "bool"},
-                "ingressHost" : {"type": "string"},
-                "ingressPath" : {"type": "string"},
-                "ingressProtocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
-                "ingressPort" : {"type": "int"}
             },
 
             "exposedMetric": {
@@ -130,7 +108,7 @@
                 "port" : {"type": "int"}
             },
 
-            "persistentClaimVolume": {
+            "persistentVolume": {
                 "name": {"type": "string"},
                 "size": {"type": "string"},
                 "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}

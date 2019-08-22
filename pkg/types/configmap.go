@@ -21,7 +21,7 @@ type Config struct {
 type ConfigMap struct {
 	resttypes.Resource `json:",inline"`
 	Name               string   `json:"name"`
-	Configs            []Config `json:"configs"`
+	Configs            []Config `json:"configs,omitempty"`
 }
 
 var ConfigMapType = resttypes.GetResourceType(ConfigMap{})

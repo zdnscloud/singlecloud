@@ -55,8 +55,7 @@ func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 
 	namespace := ctx.Object.GetParent().GetID()
 	deploy := ctx.Object.(*types.Deployment)
-	err := createDeployment(cluster.KubeClient, namespace, deploy)
-	if err != nil {
+	if err := createDeployment(cluster.KubeClient, namespace, deploy); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate deploy name %s", deploy.Name))
 		} else {
@@ -65,11 +64,6 @@ func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 	}
 
 	deploy.SetID(deploy.Name)
-	if err := createServiceAndIngress(deploy.Containers, deploy.AdvancedOptions, cluster.KubeClient, namespace, deploy.Name, false); err != nil {
-		deleteDeployment(cluster.KubeClient, namespace, deploy.Name)
-		return nil, err
-	}
-
 	return deploy, nil
 }
 
@@ -182,9 +176,8 @@ func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
 	}
 
-	opts, ok := k8sDeploy.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
-		deleteServiceAndIngress(cluster.KubeClient, namespace, deploy.GetID(), opts)
+	if delete, ok := k8sDeploy.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
+		deleteWorkLoadPVCs(cluster.KubeClient, namespace, k8sDeploy.Spec.Template.Spec.Volumes)
 	}
 	return nil
 }
@@ -251,7 +244,7 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sDeploy.Spec.Template.Spec.Containers,
 		k8sDeploy.Spec.Template.Spec.Volumes)
 
-	pvcs, err := getPVCs(cli, k8sDeploy.Namespace, templates)
+	pvs, err := getPVCs(cli, k8sDeploy.Namespace, templates)
 	if err != nil {
 		return nil, err
 	}
@@ -263,11 +256,11 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	}
 
 	deploy := &types.Deployment{
-		Name:                   k8sDeploy.Name,
-		Replicas:               int(*k8sDeploy.Spec.Replicas),
-		Containers:             containers,
-		PersistentClaimVolumes: pvcs,
-		AdvancedOptions:        advancedOpts,
+		Name:              k8sDeploy.Name,
+		Replicas:          int(*k8sDeploy.Spec.Replicas),
+		Containers:        containers,
+		PersistentVolumes: pvs,
+		AdvancedOptions:   advancedOpts,
 	}
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetType(types.DeploymentType)

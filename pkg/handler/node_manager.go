@@ -12,6 +12,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/gok8s/helper"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -101,12 +102,12 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 		}
 	}
 
-	cpuAva := status.Allocatable.Cpu().Value()
+	cpuAva := status.Allocatable.Cpu().MilliValue()
 	memoryAva := status.Allocatable.Memory().Value()
 	podAva := status.Allocatable.Pods().Value()
 
 	usageMetrics := nodeMetrics[k8sNode.Name]
-	cpuUsed := usageMetrics.Usage.Cpu().Value()
+	cpuUsed := usageMetrics.Usage.Cpu().MilliValue()
 	memoryUsed := usageMetrics.Usage.Memory().Value()
 	podUsed := int64(podCountOnNode[k8sNode.Name])
 
@@ -118,9 +119,14 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 	os := nodeInfo.OperatingSystem + " " + nodeInfo.KernelVersion
 	osImage := nodeInfo.OSImage
 	dockderVersion := nodeInfo.ContainerRuntimeVersion
+	nodeStatus := types.NSReady
+	if helper.IsNodeReady(k8sNode) == false {
+		nodeStatus = types.NSNotReady
+	}
 
 	node := &types.Node{
 		Name:                 host,
+		Status:               nodeStatus,
 		Address:              address,
 		Roles:                getRoleFromLabels(k8sNode.Labels),
 		Labels:               k8sNode.Labels,
@@ -178,20 +184,20 @@ func getNodeMetrics(cli client.Client, name string) map[string]metricsapi.NodeMe
 
 var (
 	zkeRoleLabelPrefix = "node-role.kubernetes.io/"
-	zkeRoles           = []string{
-		"controlplane", "etcd", "worker", "edge", "storage",
+	zkeRoles           = []types.NodeRole{
+		types.RoleControlPlane, types.RoleEtcd, types.RoleWorker, types.RoleEdge, types.RoleStorage,
 	}
 )
 
-func getRoleFromLabels(labels map[string]string) []string {
+func getRoleFromLabels(labels map[string]string) []types.NodeRole {
 	hasLabel := func(lbs map[string]string, lb string) bool {
 		v, ok := lbs[lb]
 		return ok && v == "true"
 	}
 
-	var roles []string
+	var roles []types.NodeRole
 	for _, r := range zkeRoles {
-		if hasLabel(labels, zkeRoleLabelPrefix+r) {
+		if hasLabel(labels, zkeRoleLabelPrefix+string(r)) {
 			roles = append(roles, r)
 		}
 	}

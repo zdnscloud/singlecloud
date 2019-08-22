@@ -1,0 +1,34 @@
+{
+    "resourceType": "application",
+    "collectionName": "applications",
+    "parentResources": [ "namespace" ],
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "chartName": {"type": "string"},
+        "chartVersion": {"type": "string"},
+        "chartIcon": {"type": "string"},
+        "appResources": {"type": "appResource"},
+        "status": {"type": "enum", "validValues": ["create", "delete", "succeed", "failed"]}
+    },
+
+    "subResources": {
+        "appResource": {
+            "name": {"type": "string"},
+            "type": {"type": "enum", "validValues": ["deployment", "daemonset", "statefulset", "configmap", "secret", "service", "ingress", "cronjob", "job"]},
+            "link": {"type": "string"}
+        }
+    },
+
+    "collectionMethods": [ "GET", "POST" ],
+    "resourceMethods": [ "DELETE" ],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": "true"},
+            "chartName": {"type": "string", "required": "true"},
+            "chartVersion": {"type": "string", "required": "true"},
+            "configs": {"type": "json", "required": "true"}
+        }
+    }
+}

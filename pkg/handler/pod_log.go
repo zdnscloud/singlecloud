@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -19,7 +20,7 @@ var (
 	LogRequestTimeout    = 5 * time.Second
 )
 
-func (m *ClusterManager) openPodLog(cluster *Cluster, namespace, pod, container string) (io.ReadCloser, error) {
+func (m *ClusterManager) openPodLog(cluster *zke.Cluster, namespace, pod, container string) (io.ReadCloser, error) {
 	//when container has no log, Stream call will block forever
 	//if set client timeout, Stream will be timed out too
 	//so check whether there is any log first
@@ -67,7 +68,7 @@ func (m *ClusterManager) openPodLog(cluster *Cluster, namespace, pod, container 
 }
 
 func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string, r *http.Request, w http.ResponseWriter) {
-	cluster := m.get(clusterID)
+	cluster := m.GetClusterByName(clusterID)
 	if cluster == nil {
 		log.Warnf("cluster %s isn't found to open console", clusterID)
 		return

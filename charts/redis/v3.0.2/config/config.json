@@ -1,0 +1,5 @@
+[
+    { "label": "slaveCount", "jsonKey": "cluster.slaveCount", "type": "int", "required": "false", "description": "the number of redis slave", "default": 1},
+    { "label": "masterPort", "jsonKey": "master.port", "type": "int", "required": "false", "description": "redis master port", "default": 6379},
+    { "label": "masterPersistentVolume", "jsonKey": "master.persistence.enabled", "type": "bool", "required": "true", "description": "redis if use persistent volume"}
+]

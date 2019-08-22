@@ -9,34 +9,35 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
 
 const (
-	VolumeNamePrefix                = "vol"
-	AnnkeyForWordloadAdvancedoption = "zcloud_workload_advanded_options"
-	AnnkeyForPromethusScrape        = "prometheus.io/scrape"
-	AnnkeyForPromethusPort          = "prometheus.io/port"
-	AnnkeyForPromethusPath          = "prometheus.io/path"
-	AnnKeyForReloadWhenConfigChange = "zcloud.cn/update-on-config-change"
-	AnnKeyForConfigHashAnnotation   = "zcloud.cn/config-hash"
+	VolumeNamePrefix                     = "vol"
+	AnnkeyForWordloadAdvancedoption      = "zcloud_workload_advanded_options"
+	AnnkeyForPromethusScrape             = "prometheus.io/scrape"
+	AnnkeyForPromethusPort               = "prometheus.io/port"
+	AnnkeyForPromethusPath               = "prometheus.io/path"
+	AnnKeyForReloadWhenConfigChange      = "zcloud.cn/update-on-config-change"
+	AnnKeyForConfigHashAnnotation        = "zcloud.cn/config-hash"
+	AnnkeyForDeletePVsWhenDeleteWorkload = "zcloud_delete_pvs_when_delete_workload"
 )
 
 func createPodTempateSpec(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {
 	structVal := reflect.ValueOf(podOwner).Elem()
 	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
 	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
-	pvcs := structVal.FieldByName("PersistentClaimVolumes").Interface().([]types.PersistentClaimVolume)
+	pvs := structVal.FieldByName("PersistentVolumes").Interface().([]types.PersistentVolumeTemplate)
 
-	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvcs)
+	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -69,6 +70,9 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 	if advancedOpts.ReloadWhenConfigChange {
 		annotations[AnnKeyForReloadWhenConfigChange] = "true"
 	}
+	if advancedOpts.DeletePVsWhenDeleteWorkload {
+		annotations[AnnkeyForDeletePVsWhenDeleteWorkload] = "true"
+	}
 	return metav1.ObjectMeta{
 		Name:        structVal.FieldByName("Name").String(),
 		Namespace:   namespace,
@@ -77,25 +81,31 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 }
 
 func createPVCs(cli client.Client, namespace string, k8sPVCs []corev1.PersistentVolumeClaim) error {
+	var err error
 	for _, pvc := range k8sPVCs {
 		pvc.Namespace = namespace
-		if err := cli.Create(context.TODO(), &pvc); err != nil {
-			return fmt.Errorf("create pvc %s with namespace %s failed: %s", pvc.Name, namespace, err.Error())
+		if e := cli.Create(context.TODO(), &pvc); e != nil {
+			err = fmt.Errorf("create pvc %s with namespace %s failed: %s", pvc.Name, namespace, e.Error())
+			break
 		}
 	}
 
-	return nil
+	if err != nil {
+		deletePVCs(cli, namespace, k8sPVCs)
+	}
+
+	return err
 }
 
-func getPVCs(cli client.Client, namespace string, templates []types.PersistentClaimVolume) ([]types.PersistentClaimVolume, error) {
-	var vcTemplates []types.PersistentClaimVolume
+func getPVCs(cli client.Client, namespace string, templates []types.PersistentVolumeTemplate) ([]types.PersistentVolumeTemplate, error) {
+	var pvTemplates []types.PersistentVolumeTemplate
 	for _, template := range templates {
 		if template.StorageClassName != types.StorageClassNameTemp {
 			if k8sPVC, err := getPersistentVolumeClaim(cli, namespace, template.Name); err != nil {
 				return nil, err
 			} else {
 				pvc := k8sPVCToSCPVC(k8sPVC)
-				vcTemplates = append(vcTemplates, types.PersistentClaimVolume{
+				pvTemplates = append(pvTemplates, types.PersistentVolumeTemplate{
 					Name:             pvc.Name,
 					Size:             pvc.RequestStorageSize,
 					StorageClassName: pvc.StorageClassName,
@@ -104,22 +114,32 @@ func getPVCs(cli client.Client, namespace string, templates []types.PersistentCl
 		}
 	}
 
-	return vcTemplates, nil
+	return pvTemplates, nil
 }
 
 func deletePVCs(cli client.Client, namespace string, k8sPVCs []corev1.PersistentVolumeClaim) {
 	for _, pvc := range k8sPVCs {
-		k8sPVC, err := getPersistentVolumeClaim(cli, namespace, pvc.Name)
-		if err != nil {
-			log.Warnf("get persistentvolumeclaim %s failed:%s", pvc.Name, err.Error())
-			continue
-		}
+		deletePVC(cli, namespace, pvc.Name)
+	}
+}
 
-		if err := deletePersistentVolumeClaim(cli, namespace, k8sPVC.Name); err != nil {
-			log.Warnf("delete persistentvolumeclaim %s failed:%s", k8sPVC.Name, err.Error())
-		}
+func deletePVC(cli client.Client, namespace, pvcName string) {
+	k8sPVC, err := getPersistentVolumeClaim(cli, namespace, pvcName)
+	if err != nil {
+		log.Warnf("get persistentvolumeclaim %s failed:%s", pvcName, err.Error())
+		return
+	}
 
-		if volumeName := k8sPVC.Spec.VolumeName; volumeName != "" {
+	if err := deletePersistentVolumeClaim(cli, namespace, pvcName); err != nil {
+		log.Warnf("delete persistentvolumeclaim %s failed:%s", pvcName, err.Error())
+	}
+
+	if volumeName := k8sPVC.Spec.VolumeName; volumeName != "" {
+		if _, err := getPersistentVolume(cli, volumeName); err != nil {
+			if apierrors.IsNotFound(err) == false {
+				log.Warnf("get persistentvolume %s failed:%s", volumeName, err.Error())
+			}
+		} else {
 			if err := deletePersistentVolume(cli, volumeName); err != nil {
 				log.Warnf("delete persistentvolume %s failed:%s", volumeName, err.Error())
 			}
@@ -127,9 +147,17 @@ func deletePVCs(cli client.Client, namespace string, k8sPVCs []corev1.Persistent
 	}
 }
 
-func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvcs []types.PersistentClaimVolume) (corev1.PodSpec, []corev1.PersistentVolumeClaim, error) {
+func deleteWorkLoadPVCs(cli client.Client, namespace string, k8sVolumes []corev1.Volume) {
+	for _, volume := range k8sVolumes {
+		if volume.PersistentVolumeClaim != nil {
+			deletePVC(cli, namespace, volume.PersistentVolumeClaim.ClaimName)
+		}
+	}
+}
+
+func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvs []types.PersistentVolumeTemplate) (corev1.PodSpec, []corev1.PersistentVolumeClaim, error) {
 	var k8sPodSpec corev1.PodSpec
-	k8sEmptyDirs, k8sPVCs, err := scPVCsToK8sVolumesAndPVCs(pvcs)
+	k8sEmptyDirs, k8sPVCs, err := scPVCsToK8sVolumesAndPVCs(pvs)
 	if err != nil {
 		return k8sPodSpec, nil, err
 	}
@@ -138,32 +166,33 @@ func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvcs []types.Per
 	return k8sPodSpec, k8sPVCs, err
 }
 
-func scPVCsToK8sVolumesAndPVCs(pvcs []types.PersistentClaimVolume) ([]corev1.Volume, []corev1.PersistentVolumeClaim, error) {
-	if len(pvcs) == 0 {
+func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.Volume, []corev1.PersistentVolumeClaim, error) {
+	if len(pvs) == 0 {
 		return nil, nil, nil
 	}
 
 	var k8sEmptydirVolumes []corev1.Volume
 	var k8sPVCs []corev1.PersistentVolumeClaim
-	for _, pvc := range pvcs {
-		if pvc.StorageClassName == "" {
-			return nil, nil, fmt.Errorf("pvc storageclass name should not be empty")
+	for _, pv := range pvs {
+		storageClassName := pv.StorageClassName
+		if storageClassName == "" {
+			return nil, nil, fmt.Errorf("persistent volume storageclass name should not be empty")
 		}
 
 		var k8sQuantity *resource.Quantity
-		if pvc.Size != "" {
-			quantity, err := resource.ParseQuantity(pvc.Size)
+		if pv.Size != "" {
+			quantity, err := resource.ParseQuantity(pv.Size)
 			if err != nil {
-				return nil, nil, fmt.Errorf("parse storage size %s failed: %s", pvc.Size, err.Error())
+				return nil, nil, fmt.Errorf("parse storage size %s failed: %s", pv.Size, err.Error())
 			}
 			k8sQuantity = &quantity
 		}
 
 		var accessModes []corev1.PersistentVolumeAccessMode
-		switch pvc.StorageClassName {
+		switch storageClassName {
 		case types.StorageClassNameTemp:
 			k8sEmptydirVolumes = append(k8sEmptydirVolumes, corev1.Volume{
-				Name: pvc.Name,
+				Name: pv.Name,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{
 						SizeLimit: k8sQuantity,
@@ -173,12 +202,10 @@ func scPVCsToK8sVolumesAndPVCs(pvcs []types.PersistentClaimVolume) ([]corev1.Vol
 			continue
 		case types.StorageClassNameLVM:
 			accessModes = append(accessModes, corev1.ReadWriteOnce)
-		case types.StorageClassNameNFS:
-			fallthrough
 		case types.StorageClassNameCeph:
 			accessModes = append(accessModes, corev1.ReadWriteMany)
 		default:
-			return nil, nil, fmt.Errorf("persistentClaimVolumes storageclass %s isn`t supported", pvc.StorageClassName)
+			return nil, nil, fmt.Errorf("persistent volumes storageclass %s isn`t supported", storageClassName)
 		}
 
 		if k8sQuantity == nil {
@@ -187,7 +214,7 @@ func scPVCsToK8sVolumesAndPVCs(pvcs []types.PersistentClaimVolume) ([]corev1.Vol
 
 		k8sPVCs = append(k8sPVCs, corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: pvc.Name,
+				Name: pv.Name,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: accessModes,
@@ -196,7 +223,7 @@ func scPVCsToK8sVolumesAndPVCs(pvcs []types.PersistentClaimVolume) ([]corev1.Vol
 						corev1.ResourceStorage: *k8sQuantity,
 					},
 				},
-				StorageClassName: &pvc.StorageClassName,
+				StorageClassName: &storageClassName,
 				VolumeMode:       &FilesystemVolumeMode,
 			},
 		})
@@ -214,7 +241,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 		var env []corev1.EnvVar
 		for i, volume := range c.Volumes {
 			readOnly := true
-			volumeName := VolumeNamePrefix + strconv.Itoa(i)
+			volumeName := c.Name + "-" + VolumeNamePrefix + strconv.Itoa(i)
 			var volumeSource corev1.VolumeSource
 			switch volume.Type {
 			case types.VolumeTypeConfigMap:
@@ -236,7 +263,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 				found := false
 				for _, emptydir := range k8sEmptyDirs {
 					if emptydir.Name == volume.Name {
-						volumeName = emptydir.Name
+						volumeName = c.Name + "-" + emptydir.Name
 						volumeSource = emptydir.VolumeSource
 						found = true
 						break
@@ -246,7 +273,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 				if found == false {
 					for _, pvc := range k8sPVCs {
 						if pvc.Name == volume.Name {
-							volumeName = pvc.Name
+							volumeName = c.Name + "-" + pvc.Name
 							volumeSource = corev1.VolumeSource{
 								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 									ClaimName: volume.Name,
@@ -295,6 +322,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 			portNames = append(portNames, spec.Name)
 
 			ports = append(ports, corev1.ContainerPort{
+				Name:          spec.Name,
 				ContainerPort: int32(spec.Port),
 				Protocol:      protocol,
 			})
@@ -324,9 +352,9 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 	}, nil
 }
 
-func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8sVolumes []corev1.Volume) ([]types.Container, []types.PersistentClaimVolume) {
+func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8sVolumes []corev1.Volume) ([]types.Container, []types.PersistentVolumeTemplate) {
 	var containers []types.Container
-	var templates []types.PersistentClaimVolume
+	var templates []types.PersistentVolumeTemplate
 	for _, c := range k8sContainers {
 		var volumes []types.Volume
 		for _, vm := range c.VolumeMounts {
@@ -350,7 +378,7 @@ func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8
 							Name:      v.PersistentVolumeClaim.ClaimName,
 							MountPath: vm.MountPath,
 						})
-						templates = append(templates, types.PersistentClaimVolume{
+						templates = append(templates, types.PersistentVolumeTemplate{
 							Name: v.PersistentVolumeClaim.ClaimName,
 						})
 					} else if v.EmptyDir != nil {
@@ -359,7 +387,7 @@ func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8
 							Name:      v.Name,
 							MountPath: vm.MountPath,
 						})
-						template := types.PersistentClaimVolume{
+						template := types.PersistentVolumeTemplate{
 							Name:             v.Name,
 							StorageClassName: types.StorageClassNameTemp,
 						}
@@ -443,84 +471,4 @@ func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.Expose
 		}
 	}
 	return types.ExposedMetric{}
-}
-
-func createServiceAndIngress(containers []types.Container, advancedOpts types.AdvancedOptions, cli client.Client, namespace, serviceName string, headless bool) *resttypes.APIError {
-	containerPorts := make(map[string]types.ContainerPort)
-	for _, container := range containers {
-		for _, port := range container.ExposedPorts {
-			containerPorts[port.Name] = port
-		}
-	}
-
-	var servicePorts []types.ServicePort
-	var rules []types.IngressRule
-	for _, s := range advancedOpts.ExposedServices {
-		containerPort, ok := containerPorts[s.ContainerPortName]
-		if ok == false {
-			return resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("unknown container port with name:%s", s.ContainerPortName))
-		}
-
-		servicePorts = append(servicePorts, types.ServicePort{
-			Name:       containerPort.Name,
-			Port:       s.ServicePort,
-			TargetPort: containerPort.Port,
-			Protocol:   string(scIngressProtocolToK8SProtocol(s.IngressProtocol)),
-		})
-
-		if s.AutoCreateIngress {
-			rules = append(rules, types.IngressRule{
-				Host:     s.IngressHost,
-				Port:     s.IngressPort,
-				Protocol: s.IngressProtocol,
-				Paths: []types.IngressPath{
-					types.IngressPath{
-						Path:        s.IngressPath,
-						ServiceName: serviceName,
-						ServicePort: s.ServicePort,
-					},
-				},
-			})
-		}
-	}
-
-	if len(servicePorts) > 0 {
-		service := &types.Service{
-			Name:         serviceName,
-			ServiceType:  advancedOpts.ExposedServiceType,
-			ExposedPorts: servicePorts,
-		}
-
-		if err := createService(cli, namespace, service, headless); err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
-		}
-
-		if len(rules) > 0 {
-			ingress := &types.Ingress{
-				Name:  serviceName,
-				Rules: rules,
-			}
-
-			if err := createIngress(cli, namespace, ingress); err != nil {
-				deleteService(cli, namespace, serviceName)
-				return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
-			}
-		}
-	}
-
-	return nil
-}
-
-func deleteServiceAndIngress(cli client.Client, namespace, serviceName, opts string) {
-	var advancedOpts types.AdvancedOptions
-	json.Unmarshal([]byte(opts), &advancedOpts)
-	if len(advancedOpts.ExposedServices) > 0 {
-		deleteService(cli, namespace, serviceName)
-		for _, s := range advancedOpts.ExposedServices {
-			if s.AutoCreateIngress {
-				deleteIngress(cli, namespace, serviceName)
-				break
-			}
-		}
-	}
 }

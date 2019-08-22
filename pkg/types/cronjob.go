@@ -22,7 +22,7 @@ type CronJob struct {
 
 type CronJobStatus struct {
 	LastScheduleTime resttypes.ISOTime `json:"lastScheduleTime,omitempty"`
-	Active           []ObjectReference `json:"objectReference,omitempty"`
+	ObjectReferences []ObjectReference `json:"objectReferences,omitempty"`
 }
 
 type ObjectReference struct {

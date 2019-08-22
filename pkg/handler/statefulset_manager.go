@@ -36,15 +36,7 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 
 	namespace := ctx.Object.GetParent().GetID()
 	statefulset := ctx.Object.(*types.StatefulSet)
-	if err := createServiceAndIngress(statefulset.Containers, statefulset.AdvancedOptions, cluster.KubeClient, namespace, statefulset.Name, true); err != nil {
-		deleteStatefulSet(cluster.KubeClient, namespace, statefulset.Name)
-		return nil, err
-	}
-
-	statefulset.SetID(statefulset.Name)
 	if err := createStatefulSet(cluster.KubeClient, namespace, statefulset); err != nil {
-		advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
-		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate statefulset name %s", statefulset.Name))
 		} else {
@@ -52,6 +44,7 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 		}
 	}
 
+	statefulset.SetID(statefulset.Name)
 	return statefulset, nil
 }
 
@@ -146,15 +139,18 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 		}
 	}
 
+	volumes, err := getStatefulSetPodsVolumes(cluster.KubeClient, namespace, k8sStatefulSet)
+	if err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset volumes failed %s", err.Error()))
+	}
+
 	if err := deleteStatefulSet(cluster.KubeClient, namespace, statefulset.GetID()); err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete statefulset failed %s", err.Error()))
 	}
 
-	opts, ok := k8sStatefulSet.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
-		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), opts)
+	if delete, ok := k8sStatefulSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
+		deleteWorkLoadPVCs(cluster.KubeClient, namespace, volumes)
 	}
-
 	return nil
 }
 
@@ -169,6 +165,20 @@ func (m *StatefulSetManager) Action(ctx *resttypes.Context) (interface{}, *restt
 	default:
 		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
 	}
+}
+
+func getStatefulSetPodsVolumes(cli client.Client, namespace string, k8sStatefulSet *appsv1.StatefulSet) ([]corev1.Volume, error) {
+	k8sPods, err := getOwnerPods(cli, namespace, types.StatefulSetType, k8sStatefulSet.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	var volumes []corev1.Volume
+	for _, item := range k8sPods.Items {
+		volumes = append(volumes, item.Spec.Volumes...)
+	}
+
+	return volumes, nil
 }
 
 func getStatefulSet(cli client.Client, namespace, name string) (*appsv1.StatefulSet, error) {
@@ -222,17 +232,17 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sStatefulSet.Spec.Template.Spec.Containers,
 		k8sStatefulSet.Spec.Template.Spec.Volumes)
 
-	var pvcs []types.PersistentClaimVolume
+	var pvs []types.PersistentVolumeTemplate
 	for _, template := range templates {
 		if template.StorageClassName == types.StorageClassNameTemp {
-			pvcs = append(pvcs, template)
+			pvs = append(pvs, template)
 		}
 	}
 
 	for _, pvc := range k8sStatefulSet.Spec.VolumeClaimTemplates {
 		if pvc.Spec.StorageClassName != nil {
 			quantity := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
-			pvcs = append(pvcs, types.PersistentClaimVolume{
+			pvs = append(pvs, types.PersistentVolumeTemplate{
 				Name:             pvc.Name,
 				Size:             quantity.String(),
 				StorageClassName: *pvc.Spec.StorageClassName,
@@ -241,11 +251,11 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	}
 
 	statefulset := &types.StatefulSet{
-		Name:                   k8sStatefulSet.Name,
-		Replicas:               int(*k8sStatefulSet.Spec.Replicas),
-		Containers:             containers,
-		AdvancedOptions:        advancedOpts,
-		PersistentClaimVolumes: pvcs,
+		Name:              k8sStatefulSet.Name,
+		Replicas:          int(*k8sStatefulSet.Spec.Replicas),
+		Containers:        containers,
+		AdvancedOptions:   advancedOpts,
+		PersistentVolumes: pvs,
 	}
 	statefulset.SetID(k8sStatefulSet.Name)
 	statefulset.SetType(types.StatefulSetType)

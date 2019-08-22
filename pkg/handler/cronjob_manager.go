@@ -143,8 +143,7 @@ func createCronJob(cli client.Client, namespace string, cronJob *types.CronJob) 
 			JobTemplate: batchv1beta1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"cronjob-name": cronJob.Name}},
-						Spec:       k8sPodSpec,
+						Spec: k8sPodSpec,
 					},
 				},
 			},
@@ -179,7 +178,7 @@ func k8sCronJobToScCronJob(k8sCronJob *batchv1beta1.CronJob) *types.CronJob {
 
 	cronJobStatus := types.CronJobStatus{
 		LastScheduleTime: k8sMetaV1TimePtrToISOTime(k8sCronJob.Status.LastScheduleTime),
-		Active:           objectReferences,
+		ObjectReferences: objectReferences,
 	}
 
 	cronJob := &types.CronJob{

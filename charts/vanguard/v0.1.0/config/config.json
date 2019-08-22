@@ -1,0 +1,12 @@
+[
+    { "label": "replicaCount", "jsonKey": "deployment.replicas", "type": "int", "required": "false", "description": "vanguard deployment replicas", "default": 1},
+    { "label": "imageRepository", "jsonKey": "deployment.image.repository", "type": "string", "required": "false", "description": "vanguard deployment image repository", "default": "zdnscloud/vanguard"},
+    { "label": "imageTag", "jsonKey": "deployment.image.tag", "type": "string", "required": "false", "description": "vanguard deployment image tag", "default": "v0.1"},
+    { "label": "livenessProbePort", "jsonKey": "deployment.livenessProbe.httpGet.port", "type": "int", "required": "false", "description": "vanguard deployment livenessProbe httpGet port", "default": 9000},
+    { "label": "generalLogEnabled", "jsonKey": "configmap.logger.general_log.enable", "type": "bool", "required": "false", "description": "vanguard general log enable", "default": "false"},
+    { "label": "cacheEnabled", "jsonKey": "configmap.cache.enable", "type": "bool", "required": "false", "description": "vanguard general cache enable", "default": "false"},
+    { "label": "clusterDnsServer", "jsonKey": "configmap.kubernetes.cluster_dns_server", "type": "string", "required": "false", "description": "kubernetes cluster dns server ip", "default": "10.43.0.10"},
+    { "label": "clusterDomain", "jsonKey": "configmap.kubernetes.cluster_domain", "type": "string", "required": "false", "description": "kubernetes cluster domain name", "default": "cluster.local"},
+    { "label": "clusterCIDR", "jsonKey": "configmap.kubernetes.cluster_cidr", "type": "string", "required": "false", "description": "kubernetes cluster cidr", "default": "10.42.0.0/16"},
+    { "label": "clusterServerIpRange", "jsonKey": "configmap.kubernetes.cluster_server_ip_range", "type": "string", "required": "false", "description": "kubernetes cluster server ip range", "default": "10.43.0.0/16"}
+]

@@ -64,7 +64,9 @@ func (m *JobManager) List(ctx *resttypes.Context) interface{} {
 
 	var jobs []*types.Job
 	for _, item := range k8sJobs.Items {
-		jobs = append(jobs, k8sJobToSCJob(&item))
+		if len(item.OwnerReferences) == 0 {
+			jobs = append(jobs, k8sJobToSCJob(&item))
+		}
 	}
 	return jobs
 }
@@ -142,8 +144,7 @@ func createJob(cli client.Client, namespace string, job *types.Job) error {
 				MatchLabels: map[string]string{"job-name": job.Name},
 			},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"job-name": job.Name}},
-				Spec:       k8sPodSpec,
+				Spec: k8sPodSpec,
 			},
 		},
 	}

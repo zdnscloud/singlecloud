@@ -2,19 +2,20 @@ package handler
 
 import (
 	"fmt"
-	"sync"
-	"time"
-
-	"k8s.io/client-go/rest"
 
 	"github.com/zdnscloud/cement/pubsub"
-	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gok8s/client/config"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/singlecloud/pkg/authentication"
+	"github.com/zdnscloud/singlecloud/pkg/authorization"
+	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/storage"
+
+	"github.com/zdnscloud/cement/log"
 )
 
 const (
@@ -23,167 +24,135 @@ const (
 	ZCloudReadonly  = "zcloud-cluster-readonly"
 )
 
-type Cluster struct {
-	Name       string
-	CreateTime time.Time
-	KubeClient client.Client
-	Cache      cache.Cache
-	K8sConfig  *rest.Config
-
-	stopCh chan struct{}
-}
-
-type AddCluster struct {
-	Cluster *Cluster
-}
-
-type DeleteCluster struct {
-	Cluster *Cluster
-}
-
 type ClusterManager struct {
 	api.DefaultHandler
 
-	lock     sync.Mutex
-	clusters []*Cluster
-	eventBus *pubsub.PubSub
+	eventBus      *pubsub.PubSub
+	authorizer    *authorization.Authorizer
+	authenticator *authentication.Authenticator
+	zkeManager    *zke.ZKEManager
+	db            storage.DB
+	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(eventBus *pubsub.PubSub) *ClusterManager {
-	return &ClusterManager{
-		eventBus: eventBus,
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB) *ClusterManager {
+	clusterMgr := &ClusterManager{
+		authorizer:    authorizer,
+		authenticator: authenticator,
+		eventBus:      eventBus,
+		db:            db,
+		Agent:         agent,
 	}
+	zkeMgr, err := zke.New(db)
+	if err != nil {
+		log.Fatalf("create zke-manager failed %s", err)
+		return clusterMgr
+	}
+	clusterMgr.zkeManager = zkeMgr
+	go clusterMgr.eventLoop()
+	return clusterMgr
 }
 
-func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *Cluster {
+func (m *ClusterManager) GetDB() storage.DB {
+	return m.db
+}
+
+func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {
+	return m.authorizer
+}
+
+func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *zke.Cluster {
 	ancestors := resttypes.GetAncestors(obj)
 	clusterID := ancestors[0].GetID()
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	return m.get(clusterID)
+	return m.zkeManager.GetReady(clusterID)
+}
+
+func (m *ClusterManager) GetClusterByName(name string) *zke.Cluster {
+	return m.zkeManager.GetReady(name)
 }
 
 func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
 	}
-
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	inner := ctx.Object.(*types.Cluster)
-	if c := m.get(inner.Name); c != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster name")
+	if len(yamlConf) > 0 {
+		return m.zkeManager.Import(ctx, yamlConf)
 	}
-
-	cluster := &Cluster{
-		Name:       inner.Name,
-		CreateTime: time.Now(),
-	}
-
-	k8sconf, err := config.BuildConfig(yamlConf)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("invalid cluster config:%s", err.Error()))
-	}
-
-	cli, err := client.New(k8sconf, client.Options{})
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("connect to cluster failed:%s", err.Error()))
-	}
-	cluster.KubeClient = cli
-
-	stopCh := make(chan struct{})
-	cache, err := cache.New(k8sconf, cache.Options{})
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create cache failed:%s", err.Error()))
-	}
-	go cache.Start(stopCh)
-	cache.WaitForCacheSync(stopCh)
-
-	cluster.Cache = cache
-	cluster.K8sConfig = k8sconf
-	cluster.stopCh = stopCh
-	m.clusters = append(m.clusters, cluster)
-
-	c, err := getClusterInfo(cluster)
-	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get cluster info:%s", err.Error()))
-	}
-
-	m.eventBus.Pub(AddCluster{Cluster: cluster}, eventbus.ClusterEvent)
-	return c, nil
+	return m.zkeManager.Create(ctx)
 }
 
-func getClusterInfo(c *Cluster) (*types.Cluster, error) {
-	cluster := &types.Cluster{}
-	cluster.SetID(c.Name)
-	cluster.SetType(types.ClusterType)
-	cluster.Name = c.Name
-	cluster.Status = types.CSUnreachable
-	cluster.SetCreationTimestamp(c.CreateTime)
-
-	version, err := c.KubeClient.ServerVersion()
-	if err != nil {
-		return cluster, err
+func (m *ClusterManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can update cluster")
 	}
-
-	cluster.Version = version.GitVersion
-
-	nodes, err := getNodes(c.KubeClient)
-	if err != nil {
-		return cluster, err
-	}
-	cluster.NodesCount = len(nodes)
-	for _, n := range nodes {
-		cluster.Cpu += n.Cpu
-		cluster.CpuUsed += n.CpuUsed
-		cluster.Memory += n.Memory
-		cluster.MemoryUsed += n.MemoryUsed
-		cluster.Pod += n.Pod
-		cluster.PodUsed += n.PodUsed
-	}
-	cluster.CpuUsedRatio = fmt.Sprintf("%.2f", float64(cluster.CpuUsed)/float64(cluster.Cpu))
-	cluster.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(cluster.MemoryUsed)/float64(cluster.Memory))
-	cluster.PodUsedRatio = fmt.Sprintf("%.2f", float64(cluster.PodUsed)/float64(cluster.Pod))
-	cluster.Status = types.CSRunning
-	return cluster, nil
+	return m.zkeManager.Update(ctx)
 }
 
 func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
-	target := ctx.Object.GetID()
-	if hasClusterPermission(getCurrentUser(ctx), target) == false {
+	id := ctx.Object.GetID()
+	if m.authorizer.Authorize(getCurrentUser(ctx), id, "") == false {
 		return nil
-	} else {
-		m.lock.Lock()
-		cluster := m.get(target)
-		m.lock.Unlock()
-		if cluster == nil {
-			return nil
-		}
-		info, _ := getClusterInfo(cluster)
-		return info
 	}
-}
-
-func (m *ClusterManager) get(id string) *Cluster {
-	for _, c := range m.clusters {
-		if c.Name == id {
-			return c
+	cluster := m.zkeManager.Get(id)
+	if cluster != nil {
+		sc := cluster.ToTypesCluster()
+		if cluster.IsReady() {
+			return getClusterInfo(cluster.KubeClient, sc)
 		}
+		return sc
 	}
 	return nil
 }
 
+func getClusterInfo(cli client.Client, sc *types.Cluster) *types.Cluster {
+	if cli == nil {
+		return sc
+	}
+
+	nodes, err := getNodes(cli)
+	if err != nil {
+		return sc
+	}
+	sc.NodesCount = len(nodes)
+	for _, n := range nodes {
+		if n.HasRole(types.RoleControlPlane) {
+			continue
+		}
+		sc.Cpu += n.Cpu
+		sc.CpuUsed += n.CpuUsed
+		sc.Memory += n.Memory
+		sc.MemoryUsed += n.MemoryUsed
+		sc.Pod += n.Pod
+		sc.PodUsed += n.PodUsed
+	}
+	sc.CpuUsedRatio = fmt.Sprintf("%.2f", float64(sc.CpuUsed)/float64(sc.Cpu))
+	sc.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(sc.MemoryUsed)/float64(sc.Memory))
+	sc.PodUsedRatio = fmt.Sprintf("%.2f", float64(sc.PodUsed)/float64(sc.Pod))
+	return sc
+}
+
 func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
+	requestFlags := ctx.Request.URL.Query()
 	user := getCurrentUser(ctx)
 	var clusters []*types.Cluster
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	for _, c := range m.clusters {
-		if hasClusterPermission(user, c.Name) {
-			info, _ := getClusterInfo(c)
-			clusters = append(clusters, info)
+	if onlyReady := requestFlags.Get("onlyready"); onlyReady == "true" {
+		for _, c := range m.zkeManager.ListReady() {
+			if m.authorizer.Authorize(user, c.Name, "") {
+				sc := getClusterInfo(c.KubeClient, c.ToTypesCluster())
+				clusters = append(clusters, sc)
+			}
+		}
+		return clusters
+	}
+
+	for _, c := range m.zkeManager.ListAll() {
+		if m.authorizer.Authorize(user, c.Name, "") {
+			sc := c.ToTypesCluster()
+			if c.IsReady() {
+				sc = getClusterInfo(c.KubeClient, sc)
+			}
+			clusters = append(clusters, sc)
 		}
 	}
 	return clusters
@@ -191,25 +160,65 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 
 func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete cluster")
 	}
+	id := ctx.Object.(*types.Cluster).GetID()
+	return m.zkeManager.Delete(id)
+}
 
-	target := ctx.Object.(*types.Cluster).GetID()
-	m.lock.Lock()
-	var cluster *Cluster
-	for i, c := range m.clusters {
-		if c.Name == target {
-			cluster = c
-			m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
-			break
+func (m *ClusterManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can call cluster action apis")
+	}
+	if ctx.Action.Name == types.CSCancelAction {
+		id := ctx.Object.(*types.Cluster).GetID()
+		return m.zkeManager.Cancel(id)
+	}
+	if ctx.Action.Name == types.CSGetKubeConfigAction {
+		id := ctx.Object.(*types.Cluster).GetID()
+		return m.zkeManager.GetKubeConfig(id)
+	}
+	return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
+}
+
+func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
+	return func(ctx *resttypes.Context) *resttypes.APIError {
+		if ctx.Object.GetType() == types.UserType {
+			if ctx.Action != nil && ctx.Action.Name == types.ActionLogin {
+				return nil
+			}
 		}
-	}
-	m.lock.Unlock()
 
-	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", target))
+		user := getCurrentUser(ctx)
+		if user == "" {
+			return resttypes.NewAPIError(resttypes.Unauthorized, fmt.Sprintf("user is unknowned"))
+		}
+
+		if m.authorizer.GetUser(user) == nil {
+			newUser := &types.User{Name: user}
+			newUser.SetID(user)
+			m.authorizer.AddUser(newUser)
+		}
+
+		ancestors := resttypes.GetAncestors(ctx.Object)
+		if len(ancestors) < 2 {
+			return nil
+		}
+
+		if ancestors[0].GetType() == types.ClusterType && ancestors[1].GetType() == types.NamespaceType {
+			cluster := ancestors[0].GetID()
+			namespace := ancestors[1].GetID()
+			if m.authorizer.Authorize(user, cluster, namespace) == false {
+				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on cluster %s namespace %s", user, cluster, namespace))
+			}
+		}
+		return nil
 	}
-	m.eventBus.Pub(DeleteCluster{Cluster: cluster}, eventbus.ClusterEvent)
-	close(cluster.stopCh)
-	return nil
+}
+
+func (m *ClusterManager) eventLoop() {
+	for {
+		obj := <-m.zkeManager.PubEventCh
+		m.eventBus.Pub(obj, eventbus.ClusterEvent)
+	}
 }

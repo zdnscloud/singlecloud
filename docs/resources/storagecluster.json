@@ -1,0 +1,61 @@
+{
+    "resourceType":"storagecluster",
+    "collectionName":"storageclusters",
+    "parentResources": [ "cluster" ],
+
+    "resourceFields":{
+        "name":{"type":"string"},
+        "storageType":{"type":"enum", "validValues": ["lvm", "ceph"]},
+        "hosts":{"type":"array","elemType":"string"},
+        "config":{"type":"array","elemType":"storagecfg"},
+        "freeDevs":{"type":"array","elemType":"storagecfg"},
+        "phase":{"type":"string"},
+        "size":{"type":"string"},
+        "usedSize":{"type":"string"},
+        "freeSize":{"type":"string"},
+        "nodes":{"type":"array","elemType":"storagenode"},
+        "pvs":{"type":"array","elemType":"storagepv"}
+    },
+    "subResources":{
+        "storagenode":{
+            "name":{"type":"string"},
+            "size":{"type":"string"},
+            "usedSize":{"type":"string"},
+            "freeSize":{"type":"string"},
+            "stat":{"type":"bool"}
+        },
+        "storagepv":{
+            "name":{"type":"string"},
+            "size":{"type":"string"},
+            "usedSize":{"type":"string"},
+            "freeSize":{"type":"string"},
+            "pods":{"type":"array","elemType":"storagepod"},
+            "node":{"type":"string"}
+        },
+        "storagepod":{
+            "name":{"type":"string"}
+        },
+        "storagecfg":{
+            "nodeName":{"type":"string"},
+            "blockDevices":{"type":"array","elemType":"storagedev"}
+        },
+        "storagedev":{
+            "name":{"type":"string"},
+            "size":{"type":"string"}
+        }
+    },
+    "resourceMethods":["GET","PUT","DELETE"],
+    "collectionMethods":["POST","GET"],
+    "postParameters":{
+        "fields":{
+            "name":{"type":"string", "required": true},
+            "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"], "required": true},
+            "hosts":{"type":"array","elemType":"string", "required": true}
+        }
+    },
+    "putParameters":{
+        "fields":{
+            "hosts":{"type":"array","elemType":"string", "required": true}
+        }
+    }
+}

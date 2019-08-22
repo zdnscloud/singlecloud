@@ -44,11 +44,6 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 
 	daemonSet.SetID(daemonSet.Name)
-	if err := createServiceAndIngress(daemonSet.Containers, daemonSet.AdvancedOptions, cluster.KubeClient, namespace, daemonSet.Name, false); err != nil {
-		deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.Name)
-		return nil, err
-	}
-
 	return daemonSet, nil
 }
 
@@ -126,9 +121,8 @@ func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete daemonSet failed %s", err.Error()))
 	}
 
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
-		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.GetID(), opts)
+	if delete, ok := k8sDaemonSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
+		deleteWorkLoadPVCs(cluster.KubeClient, namespace, k8sDaemonSet.Spec.Template.Spec.Volumes)
 	}
 	return nil
 }
@@ -193,7 +187,7 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	containers, templates := k8sPodSpecToScContainersAndVCTemplates(k8sDaemonSet.Spec.Template.Spec.Containers,
 		k8sDaemonSet.Spec.Template.Spec.Volumes)
 
-	pvcs, err := getPVCs(cli, k8sDaemonSet.Namespace, templates)
+	pvs, err := getPVCs(cli, k8sDaemonSet.Namespace, templates)
 	if err != nil {
 		return nil, err
 	}
@@ -234,11 +228,11 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	}
 
 	daemonSet := &types.DaemonSet{
-		Name:                   k8sDaemonSet.Name,
-		Containers:             containers,
-		AdvancedOptions:        advancedOpts,
-		PersistentClaimVolumes: pvcs,
-		Status:                 daemonSetStatus,
+		Name:              k8sDaemonSet.Name,
+		Containers:        containers,
+		AdvancedOptions:   advancedOpts,
+		PersistentVolumes: pvs,
+		Status:            daemonSetStatus,
 	}
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetType(types.DaemonSetType)

@@ -11,11 +11,6 @@
     "subResources": {
         "ingressRule": {
             "host": {"type": "string"},
-            "protocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
-            "paths": {"type": "array", "elemType": "ingressPath"}
-        },
-
-        "ingressPath": {
             "path": {"type": "string"},
             "serviceName": {"type": "string"},
             "servicePort": {"type": "int"}
@@ -33,11 +28,6 @@
         "subResources": {
             "ingressRule": {
                 "host": {"type": "string", "required": true},
-                "protocol": {"type": "enum", "validValues": ["TCP", "UDP", "HTTP", "GRPC"]},
-                "paths": {"type": "array", "elemType": "ingressPath", "required": true}
-            },
-
-            "ingressPath": {
                 "path": {"type": "string", "required": true},
                 "serviceName": {"type": "string", "required": true},
                 "servicePort": {"type": "int", "required": true}

@@ -59,30 +59,19 @@ type EnvVar struct {
 	Value string `json:"value,omitempty"`
 }
 
-type ExposedService struct {
-	ContainerPortName string          `json:"containerPortName"`
-	ServicePort       int             `json:"servicePort"`
-	AutoCreateIngress bool            `json:"autoCreateIngress"`
-	IngressProtocol   IngressProtocol `json:"ingressProtocol"`
-	IngressHost       string          `json:"ingressHost,omitempty"`
-	IngressPath       string          `json:"ingressPath,omitempty"`
-	IngressPort       int             `json:"ingressPort,omitempty"`
-}
-
 type AdvancedOptions struct {
-	ExposedServiceType     string           `json:"exposedServiceType"`
-	ExposedServices        []ExposedService `json:"exposedServices"`
-	ExposedMetric          ExposedMetric    `json:"exposedMetric"`
-	ReloadWhenConfigChange bool             `json:"relaodWhenConfigChange"`
+	ExposedMetric               ExposedMetric `json:"exposedMetric"`
+	ReloadWhenConfigChange      bool          `json:"reloadWhenConfigChange"`
+	DeletePVsWhenDeleteWorkload bool          `json:"deletePVsWhenDeleteWorkload"`
 }
 
 type Deployment struct {
-	resttypes.Resource     `json:",inline"`
-	Name                   string                  `json:"name,omitempty"`
-	Replicas               int                     `json:"replicas"`
-	Containers             []Container             `json:"containers"`
-	AdvancedOptions        AdvancedOptions         `json:"advancedOptions"`
-	PersistentClaimVolumes []PersistentClaimVolume `json:"persistentClaimVolumes"`
+	resttypes.Resource `json:",inline"`
+	Name               string                     `json:"name,omitempty"`
+	Replicas           int                        `json:"replicas"`
+	Containers         []Container                `json:"containers"`
+	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
+	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
 }
 
 type ExposedMetric struct {

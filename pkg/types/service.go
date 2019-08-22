@@ -22,6 +22,8 @@ type Service struct {
 	resttypes.Resource `json:",inline"`
 	Name               string        `json:"name"`
 	ServiceType        string        `json:"serviceType"`
+	Headless           bool          `json:"headless"`
+	ClusterIP          string        `json:"clusterIP,omitempty"`
 	ExposedPorts       []ServicePort `json:"exposedPorts,omitempty"`
 }
 
