@@ -35,7 +35,7 @@ func (m *sessionManager) addAgent(agentKey string, conn *websocket.Conn) (*Sessi
 	m.Lock()
 	defer m.Unlock()
 	if _, ok := m.agents[agentKey]; ok {
-		return nil, fmt.Errorf("duplicate agent key %s", agentKey)
+		return nil, fmt.Errorf("duplicate agent key %s from %v", agentKey, conn.RemoteAddr())
 	}
 
 	s := newSession(agentKey, conn)

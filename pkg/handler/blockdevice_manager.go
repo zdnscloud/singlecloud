@@ -55,7 +55,13 @@ func getAllDevices(cluster string, agent *clusteragent.AgentManager) ([]types.Bl
 	if err != nil {
 		return nets, err
 	}
+	if res == nil {
+		return nets, err
+	}
 	s := reflect.ValueOf(res)
+	if s.Len() == 0 {
+		return nets, nil
+	}
 	for i := 0; i < s.Len(); i++ {
 		newp := new(types.BlockDevice)
 		p := s.Index(i).Interface()
@@ -70,33 +76,16 @@ func getAllDevices(cluster string, agent *clusteragent.AgentManager) ([]types.Bl
 func cutInvalid(cli client.Client, resp []types.BlockDevice) []types.BlockDevice {
 	res := make([]types.BlockDevice, 0)
 	for _, b := range resp {
-		if !isValidHost(cli, b.NodeName) {
-			continue
-		}
-		dev := make([]types.Dev, 0)
-		for _, d := range b.BlockDevices {
-			if !isValidBlockDevice(d) {
-				continue
-			}
-			dev = append(dev, d)
-		}
-		if len(dev) == 0 {
+		if !isValidHost(cli, b.NodeName) || len(b.BlockDevices) == 0 {
 			continue
 		}
 		host := types.BlockDevice{
 			NodeName:     b.NodeName,
-			BlockDevices: dev,
+			BlockDevices: b.BlockDevices,
 		}
 		res = append(res, host)
 	}
 	return res
-}
-
-func isValidBlockDevice(dev types.Dev) bool {
-	if dev.Parted || dev.Filesystem || dev.Mount {
-		return false
-	}
-	return true
 }
 
 func isValidHost(cli client.Client, name string) bool {

@@ -40,8 +40,7 @@ func (c *Cluster) TunnelHosts(ctx context.Context) error {
 				if strings.Contains(err.Error(), "Unsupported Docker version found") {
 					return nil, err
 				}
-				log.Warnf(ctx, "Failed to set up SSH tunneling for host [%s]: %v", runHost.Address, err)
-				c.InactiveHosts = append(c.InactiveHosts, runHost)
+				return nil, fmt.Errorf("Failed to set up SSH tunneling for host [%s]: %s", runHost.Address, err.Error())
 			}
 			return nil, nil
 		})

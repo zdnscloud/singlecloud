@@ -55,10 +55,6 @@ type DeleteCluster struct {
 	Cluster *Cluster
 }
 
-type UpdateCluster struct {
-	Cluster *Cluster
-}
-
 func newInitialCluster(name string) *Cluster {
 	return newClusterWithStatus(name, types.CSInit)
 }
@@ -103,9 +99,11 @@ func newClusterWithStatus(name string, status types.ClusterStatus) *Cluster {
 			UpdateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
+				cluster.stopCh = make(chan struct{})
+				cluster.setCache(cluster.K8sConfig)
 				mgr.moveToreadyWithLock(cluster)
 				mgr.updateClusterStateWithLock(cluster, state)
-				mgr.sendPubEvent(UpdateCluster{Cluster: cluster})
+				mgr.sendPubEvent(AddCluster{Cluster: cluster})
 			},
 			CancelSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
