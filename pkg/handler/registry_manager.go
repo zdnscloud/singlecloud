@@ -57,7 +57,7 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 	}
 
 	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("lvm storageclass does't exist in cluster %s", cluster.Name))
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", registryAppStorageClass, cluster.Name))
 	}
 
 	app, err := genRegistryApplication(cluster.KubeClient, r, cluster.Name)

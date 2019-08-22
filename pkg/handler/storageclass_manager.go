@@ -63,7 +63,6 @@ func isStorageClassExist(cli client.Client, name string) bool {
 	scs, _ := getStorageClasses(cli)
 	for _, sc := range scs.Items {
 		if sc.Name == name {
-			break
 			return true
 		}
 	}
