@@ -8,6 +8,7 @@ import (
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
@@ -45,10 +46,10 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	monitor := ctx.Object.(*types.Monitor)
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
 	}
 	if existMonitor, _ := m.getFromDB(cluster.Name); existMonitor != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "cluster monitor has enabled")
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "cluster monitor has exist")
 	}
 
 	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
@@ -94,9 +95,20 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
+	if existMonitor, _ := m.getFromDB(cluster.Name); existMonitor == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
+	}
+
 	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
 	if err != nil {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error()))
+		if err == storage.ErrNotFoundResource {
+			if err := m.deleteFromDB(cluster.Name); err != nil {
+				return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
+			}
+			return nil
+		} else {
+			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error()))
+		}
 	}
 	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, monitorNameSpace), monitorNameSpace, app)
 

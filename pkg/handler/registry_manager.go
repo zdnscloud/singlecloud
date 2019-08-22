@@ -9,6 +9,7 @@ import (
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/x509"
 	"github.com/zdnscloud/gok8s/client"
@@ -52,7 +53,7 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 	r := ctx.Object.(*types.Registry)
 	cluster := m.clusters.GetClusterByName(r.Cluster)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
 	}
 
 	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
@@ -91,17 +92,25 @@ func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 	registry, _ := m.getFromDB()
 	if registry == nil {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "registry is disable status")
+		return resttypes.NewAPIError(resttypes.PermissionDenied, "registry doesn't exist")
 	}
 
 	cluster := m.clusters.GetClusterByName(registry.Cluster)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
 	}
 
 	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, registryNameSpace), registryAppName, types.AppStatusDelete)
 	if err != nil {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error()))
+		if err == storage.ErrNotFoundResource {
+			if err := m.deleteFromDB(); err != nil {
+				return resttypes.NewAPIError(types.ConnectClusterFailed,
+					fmt.Sprintf("delete registry from db failed: %s", err.Error()))
+			}
+			return nil
+		} else {
+			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error()))
+		}
 	}
 	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, registryNameSpace), registryNameSpace, app)
 	if err := m.deleteFromDB(); err != nil {
