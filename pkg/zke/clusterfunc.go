@@ -113,6 +113,7 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	}
 
 	c.KubeClient = kubeClient
+	c.K8sConfig = k8sConfig
 
 	state.FullState = zkeState
 	state.IsUnvailable = false

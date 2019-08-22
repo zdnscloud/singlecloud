@@ -56,15 +56,6 @@ func (mgr *ExecutorManager) eventLoop() {
 				log.Warnf("event watcher unknown cluster %s", cluster.Name)
 			}
 			mgr.lock.Unlock()
-		case zke.UpdateCluster:
-			cluster := e.Cluster
-			mgr.lock.Lock()
-			executor, err := exec.New(cluster.K8sConfig, cluster.KubeClient, cluster.Cache)
-			if err != nil {
-				log.Warnf("create executor for cluster %s failed: %s", cluster.Name, err.Error())
-			} else {
-				mgr.executors[cluster.Name] = executor
-			}
 		}
 	}
 }

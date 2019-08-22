@@ -39,7 +39,7 @@ func (m *ServiceManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 
 	namespace := ctx.Object.GetParent().GetID()
 	service := ctx.Object.(*types.Service)
-	err := createService(cluster.KubeClient, namespace, service, false)
+	err := createService(cluster.KubeClient, namespace, service)
 	if err == nil {
 		service.SetID(service.Name)
 		return service, nil
@@ -124,7 +124,7 @@ func getServices(cli client.Client, namespace string) (*corev1.ServiceList, erro
 	return &services, err
 }
 
-func createService(cli client.Client, namespace string, service *types.Service, headless bool) error {
+func createService(cli client.Client, namespace string, service *types.Service) error {
 	typ, err := scServiceTypeToK8sServiceType(service.ServiceType)
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func createService(cli client.Client, namespace string, service *types.Service, 
 		},
 	}
 
-	if typ == corev1.ServiceTypeClusterIP && headless {
+	if typ == corev1.ServiceTypeClusterIP && service.Headless {
 		k8sService.Spec.ClusterIP = NoneClusterIP
 	}
 	return cli.Create(context.TODO(), k8sService)
@@ -180,6 +180,7 @@ func k8sServiceToSCService(k8sService *corev1.Service) *types.Service {
 	service := &types.Service{
 		Name:         k8sService.Name,
 		ServiceType:  strings.ToLower(string(k8sService.Spec.Type)),
+		ClusterIP:    k8sService.Spec.ClusterIP,
 		ExposedPorts: ports,
 	}
 	service.SetID(k8sService.Name)

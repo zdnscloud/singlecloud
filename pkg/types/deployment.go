@@ -44,22 +44,10 @@ type EnvVar struct {
 	Value string `json:"value,omitempty"`
 }
 
-type ExposedService struct {
-	ContainerPortName string          `json:"containerPortName"`
-	ServicePort       int             `json:"servicePort"`
-	AutoCreateIngress bool            `json:"autoCreateIngress"`
-	IngressProtocol   IngressProtocol `json:"ingressProtocol"`
-	IngressHost       string          `json:"ingressHost,omitempty"`
-	IngressPath       string          `json:"ingressPath,omitempty"`
-	IngressPort       int             `json:"ingressPort,omitempty"`
-}
-
 type AdvancedOptions struct {
-	ExposedServiceType          string           `json:"exposedServiceType"`
-	ExposedServices             []ExposedService `json:"exposedServices"`
-	ExposedMetric               ExposedMetric    `json:"exposedMetric"`
-	ReloadWhenConfigChange      bool             `json:"reloadWhenConfigChange"`
-	DeletePVsWhenDeleteWorkload bool             `json:"deletePVsWhenDeleteWorkload"`
+	ExposedMetric               ExposedMetric `json:"exposedMetric"`
+	ReloadWhenConfigChange      bool          `json:"reloadWhenConfigChange"`
+	DeletePVsWhenDeleteWorkload bool          `json:"deletePVsWhenDeleteWorkload"`
 }
 
 type Deployment struct {

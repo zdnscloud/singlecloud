@@ -37,13 +37,7 @@ func (m *StatefulSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 
 	namespace := ctx.Object.GetParent().GetID()
 	statefulset := ctx.Object.(*types.StatefulSet)
-	if err := createServiceAndIngress(cluster.KubeClient, namespace, statefulset); err != nil {
-		return nil, err
-	}
-
 	if err := createStatefulSet(cluster.KubeClient, namespace, statefulset); err != nil {
-		advancedOpts, _ := json.Marshal(statefulset.AdvancedOptions)
-		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.Name, string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate statefulset name %s", statefulset.Name))
 		} else {
@@ -153,11 +147,6 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 
 	if err := deleteStatefulSet(cluster.KubeClient, namespace, statefulset.GetID()); err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete statefulset failed %s", err.Error()))
-	}
-
-	opts, ok := k8sStatefulSet.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
-		deleteServiceAndIngress(cluster.KubeClient, namespace, statefulset.GetID(), opts)
 	}
 
 	if delete, ok := k8sStatefulSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {

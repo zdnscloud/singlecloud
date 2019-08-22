@@ -34,13 +34,7 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 
 	namespace := ctx.Object.GetParent().GetID()
 	daemonSet := ctx.Object.(*types.DaemonSet)
-	if err := createServiceAndIngress(cluster.KubeClient, namespace, daemonSet); err != nil {
-		return nil, err
-	}
-
 	if err := createDaemonSet(cluster.KubeClient, namespace, daemonSet); err != nil {
-		advancedOpts, _ := json.Marshal(daemonSet.AdvancedOptions)
-		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.Name, string(advancedOpts))
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate daemonSet name %s", daemonSet.Name))
 		} else {
@@ -124,11 +118,6 @@ func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 
 	if err := deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID()); err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete daemonSet failed %s", err.Error()))
-	}
-
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
-		deleteServiceAndIngress(cluster.KubeClient, namespace, daemonSet.GetID(), opts)
 	}
 
 	if delete, ok := k8sDaemonSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
