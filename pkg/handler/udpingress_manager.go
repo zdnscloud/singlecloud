@@ -174,7 +174,7 @@ func getTransportLayerIngress(cli client.Client, namespace, name string) ([]*typ
 				ServiceName: name,
 				ServicePort: svcPort,
 			}
-			udpIngress.SetID(serviceAndPort[1])
+			udpIngress.SetID(c.Name)
 			udpIngress.SetType(types.UdpIngressType)
 			ingresses = append(ingresses, udpIngress)
 		}
