@@ -172,7 +172,8 @@ func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.V
 	var k8sEmptydirVolumes []corev1.Volume
 	var k8sPVCs []corev1.PersistentVolumeClaim
 	for _, pv := range pvs {
-		if pv.StorageClassName == "" {
+		storageClassName := pv.StorageClassName
+		if storageClassName == "" {
 			return nil, nil, fmt.Errorf("persistent volume storageclass name should not be empty")
 		}
 
@@ -186,7 +187,7 @@ func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.V
 		}
 
 		var accessModes []corev1.PersistentVolumeAccessMode
-		switch pv.StorageClassName {
+		switch storageClassName {
 		case types.StorageClassNameTemp:
 			k8sEmptydirVolumes = append(k8sEmptydirVolumes, corev1.Volume{
 				Name: pv.Name,
@@ -202,7 +203,7 @@ func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.V
 		case types.StorageClassNameCeph:
 			accessModes = append(accessModes, corev1.ReadWriteMany)
 		default:
-			return nil, nil, fmt.Errorf("persistent volumes storageclass %s isn`t supported", pv.StorageClassName)
+			return nil, nil, fmt.Errorf("persistent volumes storageclass %s isn`t supported", storageClassName)
 		}
 
 		if k8sQuantity == nil {
@@ -220,7 +221,7 @@ func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.V
 						corev1.ResourceStorage: *k8sQuantity,
 					},
 				},
-				StorageClassName: &pv.StorageClassName,
+				StorageClassName: &storageClassName,
 				VolumeMode:       &FilesystemVolumeMode,
 			},
 		})
@@ -260,7 +261,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 				found := false
 				for _, emptydir := range k8sEmptyDirs {
 					if emptydir.Name == volume.Name {
-						volumeName = emptydir.Name
+						volumeName = c.Name + "-" + emptydir.Name
 						volumeSource = emptydir.VolumeSource
 						found = true
 						break
@@ -270,7 +271,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 				if found == false {
 					for _, pvc := range k8sPVCs {
 						if pvc.Name == volume.Name {
-							volumeName = pvc.Name
+							volumeName = c.Name + "-" + pvc.Name
 							volumeSource = corev1.VolumeSource{
 								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 									ClaimName: volume.Name,
