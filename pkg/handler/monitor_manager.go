@@ -46,7 +46,7 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	monitor := ctx.Object.(*types.Monitor)
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 	if existMonitor, _ := m.getFromDB(cluster.Name); existMonitor != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "cluster monitor has exist")

@@ -53,7 +53,7 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 	r := ctx.Object.(*types.Registry)
 	cluster := m.clusters.GetClusterByName(r.Cluster)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
+		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", r.Cluster))
 	}
 
 	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
