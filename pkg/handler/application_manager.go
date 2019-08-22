@@ -132,7 +132,7 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 	tableName := genAppTableName(cluster.Name, namespace)
 	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if err == storage.ErrNotFoundResource {
 			return resttypes.NewAPIError(resttypes.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
 		} else {
@@ -249,6 +249,12 @@ func deleteApplicationFromDB(db storage.DB, tableName, name string) error {
 }
 
 func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
+	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
+		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
+	} else if exists == false {
+		return fmt.Errorf("namespace %s is not found", namespace)
+	}
+
 	chartPath := path.Join(m.chartDir, app.ChartName, app.ChartVersion)
 	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
 		return err
@@ -271,15 +277,10 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
-		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
-	} else if exists == false {
-		return fmt.Errorf("namespace %s is not found", namespace)
-	}
-
 	app.Manifests = manifests
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
+	app.ChartIcon = genChartIcon(app.ChartName)
 	tableName := genAppTableName(cluster.Name, namespace)
 	if err := addOrUpdateAppToDB(m.clusters.GetDB(), tableName, app, true); err != nil {
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())

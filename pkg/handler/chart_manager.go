@@ -59,7 +59,7 @@ func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
 				chart := &types.Chart{
 					Name:        cht.Name(),
 					Description: description,
-					Icon:        IconPrefix + cht.Name() + IconFormat,
+					Icon:        genChartIcon(cht.Name()),
 					Versions:    versions,
 				}
 				chart.SetID(chart.Name)
@@ -91,8 +91,9 @@ func (m *ChartManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
+	chart.Name = chart.GetID()
 	chart.Description = description
-	chart.Icon = IconPrefix + chart.Name + IconFormat
+	chart.Icon = genChartIcon(chart.Name)
 	chart.Versions = versions
 	chart.SetType(types.ChartType)
 	return chart
@@ -148,4 +149,8 @@ func getChartInfo(chartYamlPath string) (*ChartInfo, error) {
 	}
 
 	return &info, nil
+}
+
+func genChartIcon(chartName string) string {
+	return IconPrefix + chartName + IconFormat
 }
