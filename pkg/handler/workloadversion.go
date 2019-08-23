@@ -54,6 +54,9 @@ func getSetImagePatch(param *types.SetImage, template corev1.PodTemplateSpec, an
 
 	}
 
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
 	annotations[ChangeCauseAnnotation] = param.Reason
 	return marshalPatch(template, annotations)
 }
