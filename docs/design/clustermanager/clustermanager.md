@@ -5,10 +5,10 @@
 提供一个标准的rest api可以用来管理zcloud kubernetes集群，提供集群的创建、删除、增删节点等功能，该api要尽可能简洁，只要求一些安装zcloud kubernetes集群必须参数
 ## 架构
 集群管理部分主要分为四个子模块：
-    * clusterManager：维护两个集群列表（ready、unready）、接收集群操作请求
-    * fsm：集群状态机，主要维护集群状态、集群event定义及相关callback
-    * zke：提供集群创建及更新接口
-    * validation：提供集群配置检查方法
+* clusterManager：维护两个集群列表（ready、unready）、接收集群操作请求
+* fsm：集群状态机，主要维护集群状态、集群event定义及相关callback
+* zke：提供集群创建及更新接口
+* validation：提供集群配置检查方法
 因集群状态和集群相关的操作种类较多，故采用状态机的方式来管理一个集群的状态，集群状态转移图如下所示：
 !["集群状态关系图"](fsm.jpg)
 ## 详细设计
