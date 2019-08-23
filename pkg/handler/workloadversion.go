@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,10 +38,10 @@ func getControllerRevisions(cli client.Client, namespace string, selector *metav
 }
 
 func getSetImagePatch(param *types.SetImage, template corev1.PodTemplateSpec, annotations map[string]string) ([]byte, error) {
-	containerFound := false
 	for _, image := range param.Images {
+		containerFound := false
 		for i, container := range template.Spec.Containers {
-			if container.Name == image.Name && container.Image != image.Image {
+			if container.Name == image.Name && isSameImage(container.Image, image.Image) {
 				containerFound = true
 				template.Spec.Containers[i].Image = image.Image
 				break
@@ -48,7 +49,7 @@ func getSetImagePatch(param *types.SetImage, template corev1.PodTemplateSpec, an
 		}
 
 		if !containerFound {
-			return nil, fmt.Errorf("no found container %v", image.Name)
+			return nil, fmt.Errorf("no found container %v with image %s", image.Name, image.Image)
 		}
 
 	}
@@ -79,4 +80,8 @@ func isControllerBy(ownerRefs []metav1.OwnerReference, uid k8stypes.UID) bool {
 		}
 	}
 	return false
+}
+
+func isSameImage(oldImage, newImage string) bool {
+	return strings.SplitN(oldImage, ":", 2)[0] == strings.SplitN(newImage, ":", 2)[0]
 }
