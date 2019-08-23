@@ -12,6 +12,7 @@ import (
 	nodeagent "github.com/zdnscloud/zke/zcloud/node-agent"
 	zcloudsa "github.com/zdnscloud/zke/zcloud/sa"
 	"github.com/zdnscloud/zke/zcloud/storage"
+	zcloudshell "github.com/zdnscloud/zke/zcloud/zcloud-shell"
 
 	"github.com/zdnscloud/gok8s/client"
 )
@@ -49,6 +50,9 @@ func DeployZcloudManager(ctx context.Context, c *core.Cluster) error {
 		if err := doStorageOperator(ctx, c, k8sClient); err != nil {
 			return err
 		}
+		if err := doZcloudShell(ctx, c, k8sClient); err != nil {
+			return err
+		}
 		return nil
 	}
 }
@@ -84,4 +88,12 @@ func doStorageOperator(ctx context.Context, c *core.Cluster, cli client.Client) 
 		"StorageOperatorImage": c.Image.StorageOperator,
 	}
 	return k8s.DoCreateFromTemplate(cli, storage.OperatorTemplate, cfg)
+}
+
+func doZcloudShell(ctx context.Context, c *core.Cluster, cli client.Client) error {
+	log.Infof(ctx, "[zcloud] deploy zcloud-shell")
+	cfg := map[string]interface{}{
+		"ZcloudShellImage": c.Image.ZcloudShell,
+	}
+	return k8s.DoCreateFromTemplate(cli, zcloudshell.ZcloudShellTemplate, cfg)
 }

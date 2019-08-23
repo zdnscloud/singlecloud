@@ -96,4 +96,5 @@ type ZKEConfigImages struct {
 	ClusterAgent    string `yaml:"cluster_agent" json:"clusterAgent"`
 	NodeAgent       string `yaml:"node_agent" json:"nodeAgent"`
 	StorageOperator string `yaml:"storage_operator" json:"storageOperator"`
+	ZcloudShell     string `yaml:"zcloud_shell" json:"zcloud_shell"`
 }
