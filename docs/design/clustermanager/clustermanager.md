@@ -9,6 +9,7 @@
 * fsm：集群状态机，主要维护集群状态、集群event定义及相关callback
 * zke：提供集群创建及更新接口
 * validation：提供集群配置检查方法
+
 因集群状态和集群相关的操作种类较多，故采用状态机的方式来管理一个集群的状态，集群状态转移图如下所示：
 !["集群状态关系图"](fsm.jpg)
 ## 详细设计
@@ -49,12 +50,12 @@ ready包括的状态有：Unreachable、Running
     * 若创建过程中收到集群取消请求，则zke线程会退出，并向集群状态机发送取消和取消成功事件，集群状态变为Unavailable
 ### 集群db加载
 singlecloud启动时会读取db文件中的集群信息，并将其加载至内存中，一个集群的加载流程如下：
-    * 从db中读取集群的信息（集群名称、Unavailable属性、配置及kubeconfig）
-    * 根据读取的集群信息创建集群对象，并加入至unready列表中
-        * 若集群的Unavailable属性为true，则将集群的状态设置为Unavailable
-        * 若集群的Unavailable属性为false，则创建一个集群的initLoop线程执行该集群的初始化（创建kubeclient对象）
-            * 若初始化成功，向集群状态机发送连接成功事件，集群状态机执行callback更新集群状态为Running，并将集群move至ready列表中，通过singlecloud pubsub广播集群创建事件
-            * 若取消，则集群的initLoop线程会退出，并向集群状态机发送取消和取消成功事件，集群状态变为Unavailable
+* 从db中读取集群的信息（集群名称、Unavailable属性、配置及kubeconfig）
+* 根据读取的集群信息创建集群对象，并加入至unready列表中
+    * 若集群的Unavailable属性为true，则将集群的状态设置为Unavailable
+    * 若集群的Unavailable属性为false，则创建一个集群的initLoop线程执行该集群的初始化（创建kubeclient对象）
+        * 若初始化成功，向集群状态机发送连接成功事件，集群状态机执行callback更新集群状态为Running，并将集群move至ready列表中，通过singlecloud pubsub广播集群创建事件
+        * 若取消，则集群的initLoop线程会退出，并向集群状态机发送取消和取消成功事件，集群状态变为Unavailable
 ### 集群import逻辑
 * 读取请求中的集群信息
 * 检查是否存在同名集群
