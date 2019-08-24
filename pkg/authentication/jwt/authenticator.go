@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	AdminPasswd string = "6710fc5dd8cd10e010af0083d9573fd327e8e67e" //hex encoding for sha1(zdns)
+	AdminPasswd string = "0192309fba8c6f0929b5b00867ebccac9a39e34e" //hex encoding for sha1(zcloud)
 )
 
 var (
