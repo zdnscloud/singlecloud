@@ -137,6 +137,7 @@ func (c *Cluster) BuildKubeAPIProcess(host *hosts.Host, prefixPath string) types
 		"storage-backend":                    "etcd3",
 		"tls-cert-file":                      pki.GetCertPath(pki.KubeAPICertName),
 		"tls-private-key-file":               pki.GetKeyPath(pki.KubeAPICertName),
+		"insecure-port":                      "0",
 	}
 
 	if c.Authentication.Webhook != nil {
