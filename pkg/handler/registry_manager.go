@@ -47,77 +47,82 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create registry")
 	}
-	if existRegistry, _ := m.getFromDB(); existRegistry != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "registry has exist")
-	}
-	r := ctx.Object.(*types.Registry)
-	cluster := m.clusters.GetClusterByName(r.Cluster)
+
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", r.Cluster))
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
+	existRegistry, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, registryNameSpace), registryAppName)
+	if err != nil && err != storage.ErrNotFoundResource {
+		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("get registry application from db failed %s", err.Error()))
+	}
+
+	if existRegistry != nil {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("cluster %s registry has exist", cluster.Name))
+	}
+
+	if !isStorageClassExist(cluster.KubeClient, registryAppStorageClass) {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", registryAppStorageClass, cluster.Name))
 	}
+
+	r := ctx.Object.(*types.Registry)
 
 	app, err := genRegistryApplication(cluster.KubeClient, r, cluster.Name)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
+
 	app.SetID(app.Name)
 	if err := m.apps.create(ctx, cluster, registryNameSpace, app); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create registry application failed %s", err.Error()))
 	}
 	r.SetID(registryAppName)
 	r.SetCreationTimestamp(time.Now())
-	if err := m.addToDB(r); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("add registry to db failed %s", err.Error()))
-	}
 	return r, nil
 }
 
+func (m *RegistryManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil
+	}
+
+	id := ctx.Object.GetID()
+
+	app, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, registryNameSpace), id)
+	if err != nil {
+		return nil
+	}
+
+	r, err := genRegistryFromApp(ctx, cluster.Name, app)
+	if err != nil {
+		return nil
+	}
+
+	return r
+}
+
 func (m *RegistryManager) List(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil
+	}
+
 	rs := []*types.Registry{}
-	r, err := m.getFromDB()
+
+	app, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, registryNameSpace), registryAppName)
 	if err != nil {
 		return rs
 	}
+
+	r, err := genRegistryFromApp(ctx, cluster.Name, app)
+	if err != nil {
+		return rs
+	}
+
 	rs = append(rs, r)
 	return rs
-}
-
-func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	if isAdmin(getCurrentUser(ctx)) == false {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete registry")
-	}
-	registry, _ := m.getFromDB()
-	if registry == nil {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "registry doesn't exist")
-	}
-
-	cluster := m.clusters.GetClusterByName(registry.Cluster)
-	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
-	}
-
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, registryNameSpace), registryAppName, types.AppStatusDelete)
-	if err != nil {
-		if err == storage.ErrNotFoundResource {
-			if err := m.deleteFromDB(); err != nil {
-				return resttypes.NewAPIError(types.ConnectClusterFailed,
-					fmt.Sprintf("delete registry from db failed: %s", err.Error()))
-			}
-			return nil
-		} else {
-			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error()))
-		}
-	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, registryNameSpace), registryNameSpace, app)
-	if err := m.deleteFromDB(); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("delete registry from db failed: %s", err.Error()))
-	}
-	return nil
 }
 
 func genRegistryApplication(cli client.Client, r *types.Registry, clusterName string) (*types.Application, error) {
@@ -187,50 +192,22 @@ func genRegistryConfigs(cli client.Client, r *types.Registry, clusterName string
 	return content, nil
 }
 
-func (m *RegistryManager) addToDB(r *types.Registry) error {
-	value, err := json.Marshal(r)
-	if err != nil {
-		return fmt.Errorf("marshal registry %s failed: %s", registryAppName, err.Error())
-	}
-
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), registryTableName)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := tx.Add(registryAppName, value); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-func (m *RegistryManager) getFromDB() (*types.Registry, error) {
-	r := &types.Registry{}
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), registryTableName)
-	if err != nil {
+func genRegistryFromApp(ctx *resttypes.Context, cluster string, app *types.Application) (*types.Registry, error) {
+	h := charts.Harbor{}
+	if err := json.Unmarshal(app.Configs, &h); err != nil {
 		return nil, err
 	}
-	defer tx.Commit()
-
-	value, err := tx.Get(registryAppName)
-	if err != nil {
-		return nil, err
+	r := types.Registry{
+		IngressDomain:   h.Ingress.Core,
+		StorageClass:    h.Persistence.StorageClass,
+		RedirectUrl:     "https://" + h.Ingress.Core,
+		ApplicationLink: genRegistryAppLink(ctx, cluster),
 	}
-
-	err = json.Unmarshal(value, r)
-	return r, err
+	r.SetID(app.Name)
+	r.CreationTimestamp = app.CreationTimestamp
+	return &r, nil
 }
 
-func (m *RegistryManager) deleteFromDB() error {
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), registryTableName)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := tx.Delete(registryAppName); err != nil {
-		return err
-	}
-	return tx.Commit()
+func genRegistryAppLink(ctx *resttypes.Context, clusterName string) string {
+	return genUrlPrefix(ctx, clusterName) + registryNameSpace + "/applications/" + registryAppName
 }

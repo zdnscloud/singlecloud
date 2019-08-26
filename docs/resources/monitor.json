@@ -25,6 +25,9 @@
         },
         "redirectUrl": {
             "type": "string"
+        },
+        "applicationLink": {
+            "type": "string"
         }
     },
     "resourceMethods": ["DELETE"],

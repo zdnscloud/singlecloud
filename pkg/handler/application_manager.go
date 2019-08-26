@@ -335,6 +335,30 @@ func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, 
 	return appValues, nil
 }
 
+func getApplicationFromDB(db storage.DB, tableName, appName string) (*types.Application, error) {
+	tx, err := BeginTableTransaction(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback()
+	appValue, err := tx.Get(appName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	app := types.Application{}
+	if err := json.Unmarshal(appValue, &app); err != nil {
+		return nil, fmt.Errorf("Unmarshal application %s failed %s", appName, err.Error())
+	}
+
+	return &app, nil
+}
+
 func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *types.Application) ([]types.Manifest, error) {
 	rawValues, err := getChartValues(ctx, app)
 	if err != nil {

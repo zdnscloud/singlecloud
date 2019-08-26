@@ -1,12 +1,9 @@
 {
     "resourceType": "registry",
     "collectionName": "registries",
-    "parentResources": [],
+    "parentResources": ["cluster"],
 
     "resourceFields": {
-        "cluster": {
-            "type": "string"
-        },
         "ingressDomain": {
             "type": "string"
         },
@@ -22,16 +19,15 @@
         },
         "redirectUrl": {
             "type": "string"
+        },
+        "applicationLink": {
+            "type": "string"
         }
     },
     "resourceMethods": ["DELETE"],
     "collectionMethods": ["GET", "POST"],
     "postParameters": {
         "fields": {
-            "cluster": {
-                "type": "string",
-                "required": true
-            },
             "ingressDomain": {
                 "type": "string"
             },
