@@ -79,28 +79,8 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 	}
 	r.SetID(registryAppName)
 	r.SetCreationTimestamp(time.Now())
+	r.ApplicationLink = genRegistryAppLink(ctx, cluster.Name)
 	return r, nil
-}
-
-func (m *RegistryManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
-	if cluster == nil {
-		return nil
-	}
-
-	id := ctx.Object.GetID()
-
-	app, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, registryNameSpace), id)
-	if err != nil {
-		return nil
-	}
-
-	r, err := genRegistryFromApp(ctx, cluster.Name, app)
-	if err != nil {
-		return nil
-	}
-
-	return r
 }
 
 func (m *RegistryManager) List(ctx *resttypes.Context) interface{} {
@@ -145,7 +125,7 @@ func genRegistryConfigs(cli client.Client, r *types.Registry, clusterName string
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		r.IngressDomain = registryAppName + "-" + registryNameSpace + "-svc-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		r.IngressDomain = registryAppName + "-" + registryNameSpace + "-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
 	}
 	r.RedirectUrl = "https://" + r.IngressDomain
 
@@ -209,5 +189,5 @@ func genRegistryFromApp(ctx *resttypes.Context, cluster string, app *types.Appli
 }
 
 func genRegistryAppLink(ctx *resttypes.Context, clusterName string) string {
-	return genUrlPrefix(ctx, clusterName) + registryNameSpace + "/applications/" + registryAppName
+	return genUrlPrefix(ctx, clusterName) + "/" + registryNameSpace + "/applications/" + registryAppName
 }

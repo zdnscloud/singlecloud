@@ -30,7 +30,7 @@
             "type": "string"
         }
     },
-    "resourceMethods": ["DELETE"],
+    "resourceMethods": [],
     "collectionMethods": ["GET", "POST"],
     "postParameters": {
         "fields": {

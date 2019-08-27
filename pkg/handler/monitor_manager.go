@@ -74,28 +74,8 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 
 	monitor.SetID(app.Name)
 	monitor.SetCreationTimestamp(time.Now())
+	monitor.ApplicationLink = genRegistryAppLink(ctx, cluster.Name)
 	return monitor, nil
-}
-
-func (m *MonitorManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
-	if cluster == nil {
-		return nil
-	}
-
-	id := ctx.Object.GetID()
-
-	app, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, monitorNameSpace), id)
-	if err != nil {
-		return nil
-	}
-
-	monitor, err := genMonitorFromApp(ctx, cluster.Name, app)
-	if err != nil {
-		return nil
-	}
-
-	return monitor
 }
 
 func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
@@ -140,7 +120,7 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) 
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		m.IngressDomain = monitorAppName + "-" + monitorNameSpace + "-svc-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		m.IngressDomain = monitorAppName + "-" + monitorNameSpace + "-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
 
@@ -238,5 +218,5 @@ func genMonitorFromApp(ctx *resttypes.Context, cluster string, app *types.Applic
 }
 
 func genMonitorAppLink(ctx *resttypes.Context, clusterName string) string {
-	return genUrlPrefix(ctx, clusterName) + monitorNameSpace + "/applications/" + monitorAppName
+	return genUrlPrefix(ctx, clusterName) + "/" + monitorNameSpace + "/applications/" + monitorAppName
 }
