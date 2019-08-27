@@ -108,6 +108,7 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, true)
 	if err != nil {
 		log.Errorf("zke err info %s", err)
+		state.FullState = zkeState
 		c.fsm.Event(CreateFailedEvent, mgr, state)
 		return
 	}

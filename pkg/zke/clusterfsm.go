@@ -96,6 +96,11 @@ func newClusterWithStatus(name string, status types.ClusterStatus) *Cluster {
 				mgr.updateClusterStateWithLock(cluster, state)
 				mgr.sendPubEvent(AddCluster{Cluster: cluster})
 			},
+			CreateFailedEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ZKEManager)
+				state := e.Args[1].(clusterState)
+				mgr.updateClusterStateWithLock(cluster, state)
+			},
 			UpdateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
