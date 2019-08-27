@@ -46,6 +46,7 @@ ctrl.Start(stopCh, storageCtrl, predicate.NewIgnoreUnchangedUpdate())
 
 ## 获取节点块设备并更新对象的Status.Config字段
 pkg/controller/controller.go 
+
 对于新增节点，通过k8s服务cluster-agent获取
 ```
 func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (storagev1.Cluster, error) {
@@ -71,15 +72,16 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (sto
 ### lvm说明
 目录结构
 ```
-└── lvm
-    ├── check.go      #不再使用
-    ├── create.go     #创建存储集群
-    ├── delete.go     #删除存储集群
-    ├── lvm.go        #主文件
-    ├── status.go     #更新存储集群状态
-    ├── template.go   #模板文件
-    ├── update.go     #更新存储集群配置
-    └── yaml.go       #配置文件
+lvm/
+├── create.go	#创建存储
+├── delete.go	#删除存储
+├── lvm.go	#主引导文件
+├── status.go	#状态更新
+├── template.go #资源模板
+├── update.go	#更新存储
+├── util  
+│   └── lvmdclient.go # lvmd客户端
+└── yaml.go 	#构建yaml
 ```
 
 - 创建  
@@ -114,7 +116,7 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (sto
 目录结构
 ```
 ├── ceph
-│   ├── ceph.go     #主文件
+│   ├── ceph.go     #主引导文件
 │   ├── client      #包装ceph命令
 │   ├── config      #为ceph集群创建configmap,secret,headless-service
 │   ├── create.go   #创建存储集群
@@ -131,9 +133,9 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (sto
 │   └── zap         #初始化磁盘
 ```
 - 创建  
-  1. 给节点增加labels和annotations
+  1. 给节点增加labels
   2. 创建ceph集群
-     1. 获取k8s集群Pod地址段（当前固定为10.42.0.0/16）
+     1. 获取k8s集群Pod地址段
      2. 随机生成uuid, adminkey, monkey
      3. 根据磁盘个数设置副本数（默认为2）
      4. 根据前面3步的配置
@@ -153,7 +155,7 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (sto
 - 更新  
   1. 对比更新前后的配置，确定删除的主机、增加的主机
   2. 实际上就是增加/删除osd组件Pod
-  3. 删除后增加labels和annotations
+  3. 删除后增加labels
 - 删除  
   1. 删除CSI
   2. 删除Ceph集群
@@ -163,4 +165,11 @@ func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (sto
      4. 删除mon
      5. 删除本地ceph配置文件
   3. 删除configmap,secret,service
-  3. 删除节点的labels和annotations
+  3. 删除节点的labels
+  
+  # 未来工作
+- 支持PVC的扩容和快照（CSI）
+- Ceph版本升级
+- 存储节点运行时自动发现和扩容
+- 存储节点删除时数据可靠性保障
+
