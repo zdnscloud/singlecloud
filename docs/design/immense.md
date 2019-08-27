@@ -112,7 +112,7 @@ lvm/
   4. 删除节点的labels和annotations
   
   
-  ### ceph说明
+### ceph说明
 目录结构
 ```
 ├── ceph
