@@ -45,6 +45,7 @@ type Cluster struct {
 	cancel     context.CancelFunc
 	lock       sync.Mutex
 	fsm        *fsm.FSM
+	scVersion  string
 }
 
 type AddCluster struct {

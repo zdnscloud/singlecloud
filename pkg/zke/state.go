@@ -21,6 +21,7 @@ type clusterState struct {
 	*types.ZKEConfig `json:",inline"`
 	CreateTime       time.Time `json:"createTime"`
 	IsUnvailable     bool      `json:"isUnvailable"`
+	ScVersion        string    `json:"zcloudVersion"`
 }
 
 func getState(clusterID string, db storage.DB) (clusterState, error) {

@@ -24,14 +24,16 @@ type ZKEManager struct {
 	unreadyClusters []*Cluster
 	db              storage.DB
 	lock            sync.Mutex
+	scVersion       string // add cluster singlecloud version for easy to confirm zcloud component version
 }
 
-func New(db storage.DB) (*ZKEManager, error) {
+func New(db storage.DB, scVersion string) (*ZKEManager, error) {
 	mgr := &ZKEManager{
 		readyClusters:   make([]*Cluster, 0),
 		unreadyClusters: make([]*Cluster, 0),
 		PubEventCh:      make(chan interface{}, PubEventBufferCount),
 		db:              db,
+		scVersion:       scVersion,
 	}
 	if err := mgr.loadDB(); err != nil {
 		return mgr, err
@@ -60,6 +62,7 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 		CreateTime:   time.Now(),
 		FullState:    &core.FullState{},
 		IsUnvailable: true,
+		ScVersion:    m.scVersion,
 	}
 
 	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
@@ -69,6 +72,7 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 	cluster := newInitialCluster(inner.Name)
 	cluster.CreateTime = state.CreateTime
 	cluster.config = config
+	cluster.scVersion = m.scVersion
 	m.unreadyClusters = append(m.unreadyClusters, cluster)
 	cluster.fsm.Event(CreateEvent)
 
@@ -94,6 +98,7 @@ func (m *ZKEManager) Import(ctx *resttypes.Context, json []byte) (interface{}, *
 	}
 	state.ZKEConfig = state.CurrentState.ZKEConfig.DeepCopy()
 	state.CreateTime = time.Now()
+	state.ScVersion = types.ScVersionImported
 	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
@@ -101,6 +106,7 @@ func (m *ZKEManager) Import(ctx *resttypes.Context, json []byte) (interface{}, *
 	cluster := newClusterWithStatus(inner.Name, types.CSConnecting)
 	cluster.CreateTime = state.CreateTime
 	cluster.config = state.CurrentState.ZKEConfig.DeepCopy()
+	cluster.scVersion = types.ScVersionImported
 	m.unreadyClusters = append(m.unreadyClusters, cluster)
 
 	kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
