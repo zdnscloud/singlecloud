@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 )
@@ -25,17 +26,20 @@ var adminUser = &types.User{
 	},
 }
 
-type Projects []types.Project
+type User struct {
+	Projects          []types.Project   `json:"projects,omitempty"`
+	CreationTimestamp resttypes.ISOTime `json:"creationTimestamp,omitempty"`
+}
 
 type Authorizer struct {
-	users map[string]Projects
+	users map[string]*User
 	lock  sync.RWMutex
 	db    storage.Table
 }
 
 func New(db storage.DB) (*Authorizer, error) {
 	auth := &Authorizer{
-		users: make(map[string]Projects),
+		users: make(map[string]*User),
 	}
 
 	if err := auth.loadUsers(db); err != nil {
@@ -58,13 +62,13 @@ func (a *Authorizer) Authorize(userName, cluster, namespace string) bool {
 	}
 
 	a.lock.RLock()
-	projects, ok := a.users[userName]
+	user, ok := a.users[userName]
 	a.lock.RUnlock()
 	if ok == false {
 		return false
 	}
 
-	for _, project := range projects {
+	for _, project := range user.Projects {
 		if (project.Cluster == AllClusters || project.Cluster == cluster) &&
 			(namespace == "" || project.Namespace == AllNamespaces || project.Namespace == namespace) {
 			return true
@@ -82,10 +86,14 @@ func (a *Authorizer) AddUser(user *types.User) error {
 	if _, ok := a.users[name]; ok {
 		return fmt.Errorf("user %s already exists", name)
 	} else {
-		if err := a.addUser(user); err != nil {
+		user_ := &User{
+			Projects:          user.Projects,
+			CreationTimestamp: resttypes.ISOTime(user.GetCreationTimestamp()),
+		}
+		if err := a.addUser(name, user_); err != nil {
 			return err
 		}
-		a.users[name] = user.Projects
+		a.users[name] = user_
 		return nil
 	}
 }
@@ -100,12 +108,13 @@ func (a *Authorizer) HasUser(userName string) bool {
 func (a *Authorizer) GetUser(userName string) *types.User {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
-	if projects, ok := a.users[userName]; ok {
+	if user_, ok := a.users[userName]; ok {
 		user := &types.User{
 			Name:     userName,
-			Projects: projects,
+			Projects: user_.Projects,
 		}
 		user.SetID(userName)
+		user.SetCreationTimestamp(time.Time(user_.CreationTimestamp))
 		return user
 	} else {
 		return nil
@@ -116,12 +125,13 @@ func (a *Authorizer) ListUser() []*types.User {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 	users := make([]*types.User, 0, len(a.users))
-	for name, projects := range a.users {
+	for name, user_ := range a.users {
 		user := &types.User{
 			Name:     name,
-			Projects: projects,
+			Projects: user_.Projects,
 		}
 		user.SetID(name)
+		user.SetCreationTimestamp(time.Time(user_.CreationTimestamp))
 		users = append(users, user)
 	}
 	return users
@@ -147,14 +157,13 @@ func (a *Authorizer) UpdateUser(user *types.User) error {
 	defer a.lock.Unlock()
 
 	name := user.GetID()
-	if _, ok := a.users[name]; ok == false {
+	if user_, ok := a.users[name]; ok == false {
 		return fmt.Errorf("user %s doesn't exist", name)
 	} else {
-		if err := a.updateUser(user); err != nil {
+		user_.Projects = user.Projects
+		if err := a.updateUser(name, user_); err != nil {
 			return err
 		}
-
-		a.users[name] = user.Projects
 		return nil
 	}
 }
