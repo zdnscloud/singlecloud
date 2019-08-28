@@ -48,6 +48,8 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create registry")
 	}
 
+	r := ctx.Object.(*types.Registry)
+
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
@@ -62,11 +64,14 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("cluster %s registry has exist", cluster.Name))
 	}
 
-	if !isStorageClassExist(cluster.KubeClient, registryAppStorageClass) {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", registryAppStorageClass, cluster.Name))
+	requiredStorageClass := monitorAppStorageClass
+	if r.StorageClass != "" {
+		requiredStorageClass = r.StorageClass
 	}
 
-	r := ctx.Object.(*types.Registry)
+	if !isStorageClassExist(cluster.KubeClient, requiredStorageClass) {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
+	}
 
 	app, err := genRegistryApplication(cluster.KubeClient, r, cluster.Name)
 	if err != nil {
