@@ -61,6 +61,10 @@ func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {
 	return m.authorizer
 }
 
+func (m *ClusterManager) GetEventBus() *pubsub.PubSub {
+	return m.eventBus
+}
+
 func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *zke.Cluster {
 	ancestors := resttypes.GetAncestors(obj)
 	clusterID := ancestors[0].GetID()

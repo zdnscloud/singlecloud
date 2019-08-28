@@ -27,6 +27,7 @@ import (
 	restHandler "github.com/zdnscloud/gorest/api/handler"
 	resttypes "github.com/zdnscloud/gorest/types"
 	restutil "github.com/zdnscloud/gorest/util"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
@@ -44,18 +45,37 @@ var (
 )
 
 const (
-	notesFileSuffix = "NOTES.txt"
-	AppTableSuffix  = "application"
+	notesFileSuffix  = "NOTES.txt"
+	ApplicationTable = "application"
 )
 
 type ApplicationManager struct {
 	api.DefaultHandler
-	clusters *ClusterManager
-	chartDir string
+	clusters       *ClusterManager
+	chartDir       string
+	clusterEventCh <-chan interface{}
 }
 
 func newApplicationManager(clusters *ClusterManager, chartDir string) *ApplicationManager {
-	return &ApplicationManager{clusters: clusters, chartDir: chartDir}
+	m := &ApplicationManager{
+		clusters:       clusters,
+		chartDir:       chartDir,
+		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
+	}
+	go m.eventLoop()
+	return m
+}
+
+func (m *ApplicationManager) eventLoop() {
+	for {
+		event := <-m.clusterEventCh
+		switch e := event.(type) {
+		case zke.DeleteCluster:
+			if err := m.clusters.GetDB().DeleteTable(storage.GenTableName(ApplicationTable, e.Cluster.Name)); err != nil {
+				log.Warnf("delete /application/cluster %s table failed: %s", e.Cluster.Name, err.Error())
+			}
+		}
+	}
 }
 
 func (m *ApplicationManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
@@ -90,7 +110,7 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 
 	isAdminUser := isAdmin(getCurrentUser(ctx))
 	namespace := ctx.Object.GetParent().GetID()
-	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, namespace))
+	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
 	if err != nil {
 		log.Warnf("list applications failed %s", err.Error())
 		return nil
@@ -129,7 +149,7 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 
 	namespace := ctx.Object.GetParent().GetID()
 	appName := ctx.Object.GetID()
-	tableName := genAppTableName(cluster.Name, namespace)
+	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
 	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
@@ -281,7 +301,7 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
 	app.ChartIcon = genChartIcon(app.ChartName)
-	tableName := genAppTableName(cluster.Name, namespace)
+	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
 	if err := addOrUpdateAppToDB(m.clusters.GetDB(), tableName, app, true); err != nil {
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
@@ -505,12 +525,8 @@ func genUrlPrefix(ctx *resttypes.Context, clusterName string) string {
 	}
 }
 
-func genAppTableName(clusterName, namespace string) string {
-	return clusterName + "_" + namespace + "_" + AppTableSuffix
-}
-
 func clearApplications(db storage.DB, cli client.Client, clusterName, namespace string) error {
-	tableName := genAppTableName(clusterName, namespace)
+	tableName := storage.GenTableName(ApplicationTable, clusterName, namespace)
 	appValues, err := getApplicationsFromDB(db, tableName)
 	if err != nil {
 		return fmt.Errorf("get applications from db failed: %s", err.Error())

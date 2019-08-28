@@ -100,7 +100,8 @@ func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
 	}
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, registryNameSpace), registryAppName, types.AppStatusDelete)
+	appTableName := storage.GenTableName(ApplicationTable, cluster.Name, registryNameSpace)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), appTableName, registryAppName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			if err := m.deleteFromDB(); err != nil {
@@ -112,7 +113,7 @@ func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error()))
 		}
 	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, registryNameSpace), registryNameSpace, app)
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, appTableName, registryNameSpace, app)
 	if err := m.deleteFromDB(); err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete registry from db failed: %s", err.Error()))

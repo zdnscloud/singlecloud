@@ -99,7 +99,8 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
 	}
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
+	appTableName := storage.GenTableName(ApplicationTable, cluster.Name, monitorNameSpace)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), appTableName, monitorAppName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			if err := m.deleteFromDB(cluster.Name); err != nil {
@@ -110,7 +111,7 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error()))
 		}
 	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, monitorNameSpace), monitorNameSpace, app)
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, appTableName, monitorNameSpace, app)
 
 	if err := m.deleteFromDB(cluster.Name); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
