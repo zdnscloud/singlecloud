@@ -43,6 +43,7 @@ type Cluster struct {
 	logCh      chan string
 	logSession sockjs.Session
 	cancel     context.CancelFunc
+	isCanceled bool
 	lock       sync.Mutex
 	fsm        *fsm.FSM
 }
@@ -112,6 +113,9 @@ func newClusterWithStatus(name string, status types.ClusterStatus) *Cluster {
 			},
 			CancelSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
+				state := e.Args[1].(clusterState)
+				cluster.isCanceled = false
+				mgr.updateClusterStateWithLock(cluster, state)
 				mgr.setClusterUnavailable(cluster)
 			},
 		},
