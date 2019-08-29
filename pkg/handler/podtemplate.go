@@ -239,6 +239,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 		var env []corev1.EnvVar
 		for i, volume := range c.Volumes {
 			readOnly := true
+			exists := false
 			volumeName := c.Name + "-" + VolumeNamePrefix + strconv.Itoa(i)
 			var volumeSource corev1.VolumeSource
 			switch volume.Type {
@@ -271,7 +272,14 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 				if found == false {
 					for _, pvc := range k8sPVCs {
 						if pvc.Name == volume.Name {
-							volumeName = c.Name + "-" + pvc.Name
+							volumeName = pvc.Name
+							for _, k8sVolume := range k8sVolumes {
+								if k8sVolume.Name == pvc.Name {
+									exists = true
+									break
+								}
+							}
+
 							volumeSource = corev1.VolumeSource{
 								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 									ClaimName: volume.Name,
@@ -290,10 +298,13 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 				return corev1.PodSpec{}, fmt.Errorf("volume type %s is unsupported", volume.Type)
 			}
 
-			k8sVolumes = append(k8sVolumes, corev1.Volume{
-				Name:         volumeName,
-				VolumeSource: volumeSource,
-			})
+			if exists == false {
+				k8sVolumes = append(k8sVolumes, corev1.Volume{
+					Name:         volumeName,
+					VolumeSource: volumeSource,
+				})
+			}
+
 			mounts = append(mounts, corev1.VolumeMount{
 				Name:      volumeName,
 				MountPath: volume.MountPath,
