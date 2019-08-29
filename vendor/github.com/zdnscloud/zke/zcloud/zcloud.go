@@ -2,16 +2,17 @@ package zcloud
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 	"github.com/zdnscloud/zke/pkg/k8s"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 	clusteragent "github.com/zdnscloud/zke/zcloud/cluster-agent"
 	nodeagent "github.com/zdnscloud/zke/zcloud/node-agent"
 	zcloudsa "github.com/zdnscloud/zke/zcloud/sa"
 	"github.com/zdnscloud/zke/zcloud/storage"
+	zcloudshell "github.com/zdnscloud/zke/zcloud/zcloud-shell"
 
 	"github.com/zdnscloud/gok8s/client"
 )
@@ -31,7 +32,7 @@ const (
 func DeployZcloudManager(ctx context.Context, c *core.Cluster) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		k8sClient, err := k8s.GetK8sClientFromYaml(c.Certificates[pki.KubeAdminCertName].Config)
 		if err != nil {
@@ -47,6 +48,9 @@ func DeployZcloudManager(ctx context.Context, c *core.Cluster) error {
 			return err
 		}
 		if err := doStorageOperator(ctx, c, k8sClient); err != nil {
+			return err
+		}
+		if err := doZcloudShell(ctx, c, k8sClient); err != nil {
 			return err
 		}
 		return nil
@@ -84,4 +88,12 @@ func doStorageOperator(ctx context.Context, c *core.Cluster, cli client.Client) 
 		"StorageOperatorImage": c.Image.StorageOperator,
 	}
 	return k8s.DoCreateFromTemplate(cli, storage.OperatorTemplate, cfg)
+}
+
+func doZcloudShell(ctx context.Context, c *core.Cluster, cli client.Client) error {
+	log.Infof(ctx, "[zcloud] deploy zcloud-shell")
+	cfg := map[string]interface{}{
+		"ZcloudShellImage": c.Image.ZcloudShell,
+	}
+	return k8s.DoCreateFromTemplate(cli, zcloudshell.ZcloudShellTemplate, cfg)
 }

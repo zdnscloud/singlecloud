@@ -3,13 +3,13 @@ package monitor
 import (
 	"context"
 	b64 "encoding/base64"
-	"fmt"
 
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 	"github.com/zdnscloud/zke/monitor/prometheus"
 	"github.com/zdnscloud/zke/pkg/k8s"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
@@ -20,7 +20,7 @@ const DeployNamespace = "zcloud"
 func DeployMonitoring(ctx context.Context, c *core.Cluster) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		log.Infof(ctx, "[Monitor] Setting up Monitor Plugin")
 		templateConfig, k8sClient, err := prepare(c)

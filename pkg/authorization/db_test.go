@@ -3,6 +3,7 @@ package authorization
 import (
 	"os"
 	"testing"
+	"time"
 
 	ut "github.com/zdnscloud/cement/unittest"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -28,6 +29,8 @@ func TestUserDB(t *testing.T) {
 			},
 		}
 		newUser.SetID(newUser.Name)
+		createTime := time.Now()
+		newUser.SetCreationTimestamp(createTime)
 		auth.AddUser(newUser)
 
 		auth, err = New(db)
@@ -36,6 +39,8 @@ func TestUserDB(t *testing.T) {
 		ut.Assert(t, auth.HasUser(newUser.Name), "")
 		ut.Assert(t, auth.HasUser(newUser.Name), "")
 		ut.Assert(t, auth.Authorize(newUser.Name, "local", "default"), "")
+		ben := auth.GetUser("ben")
+		ut.Equal(t, ben.GetCreationTimestamp().Second(), createTime.Second())
 
 		newUser.Projects = []types.Project{}
 		err = auth.UpdateUser(newUser)

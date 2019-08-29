@@ -82,7 +82,7 @@ func getClusterKubeConfig(addr, token, clusterName string) string {
 func main() {
 	var addr, clusterName, adminPassword string
 	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
-	flag.StringVar(&adminPassword, "passwd", "zdns", "admin password for singlecloud")
+	flag.StringVar(&adminPassword, "passwd", "zcloud", "admin password for singlecloud")
 	flag.StringVar(&clusterName, "cluster", "local", "cluster name")
 	flag.Parse()
 

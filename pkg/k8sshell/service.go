@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/exec"
@@ -39,8 +38,8 @@ func (mgr *ExecutorManager) RegisterHandler(router gin.IRoutes) error {
 }
 
 const (
-	ClusterShellPodName  = "zcloud-shell"
-	ClusterShellPodImage = "zdnscloud/kubectl:v1.13.1"
+	ClusterShellPodName       = "zcloud-shell-0"
+	ClusterShellContainerName = "zcloud-shell"
 )
 
 var _ io.ReadWriter = &ShellConn{}
@@ -100,16 +99,9 @@ func (mgr *ExecutorManager) OpenClusterConsole(clusterID string, r *http.Request
 		}
 
 		pod := exec.Pod{
-			Namespace:          handler.ZCloudNamespace,
-			Name:               ClusterShellPodName,
-			Container:          ClusterShellPodName,
-			Image:              ClusterShellPodImage,
-			ServiceAccountName: handler.ZCloudReadonly,
-		}
-
-		if err := executor.CreatePod(pod, cmd, 30*time.Second); err != nil {
-			log.Errorf("execute cmd failed %s", err.Error())
-			return
+			Namespace: handler.ZCloudNamespace,
+			Name:      ClusterShellPodName,
+			Container: ClusterShellContainerName,
 		}
 
 		stream := newShellConn(session)

@@ -109,6 +109,7 @@ var (
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.5",
 			StorageOperator:           "zdnscloud/storage-operator:v1.8",
+			ZcloudShell:               "zdnscloud/kubectl:v1.13.1",
 		},
 	}
 )
