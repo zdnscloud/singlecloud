@@ -3,7 +3,6 @@ package authorization
 import (
 	"encoding/json"
 
-	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 )
 
@@ -28,33 +27,32 @@ func (a *Authorizer) loadUsers(db storage.DB) error {
 		return err
 	}
 
-	users := make(map[string]Projects)
-	for name, projects_ := range usersInDB {
-		var projects Projects
-		if err := json.Unmarshal(projects_, &projects); err != nil {
+	users := make(map[string]*User)
+	for name, userInDB := range usersInDB {
+		var user User
+		if err := json.Unmarshal(userInDB, &user); err != nil {
 			return err
 		}
-		users[name] = projects
+		users[name] = &user
 	}
 	a.users = users
-
 	a.db = table
 	return nil
 }
 
-func (a *Authorizer) addUser(user *types.User) error {
+func (a *Authorizer) addUser(name string, user *User) error {
 	tx, err := a.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	data, err := json.Marshal(user.Projects)
+	data, err := json.Marshal(user)
 	if err != nil {
 		return err
 	}
 
-	if err := tx.Add(user.GetID(), data); err != nil {
+	if err := tx.Add(name, data); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -73,19 +71,19 @@ func (a *Authorizer) deleteUser(userName string) error {
 	return tx.Commit()
 }
 
-func (a *Authorizer) updateUser(user *types.User) error {
+func (a *Authorizer) updateUser(name string, user *User) error {
 	tx, err := a.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	data, err := json.Marshal(user.Projects)
+	data, err := json.Marshal(user)
 	if err != nil {
 		return err
 	}
 
-	if err := tx.Update(user.GetID(), data); err != nil {
+	if err := tx.Update(name, data); err != nil {
 		return err
 	}
 	return tx.Commit()

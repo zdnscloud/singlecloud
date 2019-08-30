@@ -9,6 +9,7 @@ import (
 	"github.com/zdnscloud/zke/core/services"
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 	"github.com/zdnscloud/zke/types"
 
 	dockertypes "github.com/docker/docker/api/types"
@@ -28,7 +29,7 @@ const (
 func (c *Cluster) TunnelHosts(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		c.InactiveHosts = make([]*hosts.Host, 0)
 		uniqueHosts := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
@@ -125,7 +126,7 @@ func (c *Cluster) InvertIndexHosts() error {
 func (c *Cluster) SetUpHosts(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		if c.AuthnStrategies[AuthnX509Provider] {
 			log.Infof(ctx, "[certificates] Deploying kubernetes certificates to Cluster nodes")
