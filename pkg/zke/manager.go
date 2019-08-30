@@ -163,7 +163,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 	c.cancel = cancel
 	go c.update(zkectx, state, m)
 
-	return nil, nil
+	return inner, nil
 }
 
 func (m *ZKEManager) Get(id string) *Cluster {
