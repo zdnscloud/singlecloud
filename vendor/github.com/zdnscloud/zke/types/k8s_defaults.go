@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	DefaultK8s = "v1.13.9"
+	DefaultK8s = "v1.13.10"
 )
 
 var (
@@ -21,6 +21,7 @@ var (
 	K8sVersionsCurrent = []string{
 		"v1.13.1",
 		"v1.13.9",
+		"v1.13.10",
 	}
 
 	// K8sVersionToZKESystemImages is dynamically populated on init() with the latest versions
@@ -61,7 +62,7 @@ var (
 			NodeAgent:                 "zdnscloud/node-agent:v1.2",
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.5",
-			StorageOperator:           "zdnscloud/storage-operator:v1.8",
+			StorageOperator:           "zdnscloud/storage-operator:v1.9",
 		},
 		"v1.13.9": {
 			Etcd:                      "zdnscloud/coreos-etcd:v3.3.10",
@@ -84,7 +85,31 @@ var (
 			NodeAgent:                 "zdnscloud/node-agent:v1.2",
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.5",
+			StorageOperator:           "zdnscloud/storage-operator:v1.9",
+		},
+		"v1.13.10": {
+			Etcd:                      "zdnscloud/coreos-etcd:v3.3.10",
+			Kubernetes:                "zdnscloud/hyperkube:v1.13.10",
+			Alpine:                    "zdnscloud/zke-tools:v0.1.40",
+			NginxProxy:                "zdnscloud/zke-tools:v0.1.40",
+			CertDownloader:            "zdnscloud/zke-tools:v0.1.40",
+			KubernetesServicesSidecar: "zdnscloud/zke-tools:v0.1.40",
+			Flannel:                   "zdnscloud/coreos-flannel:v0.10.0",
+			FlannelCNI:                "zdnscloud/coreos-flannel-cni:v0.3.0",
+			CalicoNode:                "zdnscloud/calico-node:v3.4.0",
+			CalicoCNI:                 "zdnscloud/calico-cni:v3.4.0",
+			CalicoCtl:                 "zdnscloud/calico-ctl:v2.0.0",
+			PodInfraContainer:         "zdnscloud/pause-amd64:3.1",
+			Ingress:                   "zdnscloud/nginx-ingress-controller:0.21.0",
+			IngressBackend:            "zdnscloud/nginx-ingress-controller-defaultbackend:1.4",
+			CoreDNS:                   "zdnscloud/coredns:1.2.6",
+			CoreDNSAutoscaler:         "zdnscloud/cluster-proportional-autoscaler-amd64:1.0.0",
+			ClusterAgent:              "zdnscloud/cluster-agent:v2.5",
+			NodeAgent:                 "zdnscloud/node-agent:v1.2",
+			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
+			ZKERemover:                "zdnscloud/zke-remove:v0.5",
 			StorageOperator:           "zdnscloud/storage-operator:v1.8",
+			ZcloudShell:               "zdnscloud/kubectl:v1.13.1",
 		},
 	}
 )

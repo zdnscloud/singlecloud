@@ -9,6 +9,7 @@ import (
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 	"github.com/zdnscloud/zke/types"
 
 	"k8s.io/client-go/kubernetes"
@@ -48,7 +49,7 @@ func ReconcileCluster(ctx context.Context, kubeCluster, currentCluster *Cluster)
 func reconcileWorker(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		// worker deleted first to avoid issues when worker+controller on same host
 		log.Debugf("[reconcile] Check worker hosts to be deleted")
@@ -82,7 +83,7 @@ func reconcileWorker(ctx context.Context, currentCluster, kubeCluster *Cluster, 
 func reconcileControl(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		log.Debugf("[reconcile] Check Control plane hosts to be deleted")
 		selfDeleteAddress, err := getLocalConfigAddress(kubeCluster.Certificates[pki.KubeAdminCertName].Config)
@@ -152,7 +153,7 @@ func reconcileHost(ctx context.Context, toDeleteHost *hosts.Host, worker, etcd b
 func reconcileEtcd(ctx context.Context, currentCluster, kubeCluster *Cluster, kubeClient *kubernetes.Clientset) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		log.Infof(ctx, "[reconcile] Check etcd hosts to be deleted")
 		// get tls for the first current etcd host

@@ -15,6 +15,7 @@ import (
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/k8s"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 	"github.com/zdnscloud/zke/types"
 
 	dockertypes "github.com/docker/docker/api/types"
@@ -68,7 +69,7 @@ const (
 func (c *Cluster) DeployControlPlane(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		// Deploy Etcd Plane
 		etcdNodePlanMap := make(map[string]types.ZKENodePlan)
@@ -103,7 +104,7 @@ func (c *Cluster) DeployControlPlane(ctx context.Context) error {
 func (c *Cluster) DeployWorkerPlane(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		// Deploy Worker plane
 		workerNodePlanMap := make(map[string]types.ZKENodePlan)
@@ -135,7 +136,7 @@ func ParseConfig(clusterFile string) (*types.ZKEConfig, error) {
 func InitClusterObject(ctx context.Context, zkeConfig *types.ZKEConfig) (*Cluster, error) {
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("cluster build has beed canceled")
+		return nil, util.CancelErr
 	default:
 		// basic cluster object from zkeConfig
 		c := &Cluster{
@@ -170,7 +171,7 @@ func InitClusterObject(ctx context.Context, zkeConfig *types.ZKEConfig) (*Cluste
 func (c *Cluster) SetupDialers(ctx context.Context, dailersOptions hosts.DialersOptions) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		c.DockerDialerFactory = dailersOptions.DockerDialerFactory
 		c.K8sWrapTransport = dailersOptions.K8sWrapTransport
@@ -246,7 +247,7 @@ func getLocalAdminConfigWithNewAddress(kubeConfigYaml, cpAddress string, cluster
 func ApplyAuthzResources(ctx context.Context, zkeConfig types.ZKEConfig, k8sClient *kubernetes.Clientset, dailersOptions hosts.DialersOptions) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		// dialer factories are not needed here since we are not uses docker only k8s jobs
 		kubeCluster, err := InitClusterObject(ctx, &zkeConfig)
@@ -285,7 +286,7 @@ func ApplyAuthzResources(ctx context.Context, zkeConfig types.ZKEConfig, k8sClie
 func (c *Cluster) SyncLabelsAndTaints(ctx context.Context, currentCluster *Cluster) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		if currentCluster != nil {
 			cpToDelete := hosts.GetToDeleteHosts(currentCluster.ControlPlaneHosts, c.ControlPlaneHosts, c.InactiveHosts)
@@ -350,7 +351,7 @@ func setNodeAnnotationsLabelsTaints(k8sClient *kubernetes.Clientset, host *hosts
 func (c *Cluster) PrePullK8sImages(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		log.Infof(ctx, "Pre-pulling kubernetes images")
 		hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)

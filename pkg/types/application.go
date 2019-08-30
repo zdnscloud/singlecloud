@@ -30,6 +30,7 @@ type Application struct {
 	AppResources       []AppResource   `json:"appResources,omitempty"`
 	Configs            json.RawMessage `json:"configs,omitempty"`
 	Manifests          []Manifest      `json:"manifests,omitempty"`
+	SystemChart        bool            `json:"systemChart,omitempty"`
 }
 
 type AppResource struct {

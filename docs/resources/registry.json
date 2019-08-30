@@ -1,0 +1,50 @@
+{
+    "resourceType": "registry",
+    "collectionName": "registries",
+    "parentResources": [],
+
+    "resourceFields": {
+        "cluster": {
+            "type": "string"
+        },
+        "ingressDomain": {
+            "type": "string"
+        },
+        "storageClass": {
+            "type": "enum",
+            "validValues": ["cephfs", "lvm"]
+        },
+        "storageSize": {
+            "type": "int"
+        },
+        "adminPassword": {
+            "type": "string"
+        },
+        "redirectUrl": {
+            "type": "string"
+        }
+    },
+    "resourceMethods": ["DELETE"],
+    "collectionMethods": ["GET", "POST"],
+    "postParameters": {
+        "fields": {
+            "cluster": {
+                "type": "string",
+                "required": true
+            },
+            "ingressDomain": {
+                "type": "string"
+            },
+            "storageClass": {
+                "type": "enum",
+                "validValues": ["cephfs", "lvm"]
+            },
+            "storageSize": {
+                "type": "int"
+            },
+            "adminPassword": {
+                "type": "string"
+            }
+        }
+    }
+}

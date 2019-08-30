@@ -61,7 +61,7 @@
   revision = "fd01fc79c553a8e99d512a07e8e0c63d4a3ccfc5"
 
 [[projects]]
-  digest = "1:53cbf1b46de4361416179ade70a96517fe6263301e65a7afa6afde8d92bab4c6"
+  digest = "1:f61880fac130ff15c3b69c332814ab48ca2e2dbc20989e9359036a31d065a171"
   name = "github.com/coreos/etcd"
   packages = [
     "client",
@@ -71,8 +71,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "98d308426819d892e149fe45f6fd542464cb1f9d"
-  version = "v3.3.13"
+  revision = "94745a4eed0425653b3b4275a208d38babceeaec"
+  version = "v3.3.15"
 
 [[projects]]
   digest = "1:05ffeeed3f0f05520de0679f6aa3219ffee69cfd6d9fb6c194879d4c818ad670"
@@ -262,7 +262,7 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:d1a3774c1f8336a21669d6da87a7bafb4d6171a84752268b7011e767d6722c2b"
+  digest = "1:ca4524b4855ded427c7003ec903a5c854f37e7b1e8e2a93277243462c5b753a8"
   name = "github.com/googleapis/gnostic"
   packages = [
     "OpenAPIv2",
@@ -270,8 +270,8 @@
     "extensions",
   ]
   pruneopts = "UT"
-  revision = "e73c7ec21d36ddb0711cb36d1502d18363b5c2c9"
-  version = "v0.3.0"
+  revision = "ab0dd09aa10e2952b28e12ecd35681b20463ebab"
+  version = "v0.3.1"
 
 [[projects]]
   digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
@@ -344,12 +344,12 @@
   version = "v2.1.0"
 
 [[projects]]
-  digest = "1:9b90c7639a41697f3d4ad12d7d67dfacc9a7a4a6e0bbfae4fc72d0da57c28871"
+  digest = "1:36325ebb862e0382f2f14feef409ba9351271b89ada286ae56836c603d43b59c"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
   pruneopts = "UT"
-  revision = "1311e847b0cb909da63b5fecfb5370aa66236465"
-  version = "v0.0.8"
+  revision = "e1f7b56ace729e4a73a29a6b4fac6cd5fcda7ab3"
+  version = "v0.0.9"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -444,7 +444,7 @@
   name = "github.com/prometheus/client_model"
   packages = ["go"]
   pruneopts = "UT"
-  revision = "fd36f4220a901265f90734c3183c5f0c91daa0b8"
+  revision = "14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016"
 
 [[projects]]
   digest = "1:8dcedf2e8f06c7f94e48267dea0bc0be261fa97b377f3ae3e87843a92a549481"
@@ -519,7 +519,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8ab9b7679209ff342040877aabcf39df4cf946cc291ad8d92989b8c4f8477ec8"
+  digest = "1:fc14e4757e3280fc1be5f15cad43b919ce6ae2410ff61c00a21c6661dabc29a3"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -539,9 +539,10 @@
     "stringtool",
     "unittest",
     "uuid",
+    "x509",
   ]
   pruneopts = "UT"
-  revision = "1dc2ee005fab91ce777c8e04129238a6f42a07be"
+  revision = "7eb205536ab847a023df949a9d333c0f41bfd9f3"
 
 [[projects]]
   branch = "master"
@@ -557,7 +558,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c906f1b6c1cdfc385fd824d3001ce40027f5373467d6de478cb61a46511d3d85"
+  digest = "1:b41c38ef320bfc7d195e026e8fb45c8b7b79470928aa523095d2b16a9b9ecf42"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -576,7 +577,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "c7fc3fc1bb20ac9fcebb2500a8f737e7d3db2b4e"
+  revision = "984bf53d1bc17cf4b52baa608088b9b788414c74"
 
 [[projects]]
   branch = "master"
@@ -633,7 +634,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:887513642315e77bc86ace40016beca2f82d4fcb584b65f1338b3d7dff2947a6"
+  digest = "1:c140418b172e266a17e24113ffd10c9f33a5a561828649e384cd8aaffb7fa0d6"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -660,9 +661,10 @@
     "zcloud/node-agent",
     "zcloud/sa",
     "zcloud/storage",
+    "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "61d04a4326bda1c83e954d35ce75dae6f37c7e8e"
+  revision = "4d8a1422998f5e67b73360b3536d15a8e46b3011"
 
 [[projects]]
   branch = "master"
@@ -681,11 +683,11 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
+  revision = "60c769a6c58655dab1b9adac0d58967dd517cfba"
 
 [[projects]]
   branch = "master"
-  digest = "1:3fa9cdf9e0e7f1b1d888b55a710bc90ce5ab1f27feac343cebee6e0b7f31e2d4"
+  digest = "1:03889bda9d5d0b86ee7a16eaf733db664bdba2ce0408f3c41309338f3be10b8b"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -698,7 +700,7 @@
     "proxy",
   ]
   pruneopts = "UT"
-  revision = "ca1201d0de80cfde86cb01aea620983605dfe99b"
+  revision = "74dc4d7220e7acc4e100824340f3e66577424772"
 
 [[projects]]
   branch = "master"
@@ -713,7 +715,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a65b11596dfef5b1fac0574e393384445fe7d0a2c173bf8952faa3d2054b4521"
+  digest = "1:6c97b4baa9cf774b42192e23632afc7dee7b899d4a3dc98057d24708ce1f60ac"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -721,7 +723,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "9eafafc0a87e0fd0aeeba439a4573537970c44c7"
+  revision = "fde4db37ae7ad8191b03d30d27f258b5291ae4e3"
 
 [[projects]]
   digest = "1:8d8faad6b12a3a4c819a3f9618cb6ee1fa1cfc33253abeeea8b55336721e3405"
@@ -798,7 +800,7 @@
 
 [[projects]]
   branch = "dev-v3"
-  digest = "1:638724dff6bdef2d369fe2cb1ff86bfde78f52960669f04b33d92c7395e4827f"
+  digest = "1:89c98e483801c520fe6839320c8c8d84c7434c6e086574050f10ca8a4a3196f2"
   name = "helm.sh/helm"
   packages = [
     "internal/ignore",
@@ -809,12 +811,12 @@
     "pkg/engine",
   ]
   pruneopts = "UT"
-  revision = "d67795216535e214f2ad28928fba432a05676905"
+  revision = "fba311ba2362ad629030c936b5d23aacb37bffcd"
   source = "https://github.com/helm/helm.git"
 
 [[projects]]
   branch = "release-1.13"
-  digest = "1:6cec2c64c7569cd43b9fa5f8973f3a82919ebed36296d19312de057e59651b05"
+  digest = "1:86b38004415341a2f678a19f9312213bc851a3620bb42b3dca005c8ad0d3485c"
   name = "k8s.io/api"
   packages = [
     "admissionregistration/v1alpha1",
@@ -851,22 +853,22 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "781da4e7b28a3d23a108ec63be899e68fa745011"
+  revision = "ebce17126a01f5fe02364d88c899816bcc2a8165"
 
 [[projects]]
   branch = "release-1.13"
-  digest = "1:46e3296eec0a6e864c2ef813ccfdb0b83d144fcc23414d97dd4894e9464cf4d5"
+  digest = "1:3c8118f43e7827520c47897a89fec887329f779a5e2a3b29211fe319a75938b2"
   name = "k8s.io/apiextensions-apiserver"
   packages = [
     "pkg/apis/apiextensions",
     "pkg/apis/apiextensions/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "43057cf062ec1149c4ee268979208046e4f2f722"
+  revision = "878b1211abf130817a11f74ba007f1f19f89a9e3"
 
 [[projects]]
   branch = "release-1.13"
-  digest = "1:640f7d31cbb27209d1558d88c2a76faeac615fa5fa633f02fb32cd62c16ff2f9"
+  digest = "1:5cc72fda7e2916ae8dd99ec4fc76b9fd34c15e08c7db12d41dc818c3c49c4d36"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -914,7 +916,7 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
-  revision = "facf06a8f4b8f4f51bb9016d848d0f698abe9c00"
+  revision = "bf4de9df677cd119930fa83483bad158956cdfcf"
 
 [[projects]]
   digest = "1:654fac90d3d8642192ce9cc2c87fa703c1ca91dc4730e2880b3a300302ebb974"
@@ -1000,7 +1002,7 @@
 
 [[projects]]
   branch = "release-1.13"
-  digest = "1:153ac2cd547ca5291631d860dc6ae6cb37921cd0fad6aeacffa1e037032b4b2f"
+  digest = "1:3ab2a0f5ed88a5e7a3ace44b6d375dbad6a81c9d744263f00bf180175170a5bf"
   name = "k8s.io/kube-aggregator"
   packages = [
     "pkg/apis/apiregistration",
@@ -1008,11 +1010,11 @@
     "pkg/apis/apiregistration/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "f78f16e8495fe8febf75703060a894851fa33fd3"
+  revision = "3e0d92103a9f4f5df638d2d50a3e6025b081c1a2"
 
 [[projects]]
   branch = "release-1.13"
-  digest = "1:0306ff09375dc31052d211f0e9db9b9b1156e5306d36ab0080e432bc9972262a"
+  digest = "1:8894705d6f2604776dd3d0e0fa16a3b8bddd1ceb9a3088155b57ad5b8dbe04bf"
   name = "k8s.io/metrics"
   packages = [
     "pkg/apis/metrics",
@@ -1024,7 +1026,7 @@
     "pkg/client/clientset/versioned/typed/metrics/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "0a5b6793b94f4e46b2459e74faf1f34ddb7f137b"
+  revision = "d56ac0346839bf61a0244747b4531874f5bc477a"
 
 [[projects]]
   digest = "1:7719608fe0b52a4ece56c2dde37bedd95b938677d1ab0f84b8a7852e4c59f849"
@@ -1050,6 +1052,7 @@
     "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/unittest",
     "github.com/zdnscloud/cement/uuid",
+    "github.com/zdnscloud/cement/x509",
     "github.com/zdnscloud/g53",
     "github.com/zdnscloud/gok8s/cache",
     "github.com/zdnscloud/gok8s/client",

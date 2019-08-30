@@ -88,6 +88,7 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
+	isAdminUser := isAdmin(getCurrentUser(ctx))
 	namespace := ctx.Object.GetParent().GetID()
 	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, namespace))
 	if err != nil {
@@ -105,6 +106,10 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 		if err := json.Unmarshal(value, &app); err != nil {
 			log.Warnf("list applications failed %s", err.Error())
 			return nil
+		}
+
+		if isAdminUser == false && app.SystemChart {
+			continue
 		}
 
 		app.Configs = nil
@@ -125,9 +130,9 @@ func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 	namespace := ctx.Object.GetParent().GetID()
 	appName := ctx.Object.GetID()
 	tableName := genAppTableName(cluster.Name, namespace)
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), tableName, appName, types.AppStatusDelete)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if err == storage.ErrNotFoundResource {
 			return resttypes.NewAPIError(resttypes.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
 		} else {
@@ -160,7 +165,7 @@ func deleteApplication(db storage.DB, cli client.Client, tableName, namespace st
 	}
 }
 
-func updateApplicationStatusFromDB(db storage.DB, tableName, name, status string) (*types.Application, error) {
+func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, status string) (*types.Application, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
@@ -175,6 +180,10 @@ func updateApplicationStatusFromDB(db storage.DB, tableName, name, status string
 	var app types.Application
 	if err := json.Unmarshal(value, &app); err != nil {
 		return nil, err
+	}
+
+	if isAdmin(userName) == false && app.SystemChart {
+		return nil, fmt.Errorf("user %s no authority to delete application %s", userName, name)
 	}
 
 	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
@@ -206,7 +215,10 @@ func deleteAppResources(cli client.Client, namespace string, manifests []types.M
 				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
 			}
 
-			metaObj.SetNamespace(namespace)
+			if metaObj.GetNamespace() == "" {
+				metaObj.SetNamespace(namespace)
+			}
+
 			if err := cli.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil {
 				if apierrors.IsNotFound(err) == false {
 					return fmt.Errorf("delete resource with file %s failed: %s", manifest.File, err.Error())
@@ -237,20 +249,32 @@ func deleteApplicationFromDB(db storage.DB, tableName, name string) error {
 }
 
 func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
+	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
+		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
+	} else if exists == false {
+		return fmt.Errorf("namespace %s is not found", namespace)
+	}
+
 	chartPath := path.Join(m.chartDir, app.ChartName, app.ChartVersion)
 	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
 		return err
 	}
 
+	info, err := getChartInfo(chartPath)
+	if err != nil {
+		return fmt.Errorf("load chart %s with version %s info failed: %s", app.ChartName, app.ChartVersion, err.Error())
+	}
+
+	isAdminUser := isAdmin(getCurrentUser(ctx))
+	if isAdminUser == false && info.SystemChart {
+		return fmt.Errorf("user %s no authority to create application with chart %s", getCurrentUser(ctx), app.ChartName)
+	}
+
+	app.SystemChart = info.SystemChart
+
 	manifests, err := loadChartFiles(ctx, namespace, chartPath, app)
 	if err != nil {
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
-	}
-
-	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
-		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
-	} else if exists == false {
-		return fmt.Errorf("namespace %s is not found", namespace)
 	}
 
 	app.Manifests = manifests
@@ -262,7 +286,8 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
 
-	go createApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, namespace, genUrlPrefix(ctx, cluster.Name, namespace), app)
+	go createApplication(m.clusters.GetDB(), cluster.KubeClient, isAdminUser, tableName, namespace,
+		genUrlPrefix(ctx, cluster.Name), app)
 	return nil
 }
 
@@ -357,8 +382,8 @@ func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *ty
 	return manifests, nil
 }
 
-func createApplication(db storage.DB, cli client.Client, tableName, namespace, urlPrefix string, app *types.Application) {
-	appResources, err := createAppResources(cli, namespace, urlPrefix, app.Manifests)
+func createApplication(db storage.DB, cli client.Client, isAdmin bool, tableName, namespace, urlPrefix string, app *types.Application) {
+	appResources, err := createAppResources(cli, isAdmin, namespace, urlPrefix, app.Manifests)
 	if err != nil {
 		app.Status = types.AppStatusFailed
 		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
@@ -379,7 +404,7 @@ func createApplication(db storage.DB, cli client.Client, tableName, namespace, u
 	}
 }
 
-func createAppResources(cli client.Client, namespace, urlPrefix string, manifests []types.Manifest) (types.AppResources, error) {
+func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix string, manifests []types.Manifest) (types.AppResources, error) {
 	var appResources types.AppResources
 	for i, manifest := range manifests {
 		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
@@ -393,7 +418,16 @@ func createAppResources(cli client.Client, namespace, urlPrefix string, manifest
 				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
 			}
 
-			metaObj.SetNamespace(namespace)
+			tmpNS := namespace
+			if nm := metaObj.GetNamespace(); nm != "" {
+				if isAdmin == false {
+					return fmt.Errorf("chart file %s should not has namespace", manifest.File)
+				}
+				tmpNS = nm
+			} else {
+				metaObj.SetNamespace(namespace)
+			}
+
 			if err := cli.Create(ctx, obj); err != nil {
 				if apierrors.IsAlreadyExists(err) {
 					manifests[i].Duplicate = true
@@ -408,7 +442,7 @@ func createAppResources(cli client.Client, namespace, urlPrefix string, manifest
 				appResources = append(appResources, types.AppResource{
 					Name: metaObj.GetName(),
 					Type: typ,
-					Link: path.Join(urlPrefix, restutil.GuessPluralName(typ), metaObj.GetName()),
+					Link: path.Join(urlPrefix, tmpNS, restutil.GuessPluralName(typ), metaObj.GetName()),
 				})
 			}
 			return nil
@@ -450,25 +484,24 @@ func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]
 	if err != nil {
 		return nil, fmt.Errorf("create application %s config is invalid: %v", app.ChartName, err.Error())
 	}
-
 	return m, nil
 }
 
-func genUrlPrefix(ctx *resttypes.Context, clusterName, namespace string) string {
+func genUrlPrefix(ctx *resttypes.Context, clusterName string) string {
 	req := ctx.Request
 	scheme := "http"
 	if req.TLS != nil {
 		scheme = "https"
 	}
 
-	urls := strings.SplitAfterN(req.URL.Path, "/namespaces/"+namespace, 2)
+	urls := strings.SplitAfterN(req.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", clusterName), 2)
 	if len(urls) == 2 {
 		return fmt.Sprintf("%s://%s%s", scheme, req.Host, urls[0])
 	} else {
 		apiVersion := ctx.Object.GetSchema().Version
 		return path.Join(fmt.Sprintf("%s://%s", scheme, req.Host),
 			resttypes.GroupPrefix, apiVersion.Group, apiVersion.Version,
-			fmt.Sprintf("/clusters/%s/namespaces/%s", clusterName, namespace))
+			fmt.Sprintf("/clusters/%s/namespaces/", clusterName))
 	}
 }
 

@@ -79,11 +79,15 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager), types.SetOuterServiceSchema)
 
 	schemas.MustImportAndCustomize(&Version, types.Chart{}, newChartManager(a.chartDir), types.SetChartSchema)
-	schemas.MustImportAndCustomize(&Version, types.Application{}, newApplicationManager(a.clusterManager, a.chartDir), types.SetApplicationSchema)
+	appMgr := newApplicationManager(a.clusterManager, a.chartDir)
+	schemas.MustImportAndCustomize(&Version, types.Application{}, appMgr, types.SetApplicationSchema)
 	schemas.MustImport(&Version, charts.Redis{})
 	schemas.MustImport(&Version, charts.Vanguard{})
+	schemas.MustImport(&Version, charts.Harbor{})
+	schemas.MustImport(&Version, charts.Prometheus{})
 	schemas.MustImportAndCustomize(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager), types.SetUserQuotaSchema)
-
+	schemas.MustImportAndCustomize(&Version, types.Registry{}, newRegistryManager(a.clusterManager, appMgr), types.SetRegistrySchema)
+	schemas.MustImportAndCustomize(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appMgr), types.SetMonitorSchema)
 	server := api.NewAPIServer()
 	if err := server.AddSchemas(schemas); err != nil {
 		return err

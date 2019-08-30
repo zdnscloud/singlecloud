@@ -8,7 +8,7 @@
         "chartName": {"type": "string"},
         "chartVersion": {"type": "string"},
         "chartIcon": {"type": "string"},
-        "appResources": {"type": "appResource"},
+        "appResources": {"type": "array", "elemType": "appResource"},
         "status": {"type": "enum", "validValues": ["create", "delete", "succeed", "failed"]}
     },
 

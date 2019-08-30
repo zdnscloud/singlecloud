@@ -2,9 +2,9 @@ package core
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zdnscloud/zke/pkg/hosts"
+	"github.com/zdnscloud/zke/pkg/util"
 
 	"github.com/zdnscloud/cement/errgroup"
 )
@@ -12,7 +12,7 @@ import (
 func (c *Cluster) CleanDeadLogs(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
 

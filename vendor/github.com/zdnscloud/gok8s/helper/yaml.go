@@ -75,6 +75,10 @@ func MapOnRuntimeObject(data string, fn func(context.Context, runtime.Object) er
 			}
 		}
 
+		if obj == nil {
+			return nil
+		}
+
 		if err := fn(context.TODO(), obj); err != nil {
 			if apierrors.IsAlreadyExists(err) == false &&
 				apierrors.IsNotFound(err) == false {

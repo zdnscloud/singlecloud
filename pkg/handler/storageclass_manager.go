@@ -58,3 +58,13 @@ func k8sStorageClassToScStorageClass(k8sStorageClass *storagev1.StorageClass) *t
 	storageClass.SetCreationTimestamp(k8sStorageClass.CreationTimestamp.Time)
 	return storageClass
 }
+
+func isStorageClassExist(cli client.Client, name string) bool {
+	scs, _ := getStorageClasses(cli)
+	for _, sc := range scs.Items {
+		if sc.Name == name {
+			return true
+		}
+	}
+	return false
+}

@@ -44,11 +44,19 @@ func login(addr string, user, password string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 	token := struct {
 		Token string `json:"token"`
 	}{}
-	json.Unmarshal(body, &token)
+	if err := json.Unmarshal(body, &token); err != nil {
+		return "", err
+	}
+	if token.Token == "" {
+		return "", fmt.Errorf("got empty token please check password")
+	}
 	return token.Token, nil
 }
 
@@ -165,7 +173,7 @@ func main() {
 	var addr, clusterState, clusterName, adminPassword string
 	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
 	flag.StringVar(&clusterState, "clusterstate", "cluster.zkestate", "cluster state file path")
-	flag.StringVar(&adminPassword, "passwd", "zdns", "admin password for singlecloud")
+	flag.StringVar(&adminPassword, "passwd", "zcloud", "admin password for singlecloud")
 	flag.Parse()
 
 	f, err := os.Open(clusterState)

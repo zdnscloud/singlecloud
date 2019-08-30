@@ -14,6 +14,7 @@ import (
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 
 	"k8s.io/client-go/util/cert"
 )
@@ -57,7 +58,7 @@ func runHealthcheck(ctx context.Context, host *hosts.Host, serviceName string, u
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("cluster build has been canceled")
+			return util.CancelErr
 		default:
 			if err = getHealthz(client, serviceName, host.Address, url); err != nil {
 				checkTimes = checkTimes + 1

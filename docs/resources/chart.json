@@ -1,6 +1,7 @@
 {
     "resourceType": "chart",
     "collectionName": "charts",
+    "parentResources": [ "namespace" ],
 
     "resourceFields": {
         "name": {"type": "string"},

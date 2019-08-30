@@ -1,0 +1,65 @@
+[{
+        "label": "ingressDomain",
+        "jsonKey": "grafana.ingress.hosts",
+        "type": "string",
+        "required": "true",
+        "description": "the ingress domain of cluster monitor service",
+        "default": "monitor.cluster.local"
+    },
+    {
+        "label": "adminPassword",
+        "jsonKey": "grafana.adminPassword",
+        "type": "string",
+        "required": "false",
+        "description": "monitor grafana dashboard admin password",
+        "default": "admin"
+    },
+    {
+        "label": "prometheusRetention",
+        "jsonKey": "prometheus.prometheusSpec.retention",
+        "type": "string",
+        "required": "false",
+        "description": "prometheus data retention(day)",
+        "default": "10d"
+    },
+    {
+        "label": "prometheusScrapeInterval",
+        "jsonKey": "prometheus.prometheusSpec.scrapeInterval",
+        "type": "string",
+        "required": "false",
+        "description": "prometheus scrape interval(s)",
+        "default": "15s"
+    },
+    {
+        "label": "prometheusStorageClass",
+        "jsonKey": "prometheus.prometheusSpec.storageClass",
+        "type": "string",
+        "required": "false",
+        "description": "prometheus storageClass",
+        "default": "lvm"
+    },
+    {
+        "label": "prometheusStorageSize",
+        "jsonKey": "prometheus.prometheusSpec.storageSize",
+        "type": "string",
+        "required": "false",
+        "description": "prometheus storage size",
+        "default": "30Gi"
+    },
+    {
+        "label": "alertManagerStorageClass",
+        "jsonKey": "alertmanager.alertmanagerSpec.storageClass",
+        "type": "string",
+        "required": "false",
+        "description": "alertmanager storageClass",
+        "default": "lvm"
+    },
+    {
+        "label": "alertManagerStorageSize",
+        "jsonKey": "alertmanager.alertmanagerSpec.storageSize",
+        "type": "string",
+        "required": "false",
+        "description": "alertmanager storage size",
+        "default": "5Gi"
+    }
+]

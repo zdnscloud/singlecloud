@@ -11,6 +11,7 @@ import (
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 	"github.com/zdnscloud/zke/types"
 
 	"github.com/zdnscloud/cement/errgroup"
@@ -88,7 +89,7 @@ var EtcdClientPortList = []string{
 func (c *Cluster) CheckClusterPorts(ctx context.Context, currentCluster *Cluster) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		if currentCluster != nil {
 			newEtcdHost := hosts.GetToAddHosts(currentCluster.EtcdHosts, c.EtcdHosts)
