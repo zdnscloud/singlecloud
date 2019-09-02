@@ -96,15 +96,15 @@ api server 会使用注册的资源schema及schema之间父子关系，自动生
     /apis/zcloud.cn/v1/clusters/cluster_id/namespaces/namespace_id/statefulsets/statefulset_id/pods
   
 * Links
-  * 资源Resource中有字段links，方便client快捷使用，如statefulset的id为sts123的资源links如下
+  * 资源注册schema到api server，操作资源时response会有links字段返回，方便client快捷使用，如statefulset的id为sts123的资源links如下
 
 		{
 			"links": {
-        		"collection": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets",
-        		"pods": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123/pods",
-        		"remove": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123",
-        		"self": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123",
-        		"update": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123"
+        		"collection": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets",
+        		"pods": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123/pods",
+        		"remove": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123",
+        		"self": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123",
+        		"update": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123"
     		}
     	} 
    
