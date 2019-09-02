@@ -27,6 +27,7 @@ const (
 	zcloudDynamicalDnsPrefix = "zc.zdns.cn"
 	monitorAppStorageClass   = "lvm"
 	monitorAppStorageSize    = "10Gi"
+	monitorAdminPassword     = "zcloud"
 )
 
 type MonitorManager struct {
@@ -155,7 +156,7 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) 
 			Ingress: charts.PrometheusGrafanaIngress{
 				Hosts: m.IngressDomain,
 			},
-			AdminPassword: m.AdminPassword,
+			AdminPassword: monitorAdminPassword,
 		},
 		Prometheus: charts.PrometheusPrometheus{
 			PrometheusSpec: charts.PrometheusSpec{
@@ -191,6 +192,9 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) 
 	}
 	if m.StorageSize > 0 {
 		p.Prometheus.PrometheusSpec.StorageSize = strconv.Itoa(m.StorageSize) + "Gi"
+	}
+	if len(m.AdminPassword) > 0 {
+		p.Grafana.AdminPassword = m.AdminPassword
 	}
 
 	content, err := json.Marshal(&p)

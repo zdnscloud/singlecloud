@@ -13,8 +13,19 @@ const (
 func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "PUT", "DELETE"}
+	schema.ResourceMethods = []string{"GET", "PUT", "DELETE", "POST"}
 	schema.Parents = []string{NamespaceType}
+	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
+		Name: ActionGetHistory,
+	})
+	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
+		Name:  ActionRollback,
+		Input: RollBackVersion{},
+	})
+	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
+		Name:  ActionSetImage,
+		Input: SetImage{},
+	})
 }
 
 type StatefulSet struct {

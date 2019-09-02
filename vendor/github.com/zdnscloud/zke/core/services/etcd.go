@@ -12,6 +12,7 @@ import (
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 	"github.com/zdnscloud/zke/types"
 
 	etcdclient "github.com/coreos/etcd/client"
@@ -69,7 +70,7 @@ func RunEtcdPlane(
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("cluster build has beed canceled")
+			return util.CancelErr
 		default:
 			for _, host := range etcdHosts {
 				_, _, healthCheckURL := GetProcessConfig(etcdNodePlanMap[host.Address].Processes[EtcdContainerName])
