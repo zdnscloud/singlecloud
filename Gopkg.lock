@@ -634,7 +634,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:36b217ae8605175f17534cb3ad6148c33b6fa9e2ac6953ead98cbf0469678b4b"
+  digest = "1:c140418b172e266a17e24113ffd10c9f33a5a561828649e384cd8aaffb7fa0d6"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -664,7 +664,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "a3233d5949f505340ef2f0d451dc3bfec423a0e1"
+  revision = "4d8a1422998f5e67b73360b3536d15a8e46b3011"
 
 [[projects]]
   branch = "master"
