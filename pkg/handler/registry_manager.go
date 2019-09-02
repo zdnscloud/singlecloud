@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/x509"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
@@ -22,7 +25,7 @@ const (
 	registryAppName          = "zcloud-registry"
 	registryChartName        = "harbor"
 	registryChartVersion     = "v1.1.1"
-	registryTableName        = "global_registry"
+	registryTableName        = "registry"
 	registryAppStorageClass  = "lvm"
 	registryAppStorageSize   = "50Gi"
 	registryAppAdminPassword = "zcloud"
@@ -32,15 +35,19 @@ const (
 
 type RegistryManager struct {
 	api.DefaultHandler
-	clusters *ClusterManager
-	apps     *ApplicationManager
+	clusters       *ClusterManager
+	apps           *ApplicationManager
+	clusterEventCh <-chan interface{}
 }
 
 func newRegistryManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *RegistryManager {
-	return &RegistryManager{
-		clusters: clusterMgr,
-		apps:     appMgr,
+	mgr := &RegistryManager{
+		clusters:       clusterMgr,
+		apps:           appMgr,
+		clusterEventCh: clusterMgr.GetEventBus().Sub(eventbus.ClusterEvent),
 	}
+	go mgr.eventLoop()
+	return mgr
 }
 
 func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
@@ -194,7 +201,7 @@ func (m *RegistryManager) addToDB(r *types.Registry) error {
 		return fmt.Errorf("marshal registry %s failed: %s", registryAppName, err.Error())
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), registryTableName)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(registryTableName))
 	if err != nil {
 		return err
 	}
@@ -208,7 +215,7 @@ func (m *RegistryManager) addToDB(r *types.Registry) error {
 
 func (m *RegistryManager) getFromDB() (*types.Registry, error) {
 	r := &types.Registry{}
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), registryTableName)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(registryTableName))
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +231,7 @@ func (m *RegistryManager) getFromDB() (*types.Registry, error) {
 }
 
 func (m *RegistryManager) deleteFromDB() error {
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), registryTableName)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(registryTableName))
 	if err != nil {
 		return err
 	}
@@ -234,4 +241,21 @@ func (m *RegistryManager) deleteFromDB() error {
 		return err
 	}
 	return tx.Commit()
+}
+
+func (m *RegistryManager) eventLoop() {
+	for {
+		event := <-m.clusterEventCh
+		switch e := event.(type) {
+		case zke.DeleteCluster:
+			r, _ := m.getFromDB()
+			if r != nil {
+				if r.Cluster == e.Cluster.Name {
+					if err := m.deleteFromDB(); err != nil {
+						log.Warnf("delete registry in cluster %s failed: %s", e.Cluster.Name, err.Error())
+					}
+				}
+			}
+		}
+	}
 }
