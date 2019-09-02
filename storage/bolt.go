@@ -93,19 +93,17 @@ func (m *Storage) DeleteTable(tableName string) error {
 			return err
 		}
 	} else {
-		rootBucket := tx.Bucket([]byte(tables[0]))
-		if rootBucket == nil {
+		bucket := tx.Bucket([]byte(tables[0]))
+		if bucket == nil {
 			return fmt.Errorf("no found table %s", tables[0])
 		}
 
 		for i := 1; i < len(tables)-1; i++ {
-			if bucket := rootBucket.Bucket([]byte(tables[i])); bucket == nil {
+			if bucket = bucket.Bucket([]byte(tables[i])); bucket == nil {
 				return fmt.Errorf("no found table %s", tables[i])
-			} else {
-				rootBucket = bucket
 			}
 		}
-		if err := rootBucket.DeleteBucket([]byte(tables[len(tables)-1])); err != nil {
+		if err := bucket.DeleteBucket([]byte(tables[len(tables)-1])); err != nil {
 			return err
 		}
 	}
@@ -127,22 +125,19 @@ func checkTableNameValid(tableName string) error {
 
 func createOrGetBucket(tx *bolt.Tx, tableName string) (*bolt.Bucket, error) {
 	var bucket *bolt.Bucket
+	var err error
 	for i, table := range strings.Split(strings.TrimPrefix(tableName, "/"), "/") {
 		if table == "" {
 			return nil, fmt.Errorf("table name %s is invalid, contains empty table name", tableName)
 		}
 
 		if i == 0 {
-			if rootBucket, err := tx.CreateBucketIfNotExists([]byte(table)); err != nil {
+			if bucket, err = tx.CreateBucketIfNotExists([]byte(table)); err != nil {
 				return nil, err
-			} else {
-				bucket = rootBucket
 			}
 		} else {
-			if subBucket, err := bucket.CreateBucketIfNotExists([]byte(table)); err != nil {
+			if bucket, err = bucket.CreateBucketIfNotExists([]byte(table)); err != nil {
 				return nil, err
-			} else {
-				bucket = subBucket
 			}
 		}
 	}
