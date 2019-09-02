@@ -7,7 +7,7 @@ api server 会使用注册的资源schema及schema之间父子关系，自动生
 ![""](restapi.jpg)
 # 详细设计
 *  资源定义
-	* api server提供object接口，用来设置或获取资源基础属性，每个资源的定义必须包含object接口
+	* api server提供object接口，用来设置或获取资源基础属性
 
 			type Object interface {
     			ObjectID
@@ -18,6 +18,23 @@ api server 会使用注册的资源schema及schema之间父子关系，自动生
     			ObjectSchema
 			}
 
+    * api server 提供Resource基础资源对象，实现Object接口，每个资源的定义必须包含Resource
+    
+    		type Resource struct {
+    			ID                string             
+    			Type              string             
+    			Links             map[string]string  
+    			CreationTimestamp ISOTime            
+    			Parent            Object             
+    			Schema            *Schema            
+			}
+	资源定义案例如下：
+	
+			type Secret struct {
+				resttypes.Resource `json:",inline"`
+				Name               string       `json:"name"`
+			}
+   			
 	* api server提供Handler接口，完成资源的增删改查操作，资源需实现所支持的操作
 	
 			type Handler interface {
@@ -32,6 +49,7 @@ api server 会使用注册的资源schema及schema之间父子关系，自动生
 	* api server提供字段检查，字段检查的json tag为rest，每个属性用逗号分隔
 
 			type Http struct {
+			  resttypes.Resource `json:",inline"`
 			  Port int `json:"port" rest:"required=false,default=9000"`
 			}
   	
@@ -77,6 +95,25 @@ api server 会使用注册的资源schema及schema之间父子关系，自动生
     /apis/zcloud.cn/v1/clusters/cluster_id/namespaces/namespace_id/daemonsets/daemonset_id/pods
     /apis/zcloud.cn/v1/clusters/cluster_id/namespaces/namespace_id/statefulsets/statefulset_id/pods
   
-	
+* Links
+  * 资源Resource中有字段links，方便client快捷使用，如statefulset的id为sts123的资源links如下
+
+		{
+			"links": {
+        		"collection": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets",
+        		"pods": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123/pods",
+        		"remove": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123",
+        		"self": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123",
+        		"update": "http://202.173.9.14:1234/apis/zcloud.cn/v1/clusters/beijing/namespaces/default/statefulsets/sts123"
+    		}
+    	} 
+   
+  * links说明如下  		
+    * 如果资源支持单个资源的get，即资源schema的ResourceMethods中设置了GET，links中就会包含self
+    * 如果资源支持所有资源的list， 即资源schema的CollectionMethods中设置了GET，links中就会包含collection
+    * 如果资源支持删除操作，即资源schema的ResourceMethods中设置了DELETE，links中就会包含remove
+    * 如果资源支持更新操作，即资源schema的ResourceMethods中设置了PUT，links中就会包含update
+    * 如果资源有子资源，如statefulset的是pod父资源，links中会包含pod的collection，即pods
+    
 # 未来工作
 * 添加更多的字段属性检查
