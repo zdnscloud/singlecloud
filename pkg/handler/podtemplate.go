@@ -18,6 +18,8 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
+var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
+
 const (
 	VolumeNamePrefix                     = "vol"
 	AnnkeyForWordloadAdvancedoption      = "zcloud_workload_advanded_options"
@@ -262,7 +264,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 				found := false
 				for _, emptydir := range k8sEmptyDirs {
 					if emptydir.Name == volume.Name {
-						volumeName = c.Name + "-" + emptydir.Name
+						volumeName = emptydir.Name
 						volumeSource = emptydir.VolumeSource
 						found = true
 						break
@@ -273,13 +275,6 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 					for _, pvc := range k8sPVCs {
 						if pvc.Name == volume.Name {
 							volumeName = pvc.Name
-							for _, k8sVolume := range k8sVolumes {
-								if k8sVolume.Name == pvc.Name {
-									exists = true
-									break
-								}
-							}
-
 							volumeSource = corev1.VolumeSource{
 								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 									ClaimName: volume.Name,
@@ -293,6 +288,13 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 
 				if found == false {
 					return corev1.PodSpec{}, fmt.Errorf("no found volume %s in persistent volume", volume.Name)
+				} else {
+					for _, k8sVolume := range k8sVolumes {
+						if k8sVolume.Name == volumeName {
+							exists = true
+							break
+						}
+					}
 				}
 			default:
 				return corev1.PodSpec{}, fmt.Errorf("volume type %s is unsupported", volume.Type)
@@ -369,6 +371,7 @@ func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8
 		for _, vm := range c.VolumeMounts {
 			for _, v := range k8sVolumes {
 				if v.Name == vm.Name {
+					var template types.PersistentVolumeTemplate
 					if v.ConfigMap != nil {
 						volumes = append(volumes, types.Volume{
 							Type:      types.VolumeTypeConfigMap,
@@ -387,23 +390,30 @@ func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8
 							Name:      v.PersistentVolumeClaim.ClaimName,
 							MountPath: vm.MountPath,
 						})
-						templates = append(templates, types.PersistentVolumeTemplate{
-							Name: v.PersistentVolumeClaim.ClaimName,
-						})
+						template.Name = v.PersistentVolumeClaim.ClaimName
 					} else if v.EmptyDir != nil {
 						volumes = append(volumes, types.Volume{
 							Type:      types.VolumeTypePersistentVolume,
 							Name:      v.Name,
 							MountPath: vm.MountPath,
 						})
-						template := types.PersistentVolumeTemplate{
-							Name:             v.Name,
-							StorageClassName: types.StorageClassNameTemp,
-						}
+						template.Name = v.Name
+						template.StorageClassName = types.StorageClassNameTemp
 						if v.EmptyDir.SizeLimit != nil {
 							template.Size = v.EmptyDir.SizeLimit.String()
 						}
-						templates = append(templates, template)
+					}
+					if template.Name != "" {
+						exists := false
+						for _, t := range templates {
+							if t.Name == template.Name {
+								exists = true
+								break
+							}
+						}
+						if exists == false {
+							templates = append(templates, template)
+						}
 					}
 					break
 				}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,8 +18,6 @@ import (
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
-
-var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
 
 type StatefulSetManager struct {
 	api.DefaultHandler
@@ -155,6 +154,19 @@ func (m *StatefulSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError 
 	return nil
 }
 
+func (m *StatefulSetManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	switch ctx.Action.Name {
+	case types.ActionGetHistory:
+		return m.getStatefulSetHistory(ctx)
+	case types.ActionRollback:
+		return nil, m.rollback(ctx)
+	case types.ActionSetImage:
+		return nil, m.setImage(ctx)
+	default:
+		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
+	}
+}
+
 func getStatefulSetPodsVolumes(cli client.Client, namespace string, k8sStatefulSet *appsv1.StatefulSet) ([]corev1.Volume, error) {
 	k8sPods, err := getOwnerPods(cli, namespace, types.StatefulSetType, k8sStatefulSet.Name)
 	if err != nil {
@@ -250,4 +262,138 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	statefulset.SetCreationTimestamp(k8sStatefulSet.CreationTimestamp.Time)
 	statefulset.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sStatefulSet.Spec.Template.Annotations)
 	return statefulset
+}
+
+func (m *StatefulSetManager) getStatefulSetHistory(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	statefulset := ctx.Object.(*types.StatefulSet)
+	_, controllerRevisions, err := getStatefulSetAndControllerRevisions(cluster.KubeClient, namespace, statefulset.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return nil, resttypes.NewAPIError(resttypes.NotFound,
+				fmt.Sprintf("statefulset %s with namespace %s doesn't exist", statefulset.GetID(), namespace))
+		} else {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
+		}
+	}
+
+	var versionInfos types.VersionInfos
+	for _, cr := range controllerRevisions {
+		oldK8sStatefulSet := appsv1.StatefulSet{}
+		if err := json.Unmarshal(cr.Data.Raw, &oldK8sStatefulSet); err != nil {
+			return nil, resttypes.NewAPIError(resttypes.InvalidFormat,
+				fmt.Sprintf("unmarshal controllerrevision data failed: %v", err.Error()))
+		}
+		containers, _ := k8sPodSpecToScContainersAndVCTemplates(oldK8sStatefulSet.Spec.Template.Spec.Containers, nil)
+		versionInfos = append(versionInfos, types.VersionInfo{
+			Name:         statefulset.GetID(),
+			Namespace:    namespace,
+			Version:      int(cr.Revision),
+			ChangeReason: cr.Annotations[ChangeCauseAnnotation],
+			Containers:   containers,
+		})
+	}
+
+	sort.Sort(versionInfos)
+	return &types.VersionHistory{
+		VersionInfos: versionInfos[:len(versionInfos)-1],
+	}, nil
+}
+
+func getStatefulSetAndControllerRevisions(cli client.Client, namespace, name string) (*appsv1.StatefulSet, []appsv1.ControllerRevision, error) {
+	k8sStatefulSet, err := getStatefulSet(cli, namespace, name)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if k8sStatefulSet.Spec.Selector == nil {
+		return nil, nil, fmt.Errorf("statefulset %v has no selector", name)
+	}
+
+	controllerRevisions, err := getControllerRevisions(cli, namespace, k8sStatefulSet.Spec.Selector, k8sStatefulSet.UID)
+	return k8sStatefulSet, controllerRevisions, err
+}
+
+func (m *StatefulSetManager) rollback(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	statefulset := ctx.Object.(*types.StatefulSet)
+	param, ok := ctx.Action.Input.(*types.RollBackVersion)
+	if ok == false || param.Version < 0 {
+		return resttypes.NewAPIError(resttypes.InvalidFormat,
+			fmt.Sprintf("rollback version param is not valid: %v", ctx.Action.Input))
+	}
+
+	k8sStatefulSet, controllerRevisions, err := getStatefulSetAndControllerRevisions(cluster.KubeClient, namespace, statefulset.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return resttypes.NewAPIError(resttypes.NotFound,
+				fmt.Sprintf("statefulset %s with namespace %s desn't exist", statefulset.GetID(), namespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
+		}
+	}
+
+	var patch []byte
+	for _, cr := range controllerRevisions {
+		if int(cr.Revision) == param.Version {
+			patch = cr.Data.Raw
+			break
+		}
+	}
+
+	if len(patch) == 0 {
+		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("no found statefulset version: %v", param.Version))
+	}
+
+	if err := cluster.KubeClient.Patch(context.TODO(), k8sStatefulSet, k8stypes.StrategicMergePatchType, patch); err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback statefulset failed: %v", err.Error()))
+	}
+
+	return nil
+}
+
+func (m *StatefulSetManager) setImage(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+
+	param, ok := ctx.Action.Input.(*types.SetImage)
+	if ok == false || len(param.Images) == 0 {
+		return resttypes.NewAPIError(resttypes.InvalidFormat, "set image param is not valid")
+	}
+
+	namespace := ctx.Object.GetParent().GetID()
+	statefulset := ctx.Object.(*types.StatefulSet)
+	k8sStatefulSet, err := getStatefulSet(cluster.KubeClient, namespace, statefulset.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return resttypes.NewAPIError(resttypes.NotFound,
+				fmt.Sprintf("statefulset %s with namespace %s doesn't exist", statefulset.GetID(), namespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
+		}
+	}
+
+	patch, err := getSetImagePatch(param, k8sStatefulSet.Spec.Template, k8sStatefulSet.Annotations)
+	if err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("get statefulset patch when set image failed: %v", err.Error()))
+	}
+
+	if err := cluster.KubeClient.Patch(context.TODO(), k8sStatefulSet, k8stypes.JSONPatchType, patch); err != nil {
+		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset image failed: %v", err.Error()))
+	}
+
+	return nil
 }
