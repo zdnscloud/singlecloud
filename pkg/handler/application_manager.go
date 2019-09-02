@@ -292,7 +292,15 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 
 	app.SystemChart = info.SystemChart
 
-	manifests, err := loadChartFiles(ctx, namespace, chartPath, app)
+	if clusterVersion, err := cluster.KubeClient.ServerVersion(); err != nil {
+		return fmt.Errorf("get cluster %s version failed: %s", cluster.Name, err.Error())
+	} else {
+		DefaultCapabilities.KubeVersion.Version = clusterVersion.GitVersion
+		DefaultCapabilities.KubeVersion.Major = clusterVersion.Major
+		DefaultCapabilities.KubeVersion.Minor = clusterVersion.Minor
+	}
+
+	manifests, err := loadChartFiles(ctx, namespace, chartPath, app, DefaultCapabilities)
 	if err != nil {
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
@@ -355,7 +363,7 @@ func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, 
 	return appValues, nil
 }
 
-func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *types.Application) ([]types.Manifest, error) {
+func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *types.Application, caps *chartutil.Capabilities) ([]types.Manifest, error) {
 	rawValues, err := getChartValues(ctx, app)
 	if err != nil {
 		return nil, err
@@ -374,7 +382,7 @@ func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *ty
 		Namespace: namespace,
 		IsInstall: true,
 	}
-	valuesToRender, err := chartutil.ToRenderValues(chartRequested, rawValues, options, DefaultCapabilities)
+	valuesToRender, err := chartutil.ToRenderValues(chartRequested, rawValues, options, caps)
 	if err != nil {
 		return nil, err
 	}
