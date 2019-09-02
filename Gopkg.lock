@@ -633,7 +633,7 @@
   revision = "b01ceb172ce64e60ee1f42ca75724ddcf6e76ae7"
 
 [[projects]]
-  branch = "cert-deploy-check"
+  branch = "master"
   digest = "1:8bb2aabb111bf430f26990e1c94ab2d2304525878be041afb1f4d40eae08065e"
   name = "github.com/zdnscloud/zke"
   packages = [
