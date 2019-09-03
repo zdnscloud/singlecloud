@@ -20,7 +20,10 @@ func validateConfigForUpdate(oldCluster, newCluster *types.Cluster) error {
 	if err := validateNodes(newCluster); err != nil {
 		return err
 	}
-	return validateUnallowDeleteNodes(oldCluster, newCluster)
+	if err := validateUnallowDeleteNodes(oldCluster, newCluster); err != nil {
+		return err
+	}
+	return validateNodeRolesChanage(oldCluster, newCluster)
 }
 
 func validateNodes(c *types.Cluster) error {
@@ -144,4 +147,32 @@ func isSinlecloudInClusterNodes(c *types.Cluster) error {
 		}
 	}
 	return nil
+}
+
+func validateNodeRolesChanage(oldCluster, newCluster *types.Cluster) error {
+	for _, old := range oldCluster.Nodes {
+		for _, new := range newCluster.Nodes {
+			if old.Address == new.Address {
+				if isNodeRolesChanage(old, new) {
+					return fmt.Errorf("don't support chanage node roles [%s]", old.Address)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func isNodeRolesChanage(oldNode, newNode types.Node) bool {
+	oldRoles := set.NewStringSet()
+	newRoles := set.NewStringSet()
+
+	for _, r := range oldNode.Roles {
+		oldRoles.Add(string(r))
+	}
+
+	for _, r := range newNode.Roles {
+		newRoles.Add(string(r))
+	}
+
+	return !newRoles.Equal(oldRoles)
 }
