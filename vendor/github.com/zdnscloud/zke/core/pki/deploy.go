@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"time"
+	// "time"
 
 	"github.com/zdnscloud/zke/pkg/docker"
 	"github.com/zdnscloud/zke/pkg/hosts"
@@ -100,20 +100,27 @@ func doRunDeployer(ctx context.Context, host *hosts.Host, containerEnv []string,
 		return fmt.Errorf("Failed to start Certificates deployer container on host [%s]: %v", host.Address, err)
 	}
 	log.Debugf("[certificates] Successfully started Certificate deployer container: %s", resp.ID)
-	for {
-		isDeployerRunning, err := docker.IsContainerRunning(ctx, host.DClient, host.Address, CrtDownloaderContainer, false)
-		if err != nil {
-			return err
-		}
-		if isDeployerRunning {
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		if err := host.DClient.ContainerRemove(ctx, resp.ID, dockertypes.ContainerRemoveOptions{RemoveVolumes: true}); err != nil {
-			return fmt.Errorf("Failed to delete Certificates deployer container on host [%s]: %v", host.Address, err)
-		}
-		return nil
+	// for {
+	// isDeployerRunning, err := docker.IsContainerRunning(ctx, host.DClient, host.Address, CrtDownloaderContainer, false)
+	status, err := docker.WaitForContainer(ctx, host.DClient, host.Address, CrtDownloaderContainer)
+	if err != nil {
+		return err
 	}
+
+	if status != 0 {
+		log.Errorf(ctx, "Failed to deploy certs on host [%s]", host.Address)
+		return fmt.Errorf("Failed to deploy certs on host [%s]", host.Address)
+	}
+
+	// if isDeployerRunning {
+	// time.Sleep(5 * time.Second)
+	// continue
+	// }
+	if err := host.DClient.ContainerRemove(ctx, resp.ID, dockertypes.ContainerRemoveOptions{RemoveVolumes: true}); err != nil {
+		return fmt.Errorf("Failed to delete Certificates deployer container on host [%s]: %v", host.Address, err)
+	}
+	return nil
+	// }
 }
 
 func DeployAdminConfig(ctx context.Context, kubeConfig, localConfigPath string) error {
