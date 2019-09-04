@@ -328,6 +328,14 @@
   version = "v1.1.7"
 
 [[projects]]
+  digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
+  version = "v1.0.2"
+
+[[projects]]
   digest = "1:9cedee824c21326bd26950bd9e1ffe9dc4e7ca03dc8634d0e6f954ee6a383172"
   name = "github.com/kr/fs"
   packages = ["."]
@@ -468,6 +476,14 @@
   pruneopts = "UT"
   revision = "3f98efb27840a48a7a2898ec80be07674d19f9c8"
   version = "v0.0.3"
+
+[[projects]]
+  digest = "1:04457f9f6f3ffc5fea48e71d62f2ca256637dee0a04d710288e27e05c8b41976"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "839c75faf7f98a33d445d181f3018b5c3409a45e"
+  version = "v1.4.2"
 
 [[projects]]
   digest = "1:c1b1102241e7f645bc8e0c22ae352e8f0dc6484b6cb4d132fa9f24174e0119e2"
@@ -665,6 +681,14 @@
   ]
   pruneopts = "UT"
   revision = "28ad823c33837c5842e2c7b5c41f7b5c58048b13"
+
+[[projects]]
+  digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
+  name = "github.com/zsais/go-gin-prometheus"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "58963fb32f547bd98cc0150a6bcbdf181a430967"
+  version = "v0.1.0"
 
 [[projects]]
   branch = "master"
@@ -1078,6 +1102,7 @@
     "github.com/zdnscloud/zke/core",
     "github.com/zdnscloud/zke/core/pki",
     "github.com/zdnscloud/zke/types",
+    "github.com/zsais/go-gin-prometheus",
     "gopkg.in/yaml.v2",
     "helm.sh/helm/pkg/chart/loader",
     "helm.sh/helm/pkg/chartutil",
