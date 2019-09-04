@@ -20,7 +20,6 @@ const (
 	monitorAppName           = "zcloud-monitor"
 	monitorChartName         = "prometheus"
 	monitorChartVersion      = "6.4.1"
-	monitorTableName         = "cluster_monitor"
 	zcloudDynamicalDnsPrefix = "zc.zdns.cn"
 	monitorAppStorageClass   = "lvm"
 	monitorAppStorageSize    = "10Gi"
@@ -50,7 +49,7 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	existApp, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName)
+	existApp, err := getApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorAppName)
 	if err != nil && err != storage.ErrNotFoundResource {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("get monitor application from db failed %s", err.Error()))
 	}
@@ -74,13 +73,13 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	}
 	app.SetID(app.Name)
 
-	if err := m.apps.create(ctx, cluster, monitorNameSpace, app); err != nil {
+	if err := m.apps.create(ctx, cluster, ZCloudNamespace, app); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
 	}
 
 	monitor.SetID(app.Name)
 	monitor.SetCreationTimestamp(time.Now())
-	monitor.ApplicationLink = genRegistryAppLink(ctx, cluster.Name)
+	monitor.ApplicationLink = genMonitorAppLink(ctx, cluster.Name)
 	return monitor, nil
 }
 
@@ -92,7 +91,7 @@ func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
 
 	monitors := []*types.Monitor{}
 
-	app, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName)
+	app, err := getApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorAppName)
 	if err != nil {
 		return monitors
 	}
@@ -126,7 +125,7 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) 
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		m.IngressDomain = monitorAppName + "-" + monitorNameSpace + "-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		m.IngressDomain = monitorAppName + "-" + ZCloudNamespace + "-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
 
@@ -227,5 +226,5 @@ func genMonitorFromApp(ctx *resttypes.Context, cluster string, app *types.Applic
 }
 
 func genMonitorAppLink(ctx *resttypes.Context, clusterName string) string {
-	return genUrlPrefix(ctx, clusterName) + "/" + monitorNameSpace + "/applications/" + monitorAppName
+	return genUrlPrefix(ctx, clusterName) + "/" + ZCloudNamespace + "/applications/" + monitorAppName
 }

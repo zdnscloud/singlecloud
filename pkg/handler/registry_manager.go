@@ -18,11 +18,9 @@ import (
 )
 
 const (
-	registryNameSpace        = "zcloud"
 	registryAppName          = "zcloud-registry"
 	registryChartName        = "harbor"
 	registryChartVersion     = "v1.1.1"
-	registryTableName        = "global_registry"
 	registryAppStorageClass  = "lvm"
 	registryAppStorageSize   = "50Gi"
 	registryAppAdminPassword = "zcloud"
@@ -55,7 +53,7 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	existRegistry, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, registryNameSpace), registryAppName)
+	existRegistry, err := getApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), registryAppName)
 	if err != nil && err != storage.ErrNotFoundResource {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("get registry application from db failed %s", err.Error()))
 	}
@@ -79,7 +77,7 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 	}
 
 	app.SetID(app.Name)
-	if err := m.apps.create(ctx, cluster, registryNameSpace, app); err != nil {
+	if err := m.apps.create(ctx, cluster, ZCloudNamespace, app); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create registry application failed %s", err.Error()))
 	}
 	r.SetID(registryAppName)
@@ -96,7 +94,7 @@ func (m *RegistryManager) List(ctx *resttypes.Context) interface{} {
 
 	rs := []*types.Registry{}
 
-	app, err := getApplicationFromDB(m.clusters.GetDB(), genAppTableName(cluster.Name, registryNameSpace), registryAppName)
+	app, err := getApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), registryAppName)
 	if err != nil {
 		return rs
 	}
@@ -130,7 +128,7 @@ func genRegistryConfigs(cli client.Client, r *types.Registry, clusterName string
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		r.IngressDomain = registryAppName + "-" + registryNameSpace + "-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		r.IngressDomain = registryAppName + "-" + ZCloudNamespace + "-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
 	}
 	r.RedirectUrl = "https://" + r.IngressDomain
 
@@ -194,5 +192,5 @@ func genRegistryFromApp(ctx *resttypes.Context, cluster string, app *types.Appli
 }
 
 func genRegistryAppLink(ctx *resttypes.Context, clusterName string) string {
-	return genUrlPrefix(ctx, clusterName) + "/" + registryNameSpace + "/applications/" + registryAppName
+	return genUrlPrefix(ctx, clusterName) + "/" + ZCloudNamespace + "/applications/" + registryAppName
 }
