@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -12,6 +13,7 @@ import (
 const (
 	dbFileName  = "singlecloud.db"
 	openTimeout = 5 * time.Second
+	Root        = "/"
 )
 
 var (
@@ -49,13 +51,18 @@ func (m *Storage) Close() error {
 }
 
 func (m *Storage) CreateOrGetTable(tableName string) (Table, error) {
+	if err := checkTableNameValid(tableName); err != nil {
+		return nil, err
+	}
+
 	tx, err := m.db.Begin(true)
 	if err != nil {
 		return nil, err
 	}
 
 	defer tx.Rollback()
-	if _, err := tx.CreateBucketIfNotExists([]byte(tableName)); err != nil {
+
+	if _, err := createOrGetBucket(tx, tableName); err != nil {
 		return nil, err
 	}
 
@@ -70,17 +77,72 @@ func (m *Storage) CreateOrGetTable(tableName string) (Table, error) {
 }
 
 func (m *Storage) DeleteTable(tableName string) error {
+	if err := checkTableNameValid(tableName); err != nil {
+		return err
+	}
+
 	tx, err := m.db.Begin(true)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if err := tx.DeleteBucket([]byte(tableName)); err != nil {
-		return err
+	tables := strings.Split(strings.TrimPrefix(tableName, "/"), "/")
+	if len(tables) == 1 {
+		if err := tx.DeleteBucket([]byte(tables[0])); err != nil {
+			return err
+		}
+	} else {
+		bucket := tx.Bucket([]byte(tables[0]))
+		if bucket == nil {
+			return fmt.Errorf("no found table %s", tables[0])
+		}
+
+		for i := 1; i < len(tables)-1; i++ {
+			if bucket = bucket.Bucket([]byte(tables[i])); bucket == nil {
+				return fmt.Errorf("no found table %s", tables[i])
+			}
+		}
+		if err := bucket.DeleteBucket([]byte(tables[len(tables)-1])); err != nil {
+			return err
+		}
 	}
 
 	return tx.Commit()
+}
+
+func checkTableNameValid(tableName string) error {
+	if tableName == "" || tableName == "/" {
+		return fmt.Errorf("table name should not be empty")
+	}
+
+	if strings.HasPrefix(tableName, "/") == false {
+		return fmt.Errorf("table name should begin with /")
+	}
+
+	return nil
+}
+
+func createOrGetBucket(tx *bolt.Tx, tableName string) (*bolt.Bucket, error) {
+	var bucket *bolt.Bucket
+	var err error
+	for i, table := range strings.Split(strings.TrimPrefix(tableName, "/"), "/") {
+		if table == "" {
+			return nil, fmt.Errorf("table name %s is invalid, contains empty table name", tableName)
+		}
+
+		if i == 0 {
+			if bucket, err = tx.CreateBucketIfNotExists([]byte(table)); err != nil {
+				return nil, err
+			}
+		} else {
+			if bucket, err = bucket.CreateBucketIfNotExists([]byte(table)); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return bucket, nil
 }
 
 type DBTable struct {
@@ -94,7 +156,12 @@ func (m *DBTable) Begin() (Transaction, error) {
 		return nil, err
 	}
 
-	bucket := tx.Bucket([]byte(m.name))
+	bucket, err := createOrGetBucket(tx, m.name)
+	if err != nil {
+		tx.Commit()
+		return nil, err
+	}
+
 	if bucket == nil {
 		tx.Commit()
 		return nil, fmt.Errorf("table %s is non-exists", m.name)
@@ -158,4 +225,8 @@ func (m *TableTX) List() (map[string][]byte, error) {
 	}
 
 	return resourceMap, nil
+}
+
+func GenTableName(tables ...string) string {
+	return path.Join(append([]string{Root}, tables...)...)
 }

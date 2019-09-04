@@ -25,7 +25,7 @@ type clusterState struct {
 }
 
 func getState(clusterID string, db storage.DB) (clusterState, error) {
-	table, err := db.CreateOrGetTable(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
 	if err != nil {
 		return clusterState{}, fmt.Errorf("get table failed: %s", err.Error())
 	}
@@ -50,7 +50,7 @@ func getState(clusterID string, db storage.DB) (clusterState, error) {
 }
 
 func createOrUpdateState(clsuterID string, s clusterState, db storage.DB) error {
-	table, err := db.CreateOrGetTable(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
 	if err != nil {
 		return fmt.Errorf("get table failed %s", err.Error())
 	}
@@ -84,7 +84,7 @@ func createOrUpdateState(clsuterID string, s clusterState, db storage.DB) error 
 }
 
 func deleteState(clusterID string, db storage.DB) error {
-	table, err := db.CreateOrGetTable(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
 	if err != nil {
 		return fmt.Errorf("get table failed %s", err.Error())
 	}
@@ -108,7 +108,7 @@ func deleteState(clusterID string, db storage.DB) error {
 func listState(db storage.DB) (map[string]clusterState, error) {
 	stateMap := make(map[string]clusterState)
 
-	table, err := db.CreateOrGetTable(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
 	if err != nil {
 		return stateMap, fmt.Errorf("get table failed %s", err.Error())
 	}

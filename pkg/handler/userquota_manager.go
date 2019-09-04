@@ -20,7 +20,7 @@ import (
 	"github.com/zdnscloud/singlecloud/storage"
 )
 
-const UserQuotaTable = "user_resource_quota"
+const UserQuotaTable = "userquota"
 
 type UserQuotaManager struct {
 	api.DefaultHandler
@@ -49,7 +49,7 @@ func (m *UserQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("create user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -71,7 +71,7 @@ func (m *UserQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 
 func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
 	userName := getCurrentUser(ctx)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
 		log.Warnf("list user quota info failed: %s", err.Error())
 		return nil
@@ -106,7 +106,7 @@ func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
 func (m *UserQuotaManager) Get(ctx *resttypes.Context) interface{} {
 	userName := getCurrentUser(ctx)
 	userQuota := ctx.Object.(*types.UserQuota)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
 		log.Warnf("get user quota info failed: %s", err.Error())
 		return nil
@@ -138,7 +138,7 @@ func (m *UserQuotaManager) Update(ctx *resttypes.Context) (interface{}, *resttyp
 		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
 		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("update user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -193,7 +193,7 @@ func (m *UserQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 
 	userQuota := ctx.Object.(*types.UserQuota)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -280,7 +280,7 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 	}
 
 	userQuotaID := ctx.Object.(*types.UserQuota).GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user quota %s failed %s", userQuotaID, err.Error()))
@@ -386,7 +386,7 @@ func (m *UserQuotaManager) reject(ctx *resttypes.Context) *resttypes.APIError {
 	}
 
 	userQuotaID := ctx.Object.(*types.UserQuota).GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user quota %s failed %s", userQuotaID, err.Error()))
