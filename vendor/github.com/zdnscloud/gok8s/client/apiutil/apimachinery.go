@@ -12,11 +12,15 @@ import (
 	"k8s.io/client-go/restmapper"
 )
 
+const MinimalAPIGroupResourceCount = 20
+
 func NewDiscoveryRESTMapper(c *rest.Config) (meta.RESTMapper, error) {
 	dc := discovery.NewDiscoveryClientForConfigOrDie(c)
 	gr, err := restmapper.GetAPIGroupResources(dc)
 	if err != nil {
 		return nil, err
+	} else if len(gr) < MinimalAPIGroupResourceCount {
+		return nil, fmt.Errorf("doesn't get enough api group resource, api server may be not ready")
 	}
 	return restmapper.NewDiscoveryRESTMapper(gr), nil
 }
