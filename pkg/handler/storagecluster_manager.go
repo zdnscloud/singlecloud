@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zdnscloud/cement/set"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
+	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,14 +78,15 @@ func (m StorageClusterManager) Get(ctx *resttypes.Context) interface{} {
 func (m StorageClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resttypes.NewAPIError(resttypes.NotFound, "storagecluster doesn't exist")
 	}
 
 	storagecluster := ctx.Object.(*types.StorageCluster)
-	err := deleteStorageCluster(cluster.KubeClient, storagecluster.GetID())
-	if err != nil {
+	if err := deleteStorageCluster(cluster.KubeClient, storagecluster.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("storagecluster %s doesn't exist", storagecluster.GetID()))
+		} else if strings.Contains(err.Error(), "is used by") {
+			return resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		} else {
 			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		}
@@ -98,13 +101,11 @@ func (m StorageClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (
 	}
 
 	storagecluster := ctx.Object.(*types.StorageCluster)
-
-	if isExist(cluster.KubeClient, storagecluster.StorageType) {
-		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed,the type of %s storagecluster has already exists", storagecluster.StorageType))
-	}
 	if err := createStorageCluster(cluster.KubeClient, storagecluster); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
+		} else if strings.Contains(err.Error(), "storagecluster has already exists") {
+			return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed %s", err.Error()))
 		} else {
 			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed %s", err.Error()))
 		}
@@ -120,14 +121,14 @@ func (m StorageClusterManager) Update(ctx *resttypes.Context) (interface{}, *res
 	}
 
 	storagecluster := ctx.Object.(*types.StorageCluster)
-	if len(storagecluster.Hosts) == 0 {
-		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, storagecluster must keep at least one node,suggest delete the storagecluster"))
-	}
 	if err := updateStorageCluster(cluster.KubeClient, storagecluster); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
-	} else {
-		return storagecluster, nil
+		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") {
+			return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
+		} else {
+			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
+		}
 	}
+	return storagecluster, nil
 }
 
 func getStorageCluster(cli client.Client, name string) (*storagev1.Cluster, error) {
@@ -158,11 +159,21 @@ func deleteStorageCluster(cli client.Client, name string) error {
 }
 
 func createStorageCluster(cli client.Client, storagecluster *types.StorageCluster) error {
+	if err := checkStorageClusterExist(cli, storagecluster.StorageType); err != nil {
+		return err
+	}
 	k8sStorageCluster := scStorageToK8sStorage(storagecluster)
 	return cli.Create(context.TODO(), k8sStorageCluster)
 }
 
 func updateStorageCluster(cli client.Client, storagecluster *types.StorageCluster) error {
+	if len(storagecluster.Hosts) == 0 {
+		return errors.New("update storagecluster failed, storagecluster must keep at least one node,suggest delete the storagecluster")
+	}
+	if err := checkFinalizerWithHost(cli, storagecluster); err != nil {
+		return err
+	}
+
 	k8sStorageCluster, err := getStorageCluster(cli, storagecluster.GetID())
 	if err != nil {
 		return err
@@ -232,27 +243,63 @@ func getStatusInfo(cluster string, agent *clusteragent.AgentManager, storagetype
 	return info, nil
 }
 
-func isExist(cli client.Client, storageType string) bool {
+func checkStorageClusterExist(cli client.Client, storageType string) error {
 	storageclusters := storagev1.ClusterList{}
-	_ = cli.List(context.TODO(), nil, &storageclusters)
+	err := cli.List(context.TODO(), nil, &storageclusters)
+	if err != nil {
+		return err
+	}
 	for _, storage := range storageclusters.Items {
 		if storage.Spec.StorageType == storageType {
-			return true
+			return errors.New(fmt.Sprintf("The type of %s storagecluster has already exists", storageType))
 		}
 	}
-	return false
+	return nil
 }
 
 func checkFinalizers(cli client.Client, name string) error {
-	ClusterFinalizer := "storage.zcloud.cn/finalizer"
 	var obj runtime.Object
 	obj, err := getStorageCluster(cli, name)
 	if err != nil {
 		return err
 	}
 	metaObj := obj.(metav1.Object)
-	if helper.HasFinalizer(metaObj, ClusterFinalizer) {
-		return errors.New("The storagecluster is used by some pods, is will be delete until the pods end")
+	if len(metaObj.GetFinalizers()) > 0 {
+		return errors.New("The storagecluster is used by some pods, is will be delete until those pods stop")
 	}
 	return nil
+}
+
+func checkFinalizerWithHost(cli client.Client, storagecluster *types.StorageCluster) error {
+	hosts := make([]string, 0)
+	k8sStoragecluster, err := getStorageCluster(cli, storagecluster.GetID())
+	if err != nil {
+		return err
+	}
+	if k8sStoragecluster.Spec.StorageType == "ceph" {
+		return nil
+	}
+	var obj runtime.Object
+	obj = k8sStoragecluster
+	metaObj := obj.(metav1.Object)
+
+	ClusterFinalizer := "storage.zcloud.cn/finalizer"
+	delhosts := getDelHost(k8sStoragecluster.Spec.Hosts, storagecluster.Hosts)
+	for _, host := range delhosts {
+		fr := ClusterFinalizer + "-" + host
+		if !helper.HasFinalizer(metaObj, fr) {
+			continue
+		}
+		hosts = append(hosts, host)
+	}
+	if len(hosts) > 0 {
+		return errors.New(fmt.Sprintf("The storagehosts %s is used by some pods, you should stop those pods first", hosts))
+	}
+	return nil
+}
+
+func getDelHost(oldhosts, newhosts []string) []string {
+	s1 := set.StringSetFromSlice(oldhosts)
+	s2 := set.StringSetFromSlice(newhosts)
+	return s1.Difference(s2).ToSlice()
 }
