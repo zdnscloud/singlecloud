@@ -59,8 +59,7 @@ func (m *UDPIngressManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	ingresses, err := getTransportLayerIngress(cluster.KubeClient, namespace, "")
+	ingresses, err := getTransportLayerIngress(cluster.KubeClient, "")
 	if err != nil {
 		log.Warnf("get udp ingress failed %s", err.Error())
 	}
@@ -73,8 +72,7 @@ func (m *UDPIngressManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	udpRules, err := getTransportLayerIngress(cluster.KubeClient, namespace, ctx.Object.GetID())
+	udpRules, err := getTransportLayerIngress(cluster.KubeClient, ctx.Object.GetID())
 	if err != nil {
 		log.Warnf("get udp ingress failed %s", err.Error())
 		return nil
@@ -91,8 +89,7 @@ func (m *UDPIngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	hasIngress, err := deleteTransportLayerIngress(cluster.KubeClient, namespace, ctx.Object.GetID())
+	hasIngress, err := deleteTransportLayerIngress(cluster.KubeClient, ctx.Object.GetID())
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete ingress failed %s", err.Error()))
 	} else if hasIngress == false {
@@ -102,7 +99,7 @@ func (m *UDPIngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 }
 
-func deleteTransportLayerIngress(cli client.Client, namespace, port string) (bool, error) {
+func deleteTransportLayerIngress(cli client.Client, port string) (bool, error) {
 	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, NginxUDPConfigMapName)
 	if err != nil {
 		return false, err
@@ -110,8 +107,7 @@ func deleteTransportLayerIngress(cli client.Client, namespace, port string) (boo
 
 	cm := k8sConfigMapToSCConfigMap(k8sCM)
 	for i, c := range cm.Configs {
-		serviceAndPort := strings.Split(c.Data, ":")
-		if len(serviceAndPort) == 2 && serviceAndPort[1] == port {
+		if c.Name == port {
 			cm.Configs = append(cm.Configs[:i], cm.Configs[i+1:]...)
 			return true, updateConfigMap(cli, NginxIngressNamespace, cm)
 		}
@@ -142,41 +138,50 @@ func clearTransportLayerIngress(cli client.Client, namespace string) error {
 	}
 }
 
-func getTransportLayerIngress(cli client.Client, namespace, name string) ([]*types.UdpIngress, error) {
+func getTransportLayerIngress(cli client.Client, portStr string) ([]*types.UdpIngress, error) {
 	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, NginxUDPConfigMapName)
 	if err != nil {
 		return nil, err
 	}
 
-	svcName := fmt.Sprintf("%s/%s", namespace, name)
 	cm := k8sConfigMapToSCConfigMap(k8sCM)
 	var ingresses []*types.UdpIngress
 	for _, c := range cm.Configs {
 		serviceAndPort := strings.Split(c.Data, ":")
-		if len(serviceAndPort) == 2 && strings.HasPrefix(serviceAndPort[0], svcName) {
-			port, err := strconv.Atoi(c.Name)
-			if err != nil || port == 0 {
-				return nil, fmt.Errorf("nginx config map %s has invalid ingress port %s", NginxUDPConfigMapName, c.Name)
-			}
+		if len(serviceAndPort) != 2 {
+			return nil, fmt.Errorf("nginx config map %s has invalid ingress data %s", NginxUDPConfigMapName, c.Data)
+		}
 
-			svcPort, err := strconv.Atoi(serviceAndPort[1])
-			if err != nil || svcPort == 0 {
-				return nil, fmt.Errorf("nginx config map %s has invalid service port %s", NginxUDPConfigMapName, c.Name)
-			}
+		port, err := strconv.Atoi(c.Name)
+		if err != nil || port == 0 {
+			return nil, fmt.Errorf("nginx config map %s has invalid ingress port %s", NginxUDPConfigMapName, c.Name)
+		}
 
-			namespaceAndService := strings.Split(serviceAndPort[0], "/")
-			if len(namespaceAndService) == 2 {
-				name = namespaceAndService[1]
-			}
+		svcPort, err := strconv.Atoi(serviceAndPort[1])
+		if err != nil || svcPort == 0 {
+			return nil, fmt.Errorf("nginx config map %s has invalid service port %s", NginxUDPConfigMapName, c.Name)
+		}
 
-			udpIngress := &types.UdpIngress{
-				Port:        port,
-				ServiceName: name,
-				ServicePort: svcPort,
-			}
-			udpIngress.SetID(c.Name)
-			udpIngress.SetType(types.UdpIngressType)
-			ingresses = append(ingresses, udpIngress)
+		if portStr != "" && c.Name != portStr {
+			continue
+		}
+
+		namespaceAndService := strings.Split(serviceAndPort[0], "/")
+		if len(namespaceAndService) != 2 {
+			return nil, fmt.Errorf("nginx config map %s has invalid service format %s", NginxUDPConfigMapName, serviceAndPort[0])
+		}
+
+		udpIngress := &types.UdpIngress{
+			Port:        port,
+			ServiceName: namespaceAndService[1],
+			ServicePort: svcPort,
+		}
+		udpIngress.SetID(c.Name)
+		udpIngress.SetType(types.UdpIngressType)
+		ingresses = append(ingresses, udpIngress)
+
+		if portStr != "" {
+			break
 		}
 	}
 	return ingresses, nil
