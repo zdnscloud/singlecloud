@@ -10,7 +10,7 @@ var (
 )
 
 func (a *Authenticator) loadUsers(db storage.DB) error {
-	table, err := db.CreateOrGetTable(JwtAuthenticatorTableName)
+	table, err := db.CreateOrGetTable(storage.GenTableName(JwtAuthenticatorTableName))
 	if err != nil {
 		return err
 	}

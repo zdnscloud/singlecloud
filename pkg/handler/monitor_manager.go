@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
@@ -20,7 +23,7 @@ const (
 	monitorAppName           = "zcloud-monitor"
 	monitorChartName         = "prometheus"
 	monitorChartVersion      = "6.4.1"
-	monitorTableName         = "cluster_monitor"
+	monitorTableName         = "monitor"
 	zcloudDynamicalDnsPrefix = "zc.zdns.cn"
 	monitorAppStorageClass   = "lvm"
 	monitorAppStorageSize    = "10Gi"
@@ -29,15 +32,19 @@ const (
 
 type MonitorManager struct {
 	api.DefaultHandler
-	clusters *ClusterManager
-	apps     *ApplicationManager
+	clusters       *ClusterManager
+	apps           *ApplicationManager
+	clusterEventCh <-chan interface{}
 }
 
 func newMonitorManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *MonitorManager {
-	return &MonitorManager{
-		clusters: clusterMgr,
-		apps:     appMgr,
+	mgr := &MonitorManager{
+		clusters:       clusterMgr,
+		apps:           appMgr,
+		clusterEventCh: clusterMgr.GetEventBus().Sub(eventbus.ClusterEvent),
 	}
+	go mgr.eventLoop()
+	return mgr
 }
 
 func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
@@ -100,7 +107,8 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
 	}
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), genAppTableName(cluster.Name, monitorNameSpace), monitorAppName, types.AppStatusDelete)
+	appTableName := storage.GenTableName(ApplicationTable, cluster.Name, monitorNameSpace)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), appTableName, monitorAppName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			if err := m.deleteFromDB(cluster.Name); err != nil {
@@ -111,7 +119,7 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error()))
 		}
 	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, genAppTableName(cluster.Name, monitorNameSpace), monitorNameSpace, app)
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, appTableName, monitorNameSpace, app)
 
 	if err := m.deleteFromDB(cluster.Name); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
@@ -202,7 +210,7 @@ func (m *MonitorManager) addToDB(clusterName string, monitor *types.Monitor) err
 		return fmt.Errorf("marshal monitor %s failed: %s", monitorAppName, err.Error())
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), monitorTableName)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(monitorTableName))
 	if err != nil {
 		return err
 	}
@@ -216,7 +224,7 @@ func (m *MonitorManager) addToDB(clusterName string, monitor *types.Monitor) err
 
 func (m *MonitorManager) getFromDB(clusterName string) (*types.Monitor, error) {
 	monitor := &types.Monitor{}
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), monitorTableName)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(monitorTableName))
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +240,7 @@ func (m *MonitorManager) getFromDB(clusterName string) (*types.Monitor, error) {
 }
 
 func (m *MonitorManager) deleteFromDB(clusterName string) error {
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), monitorTableName)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(monitorTableName))
 	if err != nil {
 		return err
 	}
@@ -269,4 +277,19 @@ func getClusterEtcds(cli client.Client) []string {
 		}
 	}
 	return etcds
+}
+
+func (m *MonitorManager) eventLoop() {
+	for {
+		event := <-m.clusterEventCh
+		switch e := event.(type) {
+		case zke.DeleteCluster:
+			monitor, _ := m.getFromDB(e.Cluster.Name)
+			if monitor != nil {
+				if err := m.deleteFromDB(e.Cluster.Name); err != nil {
+					log.Warnf("delete cluster %s monitor failed: %s", e.Cluster.Name, err.Error())
+				}
+			}
+		}
+	}
 }

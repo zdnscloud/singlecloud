@@ -14,6 +14,7 @@ import (
 	"github.com/zdnscloud/gorest/api"
 	resttypes "github.com/zdnscloud/gorest/types"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
 type NamespaceManager struct {
@@ -104,7 +105,7 @@ func (m *NamespaceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	}
 
 	namespace := ctx.Object.(*types.Namespace)
-	exits, err := IsExistsNamespaceInDB(m.clusters.GetDB(), UserQuotaTable, namespace.GetID())
+	exits, err := IsExistsNamespaceInDB(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable), namespace.GetID())
 	if err != nil {
 		return resttypes.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))

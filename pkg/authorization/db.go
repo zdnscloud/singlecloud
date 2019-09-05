@@ -11,7 +11,7 @@ var (
 )
 
 func (a *Authorizer) loadUsers(db storage.DB) error {
-	table, err := db.CreateOrGetTable(AuthorizerTableName)
+	table, err := db.CreateOrGetTable(storage.GenTableName(AuthorizerTableName))
 	if err != nil {
 		return err
 	}
