@@ -314,6 +314,7 @@ func clusterUpFromCli(cliCtx *cli.Context) error {
 }
 
 func ClusterUpFromSingleCloud(scCtx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger, newCluster bool) (*core.FullState, error) {
+	startUPtime := time.Now()
 	ctx, err := log.SetLogger(scCtx, logger)
 	if err != nil {
 		return clusterState, err
@@ -330,6 +331,11 @@ func ClusterUpFromSingleCloud(scCtx context.Context, zkeConfig *types.ZKEConfig,
 	}
 
 	newClusterState, err = ClusterUpForSingleCloud(ctx, newClusterState, hosts.DialersOptions{})
+
+	if err == nil {
+		endUPtime := time.Since(startUPtime) / 1e9
+		log.Infof(ctx, fmt.Sprintf("This up takes [%s] secends", strconv.FormatInt(int64(endUPtime), 10)))
+	}
 	return newClusterState, err
 }
 
