@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/zdnscloud/zke/pkg/log"
@@ -17,7 +18,7 @@ type JobStatus struct {
 	Created   bool
 }
 
-func ApplyK8sSystemJob(jobYaml string, k8sClient *kubernetes.Clientset, timeout int, addonUpdated bool) error {
+func ApplyK8sSystemJob(ctx context.Context, jobYaml string, k8sClient *kubernetes.Clientset, timeout int, addonUpdated bool) error {
 	job := v1.Job{}
 	if err := decodeYamlResource(&job, jobYaml); err != nil {
 		return err
@@ -33,19 +34,19 @@ func ApplyK8sSystemJob(jobYaml string, k8sClient *kubernetes.Clientset, timeout 
 	// if the addon configMap is updated, or the previous job is not completed,
 	// I will remove the existing job first, if any
 	if addonUpdated || (jobStatus.Created && !jobStatus.Completed) {
-		log.Debugf("[k8s] replacing job %s.. ", job.Name)
+		log.Debugf(ctx, "[k8s] replacing job %s.. ", job.Name)
 		if err := DeleteK8sSystemJob(jobYaml, k8sClient, timeout); err != nil {
 			return err
 		}
 	}
 	if _, err = k8sClient.BatchV1().Jobs(job.Namespace).Create(&job); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			log.Debugf("[k8s] Job %s already exists..", job.Name)
+			log.Debugf(ctx, "[k8s] Job %s already exists..", job.Name)
 			return nil
 		}
 		return err
 	}
-	log.Debugf("[k8s] waiting for job %s to complete..", job.Name)
+	log.Debugf(ctx, "[k8s] waiting for job %s to complete..", job.Name)
 	return retryToWithTimeout(ensureJobCompleted, k8sClient, job, timeout)
 }
 
@@ -75,7 +76,7 @@ func ensureJobCompleted(k8sClient *kubernetes.Clientset, j interface{}) error {
 		return fmt.Errorf("Failed to get job complete status for job %s in namespace %s: %v", job.Name, job.Namespace, err)
 	}
 	if jobStatus.Completed {
-		log.Debugf("[k8s] Job %s in namespace %s completed successfully", job.Name, job.Namespace)
+		// log.Debugf(ctx, "[k8s] Job %s in namespace %s completed successfully", job.Name, job.Namespace)
 		return nil
 	}
 	return fmt.Errorf("Failed to get job complete status for job %s in namespace %s", job.Name, job.Namespace)

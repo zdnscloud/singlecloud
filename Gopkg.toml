@@ -79,7 +79,7 @@
   version = "v10.0.0"
 
 [[constraint]]
-  branch = "master"
+  branch = "remove-global-logger"
   name = "github.com/zdnscloud/zke"
 
 [[constraint]]

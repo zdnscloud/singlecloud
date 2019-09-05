@@ -633,8 +633,8 @@
   revision = "b01ceb172ce64e60ee1f42ca75724ddcf6e76ae7"
 
 [[projects]]
-  branch = "master"
-  digest = "1:8bb2aabb111bf430f26990e1c94ab2d2304525878be041afb1f4d40eae08065e"
+  branch = "remove-global-logger"
+  digest = "1:255abf0d58ecbc008a512e7e660b6ebbbb4d7aed1399430523230c7b9d89f4b0"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -664,7 +664,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "28ad823c33837c5842e2c7b5c41f7b5c58048b13"
+  revision = "178847f2a49a32a56a9e8c7f57cc84528c3754e3"
 
 [[projects]]
   branch = "master"

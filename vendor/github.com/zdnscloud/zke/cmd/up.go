@@ -277,14 +277,21 @@ func checkAllIncluded(cluster *core.Cluster) error {
 	return fmt.Errorf("Provisioning incomplete, host(s) [%s] skipped because they could not be contacted", strings.Join(names, ","))
 }
 
-func clusterUpFromCli(ctx *cli.Context) error {
+func clusterUpFromCli(cliCtx *cli.Context) error {
+	parentCtx := context.Background()
+	logger := cementlog.NewLog4jConsoleLogger(log.LogLevel)
+	defer logger.Close()
+	ctx, err := log.SetLogger(parentCtx, logger)
+	if err != nil {
+		return err
+	}
 	startUPtime := time.Now()
 
 	clusterFile, err := resolveClusterFile(pki.ClusterConfig)
 	if err != nil {
 		return fmt.Errorf("Failed to resolve cluster file: %v", err)
 	}
-	zkeConfig, err := core.ParseConfig(clusterFile)
+	zkeConfig, err := core.ParseConfig(ctx, clusterFile)
 	if err != nil {
 		return fmt.Errorf("Failed to parse cluster file: %v", err)
 	}
@@ -293,23 +300,24 @@ func clusterUpFromCli(ctx *cli.Context) error {
 		return err
 	}
 
-	err = ClusterInit(context.Background(), zkeConfig, hosts.DialersOptions{})
+	err = ClusterInit(ctx, zkeConfig, hosts.DialersOptions{})
 	if err != nil {
 		return err
 	}
 
-	err = ClusterUp(context.Background(), hosts.DialersOptions{})
+	err = ClusterUp(ctx, hosts.DialersOptions{})
 	if err == nil {
 		endUPtime := time.Since(startUPtime) / 1e9
-		log.Infof(context.TODO(), fmt.Sprintf("This up takes [%s] secends", strconv.FormatInt(int64(endUPtime), 10)))
+		log.Infof(ctx, fmt.Sprintf("This up takes [%s] secends", strconv.FormatInt(int64(endUPtime), 10)))
 	}
 	return err
 }
 
-func ClusterUpFromSingleCloud(ctx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger, newCluster bool) (*core.FullState, error) {
-	log.InitChannelLog(logger)
-	defer logger.Close()
-
+func ClusterUpFromSingleCloud(scCtx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger, newCluster bool) (*core.FullState, error) {
+	ctx, err := log.SetLogger(scCtx, logger)
+	if err != nil {
+		return clusterState, err
+	}
 	if newCluster {
 		if err := ClusterRemoveFromSingleCloud(ctx, zkeConfig, logger); err != nil {
 			return clusterState, err

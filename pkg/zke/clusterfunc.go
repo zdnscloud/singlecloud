@@ -113,6 +113,7 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
+		logger.Error(err.Error())
 		c.fsm.Event(CreateFailedEvent, mgr, state)
 		return
 	}
@@ -151,6 +152,7 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
+		logger.Error(err.Error())
 		c.fsm.Event(UpdateFailedEvent, mgr, state)
 		return
 	}
