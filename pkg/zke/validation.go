@@ -9,51 +9,40 @@ import (
 	"github.com/zdnscloud/cement/set"
 )
 
+type createValidator func(c *types.Cluster) error
+type updateValidator func(oldCluster, newCluster *types.Cluster) error
+
+var createValidators = []createValidator{
+	validateDuplicateNodes,
+	validateNodeCount,
+	validateNodeRoleConflict,
+	validateScAddress,
+}
+
+var updateValidators = []updateValidator{
+	validateCannotDeleteNode,
+	validateNodesRoleChanage,
+}
+
 func validateConfigForCreate(c *types.Cluster) error {
-	if err := validateClusterOptions(c); err != nil {
-		return err
+	fmt.Println(c)
+	for _, f := range createValidators {
+		if err := f(c); err != nil {
+			return err
+		}
 	}
-	return validateNodes(c)
+	return nil
 }
 
 func validateConfigForUpdate(oldCluster, newCluster *types.Cluster) error {
-	if err := validateNodes(newCluster); err != nil {
+	if err := validateConfigForCreate(newCluster); err != nil {
 		return err
 	}
-	if err := validateUnallowDeleteNodes(oldCluster, newCluster); err != nil {
-		return err
-	}
-	return validateNodeRolesChanage(oldCluster, newCluster)
-}
 
-func validateNodes(c *types.Cluster) error {
-	if err := validateNodeRoleAndOption(c); err != nil {
-		return err
-	}
-	if err := validateDuplicateNodes(c); err != nil {
-		return err
-	}
-	if err := isSinlecloudInClusterNodes(c); err != nil {
-		return err
-	}
-	return validateNodeCount(c)
-}
-
-func validateClusterOptions(c *types.Cluster) error {
-	if len(c.Name) == 0 {
-		return fmt.Errorf("cluster name can't empty")
-	}
-	if len(c.SSHUser) == 0 {
-		return fmt.Errorf("cluster sshuser can't empty")
-	}
-	if len(c.SSHKey) == 0 {
-		return fmt.Errorf("cluster sshkey can't empty")
-	}
-	if len(c.SingleCloudAddress) == 0 {
-		return fmt.Errorf("singlecloud address can't empty")
-	}
-	if len(c.ClusterDomain) == 0 {
-		return fmt.Errorf("cluster domain can't empty")
+	for _, f := range updateValidators {
+		if err := f(oldCluster, newCluster); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -96,11 +85,8 @@ func validateNodeCount(c *types.Cluster) error {
 	return nil
 }
 
-func validateNodeRoleAndOption(c *types.Cluster) error {
+func validateNodeRoleConflict(c *types.Cluster) error {
 	for _, n := range c.Nodes {
-		if len(n.Name) == 0 || len(n.Address) == 0 || len(n.Roles) == 0 {
-			return fmt.Errorf("%s node name,address and roles cat't nil", n.Name)
-		}
 		if !n.HasRole(types.RoleControlPlane) && !n.HasRole(types.RoleWorker) {
 			return fmt.Errorf("%s must be controlplane or worker", n.Name)
 		}
@@ -111,7 +97,7 @@ func validateNodeRoleAndOption(c *types.Cluster) error {
 	return nil
 }
 
-func validateUnallowDeleteNodes(oldCluster, newCluster *types.Cluster) error {
+func validateCannotDeleteNode(oldCluster, newCluster *types.Cluster) error {
 	cpHosts := set.NewStringSet()
 	etcdHosts := set.NewStringSet()
 
@@ -139,7 +125,7 @@ func validateUnallowDeleteNodes(oldCluster, newCluster *types.Cluster) error {
 	return nil
 }
 
-func isSinlecloudInClusterNodes(c *types.Cluster) error {
+func validateScAddress(c *types.Cluster) error {
 	scIp := strings.Split(c.SingleCloudAddress, ":")[0]
 	for _, n := range c.Nodes {
 		if n.Address == scIp {
@@ -149,7 +135,7 @@ func isSinlecloudInClusterNodes(c *types.Cluster) error {
 	return nil
 }
 
-func validateNodeRolesChanage(oldCluster, newCluster *types.Cluster) error {
+func validateNodesRoleChanage(oldCluster, newCluster *types.Cluster) error {
 	for _, old := range oldCluster.Nodes {
 		for _, new := range newCluster.Nodes {
 			if old.Address == new.Address {

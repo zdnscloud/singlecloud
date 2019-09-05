@@ -30,10 +30,10 @@ func SetNodeSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 
 type Node struct {
 	resttypes.Resource   `json:",inline"`
-	Name                 string            `json:"name"`
+	Name                 string            `json:"name" rest:"required=true"`
 	Status               NodeStatus        `json:"status"`
-	Address              string            `json:"address,omitempty"`
-	Roles                []NodeRole        `json:"roles,omitempty"`
+	Address              string            `json:"address,omitempty" rest:"required=true"`
+	Roles                []NodeRole        `json:"roles,omitempty" rest:"required=true"`
 	Labels               map[string]string `json:"labels,omitempty"`
 	Annotations          map[string]string `json:"annotations,omitempty"`
 	OperatingSystem      string            `json:"operatingSystem,omitempty"`

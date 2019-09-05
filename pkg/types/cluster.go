@@ -37,11 +37,11 @@ func SetClusterSchema(schema *types.Schema, handler types.Handler) {
 
 type Cluster struct {
 	types.Resource     `json:",inline"`
-	Nodes              []Node            `json:"nodes"`
-	Network            ClusterNetwork    `json:"network"`
-	PrivateRegistries  []PrivateRegistry `json:"privateRegistrys"`
-	SingleCloudAddress string            `json:"singleCloudAddress"`
-	Name               string            `json:"name"`
+	Nodes              []Node            `json:"nodes" rest:"required=true"`
+	Network            ClusterNetwork    `json:"network" rest:"required=false"`
+	PrivateRegistries  []PrivateRegistry `json:"privateRegistrys" rest:"required=false"`
+	SingleCloudAddress string            `json:"singleCloudAddress" rest:"required=true"`
+	Name               string            `json:"name" rest:"required=true"`
 	Status             ClusterStatus     `json:"status"`
 	NodesCount         int               `json:"nodeCount"`
 	Version            string            `json:"version"`
@@ -57,23 +57,23 @@ type Cluster struct {
 	PodUsed         int64  `json:"podUsed"`
 	PodUsedRatio    string `json:"podUsedRatio"`
 
-	SSHUser             string   `json:"sshUser"`
-	SSHKey              string   `json:"sshKey"`
-	SSHPort             string   `json:"sshPort"`
+	SSHUser             string   `json:"sshUser" rest:"required=true"`
+	SSHKey              string   `json:"sshKey" rest:"required=true"`
+	SSHPort             string   `json:"sshPort" rest:"required=false,default=22"`
 	DockerSocket        string   `json:"dockerSocket,omitempty"`
 	KubernetesVersion   string   `json:"kubernetesVersion,omitempty"`
-	IgnoreDockerVersion bool     `json:"ignoreDockerVersion"`
-	ClusterCidr         string   `json:"clusterCidr"`
-	ServiceCidr         string   `json:"serviceCidr"`
-	ClusterDomain       string   `json:"clusterDomain"`
-	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty"`
+	IgnoreDockerVersion bool     `json:"ignoreDockerVersion" rest:"required=false,default=false"`
+	ClusterCidr         string   `json:"clusterCidr" rest:"required=false,default=10.42.0.0/16"`
+	ServiceCidr         string   `json:"serviceCidr" rest:"required=false,default=10.43.0.0/16"`
+	ClusterDomain       string   `json:"clusterDomain" rest:"required=true"`
+	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty" rest:"required=false,default=10.43.0.10"`
 	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS"`
-	DisablePortCheck    bool     `json:"disablePortCheck"`
+	DisablePortCheck    bool     `json:"disablePortCheck" rest:"required=false,default=false"`
 }
 
 type ClusterNetwork struct {
-	Plugin string `yaml:"plugin" json:"plugin"`
-	Iface  string `yaml:"iface" json:"iface"`
+	Plugin string `json:"plugin" rest:"required=false,default=flannel"`
+	Iface  string `json:"iface"`
 }
 
 type PrivateRegistry struct {
