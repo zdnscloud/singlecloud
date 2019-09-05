@@ -633,7 +633,7 @@
   revision = "b01ceb172ce64e60ee1f42ca75724ddcf6e76ae7"
 
 [[projects]]
-  branch = "remove-global-logger"
+  branch = "master"
   digest = "1:255abf0d58ecbc008a512e7e660b6ebbbb4d7aed1399430523230c7b9d89f4b0"
   name = "github.com/zdnscloud/zke"
   packages = [
