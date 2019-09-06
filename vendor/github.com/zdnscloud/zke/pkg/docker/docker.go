@@ -73,13 +73,13 @@ func DoRunContainer(ctx context.Context, dClient *client.Client, imageCfg *conta
 	if container.State.Running {
 		// check if container is in a restarting loop
 		if container.State.Restarting {
-			log.Debugf("[%s] Container [%s] is in a restarting loop [%s]", plane, containerName, hostname)
+			log.Debugf(ctx, "[%s] Container [%s] is in a restarting loop [%s]", plane, containerName, hostname)
 			restartTimeoutDuration := RestartTimeout * time.Second
 			if err := dClient.ContainerRestart(ctx, container.ID, &restartTimeoutDuration); err != nil {
 				return fmt.Errorf("Failed to start [%s] container on host [%s]: %v", containerName, hostname, err)
 			}
 		}
-		log.Debugf("[%s] Container [%s] is already running on host [%s]", plane, containerName, hostname)
+		log.Debugf(ctx, "[%s] Container [%s] is already running on host [%s]", plane, containerName, hostname)
 		isUpgradable, err := IsContainerUpgradable(ctx, dClient, imageCfg, hostCfg, containerName, hostname, plane)
 		if err != nil {
 			return err
@@ -91,7 +91,7 @@ func DoRunContainer(ctx context.Context, dClient *client.Client, imageCfg *conta
 	}
 
 	// start if not running
-	log.Debugf("[%s] Starting stopped container [%s] on host [%s]", plane, containerName, hostname)
+	log.Debugf(ctx, "[%s] Starting stopped container [%s] on host [%s]", plane, containerName, hostname)
 	if err := dClient.ContainerStart(ctx, container.ID, dockertypes.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("Failed to start [%s] container on host [%s]: %v", containerName, hostname, err)
 	}
@@ -103,25 +103,25 @@ func DoRollingUpdateContainer(ctx context.Context, dClient *client.Client, image
 	if dClient == nil {
 		return fmt.Errorf("[%s] Failed rolling update of container: docker client is nil for container [%s] on host [%s]", plane, containerName, hostname)
 	}
-	log.Debugf("[%s] Checking for deployed [%s]", plane, containerName)
+	log.Debugf(ctx, "[%s] Checking for deployed [%s]", plane, containerName)
 	isRunning, err := IsContainerRunning(ctx, dClient, hostname, containerName, false)
 	if err != nil {
 		return err
 	}
 	if !isRunning {
-		log.Debugf("[%s] Container %s is not running on host [%s]", plane, containerName, hostname)
+		log.Debugf(ctx, "[%s] Container %s is not running on host [%s]", plane, containerName, hostname)
 		return nil
 	}
 	err = UseLocalOrPull(ctx, dClient, hostname, imageCfg.Image, plane, prsMap)
 	if err != nil {
 		return err
 	}
-	log.Debugf("[%s] Stopping old container", plane)
+	log.Debugf(ctx, "[%s] Stopping old container", plane)
 	oldContainerName := "old-" + containerName
 	if err := StopRenameContainer(ctx, dClient, hostname, containerName, oldContainerName); err != nil {
 		return err
 	}
-	log.Debugf("[%s] Successfully stopped old container %s on host [%s]", plane, containerName, hostname)
+	log.Debugf(ctx, "[%s] Successfully stopped old container %s on host [%s]", plane, containerName, hostname)
 	_, err = CreateContainer(ctx, dClient, hostname, containerName, imageCfg, hostCfg)
 	if err != nil {
 		return fmt.Errorf("Failed to create [%s] container on host [%s]: %v", containerName, hostname, err)
@@ -130,7 +130,7 @@ func DoRollingUpdateContainer(ctx context.Context, dClient *client.Client, image
 		return fmt.Errorf("Failed to start [%s] container on host [%s]: %v", containerName, hostname, err)
 	}
 	log.Infof(ctx, "[%s] Successfully updated [%s] container on host [%s]", plane, containerName, hostname)
-	log.Debugf("[%s] Removing old container", plane)
+	log.Debugf(ctx, "[%s] Removing old container", plane)
 	err = RemoveContainer(ctx, dClient, hostname, oldContainerName)
 	return err
 }
@@ -139,17 +139,17 @@ func DoRemoveContainer(ctx context.Context, dClient *client.Client, containerNam
 	if dClient == nil {
 		return fmt.Errorf("Failed to remove container: docker client is nil for container [%s] on host [%s]", containerName, hostname)
 	}
-	log.Debugf("[remove/%s] Checking if container is running on host [%s]", containerName, hostname)
+	log.Debugf(ctx, "[remove/%s] Checking if container is running on host [%s]", containerName, hostname)
 	// not using the wrapper to check if the error is a NotFound error
 	_, err := dClient.ContainerInspect(ctx, containerName)
 	if err != nil {
 		if client.IsErrNotFound(err) {
-			log.Debugf("[remove/%s] Container doesn't exist on host [%s]", containerName, hostname)
+			log.Debugf(ctx, "[remove/%s] Container doesn't exist on host [%s]", containerName, hostname)
 			return nil
 		}
 		return err
 	}
-	log.Debugf("[remove/%s] Removing container on host [%s]", containerName, hostname)
+	log.Debugf(ctx, "[remove/%s] Removing container on host [%s]", containerName, hostname)
 	err = RemoveContainer(ctx, dClient, hostname, containerName)
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func IsContainerRunning(ctx context.Context, dClient *client.Client, hostname st
 	if dClient == nil {
 		return false, fmt.Errorf("Failed to check if container is running: docker client is nil for container [%s] on host [%s]", containerName, hostname)
 	}
-	log.Debugf("Checking if container [%s] is running on host [%s]", containerName, hostname)
+	log.Debugf(ctx, "Checking if container [%s] is running on host [%s]", containerName, hostname)
 	containers, err := dClient.ContainerList(ctx, dockertypes.ContainerListOptions{All: all})
 	if err != nil {
 		return false, fmt.Errorf("Can't get Docker containers for host [%s]: %v", hostname, err)
@@ -177,16 +177,16 @@ func IsContainerRunning(ctx context.Context, dClient *client.Client, hostname st
 }
 
 func localImageExists(ctx context.Context, dClient *client.Client, hostname string, containerImage string) (bool, error) {
-	log.Debugf("Checking if image [%s] exists on host [%s]", containerImage, hostname)
+	log.Debugf(ctx, "Checking if image [%s] exists on host [%s]", containerImage, hostname)
 	_, _, err := dClient.ImageInspectWithRaw(ctx, containerImage)
 	if err != nil {
 		if client.IsErrNotFound(err) {
-			log.Debugf("Image [%s] does not exist on host [%s]: %v", containerImage, hostname, err)
+			log.Debugf(ctx, "Image [%s] does not exist on host [%s]: %v", containerImage, hostname, err)
 			return false, nil
 		}
 		return false, fmt.Errorf("Error checking if image [%s] exists on host [%s]: %v", containerImage, hostname, err)
 	}
-	log.Debugf("Image [%s] exists on host [%s]", containerImage, hostname)
+	log.Debugf(ctx, "Image [%s] exists on host [%s]", containerImage, hostname)
 	return true, nil
 }
 
@@ -216,13 +216,13 @@ func UseLocalOrPull(ctx context.Context, dClient *client.Client, hostname string
 	if dClient == nil {
 		return fmt.Errorf("[%s] Failed to use local image or pull: docker client is nil for container [%s] on host [%s]", plane, containerImage, hostname)
 	}
-	log.Debugf("[%s] Checking image [%s] on host [%s]", plane, containerImage, hostname)
+	log.Debugf(ctx, "[%s] Checking image [%s] on host [%s]", plane, containerImage, hostname)
 	imageExists, err := localImageExists(ctx, dClient, hostname, containerImage)
 	if err != nil {
 		return err
 	}
 	if imageExists {
-		log.Debugf("[%s] No pull necessary, image [%s] exists on host [%s]", plane, containerImage, hostname)
+		log.Debugf(ctx, "[%s] No pull necessary, image [%s] exists on host [%s]", plane, containerImage, hostname)
 		return nil
 	}
 	log.Infof(ctx, "[%s] Pulling image [%s] on host [%s]", plane, containerImage, hostname)
@@ -358,7 +358,7 @@ func IsContainerUpgradable(ctx context.Context, dClient *client.Client, imageCfg
 	if dClient == nil {
 		return false, fmt.Errorf("[%s] Failed checking if container is upgradable: docker client is nil for container [%s] on host [%s]", plane, containerName, hostname)
 	}
-	log.Debugf("[%s] Checking if container [%s] is eligible for upgrade on host [%s]", plane, containerName, hostname)
+	log.Debugf(ctx, "[%s] Checking if container [%s] is eligible for upgrade on host [%s]", plane, containerName, hostname)
 	// this should be moved to a higher layer.
 
 	containerInspect, err := InspectContainer(ctx, dClient, hostname, containerName)
@@ -371,7 +371,7 @@ func IsContainerUpgradable(ctx context.Context, dClient *client.Client, imageCfg
 		if !client.IsErrNotFound(err) {
 			return false, err
 		}
-		log.Debugf("[%s] Container [%s] is eligible for upgrade on host [%s]", plane, containerName, hostname)
+		log.Debugf(ctx, "[%s] Container [%s] is eligible for upgrade on host [%s]", plane, containerName, hostname)
 		return true, nil
 	}
 	if containerInspect.Config.Image != imageCfg.Image ||
@@ -379,10 +379,10 @@ func IsContainerUpgradable(ctx context.Context, dClient *client.Client, imageCfg
 		!sliceEqualsIgnoreOrder(containerInspect.Config.Cmd, imageCfg.Cmd) ||
 		!isContainerEnvChanged(containerInspect.Config.Env, imageCfg.Env, imageInspect.Config.Env) ||
 		!sliceEqualsIgnoreOrder(containerInspect.HostConfig.Binds, hostCfg.Binds) {
-		log.Debugf("[%s] Container [%s] is eligible for upgrade on host [%s]", plane, containerName, hostname)
+		log.Debugf(ctx, "[%s] Container [%s] is eligible for upgrade on host [%s]", plane, containerName, hostname)
 		return true, nil
 	}
-	log.Debugf("[%s] Container [%s] is not eligible for upgrade on host [%s]", plane, containerName, hostname)
+	log.Debugf(ctx, "[%s] Container [%s] is not eligible for upgrade on host [%s]", plane, containerName, hostname)
 	return false, nil
 }
 
@@ -444,7 +444,7 @@ func GetContainerLogsStdoutStderr(ctx context.Context, dClient *client.Client, c
 	var containerErrLog, containerStdLog string
 	clogs, logserr := ReadContainerLogs(ctx, dClient, containerName, follow, tail)
 	if logserr != nil {
-		log.Debugf("logserr: %v", logserr)
+		log.Debugf(ctx, "logserr: %v", logserr)
 		return containerErrLog, containerStdLog, fmt.Errorf("Failed to get gather logs from container [%s]: %v", containerName, logserr)
 	}
 	defer clogs.Close()
@@ -519,17 +519,17 @@ func DoRestartContainer(ctx context.Context, dClient *client.Client, containerNa
 	if dClient == nil {
 		return fmt.Errorf("Failed to restart container: docker client is nil for container [%s] on host [%s]", containerName, hostname)
 	}
-	log.Debugf("[restart/%s] Checking if container is running on host [%s]", containerName, hostname)
+	log.Debugf(ctx, "[restart/%s] Checking if container is running on host [%s]", containerName, hostname)
 	// not using the wrapper to check if the error is a NotFound error
 	_, err := dClient.ContainerInspect(ctx, containerName)
 	if err != nil {
 		if client.IsErrNotFound(err) {
-			log.Debugf("[restart/%s] Container doesn't exist on host [%s]", containerName, hostname)
+			log.Debugf(ctx, "[restart/%s] Container doesn't exist on host [%s]", containerName, hostname)
 			return nil
 		}
 		return err
 	}
-	log.Debugf("[restart/%s] Restarting container on host [%s]", containerName, hostname)
+	log.Debugf(ctx, "[restart/%s] Restarting container on host [%s]", containerName, hostname)
 	err = RestartContainer(ctx, dClient, hostname, containerName)
 	if err != nil {
 		return err
