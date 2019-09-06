@@ -55,7 +55,7 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
-	config := scClusterToZKEConfig(inner)
+	config := genZKEConfig(inner)
 
 	state := clusterState{
 		ZKEConfig:    config,
@@ -69,12 +69,11 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	cluster := newInitialCluster(inner.Name)
+	cluster := newCluster(inner.Name, types.CSCreateing)
 	cluster.CreateTime = state.CreateTime
 	cluster.config = config
 	cluster.scVersion = m.scVersion
 	m.unreadyClusters = append(m.unreadyClusters, cluster)
-	cluster.fsm.Event(CreateEvent)
 
 	zkectx, cancel := context.WithCancel(context.Background())
 	cluster.cancel = cancel
@@ -103,7 +102,7 @@ func (m *ZKEManager) Import(ctx *resttypes.Context, json []byte) (interface{}, *
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	cluster := newClusterWithStatus(inner.Name, types.CSConnecting)
+	cluster := newCluster(inner.Name, types.CSConnecting)
 	cluster.CreateTime = state.CreateTime
 	cluster.config = state.CurrentState.ZKEConfig.DeepCopy()
 	cluster.scVersion = types.ScVersionImported
@@ -130,7 +129,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
-	config := updateConfigNodesFromScCluster(c.config, inner)
+	config := genZKEConfigForUpdateNodes(c.config, inner)
 	c.config = config
 
 	state, err := getClusterFromDB(inner.Name, m.db)
@@ -343,18 +342,17 @@ func (m *ZKEManager) loadDB() error {
 
 	for k, v := range stateMap {
 		if v.IsUnvailable {
-			cluster := newClusterWithStatus(k, types.CSUnavailable)
+			cluster := newCluster(k, types.CSUnavailable)
 			cluster.config = v.ZKEConfig
 			cluster.stopCh = make(chan struct{})
 			cluster.CreateTime = v.CreateTime
 			m.addToUnreadyWithLock(cluster)
 		} else {
-			cluster := newInitialCluster(k)
+			cluster := newCluster(k, types.CSConnecting)
 			cluster.config = v.ZKEConfig
 			cluster.stopCh = make(chan struct{})
 			cluster.CreateTime = v.CreateTime
 			m.addToUnreadyWithLock(cluster)
-			cluster.fsm.Event(InitEvent)
 			ctx, cancel := context.WithCancel(context.Background())
 			cluster.cancel = cancel
 			kubeConfig := v.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config

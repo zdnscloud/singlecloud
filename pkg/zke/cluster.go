@@ -2,15 +2,19 @@ package zke
 
 import (
 	"context"
+	"sync"
 	"time"
 
+	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
+	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	zketypes "github.com/zdnscloud/zke/types"
 	"k8s.io/client-go/rest"
 )
 
@@ -18,8 +22,52 @@ const (
 	ClusterRetryInterval = time.Second * 10
 )
 
+type Cluster struct {
+	Name       string
+	CreateTime time.Time
+	KubeClient client.Client
+	Cache      cache.Cache
+	K8sConfig  *rest.Config
+	stopCh     chan struct{}
+	config     *zketypes.ZKEConfig
+	logCh      chan string
+	logSession sockjs.Session
+	cancel     context.CancelFunc
+	isCanceled bool
+	lock       sync.Mutex
+	fsm        *fsm.FSM
+	scVersion  string
+}
+
+type AddCluster struct {
+	Cluster *Cluster
+}
+
+type DeleteCluster struct {
+	Cluster *Cluster
+}
+
+func newCluster(name string, initialStatus types.ClusterStatus) *Cluster {
+	cluster := &Cluster{
+		Name:   name,
+		stopCh: make(chan struct{}),
+	}
+
+	fsm := newClusterFsm(cluster, initialStatus)
+	cluster.fsm = fsm
+	return cluster
+}
+
+func (c *Cluster) IsReady() bool {
+	status := c.getStatus()
+	if status == types.CSRunning || status == types.CSUnavailable {
+		return true
+	}
+	return false
+}
+
 func (c *Cluster) ToTypesCluster() *types.Cluster {
-	cluster := zkeClusterToSCCluster(c)
+	cluster := c.toTypesCluster()
 	// unready cluster do not get cluster version info
 	if !c.IsReady() {
 		return cluster
@@ -37,12 +85,15 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	return cluster
 }
 
-func (c *Cluster) IsReady() bool {
-	status := c.getStatus()
-	if status == types.CSUnavailable || status == types.CSConnecting || status == types.CSCreateing || status == types.CSUpdateing || status == types.CSCanceling {
-		return false
+func (c *Cluster) GetNodeIpsByRole(role types.NodeRole) []string {
+	ips := []string{}
+	cluster := c.toTypesCluster()
+	for _, n := range cluster.Nodes {
+		if n.HasRole(role) {
+			ips = append(ips, n.Address)
+		}
 	}
-	return true
+	return ips
 }
 
 func (c *Cluster) getStatus() types.ClusterStatus {
@@ -105,7 +156,7 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
-	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, true)
+	zkeState, k8sConfig, kubeClient, err := buildZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
 		c.fsm.Event(CancelSuccessEvent, mgr, state)
@@ -144,7 +195,7 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
-	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, false)
+	zkeState, k8sConfig, kubeClient, err := updateZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
 		c.fsm.Event(CancelSuccessEvent, mgr, state)
@@ -164,4 +215,52 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	state.IsUnvailable = false
 
 	c.fsm.Event(UpdateSuccessEvent, mgr, state)
+}
+
+func (c *Cluster) toTypesCluster() *types.Cluster {
+	sc := &types.Cluster{}
+	sc.Name = c.Name
+	sc.SSHUser = c.config.Option.SSHUser
+	sc.SSHPort = c.config.Option.SSHPort
+	sc.ClusterCidr = c.config.Option.ClusterCidr
+	sc.ServiceCidr = c.config.Option.ServiceCidr
+	sc.ClusterDomain = c.config.Option.ClusterDomain
+	sc.ClusterDNSServiceIP = c.config.Option.ClusterDNSServiceIP
+	sc.ClusterUpstreamDNS = c.config.Option.ClusterUpstreamDNS
+	sc.SingleCloudAddress = c.config.SingleCloudAddress
+	sc.ScVersion = c.scVersion
+
+	sc.Network = types.ClusterNetwork{
+		Plugin: c.config.Network.Plugin,
+	}
+
+	for _, node := range c.config.Nodes {
+		n := types.Node{
+			Name:    node.NodeName,
+			Address: node.Address,
+		}
+		for _, role := range node.Role {
+			n.Roles = append(n.Roles, types.NodeRole(role))
+		}
+		sc.Nodes = append(sc.Nodes, n)
+	}
+
+	if c.config.PrivateRegistries != nil {
+		sc.PrivateRegistries = []types.PrivateRegistry{}
+		for _, pr := range c.config.PrivateRegistries {
+			npr := types.PrivateRegistry{
+				User:     pr.User,
+				Password: pr.Password,
+				URL:      pr.URL,
+				CAcert:   pr.CAcert,
+			}
+			sc.PrivateRegistries = append(sc.PrivateRegistries, npr)
+		}
+	}
+
+	sc.SetID(c.Name)
+	sc.SetType(types.ClusterType)
+	sc.SetCreationTimestamp(c.CreateTime)
+	sc.Status = c.getStatus()
+	return sc
 }
