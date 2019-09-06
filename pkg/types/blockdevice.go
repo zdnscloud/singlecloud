@@ -14,9 +14,11 @@ type BlockDevice struct {
 	resttypes.Resource `json:",inline"`
 	NodeName           string `json:"nodeName"`
 	BlockDevices       []Dev  `json:"blockDevices"`
+	UsedBy             string `json:"usedby"`
 }
 
 type Dev struct {
-	Name string `json:"name"`
-	Size string `json:"size"`
+	Name   string `json:"name"`
+	Size   string `json:"size"`
+	UsedBy string `json:"-"`
 }

@@ -2,7 +2,6 @@ package types
 
 import (
 	resttypes "github.com/zdnscloud/gorest/types"
-	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 )
 
 func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler) {
@@ -14,28 +13,22 @@ func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler
 
 type StorageCluster struct {
 	resttypes.Resource `json:",inline"`
-	Name               string               `json:"name" rest:"required=true"`
-	StorageType        string               `json:"storageType" rest:"required=true,options=lvm|ceph"`
-	Hosts              []string             `json:"hosts" rest:"required=true"`
-	Config             []storagev1.HostInfo `json:"config"`
-	FreeDevs           []BlockDevice        `json:"freeDevs"`
-	Phase              string               `json:"phase"`
-	Size               string               `json:"size"`
-	UsedSize           string               `json:"usedSize"`
-	FreeSize           string               `json:"freeSize"`
-	Nodes              []StorageNode        `json:"nodes"`
-	PVs                []PV                 `json:"pvs"`
+	Name               string        `json:"name" rest:"required=true"`
+	StorageType        string        `json:"storageType" rest:"required=true,options=lvm|ceph"`
+	Hosts              []string      `json:"hosts" rest:"required=true"`
+	Phase              string        `json:"phase"`
+	Size               string        `json:"size"`
+	UsedSize           string        `json:"usedSize"`
+	FreeSize           string        `json:"freeSize"`
+	Nodes              []StorageNode `json:"nodes"`
+	PVs                []PV          `json:"pvs"`
 }
 
 var StorageClusterType = resttypes.GetResourceType(StorageCluster{})
 
 type Storage struct {
-	Name     string        `json:"name"`
-	Size     string        `json:"size"`
-	UsedSize string        `json:"usedSize"`
-	FreeSize string        `json:"freeSize"`
-	Nodes    []StorageNode `json:"nodes"`
-	PVs      []PV          `json:"pvs"`
+	Name string `json:"name"`
+	PVs  []PV   `json:"pvs"`
 }
 
 type PV struct {
@@ -59,3 +52,9 @@ type StorageNode struct {
 type StoragePod struct {
 	Name string `json:"name"`
 }
+
+type StorageNodes []StorageNode
+
+func (s StorageNodes) Len() int           { return len(s) }
+func (s StorageNodes) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s StorageNodes) Less(i, j int) bool { return s[i].Name < s[j].Name }

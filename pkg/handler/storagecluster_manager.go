@@ -6,8 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zdnscloud/cement/set"
+	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
-	"reflect"
+	"math"
+	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,7 +56,7 @@ func (m *StorageClusterManager) List(ctx *resttypes.Context) interface{} {
 
 	var storageclusters []*types.StorageCluster
 	for _, item := range k8sStorageClusters.Items {
-		storageclusters = append(storageclusters, k8sStorageToSCStorage(cluster, m.clusters.Agent, &item))
+		storageclusters = append(storageclusters, k8sStorageToSCStorage(cluster, &item))
 	}
 	return storageclusters
 }
@@ -72,7 +76,7 @@ func (m StorageClusterManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	return k8sStorageToSCStorage(cluster, m.clusters.Agent, k8sStorageCluster)
+	return k8sStorageToSCStorageDetail(cluster, m.clusters.Agent, k8sStorageCluster)
 }
 
 func (m StorageClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
@@ -194,52 +198,49 @@ func scStorageToK8sStorage(storagecluster *types.StorageCluster) *storagev1.Clus
 	}
 }
 
-func k8sStorageToSCStorage(cluster *zke.Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
-	info, err := getStatusInfo(cluster.Name, agent, k8sStorageCluster.Spec.StorageType)
-	if err != nil {
-		log.Warnf("get storages from clusteragent failed:%s", err.Error())
-	}
-	freedevs, err := getBlockDevices(cluster.Name, cluster.KubeClient, agent)
-	if err != nil {
-		log.Warnf("get blockdevices from clusteragent failed:%s", err.Error())
-	}
-
+func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
+	tSize := byteToGb(sToi(k8sStorageCluster.Status.Capacity.Total.Total))
+	uSize := byteToGb(sToi(k8sStorageCluster.Status.Capacity.Total.Used))
+	fSize := byteToGb(sToi(k8sStorageCluster.Status.Capacity.Total.Free))
 	storagecluster := &types.StorageCluster{
 		Name:        k8sStorageCluster.Name,
 		StorageType: k8sStorageCluster.Spec.StorageType,
 		Hosts:       k8sStorageCluster.Spec.Hosts,
-		Config:      k8sStorageCluster.Status.Config,
 		Phase:       k8sStorageCluster.Status.Phase,
-		FreeDevs:    freedevs,
-		Size:        info.Size,
-		UsedSize:    info.UsedSize,
-		FreeSize:    info.FreeSize,
-		Nodes:       info.Nodes,
-		PVs:         info.PVs,
+		Size:        tSize,
+		UsedSize:    uSize,
+		FreeSize:    fSize,
 	}
 	storagecluster.SetID(k8sStorageCluster.Name)
 	storagecluster.SetCreationTimestamp(k8sStorageCluster.CreationTimestamp.Time)
 	return storagecluster
 }
 
+func k8sStorageToSCStorageDetail(cluster *zke.Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
+	info, err := getStatusInfo(cluster.Name, agent, k8sStorageCluster.Spec.StorageType)
+	if err != nil {
+		log.Warnf("get storages from clusteragent failed:%s", err.Error())
+	}
+	storagecluster := k8sStorageToSCStorage(cluster, k8sStorageCluster)
+	storagecluster.Nodes = countSize(k8sStorageCluster)
+	storagecluster.PVs = info.PVs
+	return storagecluster
+}
+
 func getStatusInfo(cluster string, agent *clusteragent.AgentManager, storagetype string) (types.Storage, error) {
 	var info types.Storage
-	url := "/apis/agent.zcloud.cn/v1/storages"
-	res, err := agent.GetData(cluster, url)
+	url := "/apis/agent.zcloud.cn/v1/storages/" + storagetype
+	req, err := http.NewRequest("GET", clusteragent.ClusterAgentServiceHost+url, nil)
 	if err != nil {
 		return info, err
 	}
-	s := reflect.ValueOf(res)
-	for i := 0; i < s.Len(); i++ {
-		newp := new(types.Storage)
-		p := s.Index(i).Interface()
-		tmp, _ := json.Marshal(&p)
-		json.Unmarshal(tmp, newp)
-		if newp.Name == storagetype {
-			info = *newp
-			break
-		}
+	resp, err := agent.ProxyRequest(cluster, req)
+	if err != nil {
+		return info, err
 	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	json.Unmarshal(body, &info)
 	return info, nil
 }
 
@@ -302,4 +303,51 @@ func getDelHost(oldhosts, newhosts []string) []string {
 	s1 := set.StringSetFromSlice(oldhosts)
 	s2 := set.StringSetFromSlice(newhosts)
 	return s1.Difference(s2).ToSlice()
+}
+
+func sToi(size string) int64 {
+	num, _ := strconv.ParseInt(size, 10, 64)
+	return num
+}
+
+func byteToGb(num int64) string {
+	f := float64(num) / (1024 * 1024 * 1024)
+	return fmt.Sprintf("%.2f", math.Trunc(f*1e2)*1e-2)
+}
+
+func countSize(k8sStorageCluster *storagev1.Cluster) []types.StorageNode {
+	var nodes types.StorageNodes
+	ns := make(map[string]map[string]int64)
+	nodestat := make(map[string]bool)
+	stat := true
+	for _, i := range k8sStorageCluster.Status.Capacity.Instances {
+		if !i.Stat {
+			stat = false
+		}
+		nodestat[i.Host] = stat
+		v, ok := ns[i.Host]
+		if ok {
+			v["Total"] += sToi(i.Info.Total)
+			v["Used"] += sToi(i.Info.Used)
+			v["Free"] += sToi(i.Info.Free)
+		} else {
+			info := make(map[string]int64)
+			info["Total"] = sToi(i.Info.Total)
+			info["Used"] = sToi(i.Info.Used)
+			info["Free"] = sToi(i.Info.Free)
+			ns[i.Host] = info
+		}
+	}
+	for k, v := range ns {
+		node := types.StorageNode{
+			Name:     k,
+			Size:     byteToGb(v["Total"]),
+			UsedSize: byteToGb(v["Used"]),
+			FreeSize: byteToGb(v["Free"]),
+			Stat:     nodestat[k],
+		}
+		nodes = append(nodes, node)
+	}
+	sort.Sort(nodes)
+	return nodes
 }

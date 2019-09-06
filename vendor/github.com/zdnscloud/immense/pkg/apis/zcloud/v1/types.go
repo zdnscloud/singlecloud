@@ -19,14 +19,16 @@ type ClusterSpec struct {
 }
 
 type HostInfo struct {
-	NodeName     string `json:"nodeName"`
-	BlockDevices []Dev  `json:"blockDevices"`
+	NodeName string `json:"nodeName"`
+	//BlockDevices []Dev  `json:"blockDevices"`
+	BlockDevices []string `json:"blockDevices"`
 }
 
+/*
 type Dev struct {
 	Name string `json:"name"`
 	Size string `json:"size"`
-}
+}*/
 
 // ClusterStatus defines the observed state of Cluster
 // +k8s:openapi-gen=true

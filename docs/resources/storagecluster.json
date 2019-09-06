@@ -7,8 +7,6 @@
         "name":{"type":"string"},
         "storageType":{"type":"enum", "validValues": ["lvm", "ceph"]},
         "hosts":{"type":"array","elemType":"string"},
-        "config":{"type":"array","elemType":"storagecfg"},
-        "freeDevs":{"type":"array","elemType":"storagecfg"},
         "phase":{"type":"string"},
         "size":{"type":"string"},
         "usedSize":{"type":"string"},
@@ -34,10 +32,6 @@
         },
         "storagepod":{
             "name":{"type":"string"}
-        },
-        "storagecfg":{
-            "nodeName":{"type":"string"},
-            "blockDevices":{"type":"array","elemType":"storagedev"}
         },
         "storagedev":{
             "name":{"type":"string"},
