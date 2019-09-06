@@ -119,7 +119,7 @@ func GetHealthCheckURL(useTLS bool, port int) string {
 }
 
 func createLogLink(ctx context.Context, host *hosts.Host, containerName, plane, image string, prsMap map[string]types.PrivateRegistry) error {
-	log.Debugf("[%s] Creating log link for Container [%s] on host [%s]", plane, containerName, host.Address)
+	log.Debugf(ctx, "[%s] Creating log link for Container [%s] on host [%s]", plane, containerName, host.Address)
 	containerInspect, err := docker.InspectContainer(ctx, host.DClient, host.Address, containerName)
 	if err != nil {
 		return err
@@ -151,6 +151,6 @@ func createLogLink(ctx context.Context, host *hosts.Host, containerName, plane, 
 	if err := docker.DoRemoveContainer(ctx, host.DClient, LogLinkContainerName, host.Address); err != nil {
 		return err
 	}
-	log.Debugf("[%s] Successfully created log link for Container [%s] on host [%s]", plane, containerName, host.Address)
+	log.Debugf(ctx, "[%s] Successfully created log link for Container [%s] on host [%s]", plane, containerName, host.Address)
 	return nil
 }

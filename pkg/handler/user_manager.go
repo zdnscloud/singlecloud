@@ -46,11 +46,12 @@ func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface
 
 func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
 	currentUser := getCurrentUser(ctx)
-	if isAdmin(currentUser) == false && currentUser != ctx.Object.GetID() {
+	target := ctx.Object.GetID()
+	if isAdmin(currentUser) == false && currentUser != target {
 		return nil
 	}
 
-	if user := m.authorizer.GetUser(currentUser); user != nil {
+	if user := m.authorizer.GetUser(target); user != nil {
 		return user
 	} else {
 		return nil

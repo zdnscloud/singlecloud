@@ -41,7 +41,7 @@ func getEtcdClient(ctx context.Context, etcdHost *hosts.Host, cert, key []byte) 
 }
 
 func isEtcdHealthy(ctx context.Context, host *hosts.Host, cert, key []byte, url string) bool {
-	log.Debugf("[etcd] Check etcd cluster health")
+	log.Debugf(ctx, "[etcd] Check etcd cluster health")
 	for i := 0; i < 3; i++ {
 		dialer, err := getEtcdDialer(host)
 		if err != nil {
@@ -49,7 +49,7 @@ func isEtcdHealthy(ctx context.Context, host *hosts.Host, cert, key []byte, url 
 		}
 		tlsConfig, err := getEtcdTLSConfig(cert, key)
 		if err != nil {
-			log.Debugf("[etcd] Failed to create etcd tls config for host [%s]: %v", host.Address, err)
+			log.Debugf(ctx, "[etcd] Failed to create etcd tls config for host [%s]: %v", host.Address, err)
 			return false
 		}
 
@@ -62,12 +62,12 @@ func isEtcdHealthy(ctx context.Context, host *hosts.Host, cert, key []byte, url 
 		}
 		healthy, err := getHealthEtcd(hc, host, url)
 		if err != nil {
-			log.Debugf("", err)
+			log.Debugf(ctx, "", err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		if healthy == "true" {
-			log.Debugf("[etcd] etcd cluster is healthy")
+			log.Debugf(ctx, "[etcd] etcd cluster is healthy")
 			return true
 		}
 	}

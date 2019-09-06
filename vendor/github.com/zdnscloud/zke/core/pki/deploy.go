@@ -61,7 +61,7 @@ func DeployStateOnPlaneHost(ctx context.Context, host *hosts.Host, stateDownload
 	if err := docker.DoRemoveContainer(ctx, host.DClient, StateDeployerContainerName, host.Address); err != nil {
 		return err
 	}
-	log.Debugf("[state] Successfully started state deployer container on node [%s]", host.Address)
+	log.Debugf(ctx, "[state] Successfully started state deployer container on node [%s]", host.Address)
 	return nil
 }
 
@@ -99,7 +99,7 @@ func doRunDeployer(ctx context.Context, host *hosts.Host, containerEnv []string,
 	if err := host.DClient.ContainerStart(ctx, resp.ID, dockertypes.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("Failed to start Certificates deployer container on host [%s]: %v", host.Address, err)
 	}
-	log.Debugf("[certificates] Successfully started Certificate deployer container: %s", resp.ID)
+	log.Debugf(ctx, "[certificates] Successfully started Certificate deployer container: %s", resp.ID)
 	// for {
 	// isDeployerRunning, err := docker.IsContainerRunning(ctx, host.DClient, host.Address, CrtDownloaderContainer, false)
 	status, err := docker.WaitForContainer(ctx, host.DClient, host.Address, CrtDownloaderContainer)
@@ -127,7 +127,7 @@ func DeployAdminConfig(ctx context.Context, kubeConfig, localConfigPath string) 
 	if len(kubeConfig) == 0 {
 		return nil
 	}
-	log.Debugf("Deploying admin Kubeconfig locally: %s", kubeConfig)
+	log.Debugf(ctx, "Deploying admin Kubeconfig locally: %s", kubeConfig)
 	err := ioutil.WriteFile(localConfigPath, []byte(kubeConfig), 0640)
 	if err != nil {
 		return fmt.Errorf("Failed to create local admin kubeconfig file: %v", err)

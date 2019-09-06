@@ -167,7 +167,7 @@ func DeleteNode(ctx context.Context, toDeleteHost *Host, kubeClient *kubernetes.
 		return err
 
 	}
-	if err := k8s.CordonUncordon(kubeClient, toDeleteHost.NodeName, true); err != nil {
+	if err := k8s.CordonUncordon(ctx, kubeClient, toDeleteHost.NodeName, true); err != nil {
 		return err
 	}
 	log.Infof(ctx, "[hosts] Deleting host [%s] from the cluster", toDeleteHost.Address)
@@ -180,7 +180,7 @@ func DeleteNode(ctx context.Context, toDeleteHost *Host, kubeClient *kubernetes.
 
 func RemoveTaintFromHost(ctx context.Context, host *Host, taintKey string, kubeClient *kubernetes.Clientset) error {
 	log.Infof(ctx, "[hosts] removing taint [%s] from host [%s]", taintKey, host.Address)
-	if err := k8s.RemoveTaintFromNodeByKey(kubeClient, host.NodeName, taintKey); err != nil {
+	if err := k8s.RemoveTaintFromNodeByKey(ctx, kubeClient, host.NodeName, taintKey); err != nil {
 		return err
 	}
 	log.Infof(ctx, "[hosts] Successfully deleted taint [%s] from host [%s]", taintKey, host.Address)
@@ -309,7 +309,7 @@ func GetUniqueHostList(etcdHosts, cpHosts, workerHosts, edgeHosts []*Host) []*Ho
 }
 
 func DoRunLogCleaner(ctx context.Context, host *Host, alpineImage string, prsMap map[string]types.PrivateRegistry) error {
-	log.Debugf("[cleanup] Starting log link cleanup on host [%s]", host.Address)
+	log.Debugf(ctx, "[cleanup] Starting log link cleanup on host [%s]", host.Address)
 	imageCfg := &container.Config{
 		Image: alpineImage,
 		Tty:   true,
@@ -334,7 +334,7 @@ func DoRunLogCleaner(ctx context.Context, host *Host, alpineImage string, prsMap
 	if err := docker.DoRemoveContainer(ctx, host.DClient, LogCleanerContainerName, host.Address); err != nil {
 		return err
 	}
-	log.Debugf("[cleanup] Successfully cleaned up log links on host [%s]", host.Address)
+	log.Debugf(ctx, "[cleanup] Successfully cleaned up log links on host [%s]", host.Address)
 	return nil
 }
 
