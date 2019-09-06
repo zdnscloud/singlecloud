@@ -1,0 +1,34 @@
+[{
+        "label": "ingressDomain",
+        "jsonKey": "ingressDomain",
+        "type": "string",
+        "required": "true",
+        "description": "the ingress domain of cluster registry service",
+        "default": ""
+    },
+    {
+        "label": "storageClass",
+        "jsonKey": "storageClass",
+        "type": "enum",
+        "required": "false",
+        "description": "registry component storageClass type",
+        "validValues": ["cephfs", "lvm"],
+        "default": "lvm"
+    },
+    {
+        "label": "storageSize",
+        "jsonKey": "storageSize",
+        "type": "int",
+        "required": "false",
+        "description": "registry component storage size(Gi)",
+        "default": "50Gi"
+    },
+    {
+        "label": "adminPassword",
+        "jsonKey": "adminPassword",
+        "type": "string",
+        "required": "false",
+        "description": "registry admin password",
+        "default": "zcloud"
+    }
+]
