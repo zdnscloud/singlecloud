@@ -2,40 +2,48 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	cementlog "github.com/zdnscloud/cement/log"
 )
 
-var ZKELogger cementlog.Logger
-var DefaultLogLevel = cementlog.Info
+const (
+	zkeLogKey = "zke-logger"
+)
 
-func InitConsoleLog() {
-	ZKELogger = cementlog.NewLog4jConsoleLogger(DefaultLogLevel)
+var LogLevel cementlog.LogLevel = cementlog.Info
+
+func SetLogger(ctx context.Context, logger cementlog.Logger) (context.Context, error) {
+	if logger == nil {
+		return ctx, fmt.Errorf("logger can't be nil")
+	}
+	return context.WithValue(ctx, zkeLogKey, logger), nil
 }
 
-func InitChannelLog(l cementlog.Logger) {
-	ZKELogger = l
+func getLogger(ctx context.Context) cementlog.Logger {
+	logger := ctx.Value(zkeLogKey).(cementlog.Logger)
+	return logger
 }
 
-func Debugf(msg string, args ...interface{}) {
-	ZKELogger.Debug(msg, args...)
+func Debugf(ctx context.Context, msg string, args ...interface{}) {
+	getLogger(ctx).Debug(msg, args...)
 }
 
 func Infof(ctx context.Context, msg string, args ...interface{}) {
-	ZKELogger.Info(msg, args...)
+	getLogger(ctx).Info(msg, args...)
 }
 
 func Warnf(ctx context.Context, msg string, args ...interface{}) {
-	ZKELogger.Warn(msg, args...)
+	getLogger(ctx).Warn(msg, args...)
 }
 
 func Errorf(ctx context.Context, msg string, args ...interface{}) {
-	ZKELogger.Error(msg, args...)
+	getLogger(ctx).Error(msg, args...)
 }
 
-func Fatal(args ...interface{}) {
-	ZKELogger.Error("", args...)
-	ZKELogger.Close()
+func Fatal(ctx context.Context, args ...interface{}) {
+	getLogger(ctx).Error("", args...)
+	getLogger(ctx).Close()
 	os.Exit(1)
 }

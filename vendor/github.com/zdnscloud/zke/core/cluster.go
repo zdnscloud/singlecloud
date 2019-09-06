@@ -124,8 +124,8 @@ func (c *Cluster) DeployWorkerPlane(ctx context.Context) error {
 	}
 }
 
-func ParseConfig(clusterFile string) (*types.ZKEConfig, error) {
-	log.Debugf("Parsing cluster file [%v]", clusterFile)
+func ParseConfig(ctx context.Context, clusterFile string) (*types.ZKEConfig, error) {
+	log.Debugf(ctx, "Parsing cluster file [%v]", clusterFile)
 	var zkeConfig types.ZKEConfig
 	if err := yaml.Unmarshal([]byte(clusterFile), &zkeConfig); err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func InitClusterObject(ctx context.Context, zkeConfig *types.ZKEConfig) (*Cluste
 		}
 
 		// set hosts groups
-		if err := c.InvertIndexHosts(); err != nil {
+		if err := c.InvertIndexHosts(ctx); err != nil {
 			return nil, fmt.Errorf("Failed to classify hosts from config file: %v", err)
 		}
 		// validate cluster configuration
@@ -208,7 +208,7 @@ func rebuildLocalAdminConfig(ctx context.Context, kubeCluster *Cluster) error {
 			return err
 		}
 		kubeCluster.KubeClient = kubeClientSet
-		if _, err := GetK8sVersion(kubeClientSet); err == nil {
+		if _, err := GetK8sVersion(ctx, kubeClientSet); err == nil {
 			log.Infof(ctx, "[reconcile] host [%s] is active master on the cluster", cpHost.Address)
 			break
 		}
@@ -305,8 +305,8 @@ func (c *Cluster) SyncLabelsAndTaints(ctx context.Context, currentCluster *Clust
 		log.Infof(ctx, "[sync] Syncing nodes Labels and Taints")
 		hostList := hosts.GetUniqueHostList(c.EtcdHosts, c.ControlPlaneHosts, c.WorkerHosts, c.EdgeHosts)
 		_, err := errgroup.Batch(hostList, func(h interface{}) (interface{}, error) {
-			log.Debugf("worker starting sync for node [%s]", h.(*hosts.Host).NodeName)
-			return nil, setNodeAnnotationsLabelsTaints(c.KubeClient, h.(*hosts.Host))
+			log.Debugf(ctx, "worker starting sync for node [%s]", h.(*hosts.Host).NodeName)
+			return nil, setNodeAnnotationsLabelsTaints(ctx, c.KubeClient, h.(*hosts.Host))
 		})
 
 		if err != nil {
@@ -317,13 +317,13 @@ func (c *Cluster) SyncLabelsAndTaints(ctx context.Context, currentCluster *Clust
 	return nil
 }
 
-func setNodeAnnotationsLabelsTaints(k8sClient *kubernetes.Clientset, host *hosts.Host) error {
+func setNodeAnnotationsLabelsTaints(ctx context.Context, k8sClient *kubernetes.Clientset, host *hosts.Host) error {
 	node := &v1.Node{}
 	var err error
 	for retries := 0; retries <= 5; retries++ {
 		node, err = k8s.GetNode(k8sClient, host.NodeName)
 		if err != nil {
-			log.Debugf("[hosts] Can't find node by name [%s], retrying..", host.NodeName)
+			log.Debugf(ctx, "[hosts] Can't find node by name [%s], retrying..", host.NodeName)
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -334,12 +334,12 @@ func setNodeAnnotationsLabelsTaints(k8sClient *kubernetes.Clientset, host *hosts
 		k8s.SyncNodeTaints(node, host.ToAddTaints, host.ToDelTaints)
 
 		if reflect.DeepEqual(oldNode, node) {
-			log.Debugf("skipping syncing labels for node [%s]", node.Name)
+			log.Debugf(ctx, "skipping syncing labels for node [%s]", node.Name)
 			return nil
 		}
 		_, err = k8sClient.CoreV1().Nodes().Update(node)
 		if err != nil {
-			log.Debugf("Error syncing labels for node [%s]: %v", node.Name, err)
+			log.Debugf(ctx, "Error syncing labels for node [%s]: %v", node.Name, err)
 			time.Sleep(5 * time.Second)
 			continue
 		}

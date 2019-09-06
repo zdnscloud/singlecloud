@@ -52,7 +52,7 @@ func reconcileWorker(ctx context.Context, currentCluster, kubeCluster *Cluster, 
 		return util.CancelErr
 	default:
 		// worker deleted first to avoid issues when worker+controller on same host
-		log.Debugf("[reconcile] Check worker hosts to be deleted")
+		log.Debugf(ctx, "[reconcile] Check worker hosts to be deleted")
 		wpToDelete := hosts.GetToDeleteHosts(currentCluster.WorkerHosts, kubeCluster.WorkerHosts, kubeCluster.InactiveHosts)
 		for _, toDeleteHost := range wpToDelete {
 			toDeleteHost.IsWorker = false
@@ -85,7 +85,7 @@ func reconcileControl(ctx context.Context, currentCluster, kubeCluster *Cluster,
 	case <-ctx.Done():
 		return util.CancelErr
 	default:
-		log.Debugf("[reconcile] Check Control plane hosts to be deleted")
+		log.Debugf(ctx, "[reconcile] Check Control plane hosts to be deleted")
 		selfDeleteAddress, err := getLocalConfigAddress(kubeCluster.Certificates[pki.KubeAdminCertName].Config)
 		if err != nil {
 			return err

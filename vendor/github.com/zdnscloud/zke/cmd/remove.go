@@ -41,7 +41,7 @@ func ClusterRemove(
 	if err != nil {
 		return err
 	}
-	log.Debugf("Starting Cluster removal")
+	log.Debugf(ctx, "Starting Cluster removal")
 	err = kubeCluster.ClusterRemove(ctx)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func ClusterRemoveWithoutCleanFiles(
 	if err != nil {
 		return err
 	}
-	log.Debugf("Starting Cluster removal")
+	log.Debugf(ctx, "Starting Cluster removal")
 	err = kubeCluster.CleanupNodes(ctx)
 	if err != nil {
 		return err
@@ -75,7 +75,15 @@ func ClusterRemoveWithoutCleanFiles(
 	return nil
 }
 
-func clusterRemoveFromCli(ctx *cli.Context) error {
+func clusterRemoveFromCli(cliCtx *cli.Context) error {
+	parentCtx := context.Background()
+	logger := cementlog.NewLog4jConsoleLogger(log.LogLevel)
+	defer logger.Close()
+	ctx, err := log.SetLogger(parentCtx, logger)
+	if err != nil {
+		return err
+	}
+
 	clusterFile, err := resolveClusterFile(pki.ClusterConfig)
 	if err != nil {
 		return fmt.Errorf("Failed to resolve cluster file: %v", err)
@@ -92,7 +100,7 @@ func clusterRemoveFromCli(ctx *cli.Context) error {
 		return nil
 	}
 
-	zkeConfig, err := core.ParseConfig(clusterFile)
+	zkeConfig, err := core.ParseConfig(ctx, clusterFile)
 	if err != nil {
 		return fmt.Errorf("Failed to parse cluster file: %v", err)
 	}
@@ -101,11 +109,10 @@ func clusterRemoveFromCli(ctx *cli.Context) error {
 		return err
 	}
 
-	return ClusterRemove(context.Background(), zkeConfig, hosts.DialersOptions{})
+	return ClusterRemove(ctx, zkeConfig, hosts.DialersOptions{})
 }
 
 func ClusterRemoveFromSingleCloud(ctx context.Context, zkeConfig *types.ZKEConfig, logger cementlog.Logger) error {
-	log.InitChannelLog(logger)
 	if err := ClusterRemoveWithoutCleanFiles(ctx, zkeConfig, hosts.DialersOptions{}); err != nil {
 		return err
 	}

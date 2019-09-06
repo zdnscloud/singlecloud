@@ -20,7 +20,6 @@ const (
 	etcdRoleLabel         = "node-role.kubernetes.io/etcd"
 	controlplaneRoleLabel = "node-role.kubernetes.io/controlplane"
 	workerRoleLabel       = "node-role.kubernetes.io/worker"
-	StorageRoleLabel      = "node-role.kubernetes.io/storage"
 	edgeRoleLabel         = "node-role.kubernetes.io/edge"
 	cloudConfigFileName   = "/etc/kubernetes/cloud-config"
 	authnWebhookFileName  = "/etc/kubernetes/kube-api-authn-webhook.yaml"
@@ -61,7 +60,7 @@ func (c *Cluster) TunnelHosts(ctx context.Context) error {
 	}
 }
 
-func (c *Cluster) InvertIndexHosts() error {
+func (c *Cluster) InvertIndexHosts(ctx context.Context) error {
 	c.EtcdHosts = make([]*hosts.Host, 0)
 	c.WorkerHosts = make([]*hosts.Host, 0)
 	c.ControlPlaneHosts = make([]*hosts.Host, 0)
@@ -82,7 +81,7 @@ func (c *Cluster) InvertIndexHosts() error {
 		}
 		newHost.IgnoreDockerVersion = c.Option.IgnoreDockerVersion
 		for _, role := range host.Role {
-			log.Debugf("Host: " + host.Address + " has role: " + role)
+			log.Debugf(ctx, "Host: "+host.Address+" has role: "+role)
 			switch role {
 			case services.ETCDRole:
 				newHost.IsEtcd = true
@@ -112,9 +111,6 @@ func (c *Cluster) InvertIndexHosts() error {
 		}
 		if !newHost.IsWorker {
 			newHost.ToDelLabels[workerRoleLabel] = "true"
-		}
-		if !newHost.IsStorage {
-			newHost.ToDelLabels[StorageRoleLabel] = "true"
 		}
 		if !newHost.IsEdge {
 			newHost.ToDelLabels[edgeRoleLabel] = "true"
