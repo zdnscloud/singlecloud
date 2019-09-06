@@ -511,7 +511,7 @@ func TransformPEMToObject(in map[string]CertificatePKI) map[string]CertificatePK
 	return out
 }
 
-func ReadCSRsAndKeysFromDir(certDir string) (map[string]CertificatePKI, error) {
+func ReadCSRsAndKeysFromDir(ctx context.Context, certDir string) (map[string]CertificatePKI, error) {
 	certMap := make(map[string]CertificatePKI)
 	if _, err := os.Stat(certDir); os.IsNotExist(err) {
 		return certMap, nil
@@ -525,7 +525,7 @@ func ReadCSRsAndKeysFromDir(certDir string) (map[string]CertificatePKI, error) {
 	for _, file := range files {
 		if strings.Contains(file.Name(), "-csr.pem") {
 			certName := strings.TrimSuffix(file.Name(), "-csr.pem")
-			log.Debugf("[certificates] Loading %s csr from directory [%s]", certName, certDir)
+			log.Debugf(ctx, "[certificates] Loading %s csr from directory [%s]", certName, certDir)
 			// fetching csr
 			csrASN1, err := getCSRFromFile(certDir, certName+"-csr.pem")
 			if err != nil {
@@ -543,7 +543,7 @@ func ReadCSRsAndKeysFromDir(certDir string) (map[string]CertificatePKI, error) {
 	return certMap, nil
 }
 
-func ReadCertsAndKeysFromDir(certDir string) (map[string]CertificatePKI, error) {
+func ReadCertsAndKeysFromDir(ctx context.Context, certDir string) (map[string]CertificatePKI, error) {
 	certMap := make(map[string]CertificatePKI)
 	if _, err := os.Stat(certDir); os.IsNotExist(err) {
 		return certMap, nil
@@ -555,7 +555,7 @@ func ReadCertsAndKeysFromDir(certDir string) (map[string]CertificatePKI, error) 
 	}
 
 	for _, file := range files {
-		log.Debugf("[certificates] reading file %s from directory [%s]", file.Name(), certDir)
+		log.Debugf(ctx, "[certificates] reading file %s from directory [%s]", file.Name(), certDir)
 		// fetching cert
 		cert, err := getCertFromFile(certDir, file.Name())
 		if err != nil {
@@ -628,7 +628,7 @@ func getCSRFromFile(certDir string, fileName string) ([]byte, error) {
 	return csrASN1.Bytes, nil
 }
 
-func WriteCertificates(certDirPath string, certBundle map[string]CertificatePKI) error {
+func WriteCertificates(ctx context.Context, certDirPath string, certBundle map[string]CertificatePKI) error {
 	if _, err := os.Stat(certDirPath); os.IsNotExist(err) {
 		err = os.MkdirAll(certDirPath, 0755)
 		if err != nil {
@@ -642,7 +642,7 @@ func WriteCertificates(certDirPath string, certBundle map[string]CertificatePKI)
 			if err := ioutil.WriteFile(certificatePath, []byte(cert.CertificatePEM), 0640); err != nil {
 				return fmt.Errorf("Failed to write certificate to path %v: %v", certificatePath, err)
 			}
-			log.Debugf("Successfully Deployed certificate file at [%s]", certificatePath)
+			log.Debugf(ctx, "Successfully Deployed certificate file at [%s]", certificatePath)
 		}
 
 		if cert.KeyPEM != "" {
@@ -650,7 +650,7 @@ func WriteCertificates(certDirPath string, certBundle map[string]CertificatePKI)
 			if err := ioutil.WriteFile(keyPath, []byte(cert.KeyPEM), 0640); err != nil {
 				return fmt.Errorf("Failed to write key to path %v: %v", keyPath, err)
 			}
-			log.Debugf("Successfully Deployed key file at [%s]", keyPath)
+			log.Debugf(ctx, "Successfully Deployed key file at [%s]", keyPath)
 		}
 
 		if cert.CSRPEM != "" {
@@ -658,7 +658,7 @@ func WriteCertificates(certDirPath string, certBundle map[string]CertificatePKI)
 			if err := ioutil.WriteFile(csrPath, []byte(cert.CSRPEM), 0640); err != nil {
 				return fmt.Errorf("Failed to write csr to path %v: %v", csrPath, err)
 			}
-			log.Debugf("Successfully Deployed csr file at [%s]", csrPath)
+			log.Debugf(ctx, "Successfully Deployed csr file at [%s]", csrPath)
 		}
 	}
 	log.Infof(context.TODO(), "Successfully Deployed certificates at [%s]", certDirPath)
