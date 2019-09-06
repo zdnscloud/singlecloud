@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	ZKEManagerDBTable = "zke_manager"
+	ZKEManagerDBTable = "cluster"
 )
 
 type clusterState struct {
@@ -24,7 +24,7 @@ type clusterState struct {
 	ScVersion        string    `json:"zcloudVersion"`
 }
 
-func getState(clusterID string, db storage.DB) (clusterState, error) {
+func getClusterFromDB(clusterID string, db storage.DB) (clusterState, error) {
 	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
 	if err != nil {
 		return clusterState{}, fmt.Errorf("get table failed: %s", err.Error())
@@ -39,17 +39,17 @@ func getState(clusterID string, db storage.DB) (clusterState, error) {
 	value, err := tx.Get(clusterID)
 
 	if err != nil {
-		return clusterState{}, fmt.Errorf("get cluster %s  state failed %s", clusterID, err.Error())
+		return clusterState{}, err
 	}
 
-	state, err := readStateJsonBytes(value)
+	state, err := readClusterJson(value)
 	if err != nil {
 		return state, fmt.Errorf("read cluster %s  state failed %s", clusterID, err.Error())
 	}
 	return state, nil
 }
 
-func createOrUpdateState(clsuterID string, s clusterState, db storage.DB) error {
+func createOrUpdateClusterFromDB(clsuterID string, s clusterState, db storage.DB) error {
 	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
 	if err != nil {
 		return fmt.Errorf("get table failed %s", err.Error())
@@ -83,7 +83,7 @@ func createOrUpdateState(clsuterID string, s clusterState, db storage.DB) error 
 	return nil
 }
 
-func deleteState(clusterID string, db storage.DB) error {
+func deleteClusterFromDB(clusterID string, db storage.DB) error {
 	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
 	if err != nil {
 		return fmt.Errorf("get table failed %s", err.Error())
@@ -105,7 +105,7 @@ func deleteState(clusterID string, db storage.DB) error {
 	return nil
 }
 
-func listState(db storage.DB) (map[string]clusterState, error) {
+func getClustersFromDB(db storage.DB) (map[string]clusterState, error) {
 	stateMap := make(map[string]clusterState)
 
 	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
@@ -125,7 +125,7 @@ func listState(db storage.DB) (map[string]clusterState, error) {
 	}
 
 	for k, v := range values {
-		state, err := readStateJsonBytes(v)
+		state, err := readClusterJson(v)
 		if err != nil {
 			return stateMap, fmt.Errorf("read cluster %s state failed %s", k, err.Error())
 		}
@@ -134,9 +134,9 @@ func listState(db storage.DB) (map[string]clusterState, error) {
 	return stateMap, nil
 }
 
-func readStateJsonBytes(sj []byte) (clusterState, error) {
+func readClusterJson(js []byte) (clusterState, error) {
 	s := clusterState{}
-	if err := json.Unmarshal(sj, &s); err != nil {
+	if err := json.Unmarshal(js, &s); err != nil {
 		return s, err
 	}
 	if s.FullState != nil && s.FullState.DesiredState.CertificatesBundle != nil {
