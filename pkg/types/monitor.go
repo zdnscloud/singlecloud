@@ -7,7 +7,7 @@ import (
 func SetMonitorSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{}
+	schema.ResourceMethods = []string{"GET"}
 	schema.Parents = []string{ClusterType}
 }
 

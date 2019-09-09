@@ -31,7 +31,7 @@
             "validValues": ["create", "succeed"]
         }
     },
-    "resourceMethods": [],
+    "resourceMethods": ["GET"],
     "collectionMethods": ["GET", "POST"],
     "postParameters": {
         "fields": {

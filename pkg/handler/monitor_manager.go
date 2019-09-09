@@ -86,6 +86,7 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 
 	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
 
+	monitor.Status = types.AppStatusCreate
 	monitor.SetID(monitorAppNamePrefix)
 	monitor.SetCreationTimestamp(time.Now())
 	return monitor, nil
@@ -113,13 +114,32 @@ func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
 	return monitors
 }
 
+func (m *MonitorManager) Get(ctx *resttypes.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return nil
+	}
+
+	apps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
+	if err != nil || len(apps) == 0 {
+		return nil
+	}
+
+	monitor, err := genMonitorFromApp(ctx, cluster.Name, apps[0])
+	if err != nil {
+		return nil
+	}
+
+	return monitor
+}
+
 func genMonitorApplication(cli client.Client, m *types.Monitor, clusterName string) (*types.Application, error) {
 	config, err := genMonitorConfigs(cli, m, clusterName)
 	if err != nil {
 		return nil, err
 	}
 	return &types.Application{
-		Name:         monitorAppNamePrefix + genRandomStr(12),
+		Name:         monitorAppNamePrefix + "-" + genRandomStr(12),
 		ChartName:    monitorChartName,
 		ChartVersion: monitorChartVersion,
 		Configs:      config,
@@ -133,7 +153,7 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) 
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		m.IngressDomain = m.ID + "-" + ZCloudNamespace + "-" + clusterName + "." + firstEdgeNodeIP + "." + ZcloudDynamicaDomainPrefix
+		m.IngressDomain = monitorAppNamePrefix + "-" + ZCloudNamespace + "-" + clusterName + "." + firstEdgeNodeIP + "." + ZcloudDynamicaDomainPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
 
@@ -226,6 +246,7 @@ func genMonitorFromApp(ctx *resttypes.Context, cluster string, app *types.Applic
 		IngressDomain: p.Grafana.Ingress.Hosts,
 		StorageClass:  p.Prometheus.PrometheusSpec.StorageClass,
 		RedirectUrl:   "http://" + p.Grafana.Ingress.Hosts,
+		Status:        app.Status,
 	}
 	m.SetID(app.Name)
 	m.CreationTimestamp = app.CreationTimestamp
@@ -233,7 +254,7 @@ func genMonitorFromApp(ctx *resttypes.Context, cluster string, app *types.Applic
 }
 
 func genRandomStr(length int) string {
-	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	str := "0123456789abcdefghijklmnopqrstuvwxyz"
 	bytes := []byte(str)
 	result := []byte{}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))

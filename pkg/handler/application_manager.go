@@ -108,7 +108,6 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	isAdminUser := isAdmin(getCurrentUser(ctx))
 	namespace := ctx.Object.GetParent().GetID()
 	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
 	if err != nil {
@@ -128,7 +127,7 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 			return nil
 		}
 
-		if isAdminUser == false && app.SystemChart {
+		if app.SystemChart {
 			continue
 		}
 

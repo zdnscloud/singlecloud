@@ -7,7 +7,7 @@ import (
 func SetRegistrySchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"POST", "GET"}
-	schema.ResourceMethods = []string{}
+	schema.ResourceMethods = []string{"GET"}
 	schema.Parents = []string{ClusterType}
 }
 
@@ -18,7 +18,7 @@ type Registry struct {
 	StorageSize        int    `json:"storageSize"`
 	AdminPassword      string `json:"adminPassword"`
 	RedirectUrl        string `json:"redirectUrl"`
-	status             string `json:"status"`
+	Status             string `json:"status"`
 }
 
 var RegistryType = resttypes.GetResourceType(Registry{})

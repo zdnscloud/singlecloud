@@ -37,7 +37,6 @@ func newChartManager(chartDir string) *ChartManager {
 }
 
 func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
-	isAdminUser := isAdmin(getCurrentUser(ctx))
 	chts, err := ioutil.ReadDir(m.chartDir)
 	if err != nil {
 		log.Warnf("list charts info failed:%s", err.Error())
@@ -52,7 +51,7 @@ func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
 				log.Warnf("list charts info when get chart %s failed:%s", cht.Name(), err.Error())
 				return nil
 			} else {
-				if isAdminUser == false && isSystemChart {
+				if isSystemChart {
 					continue
 				}
 
@@ -86,7 +85,7 @@ func (m *ChartManager) Get(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	if isAdmin(getCurrentUser(ctx)) == false && isSystemChart {
+	if isSystemChart {
 		log.Warnf("no found chart %s for user %s", chart.Name, getCurrentUser(ctx))
 		return nil
 	}
