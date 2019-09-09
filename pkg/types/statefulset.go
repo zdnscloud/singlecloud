@@ -35,25 +35,13 @@ type StatefulSet struct {
 	Containers         []Container                `json:"containers"`
 	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
 	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
-	Status             StatefulSetStatus          `json:"status,omitempty"`
+	Status             WorkloadStatus             `json:"status,omitempty"`
 }
 
 type PersistentVolumeTemplate struct {
 	Name             string `json:"name"`
 	Size             string `json:"size"`
 	StorageClassName string `json:"storageClassName"`
-}
-
-type StatefulSetStatus struct {
-	ObservedGeneration int                 `json:"observedGeneration,omitempty"`
-	Replicas           int                 `json:"replicas,omitempty"`
-	ReadyReplicas      int                 `json:"readyReplicas,omitempty"`
-	CurrentReplicas    int                 `json:"currentReplicas,omitempty"`
-	UpdatedReplicas    int                 `json:"updatedReplicas,omitempty"`
-	CurrentRevision    string              `json:"currentRevision,omitempty"`
-	UpdateRevision     string              `json:"updateRevision,omitempty"`
-	CollisionCount     int                 `json:"collisionCount,omitempty"`
-	Conditions         []WorkloadCondition `json:"conditions,omitempty"`
 }
 
 var StatefulSetType = resttypes.GetResourceType(StatefulSet{})

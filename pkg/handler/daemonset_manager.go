@@ -192,33 +192,22 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 		return nil, err
 	}
 
-	var conditions []types.DaemonSetCondition
-	for _, condition := range k8sDaemonSet.Status.Conditions {
-		conditions = append(conditions, types.DaemonSetCondition{
-			Type:               string(condition.Type),
-			Status:             string(condition.Status),
-			LastTransitionTime: resttypes.ISOTime(condition.LastTransitionTime.Time),
-			Reason:             condition.Reason,
-			Message:            condition.Message,
-		})
-	}
-
-	var collisionCount int32
+	var collisionCount int
 	if k8sDaemonSet.Status.CollisionCount != nil {
-		collisionCount = *k8sDaemonSet.Status.CollisionCount
+		collisionCount = int(*k8sDaemonSet.Status.CollisionCount)
 	}
 
 	daemonSetStatus := types.DaemonSetStatus{
-		CurrentNumberScheduled: k8sDaemonSet.Status.CurrentNumberScheduled,
-		NumberMisscheduled:     k8sDaemonSet.Status.NumberMisscheduled,
-		DesiredNumberScheduled: k8sDaemonSet.Status.DesiredNumberScheduled,
-		NumberReady:            k8sDaemonSet.Status.NumberReady,
-		ObservedGeneration:     k8sDaemonSet.Status.ObservedGeneration,
-		UpdatedNumberScheduled: k8sDaemonSet.Status.UpdatedNumberScheduled,
-		NumberAvailable:        k8sDaemonSet.Status.NumberAvailable,
-		NumberUnavailable:      k8sDaemonSet.Status.NumberUnavailable,
+		CurrentNumberScheduled: int(k8sDaemonSet.Status.CurrentNumberScheduled),
+		NumberMisscheduled:     int(k8sDaemonSet.Status.NumberMisscheduled),
+		DesiredNumberScheduled: int(k8sDaemonSet.Status.DesiredNumberScheduled),
+		NumberReady:            int(k8sDaemonSet.Status.NumberReady),
+		ObservedGeneration:     int(k8sDaemonSet.Status.ObservedGeneration),
+		UpdatedNumberScheduled: int(k8sDaemonSet.Status.UpdatedNumberScheduled),
+		NumberAvailable:        int(k8sDaemonSet.Status.NumberAvailable),
+		NumberUnavailable:      int(k8sDaemonSet.Status.NumberUnavailable),
 		CollisionCount:         collisionCount,
-		DaemonSetConditions:    conditions,
+		Conditions:             k8sWorkloadConditionsToScWorkloadConditions(k8sDaemonSet.Status.Conditions, false),
 	}
 
 	var advancedOpts types.AdvancedOptions

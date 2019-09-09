@@ -44,15 +44,6 @@ type DaemonSetStatus struct {
 	Conditions             []WorkloadCondition `json:"conditions,omitempty"`
 }
 
-type WorkloadCondition struct {
-	Type               string            `json:"type,omitempty"`
-	Status             string            `json:"status,omitempty"`
-	LastTransitionTime resttypes.ISOTime `json:"lastTransitionTime,omitempty"`
-	LastUpdateTime     resttypes.ISOTime `json:"lastUpdateTime,omitempty"`
-	Reason             string            `json:"reason,omitempty"`
-	Message            string            `json:"message,omitempty"`
-}
-
 var DaemonSetType = resttypes.GetResourceType(DaemonSet{})
 
 type DaemonsetHistory struct {
