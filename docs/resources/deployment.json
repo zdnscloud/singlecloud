@@ -116,6 +116,12 @@
         }
     },
 
+    "putParameters": {
+        "fields": {
+            "replicas": {"type": "int", "required": true}
+        }
+    },
+
     "resourceActions":[ 
         {
             "name": "history",
