@@ -20,7 +20,7 @@ type Monitor struct {
 	ScrapeInterval      int    `json:"scrapeInterval"`
 	AdminPassword       string `json:"adminPassword"`
 	RedirectUrl         string `json:"redirectUrl"`
-	ApplicationLink     string `json:"applicationLink"`
+	Status              string `json:"status"`
 }
 
 var MonitorType = resttypes.GetResourceType(Monitor{})

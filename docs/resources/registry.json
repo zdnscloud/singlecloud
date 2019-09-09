@@ -20,8 +20,9 @@
         "redirectUrl": {
             "type": "string"
         },
-        "applicationLink": {
-            "type": "string"
+        "status": {
+            "type": "enum",
+            "validValues": ["create", "succeed"]
         }
     },
     "resourceMethods": [],

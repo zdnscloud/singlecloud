@@ -62,7 +62,7 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("cluster %s registry has exist", cluster.Name))
 	}
 
-	requiredStorageClass := monitorAppStorageClass
+	requiredStorageClass := registryAppStorageClass
 	if r.StorageClass != "" {
 		requiredStorageClass = r.StorageClass
 	}
@@ -82,7 +82,6 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 	}
 	r.SetID(registryAppName)
 	r.SetCreationTimestamp(time.Now())
-	r.ApplicationLink = genRegistryAppLink(ctx, cluster.Name)
 	return r, nil
 }
 
@@ -128,7 +127,7 @@ func genRegistryConfigs(cli client.Client, r *types.Registry, clusterName string
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		r.IngressDomain = registryAppName + "-" + ZCloudNamespace + "-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		r.IngressDomain = registryAppName + "-" + ZCloudNamespace + "-" + clusterName + "." + firstEdgeNodeIP + "." + ZcloudDynamicaDomainPrefix
 	}
 	r.RedirectUrl = "https://" + r.IngressDomain
 
@@ -181,16 +180,11 @@ func genRegistryFromApp(ctx *resttypes.Context, cluster string, app *types.Appli
 		return nil, err
 	}
 	r := types.Registry{
-		IngressDomain:   h.Ingress.Core,
-		StorageClass:    h.Persistence.StorageClass,
-		RedirectUrl:     "https://" + h.Ingress.Core,
-		ApplicationLink: genRegistryAppLink(ctx, cluster),
+		IngressDomain: h.Ingress.Core,
+		StorageClass:  h.Persistence.StorageClass,
+		RedirectUrl:   "https://" + h.Ingress.Core,
 	}
 	r.SetID(app.Name)
 	r.CreationTimestamp = app.CreationTimestamp
 	return &r, nil
-}
-
-func genRegistryAppLink(ctx *resttypes.Context, clusterName string) string {
-	return genUrlPrefix(ctx, clusterName) + "/" + ZCloudNamespace + "/applications/" + registryAppName
 }

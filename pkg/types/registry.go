@@ -18,7 +18,7 @@ type Registry struct {
 	StorageSize        int    `json:"storageSize"`
 	AdminPassword      string `json:"adminPassword"`
 	RedirectUrl        string `json:"redirectUrl"`
-	ApplicationLink    string `json:"applicationLink"`
+	status             string `json:"status"`
 }
 
 var RegistryType = resttypes.GetResourceType(Registry{})

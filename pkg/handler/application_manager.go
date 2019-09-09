@@ -363,6 +363,27 @@ func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, 
 	return appValues, nil
 }
 
+func getApplicationsFromDBByChartName(db storage.DB, tableName, chartName string) ([]*types.Application, error) {
+	apps := []*types.Application{}
+
+	appValues, err := getApplicationsFromDB(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, appValue := range appValues {
+		app := &types.Application{}
+		if err := json.Unmarshal(appValue, app); err != nil {
+			continue
+		}
+		if app.ChartName == chartName {
+			apps = append(apps, app)
+		}
+	}
+
+	return apps, nil
+}
+
 func getApplicationFromDB(db storage.DB, tableName, appName string) (*types.Application, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
