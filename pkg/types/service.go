@@ -16,6 +16,7 @@ type ServicePort struct {
 	Port       int    `json:"port"`
 	TargetPort int    `json:"targetPort"`
 	Protocol   string `json:"protocol"`
+	NodePort   int    `json:"nodePort,omitempty"`
 }
 
 type Service struct {
