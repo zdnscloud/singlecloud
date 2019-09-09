@@ -79,14 +79,13 @@ lvm/
 ├── status.go	#状态更新
 ├── template.go #资源模板
 ├── update.go	#更新存储
-├── util  
-│   └── lvmdclient.go # lvmd客户端
+├── lvmdclient.go # lvmd客户端
 └── yaml.go 	#构建yaml
 ```
 
 - 创建  
-  1. 给节点增加labels和annotations
-  2. 部署Lvmd
+  1. 给节点增加labels
+  2. 部署Lvmd并等待其全部运行
   3. 初始化磁盘
         1. 检查Volume Group是否已经存在
         2. 检查磁盘是否有分区和文件系统，如果有则强制格式化磁盘
@@ -94,7 +93,7 @@ lvm/
         4. 创建Volume Group
     >
     >  注：如果创建Volume Group之前不存在，则直接vgcreate。如果已经存在，则进行vgextend
-  4. 部署CSI
+  4. 部署CSI并等待其全部运行
   5. gorouting循环检查lvm的运行及磁盘空间并更新cluster状态（频率60秒）   
   
 - 更新  
@@ -109,7 +108,7 @@ lvm/
   1. 删除CSI
   2. 格式化磁盘
   3. 删除Lvmd
-  4. 删除节点的labels和annotations
+  4. 删除节点的labels
   
   
 ### ceph说明
@@ -136,21 +135,21 @@ lvm/
   1. 给节点增加labels
   2. 创建ceph集群
      1. 获取k8s集群Pod地址段
-     2. 随机生成uuid, adminkey, monkey
+     2. 随机生成adminkey, monkey，并根据crd的uuid作为ceph的集群id
      3. 根据磁盘个数设置副本数（默认为2）
      4. 根据前面3步的配置
         1. 创建configmap保存ceph集群配置文件，用于后面启动ceph组件挂载使用
         2. 创建无头服务，用于后面ceph组件连接mon
         3. 创建secret，保存账户和密钥，用于后面storageclass使用
+	4. 创建serviceaccount，用于后面部署ceph组件用
      5. 保存ceph集群配置到本地
      6. 启动mon并等待其全部运行
-     7. 启动mgr
-     8. 启动osd（先调用zap对磁盘进行清理）
-     9. 启动mds
-  3. 部署CSI
-  4. 启动3个gorouting
+     7. 启动mgr并等待其全部运行
+     8. 启动osd并等待其全部运行
+     9. 启动mds并等待其全部运行
+  3. 部署CSI并等待其全部运行
+  4. 启动2个gorouting
      - 循环检查ceph集群中是否有异常的osd，如果有就remove，等待集群数据恢复
-     - 循环检查ceph集群中是否有异常的mon，如果有就remove
      - 循环检查ceph的运行及磁盘空间并更新cluster状态（频率60秒）    
 - 更新  
   1. 对比更新前后的配置，确定删除的主机、增加的主机
