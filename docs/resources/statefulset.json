@@ -8,7 +8,8 @@
         "replicas": {"type": "int"},
         "containers": {"type": "array", "elemType": "container"},
         "advancedOptions": {"type": "advancedOptions"},
-        "persistentVolumes": {"type": "array", "elemType": "persistentVolume"}
+        "persistentVolumes": {"type": "array", "elemType": "persistentVolume"},
+        "status": {"type": "statefulsetStatus"}
     },
 
     "subResources": {
@@ -54,6 +55,26 @@
             "name": {"type": "string"},
             "size": {"type": "string"},
             "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
+        },
+
+        "statefulsetStatus": {
+              "observedGeneration": {"type": "int"},
+              "replicas": {"type": "int"},
+              "readyReplicas": {"type": "int"},
+              "updatedReplicas": {"type": "int"},
+              "currentReplicas": {"type": "int"},
+              "currentRevision": {"type": "string"},
+              "updateRevision": {"type": "string"},
+              "collisionCount": {"type": "int"},
+              "conditions": {"type": "array": "elemType": "statefulsetCondition"}
+        },
+         
+        "statefulsetCondition": {
+            "type": {"type": "string"},
+            "status": {"type": "enum", "validValues": ["True", "False", "Unknown"]},
+            "lastTransitionTime": {"type": "date"},
+            "reason": {"type": "string"},
+            "message": {"type": "string"}
         }
     },
 

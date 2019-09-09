@@ -51,15 +51,15 @@
         },
 
         "daemonsetStatus": {
-            "currentNumberScheduled": {"type": "int32"},
-            "numberMisscheduled": {"type": "int32"},
-            "desiredNumberScheduled": {"type": "int32"},
-            "numberReady": {"type": "int32"},
-            "observedGeneration": {"type": "int64"},
-            "updatedNumberScheduled": {"type": "int32"},
-            "numberAvailable": {"type": "int32"},
-            "numberUnavailable": {"type": "int32"},
-            "collisionCount": {"type": "int32"},
+            "currentNumberScheduled": {"type": "int"},
+            "numberMisscheduled": {"type": "int"},
+            "desiredNumberScheduled": {"type": "int"},
+            "numberReady": {"type": "int"},
+            "observedGeneration": {"type": "int"},
+            "updatedNumberScheduled": {"type": "int"},
+            "numberAvailable": {"type": "int"},
+            "numberUnavailable": {"type": "int"},
+            "collisionCount": {"type": "int"},
             "conditions": {"type": "daemonsetCondition"}
         },
 
