@@ -92,6 +92,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImportAndCustomize(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager), types.SetUserQuotaSchema)
 	schemas.MustImportAndCustomize(&Version, types.Registry{}, newRegistryManager(a.clusterManager, appMgr), types.SetRegistrySchema)
 	schemas.MustImportAndCustomize(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appMgr), types.SetMonitorSchema)
+	schemas.MustImportAndCustomize(&Version, types.KubeConfig{}, newKubeConfigManager(a.clusterManager), types.SetKubeConfigSchema)
 	server := api.NewAPIServer()
 	if err := server.AddSchemas(schemas); err != nil {
 		return err

@@ -138,28 +138,23 @@ func getClusterInfo(cli client.Client, sc *types.Cluster) *types.Cluster {
 func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	requestFlags := ctx.Request.URL.Query()
 	user := getCurrentUser(ctx)
-	var clusters []*types.Cluster
+	var readyClusters []*types.Cluster
+	var allClusters []*types.Cluster
+
+	for _, c := range m.zkeManager.List() {
+		if m.authorizer.Authorize(user, c.Name, "") {
+			sc := getClusterInfo(c.KubeClient, c.ToTypesCluster())
+			allClusters = append(allClusters, sc)
+			if c.IsReady() {
+				readyClusters = append(readyClusters, sc)
+			}
+		}
+	}
 
 	if onlyReady := requestFlags.Get("onlyready"); onlyReady == "true" {
-		for _, c := range m.zkeManager.ListReady() {
-			if m.authorizer.Authorize(user, c.Name, "") {
-				sc := getClusterInfo(c.KubeClient, c.ToTypesCluster())
-				clusters = append(clusters, sc)
-			}
-		}
-		return clusters
+		return readyClusters
 	}
-
-	for _, c := range m.zkeManager.ListAll() {
-		if m.authorizer.Authorize(user, c.Name, "") {
-			sc := c.ToTypesCluster()
-			if c.IsReady() {
-				sc = getClusterInfo(c.KubeClient, sc)
-			}
-			clusters = append(clusters, sc)
-		}
-	}
-	return clusters
+	return allClusters
 }
 
 func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
@@ -176,11 +171,7 @@ func (m *ClusterManager) Action(ctx *resttypes.Context) (interface{}, *resttypes
 	}
 	if ctx.Action.Name == types.CSCancelAction {
 		id := ctx.Object.(*types.Cluster).GetID()
-		return m.zkeManager.Cancel(id)
-	}
-	if ctx.Action.Name == types.CSGetKubeConfigAction {
-		id := ctx.Object.(*types.Cluster).GetID()
-		return m.zkeManager.GetKubeConfig(id)
+		return m.zkeManager.CancelCluster(id)
 	}
 	return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
 }

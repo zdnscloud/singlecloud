@@ -2,11 +2,13 @@ package zke
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
@@ -96,11 +98,30 @@ func (c *Cluster) GetNodeIpsByRole(role types.NodeRole) []string {
 	return ips
 }
 
+func (c *Cluster) Cancel() error {
+	s := c.getStatus()
+	if s == types.CSCreateing || s == types.CSUpdateing || s == types.CSConnecting {
+		c.fsm.Event(CancelEvent)
+		c.cancel()
+		c.isCanceled = true
+		return nil
+	} else {
+		return fmt.Errorf("cluster %s current status is %s, can not cancel", c.Name, s)
+	}
+}
+
+func (c *Cluster) CanDelete() bool {
+	if c.IsReady() || c.getStatus() == types.CSUnavailable {
+		return true
+	}
+	return false
+}
+
 func (c *Cluster) getStatus() types.ClusterStatus {
 	return types.ClusterStatus(c.fsm.Current())
 }
 
-func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, mgr *ZKEManager) {
+func (c *Cluster) InitLoop(ctx context.Context, kubeConfig string, mgr *ZKEManager, state clusterState) {
 	k8sConfig, err := config.BuildConfig([]byte(kubeConfig))
 	if err != nil {
 		log.Errorf("build cluster %s k8sconfig failed %s", c.Name, err)
@@ -109,6 +130,13 @@ func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, mgr *ZKEManag
 	}
 
 	for {
+		if c.isCanceled {
+			if err := c.fsm.Event(CancelSuccessEvent, mgr, state); err != nil {
+				log.Warnf("send cluster fsm %s event failed %s", CancelSuccessEvent, err.Error())
+			}
+			return
+		}
+
 		select {
 		case <-ctx.Done():
 			return
@@ -144,11 +172,26 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	return nil
 }
 
-func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManager) {
+func (c *Cluster) setUnavailable(db storage.DB) error {
+	state, err := getClusterFromDB(c.Name, db)
+	if err != nil {
+		return err
+	}
+	// only connecting status cancel action need update and write db
+	if state.IsUnvailable {
+		return nil
+	}
+	state.IsUnvailable = true
+	return createOrUpdateClusterFromDB(c.Name, state, db)
+}
+
+func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManager) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("zke pannic info %s", r)
-			c.fsm.Event(CreateFailedEvent, mgr, state)
+			if err := c.fsm.Event(CreateFailedEvent, mgr, state); err != nil {
+				log.Warnf("send cluster fsm %s event failed %s", CreateFailedEvent, err.Error())
+			}
 		}
 	}()
 
@@ -159,13 +202,17 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	zkeState, k8sConfig, kubeClient, err := buildZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
-		c.fsm.Event(CancelSuccessEvent, mgr, state)
+		if err := c.fsm.Event(CancelSuccessEvent, mgr, state); err != nil {
+			log.Warnf("send cluster fsm %s event failed %s", CancelSuccessEvent, err.Error())
+		}
 		return
 	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
-		c.fsm.Event(CreateFailedEvent, mgr, state)
+		if err := c.fsm.Event(CreateFailedEvent, mgr, state); err != nil {
+			log.Warnf("send cluster fsm %s event failed %s", CreateFailedEvent, err.Error())
+		}
 		return
 	}
 
@@ -176,18 +223,24 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	state.IsUnvailable = false
 
 	if err := c.setCache(k8sConfig); err != nil {
-		c.fsm.Event(CreateFailedEvent, mgr, state)
+		if err := c.fsm.Event(CreateFailedEvent, mgr, state); err != nil {
+			log.Warnf("send cluster fsm %s event failed %s", CreateFailedEvent, err.Error())
+		}
 		return
 	}
 
-	c.fsm.Event(CreateSuccessEvent, mgr, state)
+	if err := c.fsm.Event(CreateSuccessEvent, mgr, state); err != nil {
+		log.Warnf("send cluster fsm %s event failed %s", CreateSuccessEvent, err.Error())
+	}
 }
 
-func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManager) {
+func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManager) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("zke pannic info %s", r)
-			c.fsm.Event(UpdateFailedEvent, mgr, state)
+			if err := c.fsm.Event(UpdateFailedEvent, mgr, state); err != nil {
+				log.Warnf("send cluster fsm %s event failed %s", UpdateFailedEvent, err.Error())
+			}
 		}
 	}()
 
@@ -198,13 +251,17 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	zkeState, k8sConfig, kubeClient, err := updateZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
-		c.fsm.Event(CancelSuccessEvent, mgr, state)
+		if err := c.fsm.Event(CancelSuccessEvent, mgr, state); err != nil {
+			log.Warnf("send cluster fsm %s event failed %s", CancelSuccessEvent, err.Error())
+		}
 		return
 	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
-		c.fsm.Event(UpdateFailedEvent, mgr, state)
+		if err := c.fsm.Event(UpdateFailedEvent, mgr, state); err != nil {
+			log.Warnf("send cluster fsm %s event failed %s", UpdateFailedEvent, err.Error())
+		}
 		return
 	}
 
@@ -214,7 +271,9 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	state.FullState = zkeState
 	state.IsUnvailable = false
 
-	c.fsm.Event(UpdateSuccessEvent, mgr, state)
+	if err := c.fsm.Event(UpdateSuccessEvent, mgr, state); err != nil {
+		log.Warnf("send cluster fsm %s event failed %s", UpdateSuccessEvent, err.Error())
+	}
 }
 
 func (c *Cluster) toTypesCluster() *types.Cluster {
@@ -263,4 +322,19 @@ func (c *Cluster) toTypesCluster() *types.Cluster {
 	sc.SetCreationTimestamp(c.CreateTime)
 	sc.Status = c.getStatus()
 	return sc
+}
+
+func (c *Cluster) GetKubeConfig(user string, db storage.DB) (string, error) {
+	state, err := getClusterFromDB(c.Name, db)
+	if err != nil {
+		return "", err
+	}
+	if state.FullState.CurrentState.CertificatesBundle != nil {
+		kubeConfigCert, ok := state.CurrentState.CertificatesBundle[user]
+		if !ok {
+			return "", fmt.Errorf("cluster %s user %s cert doesn't exist", c.Name, user)
+		}
+		return kubeConfigCert.Config, nil
+	}
+	return "", nil
 }

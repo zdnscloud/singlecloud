@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	PubEventBufferCount = 500
+	clusterEventBufferCount = 100
 )
 
 type ZKEManager struct {
@@ -31,7 +31,7 @@ func New(db storage.DB, scVersion string) (*ZKEManager, error) {
 	mgr := &ZKEManager{
 		readyClusters:   make([]*Cluster, 0),
 		unreadyClusters: make([]*Cluster, 0),
-		PubEventCh:      make(chan interface{}, PubEventBufferCount),
+		PubEventCh:      make(chan interface{}, clusterEventBufferCount),
 		db:              db,
 		scVersion:       scVersion,
 	}
@@ -44,19 +44,19 @@ func New(db storage.DB, scVersion string) (*ZKEManager, error) {
 func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	inner := ctx.Object.(*types.Cluster)
-	c := m.get(inner.Name)
 
-	if c != nil {
+	typesCluster := ctx.Object.(*types.Cluster)
+
+	existCluster := m.get(typesCluster.Name)
+	if existCluster != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster")
 	}
 
-	if err := validateConfigForCreate(inner); err != nil {
+	if err := validateConfigForCreate(typesCluster); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
-	config := genZKEConfig(inner)
-
+	config := genZKEConfig(typesCluster)
 	state := clusterState{
 		ZKEConfig:    config,
 		CreateTime:   time.Now(),
@@ -64,110 +64,113 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 		IsUnvailable: true,
 		ScVersion:    m.scVersion,
 	}
-
-	if err := createOrUpdateClusterFromDB(inner.Name, state, m.db); err != nil {
+	if err := createOrUpdateClusterFromDB(typesCluster.Name, state, m.db); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	cluster := newCluster(inner.Name, types.CSCreateing)
+	cluster := newCluster(typesCluster.Name, types.CSCreateing)
 	cluster.CreateTime = state.CreateTime
 	cluster.config = config
 	cluster.scVersion = m.scVersion
-	m.unreadyClusters = append(m.unreadyClusters, cluster)
+	m.addUnready(cluster)
 
-	zkectx, cancel := context.WithCancel(context.Background())
+	cancelCtx, cancel := context.WithCancel(context.Background())
 	cluster.cancel = cancel
-	go cluster.create(zkectx, state, m)
-	return inner, nil
+	go cluster.Create(cancelCtx, state, m)
+	return typesCluster, nil
 }
 
 func (m *ZKEManager) Import(ctx *resttypes.Context, json []byte) (interface{}, *resttypes.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	inner := ctx.Object.(*types.Cluster)
-	c := m.get(inner.Name)
 
-	if c != nil {
+	typesCluster := ctx.Object.(*types.Cluster)
+
+	existCluster := m.get(typesCluster.Name)
+	if existCluster != nil {
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster")
 	}
 
 	state, err := readClusterJson(json)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidBodyContent, fmt.Sprintf("%s", err))
+		return nil, resttypes.NewAPIError(resttypes.InvalidBodyContent, err.Error())
 	}
 	state.ZKEConfig = state.CurrentState.ZKEConfig.DeepCopy()
 	state.CreateTime = time.Now()
 	state.ScVersion = types.ScVersionImported
-	if err := createOrUpdateClusterFromDB(inner.Name, state, m.db); err != nil {
+	if err := createOrUpdateClusterFromDB(typesCluster.Name, state, m.db); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	cluster := newCluster(inner.Name, types.CSConnecting)
+	cluster := newCluster(typesCluster.Name, types.CSConnecting)
 	cluster.CreateTime = state.CreateTime
-	cluster.config = state.CurrentState.ZKEConfig.DeepCopy()
+	cluster.config = state.ZKEConfig.DeepCopy()
 	cluster.scVersion = types.ScVersionImported
-	m.unreadyClusters = append(m.unreadyClusters, cluster)
+	m.addUnready(cluster)
 
 	kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
-	zkectx, cancel := context.WithCancel(context.Background())
+	cancelCtx, cancel := context.WithCancel(context.Background())
 	cluster.cancel = cancel
-	go cluster.initLoop(zkectx, kubeConfig, m)
-	return inner, nil
+	go cluster.InitLoop(cancelCtx, kubeConfig, m, state)
+	return typesCluster, nil
 }
 
 func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	inner := ctx.Object.(*types.Cluster)
-	c := m.get(inner.Name)
 
-	if c == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", inner.Name))
+	typesCluster := ctx.Object.(*types.Cluster)
+
+	existCluster := m.get(typesCluster.Name)
+	if existCluster == nil {
+		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", existCluster.Name))
 	}
 
-	if err := validateConfigForUpdate(c.ToTypesCluster(), inner); err != nil {
+	if err := validateConfigForUpdate(existCluster.ToTypesCluster(), typesCluster); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
+	config := genZKEConfigForUpdateNodes(existCluster.config, typesCluster)
+	existCluster.config = config
 
-	config := genZKEConfigForUpdateNodes(c.config, inner)
-	c.config = config
-
-	state, err := getClusterFromDB(inner.Name, m.db)
+	state, err := getClusterFromDB(typesCluster.Name, m.db)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
-
 	state.ZKEConfig = config
 	state.IsUnvailable = true
-	if err := createOrUpdateClusterFromDB(inner.Name, state, m.db); err != nil {
+	if err := createOrUpdateClusterFromDB(typesCluster.Name, state, m.db); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	if cluster := m.getReady(c.Name); cluster != nil {
-		m.moveTounready(c)
+	if existCluster.IsReady() {
+		m.moveToUnready(existCluster)
 	}
-	c.fsm.Event(UpdateEvent)
+
+	if err := existCluster.fsm.Event(UpdateEvent); err != nil {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s can not update", typesCluster.Name))
+	}
 
 	select {
-	case _, ok := <-c.stopCh:
+	case _, ok := <-existCluster.stopCh:
 		if !ok {
-			m.sendPubEvent(DeleteCluster{Cluster: c})
+			m.PubEventCh <- DeleteCluster{Cluster: existCluster}
 		}
 	default:
-		close(c.stopCh)
-		m.sendPubEvent(DeleteCluster{Cluster: c})
+		close(existCluster.stopCh)
+		m.PubEventCh <- DeleteCluster{Cluster: existCluster}
 	}
 
-	zkectx, cancel := context.WithCancel(context.Background())
-	c.cancel = cancel
-	go c.update(zkectx, state, m)
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	existCluster.cancel = cancel
+	go existCluster.Update(cancelCtx, state, m)
 
-	return inner, nil
+	return typesCluster, nil
 }
 
 func (m *ZKEManager) Get(id string) *Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
 	cluster := m.get(id)
 	if cluster != nil {
 		return cluster
@@ -178,58 +181,76 @@ func (m *ZKEManager) Get(id string) *Cluster {
 func (m *ZKEManager) GetReady(id string) *Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return m.getReady(id)
+
+	cluster := m.get(id)
+	if cluster != nil {
+		if cluster.IsReady() {
+			return cluster
+		}
+	}
+	return nil
 }
 
-func (m *ZKEManager) ListAll() []*Cluster {
+func (m *ZKEManager) get(id string) *Cluster {
+	for _, c := range m.readyClusters {
+		if c.Name == id {
+			return c
+		}
+	}
+
+	for _, c := range m.unreadyClusters {
+		if c.Name == id {
+			return c
+		}
+	}
+	return nil
+}
+
+func (m *ZKEManager) List() []*Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
 	var clusters []*Cluster
 	for _, c := range m.readyClusters {
 		clusters = append(clusters, c)
 	}
+
 	for _, c := range m.unreadyClusters {
 		clusters = append(clusters, c)
 	}
-	return clusters
-}
 
-func (m *ZKEManager) ListReady() []*Cluster {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	var clusters []*Cluster
-	for _, c := range m.readyClusters {
-		clusters = append(clusters, c)
-	}
 	return clusters
 }
 
 func (m *ZKEManager) Delete(id string) *resttypes.APIError {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	var toDelete *Cluster
-	for i, c := range m.readyClusters {
-		if c.Name == id {
-			toDelete = c
-			m.readyClusters = append(m.readyClusters[:i], m.readyClusters[i+1:]...)
-			break
-		}
-	}
 
-	for i, c := range m.unreadyClusters {
-		if c.Name == id {
-			toDelete = c
-			status := c.getStatus()
-			if status == types.CSCreateing || status == types.CSUpdateing || status == types.CSConnecting || status == types.CSCanceling {
-				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state desn't allow to delete", id, status))
-			}
-			m.unreadyClusters = append(m.unreadyClusters[:i], m.unreadyClusters[i+1:]...)
-			break
-		}
-	}
+	toDelete := m.get(id)
 	if toDelete == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
+
+	if !toDelete.CanDelete() {
+		return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s can not delete", toDelete.Name))
+	}
+
+	if toDelete.IsReady() {
+		for i, c := range m.readyClusters {
+			if c.Name == id {
+				m.readyClusters = append(m.readyClusters[:i], m.readyClusters[i+1:]...)
+				break
+			}
+		}
+	} else {
+		for i, c := range m.unreadyClusters {
+			if c.Name == id {
+				m.unreadyClusters = append(m.unreadyClusters[:i], m.unreadyClusters[i+1:]...)
+				break
+			}
+		}
+	}
+
 	if err := deleteClusterFromDB(id, m.db); err != nil {
 		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster %s from database failed %s", id, err))
 	}
@@ -237,83 +258,33 @@ func (m *ZKEManager) Delete(id string) *resttypes.APIError {
 	select {
 	case _, ok := <-toDelete.stopCh:
 		if !ok {
-			m.sendPubEvent(DeleteCluster{Cluster: toDelete})
-			return nil
+			m.PubEventCh <- DeleteCluster{Cluster: toDelete}
 		}
 	default:
 		close(toDelete.stopCh)
+		m.PubEventCh <- DeleteCluster{Cluster: toDelete}
 	}
-	m.sendPubEvent(DeleteCluster{Cluster: toDelete})
 	return nil
 }
 
-func (m *ZKEManager) Cancel(id string) (interface{}, *resttypes.APIError) {
+func (m *ZKEManager) CancelCluster(id string) (interface{}, *resttypes.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
 	c := m.get(id)
 	if c == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
-	status := c.getStatus()
-	if status == types.CSCreateing || status == types.CSUpdateing || status == types.CSConnecting {
-		c.fsm.Event(CancelEvent, m)
-		c.cancel()
-		c.isCanceled = true
-		return nil, nil
+	if err := c.Cancel(); err != nil {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
 	}
-	return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state, not allow cancel", id, status))
+	return nil, nil
 }
 
-func (m *ZKEManager) GetKubeConfig(id string) (interface{}, *resttypes.APIError) {
+func (m *ZKEManager) MoveToReady(c *Cluster) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	c := m.get(id)
-	if c == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
-	}
-	state, err := getClusterFromDB(id, m.db)
-	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("get cluster %s state from database failed %s", id, err))
-	}
-	if state.FullState != nil && state.FullState.DesiredState.CertificatesBundle != nil {
-		kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
-		return map[string]string{
-			"name":   id,
-			"config": kubeConfig,
-		}, nil
-	}
-	return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("cluster %s not yet created", id))
-}
 
-func (m *ZKEManager) getReady(id string) *Cluster {
-	for _, c := range m.readyClusters {
-		if c.Name == id {
-			return c
-		}
-	}
-	return nil
-}
-
-func (m *ZKEManager) getUnready(id string) *Cluster {
-	for _, c := range m.unreadyClusters {
-		if c.Name == id {
-			return c
-		}
-	}
-	return nil
-}
-
-func (m *ZKEManager) get(id string) *Cluster {
-	c := m.getReady(id)
-	if c != nil {
-		return c
-	}
-	return m.getUnready(id)
-}
-
-func (m *ZKEManager) moveToreadyWithLock(c *Cluster) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
 	c.logCh = nil
 	m.readyClusters = append(m.readyClusters, c)
 	for i, cluster := range m.unreadyClusters {
@@ -324,7 +295,7 @@ func (m *ZKEManager) moveToreadyWithLock(c *Cluster) {
 	}
 }
 
-func (m *ZKEManager) moveTounready(c *Cluster) {
+func (m *ZKEManager) moveToUnready(c *Cluster) {
 	m.unreadyClusters = append(m.unreadyClusters, c)
 	for i, cluster := range m.readyClusters {
 		if cluster.Name == c.Name {
@@ -335,58 +306,41 @@ func (m *ZKEManager) moveTounready(c *Cluster) {
 }
 
 func (m *ZKEManager) loadDB() error {
-	stateMap, err := getClustersFromDB(m.db)
+	states, err := getClustersFromDB(m.db)
 	if err != nil {
 		return err
 	}
 
-	for k, v := range stateMap {
+	for k, v := range states {
 		if v.IsUnvailable {
 			cluster := newCluster(k, types.CSUnavailable)
 			cluster.config = v.ZKEConfig
 			cluster.stopCh = make(chan struct{})
 			cluster.CreateTime = v.CreateTime
-			m.addToUnreadyWithLock(cluster)
+			m.addUnready(cluster)
 		} else {
 			cluster := newCluster(k, types.CSConnecting)
 			cluster.config = v.ZKEConfig
 			cluster.stopCh = make(chan struct{})
 			cluster.CreateTime = v.CreateTime
-			m.addToUnreadyWithLock(cluster)
+			m.addUnready(cluster)
 			ctx, cancel := context.WithCancel(context.Background())
 			cluster.cancel = cancel
 			kubeConfig := v.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
-			go cluster.initLoop(ctx, kubeConfig, m)
+			go cluster.InitLoop(ctx, kubeConfig, m, v)
 		}
 	}
 	return nil
 }
 
-func (m *ZKEManager) addToUnreadyWithLock(c *Cluster) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (m *ZKEManager) addUnready(c *Cluster) {
 	m.unreadyClusters = append(m.unreadyClusters, c)
 }
 
-func (m *ZKEManager) sendPubEvent(e interface{}) {
+func (m *ZKEManager) SendEvent(e interface{}) {
 	m.PubEventCh <- e
 }
 
-func (m *ZKEManager) updateClusterStateWithLock(c *Cluster, s clusterState) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	return createOrUpdateClusterFromDB(c.Name, s, m.db)
-}
-
-func (m *ZKEManager) setClusterUnavailable(c *Cluster) error {
-	state, err := getClusterFromDB(c.Name, m.db)
-	if err != nil {
-		return err
-	}
-	// only connecting status cancel action need update and write db
-	if state.IsUnvailable {
-		return nil
-	}
-	state.IsUnvailable = true
-	return createOrUpdateClusterFromDB(c.Name, state, m.db)
+func (m *ZKEManager) GetDB() storage.DB {
+	return m.db
 }
