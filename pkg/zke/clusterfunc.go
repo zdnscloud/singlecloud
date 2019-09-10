@@ -49,7 +49,7 @@ func (c *Cluster) getStatus() types.ClusterStatus {
 	return types.ClusterStatus(c.fsm.Current())
 }
 
-func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, mgr *ZKEManager) {
+func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, state clusterState, mgr *ZKEManager) {
 	k8sConfig, err := config.BuildConfig([]byte(kubeConfig))
 	if err != nil {
 		log.Errorf("build cluster %s k8sconfig failed %s", c.Name, err)
@@ -58,6 +58,11 @@ func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, mgr *ZKEManag
 	}
 
 	for {
+		if c.isCanceled {
+			c.fsm.Event(CancelSuccessEvent, mgr, state)
+			return
+		}
+
 		select {
 		case <-ctx.Done():
 			return
@@ -106,8 +111,14 @@ func (c *Cluster) create(ctx context.Context, state clusterState, mgr *ZKEManage
 	c.logCh = logCh
 
 	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, true)
+	state.FullState = zkeState
+	if c.isCanceled {
+		c.fsm.Event(CancelSuccessEvent, mgr, state)
+		return
+	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
+		logger.Error(err.Error())
 		c.fsm.Event(CreateFailedEvent, mgr, state)
 		return
 	}
@@ -139,8 +150,14 @@ func (c *Cluster) update(ctx context.Context, state clusterState, mgr *ZKEManage
 	c.logCh = logCh
 
 	zkeState, k8sConfig, kubeClient, err := upCluster(ctx, c.config, state.FullState, logger, false)
+	state.FullState = zkeState
+	if c.isCanceled {
+		c.fsm.Event(CancelSuccessEvent, mgr, state)
+		return
+	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
+		logger.Error(err.Error())
 		c.fsm.Event(UpdateFailedEvent, mgr, state)
 		return
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/zdnscloud/zke/network/ingress"
 	"github.com/zdnscloud/zke/pkg/k8s"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 
 	"github.com/zdnscloud/gok8s/client"
 )
@@ -54,7 +55,7 @@ const (
 func DeployNetwork(ctx context.Context, c *core.Cluster) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		k8sClient, err := k8s.GetK8sClientFromYaml(c.Certificates[pki.KubeAdminCertName].Config)
 		if err != nil {

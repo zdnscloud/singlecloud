@@ -106,7 +106,7 @@ func (m *ZKEManager) Import(ctx *resttypes.Context, json []byte) (interface{}, *
 	kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
 	zkectx, cancel := context.WithCancel(context.Background())
 	cluster.cancel = cancel
-	go cluster.initLoop(zkectx, kubeConfig, m)
+	go cluster.initLoop(zkectx, kubeConfig, state, m)
 	return inner, nil
 }
 
@@ -253,7 +253,7 @@ func (m *ZKEManager) Cancel(id string) (interface{}, *resttypes.APIError) {
 	if status == types.CSCreateing || status == types.CSUpdateing || status == types.CSConnecting {
 		c.fsm.Event(CancelEvent, m)
 		c.cancel()
-		c.fsm.Event(CancelSuccessEvent, m)
+		c.isCanceled = true
 		return nil, nil
 	}
 	return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state, not allow cancel", id, status))
@@ -352,7 +352,7 @@ func (m *ZKEManager) loadDB() error {
 			ctx, cancel := context.WithCancel(context.Background())
 			cluster.cancel = cancel
 			kubeConfig := v.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
-			go cluster.initLoop(ctx, kubeConfig, m)
+			go cluster.initLoop(ctx, kubeConfig, v, m)
 		}
 	}
 	return nil

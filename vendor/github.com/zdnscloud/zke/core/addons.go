@@ -41,7 +41,7 @@ func (c *Cluster) DoAddonDeploy(ctx context.Context, addonYaml, resourceName str
 		return &AddonError{fmt.Sprintf("Failed to generate addon execute job: %v", err), IsCritical}
 	}
 
-	if err = c.ApplySystemAddonExecuteJob(addonJob, addonUpdated); err != nil {
+	if err = c.ApplySystemAddonExecuteJob(ctx, addonJob, addonUpdated); err != nil {
 		return &AddonError{fmt.Sprintf("%v", err), IsCritical}
 	}
 	return nil
@@ -72,8 +72,8 @@ func (c *Cluster) StoreAddonConfigMap(ctx context.Context, addonYaml string, add
 	}
 }
 
-func (c *Cluster) ApplySystemAddonExecuteJob(addonJob string, addonUpdated bool) error {
-	if err := k8s.ApplyK8sSystemJob(addonJob, c.KubeClient, k8s.DefaultTimeout, addonUpdated); err != nil {
+func (c *Cluster) ApplySystemAddonExecuteJob(ctx context.Context, addonJob string, addonUpdated bool) error {
+	if err := k8s.ApplyK8sSystemJob(ctx, addonJob, c.KubeClient, k8s.DefaultTimeout, addonUpdated); err != nil {
 		return err
 	}
 	return nil

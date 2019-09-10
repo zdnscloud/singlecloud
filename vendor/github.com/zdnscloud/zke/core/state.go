@@ -13,6 +13,7 @@ import (
 	"github.com/zdnscloud/zke/pkg/hosts"
 	"github.com/zdnscloud/zke/pkg/k8s"
 	"github.com/zdnscloud/zke/pkg/log"
+	"github.com/zdnscloud/zke/pkg/util"
 	"github.com/zdnscloud/zke/types"
 
 	"k8s.io/client-go/kubernetes"
@@ -31,7 +32,7 @@ type State struct {
 func (c *Cluster) UpdateClusterCurrentState(ctx context.Context, fullState *FullState) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		fullState.CurrentState.ZKEConfig = c.ZKEConfig.DeepCopy()
 		fullState.CurrentState.CertificatesBundle = c.Certificates
@@ -42,7 +43,7 @@ func (c *Cluster) UpdateClusterCurrentState(ctx context.Context, fullState *Full
 func (c *Cluster) UpdateClusterCurrentStateForSingleCloud(ctx context.Context, fullState *FullState) (*FullState, error) {
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("cluster build has beed canceled")
+		return nil, util.CancelErr
 	default:
 		fullState.CurrentState.ZKEConfig = c.ZKEConfig.DeepCopy()
 		fullState.CurrentState.CertificatesBundle = c.Certificates
@@ -53,7 +54,7 @@ func (c *Cluster) UpdateClusterCurrentStateForSingleCloud(ctx context.Context, f
 func (c *Cluster) GetClusterState(ctx context.Context, fullState *FullState) (*Cluster, error) {
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("cluster build has beed canceled")
+		return nil, util.CancelErr
 	default:
 		var err error
 		if fullState.CurrentState.ZKEConfig == nil {
@@ -78,7 +79,7 @@ func (c *Cluster) GetClusterState(ctx context.Context, fullState *FullState) (*C
 func SaveZKEConfigToKubernetes(ctx context.Context, kubeCluster *Cluster, fullState *FullState) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("cluster build has beed canceled")
+		return util.CancelErr
 	default:
 		log.Infof(ctx, "[state] Saving full cluster state to Kubernetes")
 		config := fullState.CurrentState.ZKEConfig.DeepCopy()
@@ -108,9 +109,9 @@ func SaveZKEConfigToKubernetes(ctx context.Context, kubeCluster *Cluster, fullSt
 	}
 }
 
-func GetK8sVersion(k8sClient *kubernetes.Clientset) (string, error) {
+func GetK8sVersion(ctx context.Context, k8sClient *kubernetes.Clientset) (string, error) {
 	discoveryClient := k8sClient.DiscoveryClient
-	log.Debugf("[version] Getting Kubernetes server version..")
+	log.Debugf(ctx, "[version] Getting Kubernetes server version..")
 	serverVersion, err := discoveryClient.ServerVersion()
 	if err != nil {
 		return "", fmt.Errorf("Failed to get Kubernetes server version: %v", err)
@@ -150,7 +151,7 @@ func (s *FullState) WriteStateFile(ctx context.Context, statePath string) error 
 	if err != nil {
 		return fmt.Errorf("Failed to Marshal state object: %v", err)
 	}
-	log.Debugf("Writing state file: %s", stateFile)
+	log.Debugf(ctx, "Writing state file: %s", stateFile)
 	if err := ioutil.WriteFile(statePath, stateFile, 0640); err != nil {
 		return fmt.Errorf("Failed to write state file: %v", err)
 	}

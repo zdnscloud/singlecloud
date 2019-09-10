@@ -55,6 +55,6 @@ func doDeployFile(ctx context.Context, host *hosts.Host, fileName, fileContents,
 	if err := docker.DoRemoveContainer(ctx, host.DClient, ContainerName, host.Address); err != nil {
 		return err
 	}
-	log.Debugf("[%s] Successfully deployed file '%s' on node [%s]", ServiceName, fileName, host.Address)
+	log.Debugf(ctx, "[%s] Successfully deployed file '%s' on node [%s]", ServiceName, fileName, host.Address)
 	return nil
 }

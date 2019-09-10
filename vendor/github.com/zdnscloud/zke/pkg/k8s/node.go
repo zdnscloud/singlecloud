@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -41,23 +42,23 @@ func GetNode(k8sClient *kubernetes.Clientset, nodeName string) (*v1.Node, error)
 	return nil, apierrors.NewNotFound(schema.GroupResource{}, nodeName)
 }
 
-func CordonUncordon(k8sClient *kubernetes.Clientset, nodeName string, cordoned bool) error {
+func CordonUncordon(ctx context.Context, k8sClient *kubernetes.Clientset, nodeName string, cordoned bool) error {
 	updated := false
 	for retries := 0; retries <= 5; retries++ {
 		node, err := GetNode(k8sClient, nodeName)
 		if err != nil {
-			log.Debugf("Error getting node %s: %v", nodeName, err)
+			log.Debugf(ctx, "Error getting node %s: %v", nodeName, err)
 			time.Sleep(time.Second * 5)
 			continue
 		}
 		if node.Spec.Unschedulable == cordoned {
-			log.Debugf("Node %s is already cordoned: %v", nodeName, cordoned)
+			log.Debugf(ctx, "Node %s is already cordoned: %v", nodeName, cordoned)
 			return nil
 		}
 		node.Spec.Unschedulable = cordoned
 		_, err = k8sClient.CoreV1().Nodes().Update(node)
 		if err != nil {
-			log.Debugf("Error setting cordoned state for node %s: %v", nodeName, err)
+			log.Debugf(ctx, "Error setting cordoned state for node %s: %v", nodeName, err)
 			time.Sleep(time.Second * 5)
 			continue
 		}
@@ -79,7 +80,7 @@ func IsNodeReady(node v1.Node) bool {
 	return false
 }
 
-func RemoveTaintFromNodeByKey(k8sClient *kubernetes.Clientset, nodeName, taintKey string) error {
+func RemoveTaintFromNodeByKey(ctx context.Context, k8sClient *kubernetes.Clientset, nodeName, taintKey string) error {
 	updated := false
 	var err error
 	var node *v1.Node
@@ -87,7 +88,7 @@ func RemoveTaintFromNodeByKey(k8sClient *kubernetes.Clientset, nodeName, taintKe
 		node, err = GetNode(k8sClient, nodeName)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				log.Debugf("[hosts] Can't find node by name [%s]", nodeName)
+				log.Debugf(ctx, "[hosts] Can't find node by name [%s]", nodeName)
 				return nil
 			}
 			return err
@@ -105,7 +106,7 @@ func RemoveTaintFromNodeByKey(k8sClient *kubernetes.Clientset, nodeName, taintKe
 		}
 		_, err = k8sClient.CoreV1().Nodes().Update(node)
 		if err != nil {
-			log.Debugf("Error updating node [%s] with new set of taints: %v", node.Name, err)
+			log.Debugf(ctx, "Error updating node [%s] with new set of taints: %v", node.Name, err)
 			time.Sleep(time.Second * 5)
 			continue
 		}

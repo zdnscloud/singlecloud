@@ -10,6 +10,8 @@ import (
 	"github.com/coreos/go-semver/semver"
 )
 
+var CancelErr = fmt.Errorf("clusterCanceled")
+
 func StrToSemVer(version string) (*semver.Version, error) {
 	v, err := semver.NewVersion(strings.TrimPrefix(version, "v"))
 	if err != nil {

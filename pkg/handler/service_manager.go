@@ -175,6 +175,7 @@ func k8sServiceToSCService(k8sService *corev1.Service) *types.Service {
 			Protocol:   strings.ToLower(string(p.Protocol)),
 			Port:       int(p.Port),
 			TargetPort: p.TargetPort.IntValue(),
+			NodePort:   int(p.NodePort),
 		})
 	}
 	service := &types.Service{
