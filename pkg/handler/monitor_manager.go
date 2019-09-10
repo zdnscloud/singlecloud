@@ -65,11 +65,11 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
 	}
 
+	// check the storage class exist
 	requiredStorageClass := monitorStorageClass
 	if len(monitor.StorageClass) > 0 {
 		requiredStorageClass = monitor.StorageClass
 	}
-
 	if !isStorageClassExist(cluster.KubeClient, requiredStorageClass) {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
 	}
@@ -78,12 +78,24 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
+
+	// check duplicate application resource, if exist, gen a new name for monitor app
+	for {
+		duplicateApp, _ := getApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
+		if duplicateApp != nil {
+			app.Name = monitorAppNamePrefix + "-" + genRandomStr(12)
+		} else {
+			break
+		}
+	}
+
 	app.SetID(app.Name)
 
 	if err := m.apps.create(ctx, cluster, ZCloudNamespace, app); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
 	}
 
+	// make sure the monitor application is succeed, if it failed will delete this monitor application
 	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
 
 	monitor.Status = types.AppStatusCreate
@@ -93,28 +105,19 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 }
 
 func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
-	if cluster == nil {
+	monitor := m.get(ctx)
+	if monitor == nil {
 		return nil
+	} else {
+		return []*types.Monitor{monitor}
 	}
-
-	monitors := []*types.Monitor{}
-
-	apps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
-	if err != nil || len(apps) == 0 {
-		return nil
-	}
-
-	monitor, err := genMonitorFromApp(ctx, cluster.Name, apps[0])
-	if err != nil {
-		return nil
-	}
-
-	monitors = append(monitors, monitor)
-	return monitors
 }
 
 func (m *MonitorManager) Get(ctx *resttypes.Context) interface{} {
+	return m.get(ctx)
+}
+
+func (m *MonitorManager) get(ctx *resttypes.Context) *types.Monitor {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil

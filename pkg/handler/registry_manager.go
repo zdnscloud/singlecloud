@@ -63,11 +63,11 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("cluster %s registry has exist", cluster.Name))
 	}
 
+	// check the storage class exist
 	requiredStorageClass := registryStorageClass
 	if r.StorageClass != "" {
 		requiredStorageClass = r.StorageClass
 	}
-
 	if !isStorageClassExist(cluster.KubeClient, requiredStorageClass) {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
 	}
@@ -77,11 +77,23 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
 
+	// check duplicate application resource, if exist, gen a new name for registry app
+	for {
+		duplicateApp, _ := getApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
+		if duplicateApp != nil {
+			app.Name = registryAppNamePrefix + "-" + genRandomStr(12)
+		} else {
+			break
+		}
+	}
+
 	app.SetID(app.Name)
+
 	if err := m.apps.create(ctx, cluster, ZCloudNamespace, app); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create registry application failed %s", err.Error()))
 	}
 
+	// make sure the registry application is succeed, if it failed will delete this registry application
 	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
 
 	r.Status = types.AppStatusCreate
@@ -91,28 +103,19 @@ func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface
 }
 
 func (m *RegistryManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
-	if cluster == nil {
+	r := m.get(ctx)
+	if r == nil {
 		return nil
+	} else {
+		return []*types.Registry{r}
 	}
-
-	rs := []*types.Registry{}
-
-	apps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), registryChartName)
-	if err != nil || len(apps) == 0 {
-		return nil
-	}
-
-	r, err := genRegistryFromApp(ctx, cluster.Name, apps[0])
-	if err != nil {
-		return nil
-	}
-
-	rs = append(rs, r)
-	return rs
 }
 
 func (m *RegistryManager) Get(ctx *resttypes.Context) interface{} {
+	return m.get(ctx)
+}
+
+func (m *RegistryManager) get(ctx *resttypes.Context) *types.Registry {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
