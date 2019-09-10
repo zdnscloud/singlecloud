@@ -49,7 +49,7 @@ func (c *Cluster) getStatus() types.ClusterStatus {
 	return types.ClusterStatus(c.fsm.Current())
 }
 
-func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, mgr *ZKEManager) {
+func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, state clusterState, mgr *ZKEManager) {
 	k8sConfig, err := config.BuildConfig([]byte(kubeConfig))
 	if err != nil {
 		log.Errorf("build cluster %s k8sconfig failed %s", c.Name, err)
@@ -58,6 +58,11 @@ func (c *Cluster) initLoop(ctx context.Context, kubeConfig string, mgr *ZKEManag
 	}
 
 	for {
+		if c.isCanceled {
+			c.fsm.Event(CancelSuccessEvent, mgr, state)
+			return
+		}
+
 		select {
 		case <-ctx.Done():
 			return
