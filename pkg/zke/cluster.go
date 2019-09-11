@@ -265,7 +265,8 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 		return
 	}
 
-	c.K8sConfig = k8sConfig
+	c.stopCh = make(chan struct{})
+	c.setCache(k8sConfig)
 	c.KubeClient = kubeClient
 
 	state.FullState = zkeState

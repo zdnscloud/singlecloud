@@ -57,8 +57,6 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 			UpdateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
-				cluster.stopCh = make(chan struct{})
-				cluster.setCache(cluster.K8sConfig)
 				mgr.MoveToReady(cluster)
 				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
 				mgr.SendEvent(AddCluster{Cluster: cluster})
