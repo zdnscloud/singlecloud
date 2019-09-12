@@ -7,7 +7,7 @@ import (
 func SetRegistrySchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
 	schema.CollectionMethods = []string{"POST", "GET"}
-	schema.ResourceMethods = []string{"GET"}
+	schema.ResourceMethods = []string{"GET", "DELETE"}
 	schema.Parents = []string{ClusterType}
 }
 

@@ -134,6 +134,33 @@ func (m *RegistryManager) get(ctx *resttypes.Context) *types.Registry {
 	return r
 }
 
+func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	if cluster == nil {
+		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+	}
+
+	apps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), registryChartName)
+	if err != nil || len(apps) == 0 {
+		return resttypes.NewAPIError(resttypes.NotFound, "registry doesn't exist")
+	}
+	appName := apps[0].Name
+
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
+	if err != nil {
+		if err == storage.ErrNotFoundResource {
+			return resttypes.NewAPIError(resttypes.NotFound,
+				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, ZCloudNamespace))
+		} else {
+			return resttypes.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
+		}
+	}
+
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), ZCloudNamespace, app)
+	return nil
+}
+
 func genRegistryApplication(cli client.Client, r *types.Registry, clusterName string) (*types.Application, error) {
 	config, err := genRegistryConfigs(cli, r, clusterName)
 	if err != nil {
