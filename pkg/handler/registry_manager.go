@@ -107,7 +107,7 @@ func (m *RegistryManager) List(ctx *resttypes.Context) interface{} {
 	if r == nil {
 		return nil
 	} else {
-		return []*types.Registry{r}
+		return []*types.Registry{r.(*types.Registry)}
 	}
 }
 
@@ -115,9 +115,14 @@ func (m *RegistryManager) Get(ctx *resttypes.Context) interface{} {
 	return m.get(ctx)
 }
 
-func (m *RegistryManager) get(ctx *resttypes.Context) *types.Registry {
+func (m *RegistryManager) get(ctx *resttypes.Context) interface{} {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
+		return nil
+	}
+
+	id := ctx.Object.GetID()
+	if id != registryAppNamePrefix {
 		return nil
 	}
 

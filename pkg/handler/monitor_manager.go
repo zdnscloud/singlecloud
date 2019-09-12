@@ -109,7 +109,7 @@ func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
 	if monitor == nil {
 		return nil
 	} else {
-		return []*types.Monitor{monitor}
+		return []*types.Monitor{monitor.(*types.Monitor)}
 	}
 }
 
@@ -117,9 +117,14 @@ func (m *MonitorManager) Get(ctx *resttypes.Context) interface{} {
 	return m.get(ctx)
 }
 
-func (m *MonitorManager) get(ctx *resttypes.Context) *types.Monitor {
+func (m *MonitorManager) get(ctx *resttypes.Context) interface{} {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
+		return nil
+	}
+
+	id := ctx.Object.GetID()
+	if id != monitorAppNamePrefix {
 		return nil
 	}
 
