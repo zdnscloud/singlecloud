@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -553,4 +554,24 @@ func GetContainerOutput(ctx context.Context, dClient *client.Client, containerNa
 	}
 
 	return status, stdout, stderr, nil
+}
+
+func LoadImage(ctx context.Context, dClient *client.Client, hostname, filePath string) error {
+	imageFile, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer imageFile.Close()
+
+	log.Infof(ctx, "Loading images for host [%s]", hostname)
+
+	resp, err := dClient.ImageLoad(ctx, imageFile, false)
+	if err != nil {
+		return fmt.Errorf("Can't load images for host [%s]: %v", hostname, err)
+	}
+	defer resp.Body.Close()
+	io.Copy(ioutil.Discard, resp.Body)
+	log.Infof(ctx, "Load images for host [%s] succeed", hostname)
+
+	return nil
 }
