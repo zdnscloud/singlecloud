@@ -55,7 +55,11 @@
 
 [[constraint]]
   name = "github.com/zdnscloud/immense"
-  branch = "master"
+  branch = "add-finalizer"
+
+[[constraint]]
+  name = "github.com/zdnscloud/cluster-agent"
+  branch = "storage-predigest"
 
 [[override]]
  branch = "release-1.13"
@@ -79,7 +83,7 @@
   version = "v10.0.0"
 
 [[constraint]]
-  branch = "master"
+  branch = "storage-predigest"
   name = "github.com/zdnscloud/zke"
 
 [[constraint]]
