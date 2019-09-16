@@ -604,19 +604,18 @@
   revision = "89eeea17b1b41d16b8ec2cda9783ad2a34a404b9"
 
 [[projects]]
-  branch = "master"
-  digest = "1:dff9b80335d30b4f163ee3da352c96391e69dcaa1f43ae67bdec1a22d0aaead2"
+  branch = "new-interface"
+  digest = "1:c28cf0f0c5e368b78d27b2accc6bd328138c3b018f578a56a3f6da1807d5995c"
   name = "github.com/zdnscloud/gorest"
   packages = [
+    ".",
     "adaptor",
-    "api",
-    "api/handler",
-    "parse",
-    "types",
+    "error",
+    "resource",
     "util",
   ]
   pruneopts = "UT"
-  revision = "b515ac7fed0e4002895a90be54b0a9c68f5ee78b"
+  revision = "4cf040a400784d9f4fb8de73c1210bdc8cf31dec"
 
 [[projects]]
   branch = "master"
@@ -1088,10 +1087,9 @@
     "github.com/zdnscloud/gok8s/helper",
     "github.com/zdnscloud/gok8s/predicate",
     "github.com/zdnscloud/goproxy",
+    "github.com/zdnscloud/gorest",
     "github.com/zdnscloud/gorest/adaptor",
-    "github.com/zdnscloud/gorest/api",
-    "github.com/zdnscloud/gorest/api/handler",
-    "github.com/zdnscloud/gorest/types",
+    "github.com/zdnscloud/gorest/resource",
     "github.com/zdnscloud/gorest/util",
     "github.com/zdnscloud/immense/pkg/apis/zcloud/v1",
     "github.com/zdnscloud/vanguard/httpcmd",
@@ -1118,14 +1116,22 @@
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/runtime",
+    "k8s.io/apimachinery/pkg/util/wait",
+    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/cache",
+    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/remotecommand",
+    "k8s.io/client-go/util/workqueue",
+    "k8s.io/klog",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"

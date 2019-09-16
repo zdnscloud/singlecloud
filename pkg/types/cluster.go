@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 type ClusterStatus string

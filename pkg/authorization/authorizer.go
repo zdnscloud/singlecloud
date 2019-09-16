@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	resttypes "github.com/zdnscloud/gorest/types"
+	resttypes "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 )

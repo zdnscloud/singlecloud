@@ -3,7 +3,7 @@ package clusteragent
 import (
 	"encoding/json"
 	"github.com/zdnscloud/goproxy"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resttypes "github.com/zdnscloud/gorest/resource"
 	"io/ioutil"
 	"net/http"
 	"time"

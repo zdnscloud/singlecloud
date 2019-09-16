@@ -1,4 +1,4 @@
-package types
+package error
 
 var (
 	Unauthorized     = ErrorCode{"Unauthorized", 401}
@@ -34,10 +34,9 @@ type ErrorCode struct {
 }
 
 type APIError struct {
-	ErrorCode  `json:",inline"`
-	Type       string `json:"type,omitempty"`
-	Message    string `json:"message,omitempty"`
-	FolderName string `json:"folderName,omitempty"`
+	ErrorCode `json:",inline"`
+	Type      string `json:"type,omitempty"`
+	Message   string `json:"message,omitempty"`
 }
 
 func NewAPIError(code ErrorCode, message string) *APIError {

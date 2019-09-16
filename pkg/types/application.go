@@ -3,7 +3,7 @@ package types
 import (
 	"encoding/json"
 
-	resttypes "github.com/zdnscloud/gorest/types"
+	resttypes "github.com/zdnscloud/gorest/resource"
 )
 
 const (

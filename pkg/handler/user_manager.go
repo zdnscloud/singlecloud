@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest"
+	resttypes "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/jwt"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/types"

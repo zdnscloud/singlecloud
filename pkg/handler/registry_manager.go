@@ -16,8 +16,8 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/x509"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest"
+	resttypes "github.com/zdnscloud/gorest/resource"
 )
 
 const (

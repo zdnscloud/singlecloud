@@ -3,7 +3,7 @@ package types
 import (
 	"time"
 
-	resttypes "github.com/zdnscloud/gorest/types"
+	resttypes "github.com/zdnscloud/gorest/resource"
 )
 
 const (

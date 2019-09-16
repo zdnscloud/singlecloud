@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 type Authenticator struct {

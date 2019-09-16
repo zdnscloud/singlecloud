@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 func SetNamespaceSchema(schema *types.Schema, handler types.Handler) {

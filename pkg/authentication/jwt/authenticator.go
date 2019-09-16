@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	resthandler "github.com/zdnscloud/gorest/api/handler"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resthandler "github.com/zdnscloud/gorest"
+	resttypes "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/session"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"

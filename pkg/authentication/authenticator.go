@@ -3,7 +3,7 @@ package authentication
 import (
 	"net/http"
 
-	resttypes "github.com/zdnscloud/gorest/types"
+	resttypes "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/cas"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/jwt"
 	"github.com/zdnscloud/singlecloud/pkg/types"
