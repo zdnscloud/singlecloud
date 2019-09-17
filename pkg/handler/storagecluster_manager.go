@@ -189,7 +189,7 @@ func updateStorageCluster(cli client.Client, storagecluster *types.StorageCluste
 func scStorageToK8sStorage(storagecluster *types.StorageCluster) *storagev1.Cluster {
 	return &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: storagecluster.Name,
+			Name: types.StorageclusterMap[storagecluster.StorageType],
 		},
 		Spec: storagev1.ClusterSpec{
 			StorageType: storagecluster.StorageType,
@@ -277,7 +277,7 @@ func checkFinalizerWithHost(cli client.Client, storagecluster *types.StorageClus
 	if err != nil {
 		return err
 	}
-	if k8sStoragecluster.Spec.StorageType == "ceph" {
+	if k8sStoragecluster.Spec.StorageType == "cephfs" {
 		return nil
 	}
 	var obj runtime.Object

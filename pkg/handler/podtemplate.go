@@ -200,14 +200,11 @@ func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.V
 				},
 			})
 			continue
-		case types.StorageClassNameLVM:
-			accessModes = append(accessModes, corev1.ReadWriteOnce)
-		case types.StorageClassNameCeph:
-			accessModes = append(accessModes, corev1.ReadWriteMany)
+		case types.StorageClassNameLVM, types.StorageClassNameCephfs:
+			accessModes = append(accessModes, types.StorageAccessModeMap[storageClassName])
 		default:
 			return nil, nil, fmt.Errorf("persistent volumes storageclass %s isn`t supported", storageClassName)
 		}
-
 		if k8sQuantity == nil {
 			return nil, nil, fmt.Errorf("persistentClaimVolumes storage size must not be zero")
 		}

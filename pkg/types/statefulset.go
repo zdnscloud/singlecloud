@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	StorageClassNameLVM  = "lvm"
-	StorageClassNameCeph = "cephfs"
-	StorageClassNameTemp = "temporary"
+	StorageClassNameLVM    = "lvm"
+	StorageClassNameCephfs = "cephfs"
+	StorageClassNameTemp   = "temporary"
 )
 
 func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {

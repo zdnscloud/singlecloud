@@ -4,8 +4,7 @@
     "parentResources": [ "cluster" ],
 
     "resourceFields":{
-        "name":{"type":"string"},
-        "storageType":{"type":"enum", "validValues": ["lvm", "ceph"]},
+        "storageType":{"type":"enum", "validValues": ["lvm", "cephfs"]},
         "hosts":{"type":"array","elemType":"string"},
         "phase":{"type":"string"},
         "size":{"type":"string"},
@@ -42,8 +41,7 @@
     "collectionMethods":["POST","GET"],
     "postParameters":{
         "fields":{
-            "name":{"type":"string", "required": true},
-            "storagetype":{"type":"enum", "validValues": ["lvm", "ceph"], "required": true},
+            "storagetype":{"type":"enum", "validValues": ["lvm", "cephfs"], "required": true},
             "hosts":{"type":"array","elemType":"string", "required": true}
         }
     },

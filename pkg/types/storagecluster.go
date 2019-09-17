@@ -2,7 +2,17 @@ package types
 
 import (
 	resttypes "github.com/zdnscloud/gorest/types"
+	corev1 "k8s.io/api/core/v1"
 )
+
+var StorageclusterMap = map[string]string{
+	"lvm":    "lvm",
+	"cephfs": "cephfs",
+}
+var StorageAccessModeMap = map[string]corev1.PersistentVolumeAccessMode{
+	"lvm":    corev1.ReadWriteOnce,
+	"cephfs": corev1.ReadWriteMany,
+}
 
 func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler) {
 	schema.Handler = handler
@@ -13,8 +23,8 @@ func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler
 
 type StorageCluster struct {
 	resttypes.Resource `json:",inline"`
-	Name               string        `json:"name" rest:"required=true"`
-	StorageType        string        `json:"storageType" rest:"required=true,options=lvm|ceph"`
+	Name               string        `json:"name"`
+	StorageType        string        `json:"storageType" rest:"required=true,options=lvm|cephfs"`
 	Hosts              []string      `json:"hosts" rest:"required=true"`
 	Phase              string        `json:"phase"`
 	Size               string        `json:"size"`
