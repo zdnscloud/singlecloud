@@ -57,8 +57,17 @@ func (f *leafField) SetRequired(required bool) {
 func (f *leafField) CheckRequired(raw map[string]interface{}) error {
 	jsonName := f.JsonName()
 	if f.IsRequired() {
-		if _, ok := raw[jsonName]; ok == false {
+		val, ok := raw[jsonName]
+		if ok == false {
 			return fmt.Errorf("field %s is missing", jsonName)
+		}
+
+		v := reflect.ValueOf(val)
+		kind := v.Kind()
+		if kind == reflect.String || kind == reflect.Map || kind == reflect.Slice {
+			if v.Len() == 0 {
+				return fmt.Errorf("field %s is missing", jsonName)
+			}
 		}
 	}
 	return nil

@@ -23,12 +23,14 @@ func newOptionValidator(options []string) Validator {
 }
 
 func (v *optionValidator) Validate(val interface{}) error {
-	s, ok := val.(string)
-	if ok == false {
+	value := reflect.ValueOf(val)
+	if value.Kind() != reflect.String {
 		return fmt.Errorf("option can only used for string")
 	}
-	if slice.SliceIndex(v.options, s) == -1 {
-		return fmt.Errorf("%s isn't included in options %v", s, v.options)
+
+	sv := value.String()
+	if slice.SliceIndex(v.options, sv) == -1 {
+		return fmt.Errorf("%s isn't included in options %v", sv, v.options)
 	}
 	return nil
 
@@ -148,6 +150,7 @@ func buildValidator(fieldKind reflect.Kind, restTags []string) (Validator, error
 			}
 			return newIntRangeValidator(min, max), nil
 		}
+
 	case reflect.String:
 		if minStr != "" || maxStr != "" {
 			return nil, fmt.Errorf("string field doesn't support options and min and max")

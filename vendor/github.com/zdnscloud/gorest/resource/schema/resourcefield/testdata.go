@@ -10,11 +10,13 @@ type IncludeStruct struct {
 	Uint16WithDefault uint16 `json:"uint16WithDefault,omitempty"`
 }
 
+type MyOption string
+
 type TestStruct struct {
 	Embed `json:",inline"`
 
 	Name               string           `json:"name" rest:"required=true"`
-	StringWithOption   string           `json:"stringWithOption,omitempty" rest:"required=true,options=lvm|ceph"`
+	StringWithOption   MyOption         `json:"stringWithOption,omitempty" rest:"required=true,options=lvm|ceph"`
 	StringWithDefault  string           `json:"stringWithDefault,omitempty"`
 	StringWithLenLimit string           `json:"stringWithLenLimit" rest:"minLen=2,maxLen=10"`
 	IntWithDefault     int              `json:"intWithDefault,omitempty"`
