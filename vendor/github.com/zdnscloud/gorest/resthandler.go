@@ -47,7 +47,7 @@ func handleCreate(ctx *resource.Context) *goresterr.APIError {
 	if err := schema.AddLinksToResource(r, httpSchemeAndHost); err != nil {
 		return goresterr.NewAPIError(goresterr.ServerError, fmt.Sprintf("generate links failed:%s", err.Error()))
 	}
-	writeResponse(ctx.Response, http.StatusCreated, r)
+	WriteResponse(ctx.Response, http.StatusCreated, r)
 	return nil
 }
 
@@ -61,7 +61,7 @@ func handleDelete(ctx *resource.Context) *goresterr.APIError {
 		return err
 	}
 
-	writeResponse(ctx.Response, http.StatusNoContent, nil)
+	WriteResponse(ctx.Response, http.StatusNoContent, nil)
 	return nil
 }
 
@@ -82,7 +82,7 @@ func handleUpdate(ctx *resource.Context) *goresterr.APIError {
 		return goresterr.NewAPIError(goresterr.ServerError, fmt.Sprintf("generate links failed:%s", err.Error()))
 	}
 	r.SetType(ctx.Resource.GetType())
-	writeResponse(ctx.Response, http.StatusOK, r)
+	WriteResponse(ctx.Response, http.StatusOK, r)
 	return nil
 }
 
@@ -124,7 +124,7 @@ func handleList(ctx *resource.Context) *goresterr.APIError {
 		result = r
 	}
 
-	writeResponse(ctx.Response, http.StatusOK, result)
+	WriteResponse(ctx.Response, http.StatusOK, result)
 	return nil
 }
 
@@ -139,13 +139,13 @@ func handleAction(ctx *resource.Context) *goresterr.APIError {
 		return err
 	}
 
-	writeResponse(ctx.Response, http.StatusOK, result)
+	WriteResponse(ctx.Response, http.StatusOK, result)
 	return nil
 }
 
 const ContentTypeKey = "Content-Type"
 
-func writeResponse(resp http.ResponseWriter, status int, result interface{}) {
+func WriteResponse(resp http.ResponseWriter, status int, result interface{}) {
 	var body []byte
 	resp.Header().Set(ContentTypeKey, "application/json")
 	body, _ = json.Marshal(result)

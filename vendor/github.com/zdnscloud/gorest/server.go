@@ -28,18 +28,18 @@ func (s *Server) Use(h HandlerFunc) {
 func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	ctx, err := resource.NewContext(rw, req, s.Schemas)
 	if err != nil {
-		writeResponse(rw, err.Status, err)
+		WriteResponse(rw, err.Status, err)
 		return
 	}
 
 	for _, h := range s.handlers {
 		if err := h(ctx); err != nil {
-			writeResponse(rw, err.Status, err)
+			WriteResponse(rw, err.Status, err)
 			return
 		}
 	}
 
 	if err := restHandler(ctx); err != nil {
-		writeResponse(rw, err.Status, err)
+		WriteResponse(rw, err.Status, err)
 	}
 }
