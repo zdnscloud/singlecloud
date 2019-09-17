@@ -23,7 +23,7 @@ func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler
 
 type StorageCluster struct {
 	resttypes.Resource `json:",inline"`
-	Name               string        `json:"name"`
+	Name               string        `json:"-"`
 	StorageType        string        `json:"storageType" rest:"required=true,options=lvm|cephfs"`
 	Hosts              []string      `json:"hosts" rest:"required=true"`
 	Phase              string        `json:"phase"`
