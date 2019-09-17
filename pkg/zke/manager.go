@@ -9,7 +9,8 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 
-	resttypes "github.com/zdnscloud/gorest/resource"
+	resterr "github.com/zdnscloud/gorest/error"
+	restsource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 )
@@ -39,18 +40,18 @@ func New(db storage.DB) (*ZKEManager, error) {
 	return mgr, nil
 }
 
-func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *resterr.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	inner := ctx.Object.(*types.Cluster)
+	inner := ctx.Resource.(*types.Cluster)
 	c := m.get(inner.Name)
 
 	if c != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster")
+		return nil, resterr.NewAPIError(resterr.DuplicateResource, "duplicate cluster")
 	}
 
 	if err := validateConfigForCreate(inner); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
+		return nil, resterr.NewAPIError(resterr.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
 	config := scClusterToZKEConfig(inner)
@@ -63,7 +64,7 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 	}
 
 	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
 	cluster := newInitialCluster(inner.Name)
@@ -75,27 +76,29 @@ func (m *ZKEManager) Create(ctx *resttypes.Context) (interface{}, *resttypes.API
 	zkectx, cancel := context.WithCancel(context.Background())
 	cluster.cancel = cancel
 	go cluster.create(zkectx, state, m)
+	inner.SetID(inner.Name)
+	inner.SetCreationTimestamp(state.CreateTime)
 	return inner, nil
 }
 
-func (m *ZKEManager) Import(ctx *resttypes.Context, json []byte) (interface{}, *resttypes.APIError) {
+func (m *ZKEManager) Import(ctx *restsource.Context, json []byte) (interface{}, *resterr.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	inner := ctx.Object.(*types.Cluster)
+	inner := ctx.Resource.(*types.Cluster)
 	c := m.get(inner.Name)
 
 	if c != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate cluster")
+		return nil, resterr.NewAPIError(resterr.DuplicateResource, "duplicate cluster")
 	}
 
 	state, err := readStateJsonBytes(json)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidBodyContent, fmt.Sprintf("%s", err))
+		return nil, resterr.NewAPIError(resterr.InvalidBodyContent, fmt.Sprintf("%s", err))
 	}
 	state.ZKEConfig = state.CurrentState.ZKEConfig.DeepCopy()
 	state.CreateTime = time.Now()
 	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
 	cluster := newClusterWithStatus(inner.Name, types.CSConnecting)
@@ -110,18 +113,18 @@ func (m *ZKEManager) Import(ctx *resttypes.Context, json []byte) (interface{}, *
 	return inner, nil
 }
 
-func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *resterr.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	inner := ctx.Object.(*types.Cluster)
+	inner := ctx.Resource.(*types.Cluster)
 	c := m.get(inner.Name)
 
 	if c == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", inner.Name))
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", inner.Name))
 	}
 
 	if err := validateConfigForUpdate(c.ToTypesCluster(), inner); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
+		return nil, resterr.NewAPIError(resterr.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 
 	config := updateConfigNodesFromScCluster(c.config, inner)
@@ -129,13 +132,13 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 
 	state, err := getState(inner.Name, m.db)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
 	state.ZKEConfig = config
 	state.IsUnvailable = true
 	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("%s", err))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
 	if cluster := m.getReady(c.Name); cluster != nil {
@@ -157,7 +160,7 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 	c.cancel = cancel
 	go c.update(zkectx, state, m)
 
-	return nil, nil
+	return inner, nil
 }
 
 func (m *ZKEManager) Get(id string) *Cluster {
@@ -199,7 +202,7 @@ func (m *ZKEManager) ListReady() []*Cluster {
 	return clusters
 }
 
-func (m *ZKEManager) Delete(id string) *resttypes.APIError {
+func (m *ZKEManager) Delete(id string) *resterr.APIError {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	var toDelete *Cluster
@@ -216,17 +219,17 @@ func (m *ZKEManager) Delete(id string) *resttypes.APIError {
 			toDelete = c
 			status := c.getStatus()
 			if status == types.CSCreateing || status == types.CSUpdateing || status == types.CSConnecting || status == types.CSCanceling {
-				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state desn't allow to delete", id, status))
+				return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s in %s state desn't allow to delete", id, status))
 			}
 			m.unreadyClusters = append(m.unreadyClusters[:i], m.unreadyClusters[i+1:]...)
 			break
 		}
 	}
 	if toDelete == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
+		return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
 	if err := deleteState(id, m.db); err != nil {
-		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster %s from database failed %s", id, err))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete cluster %s from database failed %s", id, err))
 	}
 
 	select {
@@ -242,12 +245,12 @@ func (m *ZKEManager) Delete(id string) *resttypes.APIError {
 	return nil
 }
 
-func (m *ZKEManager) Cancel(id string) (interface{}, *resttypes.APIError) {
+func (m *ZKEManager) Cancel(id string) (interface{}, *resterr.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	c := m.get(id)
 	if c == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
 	status := c.getStatus()
 	if status == types.CSCreateing || status == types.CSUpdateing || status == types.CSConnecting {
@@ -256,19 +259,19 @@ func (m *ZKEManager) Cancel(id string) (interface{}, *resttypes.APIError) {
 		c.isCanceled = true
 		return nil, nil
 	}
-	return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster %s in %s state, not allow cancel", id, status))
+	return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s in %s state, not allow cancel", id, status))
 }
 
-func (m *ZKEManager) GetKubeConfig(id string) (interface{}, *resttypes.APIError) {
+func (m *ZKEManager) GetKubeConfig(id string) (interface{}, *resterr.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	c := m.get(id)
 	if c == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
 	state, err := getState(id, m.db)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("get cluster %s state from database failed %s", id, err))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get cluster %s state from database failed %s", id, err))
 	}
 	if state.FullState != nil && state.FullState.DesiredState.CertificatesBundle != nil {
 		kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
@@ -277,7 +280,7 @@ func (m *ZKEManager) GetKubeConfig(id string) (interface{}, *resttypes.APIError)
 			"config": kubeConfig,
 		}, nil
 	}
-	return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("cluster %s not yet created", id))
+	return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("cluster %s not yet created", id))
 }
 
 func (m *ZKEManager) getReady(id string) *Cluster {

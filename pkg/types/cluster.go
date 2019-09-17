@@ -19,30 +19,29 @@ const (
 
 	CSCancelAction        = "cancel"
 	CSGetKubeConfigAction = "getkubeconfig"
+
+	DefaultNetworkPlugin       = "flannel"
+	DefaultClusterCIDR         = "10.42.0.0/16"
+	DefaultServiceCIDR         = "10.43.0.0/16"
+	DefaultClusterDNSServiceIP = "10.43.0.10"
+	DefaultClusterDomain       = "cluster.local"
 )
 
-func SetClusterSchema(schema *types.Schema, handler types.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE", "POST", "PUT"}
-	schema.ResourceActions = append(schema.ResourceActions, types.Action{
-		Name: CSCancelAction,
-	})
-	schema.ResourceActions = append(schema.ResourceActions, types.Action{
-		Name: CSGetKubeConfigAction,
-	})
+var DefaultClusterUpstreamDNS = []string{
+	"223.5.5.5",
+	"114.114.114.114",
 }
 
 type Cluster struct {
-	types.Resource     `json:",inline"`
-	Nodes              []Node            `json:"nodes"`
-	Network            ClusterNetwork    `json:"network"`
-	PrivateRegistries  []PrivateRegistry `json:"privateRegistrys"`
-	SingleCloudAddress string            `json:"singleCloudAddress"`
-	Name               string            `json:"name"`
-	Status             ClusterStatus     `json:"status"`
-	NodesCount         int               `json:"nodeCount"`
-	Version            string            `json:"version"`
+	resource.ResourceBase `json:",inline"`
+	Nodes                 []Node            `json:"nodes" rest:"required=true"`
+	Network               ClusterNetwork    `json:"network"`
+	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
+	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true"`
+	Name                  string            `json:"name" rest:"required=true"`
+	Status                ClusterStatus     `json:"status"`
+	NodesCount            int               `json:"nodeCount"`
+	Version               string            `json:"version"`
 
 	Cpu             int64  `json:"cpu"`
 	CpuUsed         int64  `json:"cpuUsed"`
@@ -54,8 +53,8 @@ type Cluster struct {
 	PodUsed         int64  `json:"podUsed"`
 	PodUsedRatio    string `json:"podUsedRatio"`
 
-	SSHUser             string   `json:"sshUser"`
-	SSHKey              string   `json:"sshKey"`
+	SSHUser             string   `json:"sshUser" rest:"required=true"`
+	SSHKey              string   `json:"sshKey" rest:"required=true"`
 	SSHPort             string   `json:"sshPort"`
 	DockerSocket        string   `json:"dockerSocket,omitempty"`
 	KubernetesVersion   string   `json:"kubernetesVersion,omitempty"`
@@ -80,4 +79,30 @@ type PrivateRegistry struct {
 	CAcert   string `json:"caCert"`
 }
 
-var ClusterType = types.GetResourceType(Cluster{})
+func (c Cluster) CreateDefaultResource() resource.Resource {
+	return &Cluster{
+		Network: ClusterNetwork{
+			Plugin: DefaultNetworkPlugin,
+		},
+		ClusterCidr:         DefaultClusterCIDR,
+		ServiceCidr:         DefaultServiceCIDR,
+		ClusterDomain:       DefaultClusterDomain,
+		ClusterDNSServiceIP: DefaultClusterDNSServiceIP,
+		ClusterUpstreamDNS:  DefaultClusterUpstreamDNS,
+	}
+}
+
+func (c Cluster) CreateActions(name string) *resource.Action {
+	switch name {
+	case CSCancelAction:
+		return &resource.Action{
+			Name: CSCancelAction,
+		}
+	case CSGetKubeConfigAction:
+		return &resource.Action{
+			Name: CSGetKubeConfigAction,
+		}
+	default:
+		return nil
+	}
+}

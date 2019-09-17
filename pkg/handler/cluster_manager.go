@@ -6,7 +6,8 @@ import (
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest"
-	resttypes "github.com/zdnscloud/gorest/resource"
+	resterr "github.com/zdnscloud/gorest/error"
+	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
@@ -25,8 +26,6 @@ const (
 )
 
 type ClusterManager struct {
-	api.DefaultHandler
-
 	eventBus      *pubsub.PubSub
 	authorizer    *authorization.Authorizer
 	authenticator *authentication.Authenticator
@@ -65,8 +64,8 @@ func (m *ClusterManager) GetEventBus() *pubsub.PubSub {
 	return m.eventBus
 }
 
-func (m *ClusterManager) GetClusterForSubResource(obj resttypes.Object) *zke.Cluster {
-	ancestors := resttypes.GetAncestors(obj)
+func (m *ClusterManager) GetClusterForSubResource(obj restresource.Resource) *zke.Cluster {
+	ancestors := restresource.GetAncestors(obj)
 	clusterID := ancestors[0].GetID()
 	return m.zkeManager.GetReady(clusterID)
 }
@@ -75,25 +74,22 @@ func (m *ClusterManager) GetClusterByName(name string) *zke.Cluster {
 	return m.zkeManager.GetReady(name)
 }
 
-func (m *ClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+func (m *ClusterManager) Create(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create cluster")
-	}
-	if len(yamlConf) > 0 {
-		return m.zkeManager.Import(ctx, yamlConf)
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can create cluster")
 	}
 	return m.zkeManager.Create(ctx)
 }
 
-func (m *ClusterManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+func (m *ClusterManager) Update(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can update cluster")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can update cluster")
 	}
 	return m.zkeManager.Update(ctx)
 }
 
-func (m *ClusterManager) Get(ctx *resttypes.Context) interface{} {
-	id := ctx.Object.GetID()
+func (m *ClusterManager) Get(ctx *restresource.Context) restresource.Resource {
+	id := ctx.Resource.GetID()
 	if m.authorizer.Authorize(getCurrentUser(ctx), id, "") == false {
 		return nil
 	}
@@ -135,7 +131,7 @@ func getClusterInfo(cli client.Client, sc *types.Cluster) *types.Cluster {
 	return sc
 }
 
-func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
+func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
 	requestFlags := ctx.Request.URL.Query()
 	user := getCurrentUser(ctx)
 	var clusters []*types.Cluster
@@ -162,40 +158,44 @@ func (m *ClusterManager) List(ctx *resttypes.Context) interface{} {
 	return clusters
 }
 
-func (m *ClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+func (m *ClusterManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete cluster")
+		return resterr.NewAPIError(resterr.PermissionDenied, "only admin can delete cluster")
 	}
-	id := ctx.Object.(*types.Cluster).GetID()
+	id := ctx.Resource.(*types.Cluster).GetID()
 	return m.zkeManager.Delete(id)
 }
 
-func (m *ClusterManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+func (m *ClusterManager) Action(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can call cluster action apis")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can call cluster action apis")
 	}
-	if ctx.Action.Name == types.CSCancelAction {
-		id := ctx.Object.(*types.Cluster).GetID()
+
+	action := ctx.Resource.GetAction()
+	id := ctx.Resource.GetID()
+
+	switch action.Name {
+	case types.CSCancelAction:
 		return m.zkeManager.Cancel(id)
-	}
-	if ctx.Action.Name == types.CSGetKubeConfigAction {
-		id := ctx.Object.(*types.Cluster).GetID()
+	case types.CSGetKubeConfigAction:
 		return m.zkeManager.GetKubeConfig(id)
+	default:
+		return nil, nil
 	}
-	return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
 }
 
-func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
-	return func(ctx *resttypes.Context) *resttypes.APIError {
-		if ctx.Object.GetType() == types.UserType {
-			if ctx.Action != nil && ctx.Action.Name == types.ActionLogin {
+func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
+	return func(ctx *restresource.Context) *resterr.APIError {
+		if _, ok := ctx.Resource.(*types.User); ok {
+			action := ctx.Resource.GetAction()
+			if action != nil && action.Name == types.ActionLogin {
 				return nil
 			}
 		}
 
 		user := getCurrentUser(ctx)
 		if user == "" {
-			return resttypes.NewAPIError(resttypes.Unauthorized, fmt.Sprintf("user is unknowned"))
+			return resterr.NewAPIError(resterr.Unauthorized, fmt.Sprintf("user is unknowned"))
 		}
 
 		if m.authorizer.GetUser(user) == nil {
@@ -204,16 +204,18 @@ func (m *ClusterManager) authorizationHandler() api.HandlerFunc {
 			m.authorizer.AddUser(newUser)
 		}
 
-		ancestors := resttypes.GetAncestors(ctx.Object)
+		ancestors := restresource.GetAncestors(ctx.Resource)
 		if len(ancestors) < 2 {
 			return nil
 		}
 
-		if ancestors[0].GetType() == types.ClusterType && ancestors[1].GetType() == types.NamespaceType {
-			cluster := ancestors[0].GetID()
-			namespace := ancestors[1].GetID()
-			if m.authorizer.Authorize(user, cluster, namespace) == false {
-				return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on cluster %s namespace %s", user, cluster, namespace))
+		if _, ok := ancestors[0].(*types.Cluster); ok {
+			if _, ok := ancestors[1].(*types.Namespace); ok {
+				cluster := ancestors[0].GetID()
+				namespace := ancestors[1].GetID()
+				if m.authorizer.Authorize(user, cluster, namespace) == false {
+					return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on cluster %s namespace %s", user, cluster, namespace))
+				}
 			}
 		}
 		return nil

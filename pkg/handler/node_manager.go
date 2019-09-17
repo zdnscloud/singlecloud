@@ -13,13 +13,11 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
-	"github.com/zdnscloud/gorest"
-	resttypes "github.com/zdnscloud/gorest/resource"
+	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type NodeManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -27,13 +25,13 @@ func newNodeManager(clusters *ClusterManager) *NodeManager {
 	return &NodeManager{clusters: clusters}
 }
 
-func (m *NodeManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *NodeManager) Get(ctx *restresource.Context) restresource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	node := ctx.Object.(*types.Node)
+	node := ctx.Resource.(*types.Node)
 	cli := cluster.KubeClient
 	k8sNode, err := getK8SNode(cli, node.GetID())
 	if err != nil {
@@ -47,8 +45,8 @@ func (m *NodeManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name))
 }
 
-func (m *NodeManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *NodeManager) List(ctx *restresource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -146,7 +144,6 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 	}
 	node.SetID(node.Name)
 	node.SetCreationTimestamp(k8sNode.CreationTimestamp.Time)
-	node.SetType(resttypes.GetResourceType(node))
 	return node
 }
 

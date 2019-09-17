@@ -127,7 +127,7 @@ func zkeClusterToSCCluster(zc *Cluster) *types.Cluster {
 	}
 
 	sc.SetID(zc.Name)
-	sc.SetType(types.ClusterType)
+	// sc.SetType(types.ClusterType)
 	sc.SetCreationTimestamp(zc.CreateTime)
 	sc.Status = zc.getStatus()
 	return sc

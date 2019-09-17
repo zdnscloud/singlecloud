@@ -48,7 +48,7 @@ func New(db storage.DB) (*Authorizer, error) {
 
 	if _, ok := auth.users[types.Administrator]; ok == false {
 		adminUser.SetID(types.Administrator)
-		adminUser.SetType(types.UserType)
+		// adminUser.SetType(types.UserType)
 		adminUser.SetCreationTimestamp(time.Now())
 		auth.AddUser(adminUser)
 	}

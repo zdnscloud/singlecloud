@@ -1,20 +1,17 @@
 package handler
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/gorest"
-	resttypes "github.com/zdnscloud/gorest/resource"
+	resterr "github.com/zdnscloud/gorest/error"
+	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/jwt"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type UserManager struct {
-	api.DefaultHandler
-
 	authorizer    *authorization.Authorizer
 	authenticator *jwt.Authenticator
 }
@@ -26,27 +23,26 @@ func newUserManager(authenticator *jwt.Authenticator, authorizer *authorization.
 	}
 }
 
-func (m *UserManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+func (m *UserManager) Create(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create user")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can create user")
 	}
 
-	user := ctx.Object.(*types.User)
+	user := ctx.Resource.(*types.User)
 	user.SetID(user.Name)
-	user.SetType(types.UserType)
 	user.SetCreationTimestamp(time.Now())
 	if err := m.authenticator.AddUser(user); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
+		return nil, resterr.NewAPIError(resterr.DuplicateResource, "duplicate user name")
 	}
 	if err := m.authorizer.AddUser(user); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "duplicate user name")
+		return nil, resterr.NewAPIError(resterr.DuplicateResource, "duplicate user name")
 	}
 	return user, nil
 }
 
-func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
+func (m *UserManager) Get(ctx *restresource.Context) restresource.Resource {
 	currentUser := getCurrentUser(ctx)
-	target := ctx.Object.GetID()
+	target := ctx.Resource.GetID()
 	if isAdmin(currentUser) == false && currentUser != target {
 		return nil
 	}
@@ -58,42 +54,42 @@ func (m *UserManager) Get(ctx *resttypes.Context) interface{} {
 	}
 }
 
-func (m *UserManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+func (m *UserManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete user")
+		return resterr.NewAPIError(resterr.PermissionDenied, "only admin can delete user")
 	}
 
-	userName := ctx.Object.GetID()
+	userName := ctx.Resource.GetID()
 	if err := m.authenticator.DeleteUser(userName); err != nil {
-		return resttypes.NewAPIError(resttypes.NotFound, err.Error())
+		return resterr.NewAPIError(resterr.NotFound, err.Error())
 	}
 	if err := m.authorizer.DeleteUser(userName); err != nil {
-		return resttypes.NewAPIError(resttypes.NotFound, err.Error())
+		return resterr.NewAPIError(resterr.NotFound, err.Error())
 	}
 	return nil
 }
 
-func (m *UserManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+func (m *UserManager) Update(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin could update user")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin could update user")
 	}
 
-	user := ctx.Object.(*types.User)
+	user := ctx.Resource.(*types.User)
 	//reset user password
 	if user.Password != "" {
 		if err := m.authenticator.ResetPassword(user.GetID(), "", user.Password, true); err != nil {
-			return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
+			return nil, resterr.NewAPIError(resterr.NotFound, err.Error())
 		}
 	}
 	//update user priviledge
 	if err := m.authorizer.UpdateUser(user); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, err.Error())
+		return nil, resterr.NewAPIError(resterr.NotFound, err.Error())
 	}
 
 	return user, nil
 }
 
-func (m *UserManager) List(ctx *resttypes.Context) interface{} {
+func (m *UserManager) List(ctx *restresource.Context) interface{} {
 	currentUser := getCurrentUser(ctx)
 	var users []*types.User
 	if isAdmin(currentUser) {
@@ -109,31 +105,33 @@ func (m *UserManager) List(ctx *resttypes.Context) interface{} {
 	return users
 }
 
-func (m *UserManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	switch ctx.Action.Name {
+func (m *UserManager) Action(ctx *restresource.Context) (interface{}, *resterr.APIError) {
+	action := ctx.Resource.GetAction()
+	switch action.Name {
 	case types.ActionLogin:
 		return m.login(ctx)
 	case types.ActionResetPassword:
 		return nil, m.resetPassword(ctx)
 	default:
-		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
+		return nil, nil
 	}
 }
 
-func (m *UserManager) login(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	up, ok := ctx.Action.Input.(*types.UserPassword)
+func (m *UserManager) login(ctx *restresource.Context) (interface{}, *resterr.APIError) {
+	action := ctx.Resource.GetAction()
+	up, ok := action.Input.(*types.UserPassword)
 	if ok == false {
-		return nil, resttypes.NewAPIError(resttypes.InvalidFormat, "login param not valid")
+		return nil, resterr.NewAPIError(resterr.InvalidFormat, "login param not valid")
 	}
 
 	if up.Password == "" {
-		return nil, resttypes.NewAPIError(resttypes.NotNullable, "empty password")
+		return nil, resterr.NewAPIError(resterr.NotNullable, "empty password")
 	}
 
-	userName := ctx.Object.GetID()
+	userName := ctx.Resource.GetID()
 	token, err := m.authenticator.CreateToken(userName, up.Password)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.InvalidBodyContent, err.Error())
+		return nil, resterr.NewAPIError(resterr.InvalidBodyContent, err.Error())
 	} else {
 		return map[string]string{
 			"token": token,
@@ -141,24 +139,25 @@ func (m *UserManager) login(ctx *resttypes.Context) (interface{}, *resttypes.API
 	}
 }
 
-func (m *UserManager) resetPassword(ctx *resttypes.Context) *resttypes.APIError {
-	param, ok := ctx.Action.Input.(*types.ResetPassword)
+func (m *UserManager) resetPassword(ctx *restresource.Context) *resterr.APIError {
+	action := ctx.Resource.GetAction()
+	param, ok := action.Input.(*types.ResetPassword)
 	if ok == false {
-		return resttypes.NewAPIError(resttypes.InvalidFormat, "reset password param not valid")
+		return resterr.NewAPIError(resterr.InvalidFormat, "reset password param not valid")
 	}
 
 	userName := getCurrentUser(ctx)
-	if userName != ctx.Object.GetID() {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only user himself could reset his password")
+	if userName != ctx.Resource.GetID() {
+		return resterr.NewAPIError(resterr.PermissionDenied, "only user himself could reset his password")
 	}
 
 	if err := m.authenticator.ResetPassword(userName, param.OldPassword, param.NewPassword, false); err != nil {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, err.Error())
+		return resterr.NewAPIError(resterr.PermissionDenied, err.Error())
 	}
 	return nil
 }
 
-func getCurrentUser(ctx *resttypes.Context) string {
+func getCurrentUser(ctx *restresource.Context) string {
 	currentUser := ctx.Request.Context().Value(types.CurrentUserKey)
 	if currentUser == nil {
 		return ""
