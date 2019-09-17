@@ -46,6 +46,7 @@ type Cluster struct {
 	isCanceled bool
 	lock       sync.Mutex
 	fsm        *fsm.FSM
+	scVersion  string
 }
 
 type AddCluster struct {

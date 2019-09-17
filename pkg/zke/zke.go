@@ -97,6 +97,7 @@ func zkeClusterToSCCluster(zc *Cluster) *types.Cluster {
 	sc.ClusterDNSServiceIP = zc.config.Option.ClusterDNSServiceIP
 	sc.ClusterUpstreamDNS = zc.config.Option.ClusterUpstreamDNS
 	sc.SingleCloudAddress = zc.config.SingleCloudAddress
+	sc.ScVersion = zc.scVersion
 
 	sc.Network = types.ClusterNetwork{
 		Plugin: zc.config.Network.Plugin,
