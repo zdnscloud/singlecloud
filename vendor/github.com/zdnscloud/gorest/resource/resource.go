@@ -34,8 +34,8 @@ type Resource interface {
 	GetSchema() Schema
 	SetSchema(Schema)
 
+	//return kind name like "pod"
 	SetType(string)
-	//return resource kind name
 	GetType() string
 
 	GetAction() *Action

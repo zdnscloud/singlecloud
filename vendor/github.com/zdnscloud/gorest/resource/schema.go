@@ -19,5 +19,6 @@ type SchemaManager interface {
 
 type Schema interface {
 	GetHandler() Handler
-	GenerateLinks(r Resource, httpSchemeAndHost string) (map[ResourceLinkType]ResourceLink, error)
+	AddLinksToResource(r Resource, httpSchemeAndHost string) error
+	AddLinksToResourceCollection(rs *ResourceCollection, httpSchemeAndHost string) error
 }

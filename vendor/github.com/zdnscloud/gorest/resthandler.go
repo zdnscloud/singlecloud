@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-	"reflect"
 
 	goresterr "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -37,20 +36,18 @@ func handleCreate(ctx *resource.Context) *goresterr.APIError {
 		return goresterr.NewAPIError(goresterr.NotFound, "no handler for create")
 	}
 
-	resource, err := handler(ctx)
+	r, err := handler(ctx)
 	if err != nil {
 		return err
 	}
 
-	ctx.Resource.SetID(resource.GetID())
+	ctx.Resource.SetID(r.GetID())
+	r.SetType(ctx.Resource.GetType())
 	httpSchemeAndHost := path.Join(ctx.Request.URL.Scheme, ctx.Request.URL.Host)
-	if links, err := schema.GenerateLinks(ctx.Resource, httpSchemeAndHost); err != nil {
+	if err := schema.AddLinksToResource(r, httpSchemeAndHost); err != nil {
 		return goresterr.NewAPIError(goresterr.ServerError, fmt.Sprintf("generate links failed:%s", err.Error()))
-	} else {
-		resource.SetLinks(links)
 	}
-	resource.SetType(ctx.Resource.GetType())
-	writeResponse(ctx.Response, http.StatusCreated, resource)
+	writeResponse(ctx.Response, http.StatusCreated, r)
 	return nil
 }
 
@@ -75,27 +72,18 @@ func handleUpdate(ctx *resource.Context) *goresterr.APIError {
 		return goresterr.NewAPIError(goresterr.NotFound, "no handler for update")
 	}
 
-	resource, err := handler(ctx)
+	r, err := handler(ctx)
 	if err != nil {
 		return err
 	}
 
 	httpSchemeAndHost := path.Join(ctx.Request.URL.Scheme, ctx.Request.URL.Host)
-	if links, err := schema.GenerateLinks(ctx.Resource, httpSchemeAndHost); err != nil {
+	if err := schema.AddLinksToResource(r, httpSchemeAndHost); err != nil {
 		return goresterr.NewAPIError(goresterr.ServerError, fmt.Sprintf("generate links failed:%s", err.Error()))
-	} else {
-		resource.SetLinks(links)
 	}
-	resource.SetType(ctx.Resource.GetType())
-	writeResponse(ctx.Response, http.StatusOK, resource)
+	r.SetType(ctx.Resource.GetType())
+	writeResponse(ctx.Response, http.StatusOK, r)
 	return nil
-}
-
-type Collection struct {
-	Type         string                                              `json:"type,omitempty"`
-	ResourceType string                                              `json:"resourceType,omitempty"`
-	Links        map[resource.ResourceLinkType]resource.ResourceLink `json:"links,omitempty"`
-	Data         interface{}                                         `json:"data"`
 }
 
 func handleList(ctx *resource.Context) *goresterr.APIError {
@@ -108,58 +96,32 @@ func handleList(ctx *resource.Context) *goresterr.APIError {
 		}
 
 		data := handler(ctx)
-		if data == nil {
-			data = make([]resource.Resource, 0)
-		} else {
-			//check return slice is a slice of resource
-			value := reflect.ValueOf(data)
-			if value.Kind() != reflect.Slice {
-				return goresterr.NewAPIError(goresterr.ServerError,
-					fmt.Sprintf("list handler doesn't return slice but %v", reflect.ValueOf(data).Kind()))
-			}
-			if value.Len() > 0 {
-				elem := value.Index(0)
-				if _, ok := elem.Interface().(resource.Resource); ok == false {
-					return goresterr.NewAPIError(goresterr.ServerError,
-						fmt.Sprintf("list handler doesn't return slice of resource but %v", elem.Kind()))
-				}
-			}
+		rc, err := resource.NewResourceCollection(ctx.Resource, data)
+		if err != nil {
+			return goresterr.NewAPIError(goresterr.ServerError, err.Error())
 		}
 
 		httpSchemeAndHost := path.Join(ctx.Request.URL.Scheme, ctx.Request.URL.Host)
-		if links, err := schema.GenerateLinks(ctx.Resource, httpSchemeAndHost); err != nil {
+		if err := schema.AddLinksToResourceCollection(rc, httpSchemeAndHost); err != nil {
 			return goresterr.NewAPIError(goresterr.ServerError, fmt.Sprintf("generate links failed:%s", err.Error()))
-		} else {
-			collection := &Collection{
-				Type:         "collection",
-				ResourceType: ctx.Resource.GetType(),
-				Data:         data,
-				Links:        links,
-			}
-			result = collection
 		}
+		result = rc
 	} else {
 		handler := schema.GetHandler().GetGetHandler()
 		if handler == nil {
 			return goresterr.NewAPIError(goresterr.NotFound, "no found for list")
 		}
-		result = handler(ctx)
-		if result == nil {
+		r := handler(ctx)
+		if r == nil {
 			return goresterr.NewAPIError(goresterr.NotFound,
 				fmt.Sprintf("%s resource with id %s doesn't exist", ctx.Resource.GetType(), ctx.Resource.GetID()))
 		} else {
-			resource, ok := result.(resource.Resource)
-			if ok == false {
-				return goresterr.NewAPIError(goresterr.ServerError,
-					fmt.Sprintf("get handler doesn't return resource but %v", reflect.ValueOf(result).Kind()))
-			}
 			httpSchemeAndHost := path.Join(ctx.Request.URL.Scheme, ctx.Request.URL.Host)
-			if links, err := schema.GenerateLinks(ctx.Resource, httpSchemeAndHost); err != nil {
+			if err := schema.AddLinksToResource(r, httpSchemeAndHost); err != nil {
 				return goresterr.NewAPIError(goresterr.ServerError, fmt.Sprintf("generate links failed:%s", err.Error()))
-			} else {
-				resource.SetLinks(links)
 			}
 		}
+		result = r
 	}
 
 	writeResponse(ctx.Response, http.StatusOK, result)
