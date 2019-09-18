@@ -143,10 +143,11 @@ lvm/
      2. 随机生成adminkey, monkey，并根据crd的uuid作为ceph的集群id
      3. 根据磁盘个数设置副本数（默认为2）
      4. 根据前面3步的配置
-        1. 创建configmap保存ceph集群配置文件，用于后面启动ceph组件挂载使用
-        2. 创建无头服务，用于后面ceph组件连接mon
-        3. 创建secret，保存账户和密钥，用于后面storageclass使用
-	4. 创建serviceaccount，用于后面部署ceph组件用
+		1. 创建configmap保存ceph集群配置文件，用于后面启动ceph组件挂载使用
+		2. 创建无头服务，用于后面ceph组件连接mon
+		3. 创建secret，保存账户和密钥，用于后面storageclass使用
+		4. 创建serviceaccount，用于后面部署ceph组件用
+	
      5. 保存ceph集群配置到本地
      6. 启动mon并等待其全部运行
      7. 启动mgr并等待其全部运行
