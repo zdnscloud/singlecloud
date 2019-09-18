@@ -117,6 +117,8 @@ lvm/
   
   
 ### ceph说明
+[ceph简介](https://github.com/zdnscloud/immense/blob/master/docs/ceph.md)
+
 目录结构
 ```
 ├── ceph
