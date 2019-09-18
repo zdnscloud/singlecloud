@@ -23,7 +23,7 @@ func newUserManager(authenticator *jwt.Authenticator, authorizer *authorization.
 	}
 }
 
-func (m *UserManager) Create(ctx *restresource.Context) (interface{}, *resterr.APIError) {
+func (m *UserManager) Create(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can create user")
 	}
