@@ -37,8 +37,8 @@ type Cluster struct {
 	Nodes                 []Node            `json:"nodes" rest:"required=true"`
 	Network               ClusterNetwork    `json:"network"`
 	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
-	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true"`
-	Name                  string            `json:"name" rest:"required=true"`
+	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true,minLen=1,maxLen=128"`
+	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128"`
 	Status                ClusterStatus     `json:"status"`
 	NodesCount            int               `json:"nodeCount"`
 	Version               string            `json:"version"`
@@ -53,8 +53,8 @@ type Cluster struct {
 	PodUsed         int64  `json:"podUsed"`
 	PodUsedRatio    string `json:"podUsedRatio"`
 
-	SSHUser             string   `json:"sshUser" rest:"required=true"`
-	SSHKey              string   `json:"sshKey" rest:"required=true"`
+	SSHUser             string   `json:"sshUser" rest:"required=true,minLen=1,maxLen=128"`
+	SSHKey              string   `json:"sshKey" rest:"required=true,minLen=1,maxLen=51200"`
 	SSHPort             string   `json:"sshPort"`
 	DockerSocket        string   `json:"dockerSocket,omitempty"`
 	KubernetesVersion   string   `json:"kubernetesVersion,omitempty"`
