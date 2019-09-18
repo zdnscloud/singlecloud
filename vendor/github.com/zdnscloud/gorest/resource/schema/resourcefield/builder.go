@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/zdnscloud/gorest/util"
 )
 
 type FieldBuilder struct {
@@ -66,51 +68,34 @@ func (b *FieldBuilder) buildField(sf reflect.StructField) error {
 }
 
 func (b *FieldBuilder) createField(name string, typ reflect.Type, json, rest string) (Field, error) {
-	switch typ.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.String, reflect.Bool:
+	kind := util.Inspect(typ)
+	switch kind {
+	case util.Uint, util.Int, util.String, util.Bool, util.StringIntMap, util.StringStringMap, util.StringUintMap, util.IntSlice, util.UintSlice, util.StringSlice:
 		if rest == "" {
 			return nil, nil
 		}
-
 		if restTags := strings.Split(rest, ","); len(restTags) > 0 {
-			return b.buildLeafField(name, typ.Kind(), json, restTags)
+			return b.buildLeafField(name, typ, json, restTags)
 		}
-	case reflect.Ptr:
+	case util.StructPtr:
 		return b.createField(name, typ.Elem(), json, rest)
-	case reflect.Map, reflect.Slice:
+	case util.StringStructMap, util.StringStructPtrMap, util.StructSlice, util.StructPtrSlice:
 		nestType := typ.Elem()
-		nestKind := nestType.Kind()
-		//only support one level pointer
-		if nestKind == reflect.Ptr {
+		if kind == util.StringStructPtrMap || kind == util.StructPtrSlice {
 			nestType = nestType.Elem()
-			nestKind = nestType.Kind()
 		}
-
-		switch nestKind {
-		case reflect.Struct:
-			field, err := b.createField(name, nestType, json, rest)
-			if err == nil && field != nil {
-				if typ.Kind() == reflect.Map {
-					switch typ.Key().Kind() {
-					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-						field.(*compositeField).SetOwner(OwnerIntMap)
-						return field, nil
-					case reflect.String:
-						field.(*compositeField).SetOwner(OwnerStringMap)
-						return field, nil
-					}
-				} else {
-					field.(*compositeField).SetOwner(OwnerSlice)
-					return field, nil
-				}
-			}
-			return nil, err
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.String, reflect.Bool:
-			if restTags := strings.Split(rest, ","); len(restTags) > 0 {
-				return b.buildLeafField(name, typ.Kind(), json, restTags)
+		field, err := b.createField(name, nestType, json, rest)
+		if err == nil && field != nil {
+			if kind == util.StringStructMap || kind == util.StringStructPtrMap {
+				field.(*compositeField).SetOwner(OwnerStringMap)
+				return field, nil
+			} else {
+				field.(*compositeField).SetOwner(OwnerSlice)
+				return field, nil
 			}
 		}
-	case reflect.Struct:
+		return nil, err
+	case util.Struct:
 		nb := NewBuilder()
 		sf, err := nb.Build(typ)
 		if err != nil {
@@ -123,8 +108,8 @@ func (b *FieldBuilder) createField(name string, typ reflect.Type, json, rest str
 	return nil, nil
 }
 
-func (b *FieldBuilder) buildLeafField(name string, kind reflect.Kind, json string, restTags []string) (Field, error) {
-	v, err := buildValidator(kind, restTags)
+func (b *FieldBuilder) buildLeafField(name string, typ reflect.Type, json string, restTags []string) (Field, error) {
+	v, err := buildValidator(typ, restTags)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +117,7 @@ func (b *FieldBuilder) buildLeafField(name string, kind reflect.Kind, json strin
 	if v != nil {
 		field.SetValidators([]Validator{v})
 	}
-	if err := fieldParseOptional(field, kind, restTags); err != nil {
+	if err := fieldParseOptional(field, typ.Kind(), restTags); err != nil {
 		return nil, err
 	}
 	return field, nil

@@ -94,7 +94,6 @@ type OwnerKind string
 const (
 	OwnerNone      OwnerKind = "none"
 	OwnerSlice     OwnerKind = "slice"
-	OwnerIntMap    OwnerKind = "int_map"
 	OwnerStringMap OwnerKind = "string_map"
 )
 
@@ -148,7 +147,7 @@ func (f *compositeField) Validate(value interface{}) error {
 	}
 
 	switch f.ownerKind {
-	case OwnerIntMap, OwnerStringMap:
+	case OwnerStringMap:
 		if kind != reflect.Map {
 			return fmt.Errorf("use map field to validate %v", kind)
 		}
