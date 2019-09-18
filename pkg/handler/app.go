@@ -30,11 +30,15 @@ type App struct {
 	chartDir       string
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB, chartDir string) *App {
-	return &App{
-		clusterManager: newClusterManager(authenticator, authorizer, eventBus, agent, db),
-		chartDir:       chartDir,
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB, chartDir, scVersion string) (*App, error) {
+	clusterMgr, err := newClusterManager(authenticator, authorizer, eventBus, agent, db, scVersion)
+	if err != nil {
+		return nil, err
 	}
+	return &App{
+		clusterManager: clusterMgr,
+		chartDir:       chartDir,
+	}, nil
 }
 
 func (a *App) RegisterHandler(router gin.IRoutes) error {

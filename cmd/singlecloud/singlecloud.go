@@ -75,7 +75,10 @@ func main() {
 	}
 
 	agent := clusteragent.New()
-	app := handler.NewApp(authenticator, authorizer, eventBus, agent, db, chartDir)
+	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, db, chartDir, version)
+	if err != nil {
+		log.Fatalf("create app failed %s", err.Error())
+	}
 
 	if err := server.RegisterHandler(authenticator); err != nil {
 		log.Fatalf("register redirect handler failed:%s", err.Error())
