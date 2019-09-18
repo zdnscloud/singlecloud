@@ -282,7 +282,7 @@ func genMonitorFromApp(ctx *resttypes.Context, cluster string, app *types.Applic
 		RedirectUrl:   "http://" + p.Grafana.Ingress.Hosts,
 		Status:        app.Status,
 	}
-	m.SetID(app.Name)
+	m.SetID(monitorAppNamePrefix)
 	m.CreationTimestamp = app.CreationTimestamp
 	return &m, nil
 }
