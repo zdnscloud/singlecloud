@@ -78,39 +78,47 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 	go cluster.create(zkectx, state, m)
 	inner.SetID(inner.Name)
 	inner.SetCreationTimestamp(state.CreateTime)
+	inner.SSHKey = ""
 	return inner, nil
 }
 
-func (m *ZKEManager) Import(ctx *restsource.Context, json []byte) (interface{}, *resterr.APIError) {
+func (m *ZKEManager) Import(ctx *restsource.Context) (interface{}, *resterr.APIError) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	inner := ctx.Resource.(*types.Cluster)
-	c := m.get(inner.Name)
+	id := ctx.Resource.(*types.Cluster).GetID()
+	action := ctx.Resource.GetAction()
 
+	c := m.get(id)
 	if c != nil {
 		return nil, resterr.NewAPIError(resterr.DuplicateResource, "duplicate cluster")
 	}
 
-	state, err := readStateJsonBytes(json)
-	if err != nil {
-		return nil, resterr.NewAPIError(resterr.InvalidBodyContent, fmt.Sprintf("%s", err))
+	zkeFullState := action.Input.(*core.FullState)
+	if zkeFullState != nil && zkeFullState.DesiredState.CertificatesBundle != nil {
+		zkeFullState.DesiredState.CertificatesBundle = pki.TransformPEMToObject(zkeFullState.DesiredState.CertificatesBundle)
+		zkeFullState.CurrentState.CertificatesBundle = pki.TransformPEMToObject(zkeFullState.CurrentState.CertificatesBundle)
 	}
-	state.ZKEConfig = state.CurrentState.ZKEConfig.DeepCopy()
-	state.CreateTime = time.Now()
-	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
+
+	state := clusterState{
+		FullState:  zkeFullState,
+		ZKEConfig:  zkeFullState.CurrentState.ZKEConfig.DeepCopy(),
+		CreateTime: time.Now(),
+	}
+
+	if err := createOrUpdateState(id, state, m.db); err != nil {
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	cluster := newClusterWithStatus(inner.Name, types.CSConnecting)
+	cluster := newClusterWithStatus(id, types.CSConnecting)
 	cluster.CreateTime = state.CreateTime
-	cluster.config = state.CurrentState.ZKEConfig.DeepCopy()
+	cluster.config = state.ZKEConfig
 	m.unreadyClusters = append(m.unreadyClusters, cluster)
 
 	kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
 	zkectx, cancel := context.WithCancel(context.Background())
 	cluster.cancel = cancel
 	go cluster.initLoop(zkectx, kubeConfig, state, m)
-	return inner, nil
+	return nil, nil
 }
 
 func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *resterr.APIError) {
