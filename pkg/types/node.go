@@ -23,9 +23,9 @@ const (
 
 type Node struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string            `json:"name" rest:"required=true"`
+	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128"`
 	Status                NodeStatus        `json:"status"`
-	Address               string            `json:"address,omitempty" rest:"required=true"`
+	Address               string            `json:"address,omitempty" rest:"required=true,minLen=1,maxLen=128"`
 	Roles                 []NodeRole        `json:"roles,omitempty" rest:"required=true"`
 	Labels                map[string]string `json:"labels,omitempty"`
 	Annotations           map[string]string `json:"annotations,omitempty"`

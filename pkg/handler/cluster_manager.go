@@ -179,6 +179,8 @@ func (m *ClusterManager) Action(ctx *restresource.Context) (interface{}, *rester
 		return m.zkeManager.Cancel(id)
 	case types.CSGetKubeConfigAction:
 		return m.zkeManager.GetKubeConfig(id)
+	case types.CSImportAction:
+		return m.zkeManager.Import(ctx)
 	default:
 		return nil, nil
 	}

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zdnscloud/cement/slice"
+	"github.com/zdnscloud/gorest/util"
 )
 
 type Validator interface {
@@ -23,12 +24,21 @@ func newOptionValidator(options []string) Validator {
 }
 
 func (v *optionValidator) Validate(val interface{}) error {
-	s, ok := val.(string)
-	if ok == false {
-		return fmt.Errorf("option can only used for string")
-	}
-	if slice.SliceIndex(v.options, s) == -1 {
-		return fmt.Errorf("%s isn't included in options %v", s, v.options)
+	value := reflect.ValueOf(val)
+	kind := util.Inspect(value.Type())
+	switch kind {
+	case util.String:
+		sv := value.String()
+		if slice.SliceIndex(v.options, sv) == -1 {
+			return fmt.Errorf("%s isn't included in options %v", sv, v.options)
+		}
+	case util.StringSlice:
+		for i := 0; i < value.Len(); i++ {
+			sv := value.Index(i).String()
+			if slice.SliceIndex(v.options, sv) == -1 {
+				return fmt.Errorf("%s isn't included in options %v", sv, v.options)
+			}
+		}
 	}
 	return nil
 
@@ -72,13 +82,14 @@ func newIntRangeValidator(min, max int64) Validator {
 
 func (v *intRangeValidator) Validate(val interface{}) error {
 	value := reflect.ValueOf(val)
-	switch value.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	kind := util.Inspect(value.Type())
+	switch kind {
+	case util.Int:
 		i := value.Int()
 		if i < v.min || i >= v.max {
 			return fmt.Errorf("int value %v exceed the range limit[%v:%v)", i, v.min, v.max)
 		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case util.Uint:
 		i := int64(value.Uint())
 		if i < v.min || i >= v.max {
 			return fmt.Errorf("uint value %v exceed the range limit[%v:%v)", i, v.min, v.max)
@@ -98,7 +109,7 @@ const (
 	optionsDelimiter = "|"
 )
 
-func buildValidator(fieldKind reflect.Kind, restTags []string) (Validator, error) {
+func buildValidator(fieldType reflect.Type, restTags []string) (Validator, error) {
 	var minStr, maxStr string
 	var minLenStr, maxLenStr string
 	var options []string
@@ -122,8 +133,9 @@ func buildValidator(fieldKind reflect.Kind, restTags []string) (Validator, error
 		}
 	}
 
-	switch fieldKind {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	kind := util.Inspect(fieldType)
+	switch kind {
+	case util.Int, util.Uint:
 		if len(options) > 0 || minLenStr != "" || maxLenStr != "" {
 			return nil, fmt.Errorf("integer field doesn't support options and min and max len")
 		}
@@ -148,7 +160,8 @@ func buildValidator(fieldKind reflect.Kind, restTags []string) (Validator, error
 			}
 			return newIntRangeValidator(min, max), nil
 		}
-	case reflect.String:
+
+	case util.String, util.StringSlice:
 		if minStr != "" || maxStr != "" {
 			return nil, fmt.Errorf("string field doesn't support options and min and max")
 		}

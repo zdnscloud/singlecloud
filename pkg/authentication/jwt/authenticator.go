@@ -129,6 +129,10 @@ func (a *Authenticator) ResetPassword(userName string, old, new string, force bo
 		return fmt.Errorf("password isn't correct")
 	}
 
+	if new == "" {
+		return fmt.Errorf("new password is empty")
+	}
+
 	if err := a.updateUser(userName, new); err != nil {
 		return err
 	}

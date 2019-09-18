@@ -1,6 +1,7 @@
 package resourcefield
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -57,8 +58,17 @@ func (f *leafField) SetRequired(required bool) {
 func (f *leafField) CheckRequired(raw map[string]interface{}) error {
 	jsonName := f.JsonName()
 	if f.IsRequired() {
-		if _, ok := raw[jsonName]; ok == false {
+		val, ok := raw[jsonName]
+		if ok == false {
 			return fmt.Errorf("field %s is missing", jsonName)
+		}
+
+		v := reflect.ValueOf(val)
+		kind := v.Kind()
+		if kind == reflect.String || kind == reflect.Map || kind == reflect.Slice {
+			if v.Len() == 0 {
+				return fmt.Errorf("field %s is missing", jsonName)
+			}
 		}
 	}
 	return nil
@@ -85,7 +95,6 @@ type OwnerKind string
 const (
 	OwnerNone      OwnerKind = "none"
 	OwnerSlice     OwnerKind = "slice"
-	OwnerIntMap    OwnerKind = "int_map"
 	OwnerStringMap OwnerKind = "string_map"
 )
 
@@ -139,7 +148,7 @@ func (f *compositeField) Validate(value interface{}) error {
 	}
 
 	switch f.ownerKind {
-	case OwnerIntMap, OwnerStringMap:
+	case OwnerStringMap:
 		if kind != reflect.Map {
 			return fmt.Errorf("use map field to validate %v", kind)
 		}
@@ -170,12 +179,71 @@ func (f *compositeField) Validate(value interface{}) error {
 	return nil
 }
 
-func (f *compositeField) CheckRequired(json map[string]interface{}) error {
+func (f *compositeField) CheckRequired(jd map[string]interface{}) error {
+	if !f.IsRequired() {
+		return nil
+	}
+
 	jsonName := f.JsonName()
-	if f.IsRequired() {
-		if val, ok := json[jsonName]; ok == false || val == nil {
+	val, ok := jd[jsonName]
+	if ok == false || val == nil {
+		return fmt.Errorf("field %s is missing", jsonName)
+	}
+
+	//check empty slice and empty map
+	v := reflect.ValueOf(val)
+	kind := v.Kind()
+	switch f.ownerKind {
+	case OwnerStringMap:
+		if kind != reflect.Map {
+			return fmt.Errorf("use map field to validate %v", kind)
+		}
+
+		if v.Len() == 0 {
 			return fmt.Errorf("field %s is missing", jsonName)
 		}
+
+		iter := v.MapRange()
+		for iter.Next() {
+			d, _ := json.Marshal(iter.Value().Interface())
+			m := make(map[string]interface{})
+			if err := json.Unmarshal(d, &m); err != nil {
+				return fmt.Errorf("value of field %s is not a struct", jsonName)
+			}
+			if err := f.field.CheckRequired(m); err != nil {
+				return err
+			}
+		}
+	case OwnerSlice:
+		if kind != reflect.Slice {
+			return fmt.Errorf("use slice field to validate %v", kind)
+		}
+
+		if v.Len() == 0 {
+			return fmt.Errorf("field %s is missing", jsonName)
+		}
+
+		for i := 0; i < v.Len(); i++ {
+			d, _ := json.Marshal(v.Index(i).Interface())
+			m := make(map[string]interface{})
+			if err := json.Unmarshal(d, &m); err != nil {
+				return fmt.Errorf("elem of field %s is not a struct", jsonName)
+			}
+
+			if err := f.field.CheckRequired(m); err != nil {
+				return err
+			}
+		}
+	case OwnerNone:
+		if kind != reflect.Map {
+			return fmt.Errorf("use struct field %s to validate %v", jsonName, kind)
+		}
+		d, _ := json.Marshal(val)
+		m := make(map[string]interface{})
+		if err := json.Unmarshal(d, &m); err != nil {
+			return fmt.Errorf("field %s is not a struct", jsonName)
+		}
+		return f.field.CheckRequired(m)
 	}
 	return nil
 }

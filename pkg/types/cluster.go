@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/zke/core"
 )
 
 type ClusterStatus string
@@ -19,6 +20,7 @@ const (
 
 	CSCancelAction        = "cancel"
 	CSGetKubeConfigAction = "getkubeconfig"
+	CSImportAction        = "import"
 
 	DefaultNetworkPlugin       = "flannel"
 	DefaultClusterCIDR         = "10.42.0.0/16"
@@ -37,8 +39,8 @@ type Cluster struct {
 	Nodes                 []Node            `json:"nodes" rest:"required=true"`
 	Network               ClusterNetwork    `json:"network"`
 	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
-	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true"`
-	Name                  string            `json:"name" rest:"required=true"`
+	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true,minLen=1,maxLen=128"`
+	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128"`
 	Status                ClusterStatus     `json:"status"`
 	NodesCount            int               `json:"nodeCount"`
 	Version               string            `json:"version"`
@@ -53,8 +55,8 @@ type Cluster struct {
 	PodUsed         int64  `json:"podUsed"`
 	PodUsedRatio    string `json:"podUsedRatio"`
 
-	SSHUser             string   `json:"sshUser" rest:"required=true"`
-	SSHKey              string   `json:"sshKey" rest:"required=true"`
+	SSHUser             string   `json:"sshUser" rest:"required=true,minLen=1,maxLen=128"`
+	SSHKey              string   `json:"sshKey" rest:"minLen=1,maxLen=51200"`
 	SSHPort             string   `json:"sshPort"`
 	DockerSocket        string   `json:"dockerSocket,omitempty"`
 	KubernetesVersion   string   `json:"kubernetesVersion,omitempty"`
@@ -68,8 +70,8 @@ type Cluster struct {
 }
 
 type ClusterNetwork struct {
-	Plugin string `yaml:"plugin" json:"plugin"`
-	Iface  string `yaml:"iface" json:"iface"`
+	Plugin string `json:"plugin" rest:"options=flannel|calico"`
+	Iface  string `json:"iface"`
 }
 
 type PrivateRegistry struct {
@@ -92,7 +94,7 @@ func (c Cluster) CreateDefaultResource() resource.Resource {
 	}
 }
 
-func (c Cluster) CreateActions(name string) *resource.Action {
+func (c Cluster) CreateAction(name string) *resource.Action {
 	switch name {
 	case CSCancelAction:
 		return &resource.Action{
@@ -101,6 +103,11 @@ func (c Cluster) CreateActions(name string) *resource.Action {
 	case CSGetKubeConfigAction:
 		return &resource.Action{
 			Name: CSGetKubeConfigAction,
+		}
+	case CSImportAction:
+		return &resource.Action{
+			Name:  CSImportAction,
+			Input: &core.FullState{},
 		}
 	default:
 		return nil
