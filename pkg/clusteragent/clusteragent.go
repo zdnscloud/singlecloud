@@ -1,12 +1,13 @@
 package clusteragent
 
 import (
-	// "encoding/json"
-	"github.com/zdnscloud/goproxy"
-	// resttypes "github.com/zdnscloud/gorest/resource"
-	// "io/ioutil"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/zdnscloud/goproxy"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -46,7 +47,6 @@ func (m *AgentManager) ProxyRequest(cluster string, req *http.Request) (*http.Re
 	return resp, err
 }
 
-/*
 func (m *AgentManager) GetData(cluster, url string) (interface{}, error) {
 	req, err := http.NewRequest("GET", ClusterAgentServiceHost+url, nil)
 	if err != nil {
@@ -57,9 +57,8 @@ func (m *AgentManager) GetData(cluster, url string) (interface{}, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	var info resttypes.Collection
+	var info resource.ResourceCollection
 	body, _ := ioutil.ReadAll(resp.Body)
 	json.Unmarshal(body, &info)
-	return info.Data, nil
+	return info.Resources, nil
 }
-*/
