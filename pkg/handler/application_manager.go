@@ -69,6 +69,7 @@ func newApplicationManager(clusters *ClusterManager, chartDir string) *Applicati
 		clusters:       clusters,
 		chartDir:       chartDir,
 		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
+		chartConfigs:   make(map[string]chartConfig),
 	}
 	go m.eventLoop()
 	return m
