@@ -116,7 +116,7 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 			}
 			return nil
 		} else {
-			return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error()))
+			return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", registryAppName, err.Error()))
 		}
 	}
 	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, appTableName, registryNameSpace, app)
