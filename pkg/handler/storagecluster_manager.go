@@ -85,7 +85,7 @@ func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIErr
 	return nil
 }
 
-func (m StorageClusterManager) Create(ctx *resource.Context, yamlConf []byte) (interface{}, *gorestError.APIError) {
+func (m StorageClusterManager) Create(ctx *resource.Context, yamlConf []byte) (resource.Resource, *gorestError.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
@@ -107,7 +107,7 @@ func (m StorageClusterManager) Create(ctx *resource.Context, yamlConf []byte) (i
 	return storagecluster, nil
 }
 
-func (m StorageClusterManager) Update(ctx *resource.Context) (interface{}, *gorestError.APIError) {
+func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
