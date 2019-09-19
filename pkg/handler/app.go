@@ -71,12 +71,15 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.Import(&Version, types.StatefulSet{}, newStatefulSetManager(a.clusterManager))
 	schemas.Import(&Version, types.UdpIngress{}, newUDPIngressManager(a.clusterManager))
 	schemas.Import(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager))
+	schemas.Import(&Version, types.StorageClass{}, newStorageClassManager(a.clusterManager))
 
 	appManager := newApplicationManager(a.clusterManager, a.chartDir)
 	if err := appManager.addChartsConfig(charts.SupportChartsConfig); err != nil {
 		return err
 	}
 	schemas.Import(&Version, types.Application{}, appManager)
+	schemas.Import(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appManager))
+	schemas.Import(&Version, types.Registry{}, newRegistryManager(a.clusterManager, appManager))
 
 	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.Import(&Version, types.User{}, userManager)
@@ -92,10 +95,10 @@ const (
 )
 
 func (a *App) registerWSHandler(router gin.IRoutes) {
-	// podLogPath := fmt.Sprintf(WSPodLogPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
-	// router.GET(podLogPath, func(c *gin.Context) {
-	// a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
-	// })
+	podLogPath := fmt.Sprintf(WSPodLogPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
+	router.GET(podLogPath, func(c *gin.Context) {
+		a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
+	})
 
 	zkeLogPath := fmt.Sprintf(zke.WSZKELogPathTemp, ":cluster") + "/*actions"
 	router.GET(zkeLogPath, func(c *gin.Context) {

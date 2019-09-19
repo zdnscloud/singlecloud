@@ -8,13 +8,11 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest"
-	resttypes "github.com/zdnscloud/gorest/resource"
+	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type StorageClassManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -22,8 +20,8 @@ func newStorageClassManager(clusters *ClusterManager) *StorageClassManager {
 	return &StorageClassManager{clusters: clusters}
 }
 
-func (m *StorageClassManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *StorageClassManager) List(ctx *restresource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -54,7 +52,6 @@ func k8sStorageClassToScStorageClass(k8sStorageClass *storagev1.StorageClass) *t
 		Name: k8sStorageClass.Name,
 	}
 	storageClass.SetID(k8sStorageClass.Name)
-	storageClass.SetType(types.StorageClassType)
 	storageClass.SetCreationTimestamp(k8sStorageClass.CreationTimestamp.Time)
 	return storageClass
 }

@@ -14,8 +14,8 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest"
-	resttypes "github.com/zdnscloud/gorest/resource"
+	resterr "github.com/zdnscloud/gorest/error"
+	restresource "github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -31,7 +31,6 @@ const (
 )
 
 type MonitorManager struct {
-	api.DefaultHandler
 	clusters       *ClusterManager
 	apps           *ApplicationManager
 	clusterEventCh <-chan interface{}
@@ -47,41 +46,41 @@ func newMonitorManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *
 	return mgr
 }
 
-func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
+func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can enable cluster monitor")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can enable cluster monitor")
 	}
-	monitor := ctx.Object.(*types.Monitor)
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	monitor := ctx.Resource.(*types.Monitor)
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 	if existMonitor, _ := m.getFromDB(cluster.Name); existMonitor != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "cluster monitor has exist")
+		return nil, resterr.NewAPIError(resterr.DuplicateResource, "cluster monitor has exist")
 	}
 
 	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", monitorAppStorageClass, cluster.Name))
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", monitorAppStorageClass, cluster.Name))
 	}
 
 	app, err := genMonitorApplication(cluster.KubeClient, monitor, cluster.Name)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
+		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 	app.SetID(app.Name)
 	if err := m.apps.create(ctx, cluster, monitorNameSpace, app); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
 	}
 	monitor.SetID(app.Name)
 	monitor.SetCreationTimestamp(time.Now())
 	if err := m.addToDB(cluster.Name, monitor); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("add monitor to db failed %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("add monitor to db failed %s", err.Error()))
 	}
 	return monitor, nil
 }
 
-func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *MonitorManager) List(ctx *restresource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -94,17 +93,17 @@ func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
 	return monitors
 }
 
-func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can disable cluster monitor")
+		return resterr.NewAPIError(resterr.PermissionDenied, "only admin can disable cluster monitor")
 	}
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	if existMonitor, _ := m.getFromDB(cluster.Name); existMonitor == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
+		return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
 	}
 
 	appTableName := storage.GenTableName(ApplicationTable, cluster.Name, monitorNameSpace)
@@ -112,17 +111,17 @@ func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			if err := m.deleteFromDB(cluster.Name); err != nil {
-				return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
+				return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
 			}
 			return nil
 		} else {
-			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error()))
+			return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error()))
 		}
 	}
 	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, appTableName, monitorNameSpace, app)
 
 	if err := m.deleteFromDB(cluster.Name); err != nil {
-		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
 	}
 	return nil
 }

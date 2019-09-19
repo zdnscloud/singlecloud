@@ -16,8 +16,8 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/x509"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest"
-	resttypes "github.com/zdnscloud/gorest/resource"
+	resterr "github.com/zdnscloud/gorest/error"
+	restresource "github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -34,7 +34,6 @@ const (
 )
 
 type RegistryManager struct {
-	api.DefaultHandler
 	clusters       *ClusterManager
 	apps           *ApplicationManager
 	clusterEventCh <-chan interface{}
@@ -50,40 +49,40 @@ func newRegistryManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) 
 	return mgr
 }
 
-func (m *RegistryManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
+func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create registry")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can create registry")
 	}
 	if existRegistry, _ := m.getFromDB(); existRegistry != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "registry has exist")
+		return nil, resterr.NewAPIError(resterr.DuplicateResource, "registry has exist")
 	}
-	r := ctx.Object.(*types.Registry)
+	r := ctx.Resource.(*types.Registry)
 	cluster := m.clusters.GetClusterByName(r.Cluster)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", r.Cluster))
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s doesn't exist", r.Cluster))
 	}
 
 	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", registryAppStorageClass, cluster.Name))
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", registryAppStorageClass, cluster.Name))
 	}
 
 	app, err := genRegistryApplication(cluster.KubeClient, r, cluster.Name)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
+		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 	app.SetID(app.Name)
 	if err := m.apps.create(ctx, cluster, registryNameSpace, app); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create registry application failed %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create registry application failed %s", err.Error()))
 	}
 	r.SetID(registryAppName)
 	r.SetCreationTimestamp(time.Now())
 	if err := m.addToDB(r); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("add registry to db failed %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("add registry to db failed %s", err.Error()))
 	}
 	return r, nil
 }
 
-func (m *RegistryManager) List(ctx *resttypes.Context) interface{} {
+func (m *RegistryManager) List(ctx *restresource.Context) interface{} {
 	rs := []*types.Registry{}
 	r, err := m.getFromDB()
 	if err != nil {
@@ -93,18 +92,18 @@ func (m *RegistryManager) List(ctx *resttypes.Context) interface{} {
 	return rs
 }
 
-func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete registry")
+		return resterr.NewAPIError(resterr.PermissionDenied, "only admin can delete registry")
 	}
 	registry, _ := m.getFromDB()
 	if registry == nil {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "registry doesn't exist")
+		return resterr.NewAPIError(resterr.PermissionDenied, "registry doesn't exist")
 	}
 
 	cluster := m.clusters.GetClusterByName(registry.Cluster)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
+		return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s doesn't exist", cluster.Name))
 	}
 
 	appTableName := storage.GenTableName(ApplicationTable, cluster.Name, registryNameSpace)
@@ -112,17 +111,17 @@ func (m *RegistryManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			if err := m.deleteFromDB(); err != nil {
-				return resttypes.NewAPIError(types.ConnectClusterFailed,
+				return resterr.NewAPIError(resterr.ServerError,
 					fmt.Sprintf("delete registry from db failed: %s", err.Error()))
 			}
 			return nil
 		} else {
-			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error()))
+			return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("delete registry application %s failed: %s", cluster.Name, registryAppName, err.Error()))
 		}
 	}
 	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, appTableName, registryNameSpace, app)
 	if err := m.deleteFromDB(); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterr.NewAPIError(resterr.ServerError,
 			fmt.Sprintf("delete registry from db failed: %s", err.Error()))
 	}
 	return nil
