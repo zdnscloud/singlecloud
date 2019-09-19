@@ -19,6 +19,12 @@ func NewSchemaManager() *SchemaManager {
 	return &SchemaManager{}
 }
 
+func (m *SchemaManager) MustImport(v *resource.APIVersion, kind resource.ResourceKind, handler interface{}) {
+	if err := m.Import(v, kind, handler); err != nil {
+		panic("!!! import get err " + err.Error())
+	}
+}
+
 func (m *SchemaManager) Import(v *resource.APIVersion, kind resource.ResourceKind, handler interface{}) error {
 	handler_, err := resource.HandlerAdaptor(handler)
 	if err != nil {

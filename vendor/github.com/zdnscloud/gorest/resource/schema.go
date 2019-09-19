@@ -8,6 +8,9 @@ import (
 type SchemaManager interface {
 	Import(*APIVersion, ResourceKind, interface{}) error
 
+	//same with import, but will panic if get error
+	MustImport(*APIVersion, ResourceKind, interface{})
+
 	//for GET/ DELETE, return empty resource, with id and parent set,
 	//for POST and PUT, the resource unmarshal from body will be returned
 	//also support default value and validation check

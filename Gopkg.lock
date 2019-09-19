@@ -605,7 +605,7 @@
 
 [[projects]]
   branch = "new-interface"
-  digest = "1:2bc9cfb23a205b24439357122e876dd6386d9369daecbe2b37ac08a92b5d2c8e"
+  digest = "1:d9e3d155fc80a2a57288613f7e66bc46b44338e3a20ba99ea032f4a2eb237965"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -617,7 +617,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "4e3d7d7f409a9150cab1f0631b1030f31c7f36cd"
+  revision = "583c6e8ffeb6d2708aa4a9989b2e9f7f99b85042"
 
 [[projects]]
   branch = "master"
@@ -1075,6 +1075,7 @@
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",
     "github.com/zdnscloud/cement/set",
+    "github.com/zdnscloud/cement/slice",
     "github.com/zdnscloud/cement/unittest",
     "github.com/zdnscloud/cement/uuid",
     "github.com/zdnscloud/cement/x509",
@@ -1094,6 +1095,7 @@
     "github.com/zdnscloud/gorest/error",
     "github.com/zdnscloud/gorest/resource",
     "github.com/zdnscloud/gorest/resource/schema",
+    "github.com/zdnscloud/gorest/resource/schema/resourcefield",
     "github.com/zdnscloud/gorest/util",
     "github.com/zdnscloud/immense/pkg/apis/zcloud/v1",
     "github.com/zdnscloud/vanguard/httpcmd",
@@ -1120,22 +1122,14 @@
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
-    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
-    "k8s.io/apimachinery/pkg/util/runtime",
-    "k8s.io/apimachinery/pkg/util/wait",
-    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
-    "k8s.io/client-go/tools/cache",
-    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/remotecommand",
-    "k8s.io/client-go/util/workqueue",
-    "k8s.io/klog",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"
