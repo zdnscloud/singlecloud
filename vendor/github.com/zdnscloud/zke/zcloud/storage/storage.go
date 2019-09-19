@@ -20,7 +20,7 @@ spec:
         spec:
           properties:
             storageType:
-              pattern: ^(lvm|ceph)$
+              pattern: ^(lvm|cephfs)$
               type: string
             hosts:
               type: array

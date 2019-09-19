@@ -673,7 +673,7 @@
 
 [[projects]]
   branch = "storage-predigest"
-  digest = "1:d84ffb1ae7dfc437538475b33c2f8d7614a71c7ea99d3b5044686b1cbd43897d"
+  digest = "1:bfe02565bd32cc1c2ea0367d38819c8525888b7b0d2d2efee395ac310c900ab5"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -703,7 +703,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "1eaee128efedca7c86abfa722f1f54e1c41c15fb"
+  revision = "57a0156ad85fd93f5e4523a760e18af210b37845"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
