@@ -55,7 +55,8 @@ type Cluster struct {
 	PodUsed         int64  `json:"podUsed"`
 	PodUsedRatio    string `json:"podUsedRatio"`
 
-	SSHUser             string   `json:"sshUser" rest:"required=true,minLen=1,maxLen=128"`
+	SSHUser string `json:"sshUser" rest:"required=true,minLen=1,maxLen=128"`
+	//sshkey is necessary for create, but we cat't get it by get or list api due to some security problem(all user can get the cluster sshkey by get or list api), so we do this required check in cluster handler and it's not necessary for update
 	SSHKey              string   `json:"sshKey"`
 	SSHPort             string   `json:"sshPort"`
 	DockerSocket        string   `json:"dockerSocket,omitempty"`
