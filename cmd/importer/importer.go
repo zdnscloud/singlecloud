@@ -12,10 +12,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	// "time"
+	"time"
 
 	"github.com/kyokomi/emoji"
-	// "github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 	zkecore "github.com/zdnscloud/zke/core"
 	"gopkg.in/yaml.v2"
 )
@@ -126,7 +126,6 @@ func deleteZcloudProxyDeployment(addr, token, clusterName string) error {
 	return errors.New(errInfo.Message)
 }
 
-/*
 func createZcloudProxyDeployment(addr, token, clusterName string) error {
 	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/namespaces/zcloud/deployments", addr, clusterName)
 	deployment := types.Deployment{
@@ -163,7 +162,6 @@ func createZcloudProxyDeployment(addr, token, clusterName string) error {
 	json.Unmarshal(body, &errInfo)
 	return errors.New(errInfo.Message)
 }
-*/
 
 func getClusterName(stateJson []byte) (string, error) {
 	state := &zkecore.FullState{}
@@ -206,19 +204,16 @@ func main() {
 		log.Fatalf("create cluster failed:%s", err.Error())
 	}
 
-	// time.Sleep(time.Second * 5)
-	fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "import succeed", reset)
-	/*
-		err = deleteZcloudProxyDeployment(addr, token, clusterName)
-		if err != nil {
-			log.Fatalf("delete zcloud-proxy deployment failed:%s", err.Error())
-		}
+	time.Sleep(time.Second * 5)
+	err = deleteZcloudProxyDeployment(addr, token, clusterName)
+	if err != nil {
+		log.Fatalf("delete zcloud-proxy deployment failed:%s", err.Error())
+	}
 
-		err = createZcloudProxyDeployment(addr, token, clusterName)
-		if err == nil {
-			fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "import succeed", reset)
-		} else {
-			log.Fatalf("create zcloud-proxy deployment failed:%s", err.Error())
-		}
-	*/
+	err = createZcloudProxyDeployment(addr, token, clusterName)
+	if err == nil {
+		fmt.Printf("%s|%s %s %s\n", emoji.Sprint(":+1:"), green, "import succeed", reset)
+	} else {
+		log.Fatalf("create zcloud-proxy deployment failed:%s", err.Error())
+	}
 }

@@ -33,8 +33,8 @@ func (m *OuterServiceManager) List(ctx *resource.Context) interface{} {
 }
 
 func getOuterServices(cluster string, agent *clusteragent.AgentManager, namespace string) ([]*types.OuterService, error) {
-	outerservices := make([]*types.OuterService, 0)
 	url := "/apis/agent.zcloud.cn/v1/namespaces/" + namespace + "/outerservices"
+	outerservices := make([]*types.OuterService, 0)
 	res := make([]types.OuterService, 0)
 	if err := agent.ListResource(cluster, url, &res); err != nil {
 		return outerservices, err

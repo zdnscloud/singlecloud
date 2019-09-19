@@ -3,10 +3,11 @@ package clusteragent
 import (
 	"encoding/json"
 	"errors"
-	"github.com/zdnscloud/goproxy"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/zdnscloud/goproxy"
 )
 
 const (

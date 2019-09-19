@@ -31,8 +31,8 @@ func (m *ServiceNetworkManager) List(ctx *resource.Context) interface{} {
 	return resp
 }
 func getServiceNetworks(cluster string, agent *clusteragent.AgentManager) ([]*types.ServiceNetwork, error) {
-	url := "/apis/agent.zcloud.cn/v1/servicenetworks"
 	svcNetworks := make([]*types.ServiceNetwork, 0)
+	url := "/apis/agent.zcloud.cn/v1/servicenetworks"
 	res := make([]types.ServiceNetwork, 0)
 	if err := agent.ListResource(cluster, url, &res); err != nil {
 		return svcNetworks, err

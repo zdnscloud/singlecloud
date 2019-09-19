@@ -12,7 +12,7 @@ import (
 	"github.com/zdnscloud/gorest/resource/schema"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
-	// "github.com/zdnscloud/singlecloud/pkg/charts"
+	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -53,15 +53,42 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.Import(&Version, types.PodNetwork{}, newPodNetworkManager(a.clusterManager))
 	schemas.Import(&Version, types.NodeNetwork{}, newNodeNetworkManager(a.clusterManager))
 	schemas.Import(&Version, types.ServiceNetwork{}, newServiceNetworkManager(a.clusterManager))
-	schemas.Import(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager))
-	schemas.Import(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager))
 	schemas.Import(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager))
 	schemas.Import(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager))
+	schemas.Import(&Version, types.Namespace{}, newNamespaceManager(a.clusterManager))
+	schemas.Import(&Version, types.Chart{}, newChartManager(a.chartDir))
+	schemas.Import(&Version, types.ConfigMap{}, newConfigMapManager(a.clusterManager))
+	schemas.Import(&Version, types.CronJob{}, newCronJobManager(a.clusterManager))
+	schemas.Import(&Version, types.DaemonSet{}, newDaemonSetManager(a.clusterManager))
+	schemas.Import(&Version, types.Deployment{}, newDeploymentManager(a.clusterManager))
+	schemas.Import(&Version, types.Ingress{}, newIngressManager(a.clusterManager))
+	schemas.Import(&Version, types.Job{}, newJobManager(a.clusterManager))
+	schemas.Import(&Version, types.LimitRange{}, newLimitRangeManager(a.clusterManager))
+	schemas.Import(&Version, types.Pod{}, newPodManager(a.clusterManager))
+	schemas.Import(&Version, types.PersistentVolumeClaim{}, newPersistentVolumeClaimManager(a.clusterManager))
+	schemas.Import(&Version, types.PersistentVolume{}, newPersistentVolumeManager(a.clusterManager))
+	schemas.Import(&Version, types.ResourceQuota{}, newResourceQuotaManager(a.clusterManager))
+	schemas.Import(&Version, types.Secret{}, newSecretManager(a.clusterManager))
+	schemas.Import(&Version, types.Service{}, newServiceManager(a.clusterManager))
+	schemas.Import(&Version, types.StatefulSet{}, newStatefulSetManager(a.clusterManager))
+	schemas.Import(&Version, types.UdpIngress{}, newUDPIngressManager(a.clusterManager))
+	schemas.Import(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager))
+	schemas.Import(&Version, types.StorageClass{}, newStorageClassManager(a.clusterManager))
+	schemas.Import(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager))
+	schemas.Import(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager))
+
+	appManager := newApplicationManager(a.clusterManager, a.chartDir)
+	if err := appManager.addChartsConfig(charts.SupportChartsConfig); err != nil {
+		return err
+	}
+	schemas.Import(&Version, types.Application{}, appManager)
+	schemas.Import(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appManager))
+	schemas.Import(&Version, types.Registry{}, newRegistryManager(a.clusterManager, appManager))
+
 	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.Import(&Version, types.User{}, userManager)
 	server := gorest.NewAPIServer(schemas)
 	server.Use(a.clusterManager.authorizationHandler())
-	// server.Use(api.RestHandler)
 	adaptor.RegisterHandler(router, gorest.NewAPIServer(schemas), schemas.GenerateResourceRoute())
 	return nil
 }
@@ -72,10 +99,10 @@ const (
 )
 
 func (a *App) registerWSHandler(router gin.IRoutes) {
-	// podLogPath := fmt.Sprintf(WSPodLogPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
-	// router.GET(podLogPath, func(c *gin.Context) {
-	// a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
-	// })
+	podLogPath := fmt.Sprintf(WSPodLogPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
+	router.GET(podLogPath, func(c *gin.Context) {
+		a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
+	})
 
 	zkeLogPath := fmt.Sprintf(zke.WSZKELogPathTemp, ":cluster") + "/*actions"
 	router.GET(zkeLogPath, func(c *gin.Context) {

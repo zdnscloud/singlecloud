@@ -32,8 +32,8 @@ func (m *PodNetworkManager) List(ctx *resource.Context) interface{} {
 }
 
 func getPodNetworks(cluster string, agent *clusteragent.AgentManager) ([]*types.PodNetwork, error) {
-	url := "/apis/agent.zcloud.cn/v1/podnetworks"
 	podNetworks := make([]*types.PodNetwork, 0)
+	url := "/apis/agent.zcloud.cn/v1/podnetworks"
 	res := make([]types.PodNetwork, 0)
 	if err := agent.ListResource(cluster, url, &res); err != nil {
 		return podNetworks, err

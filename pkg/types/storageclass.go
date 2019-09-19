@@ -4,11 +4,11 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
-type Namespace struct {
+type StorageClass struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string `json:"name,omitempty"`
+	Name                  string `json:"name"`
 }
 
-func (n Namespace) GetParents() []resource.ResourceKind {
+func (s StorageClass) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
 }
