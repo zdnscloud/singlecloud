@@ -56,7 +56,7 @@ type Cluster struct {
 	PodUsedRatio    string `json:"podUsedRatio"`
 
 	SSHUser             string   `json:"sshUser" rest:"required=true,minLen=1,maxLen=128"`
-	SSHKey              string   `json:"sshKey" rest:"minLen=1,maxLen=51200"`
+	SSHKey              string   `json:"sshKey"`
 	SSHPort             string   `json:"sshPort"`
 	DockerSocket        string   `json:"dockerSocket,omitempty"`
 	KubernetesVersion   string   `json:"kubernetesVersion,omitempty"`
