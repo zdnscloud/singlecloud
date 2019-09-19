@@ -1,10 +1,10 @@
 package clusteragent
 
 import (
-	// "encoding/json"
+	"encoding/json"
+	"errors"
 	"github.com/zdnscloud/goproxy"
-	// resttypes "github.com/zdnscloud/gorest/resource"
-	// "io/ioutil"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -46,20 +46,30 @@ func (m *AgentManager) ProxyRequest(cluster string, req *http.Request) (*http.Re
 	return resp, err
 }
 
-/*
-func (m *AgentManager) GetData(cluster, url string) (interface{}, error) {
+func (m *AgentManager) ListResource(cluster, url string, resources interface{}) error {
 	req, err := http.NewRequest("GET", ClusterAgentServiceHost+url, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	resp, err := m.ProxyRequest(cluster, req)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer resp.Body.Close()
-	var info resttypes.Collection
 	body, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	var info OldCollection
+	info.Data = resources
 	json.Unmarshal(body, &info)
-	return info.Data, nil
+	if info.Type != "collection" {
+		return errors.New("url wrong, must resource collection")
+	}
+	return nil
 }
-*/
+
+type OldCollection struct {
+	Type         string            `json:"type,omitempty"`
+	ResourceType string            `json:"resourceType,omitempty"`
+	Links        map[string]string `json:"links,omitempty"`
+	Data         interface{}       `json:"data"`
+}
