@@ -1,3 +1,3 @@
 {
-    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1/namespaces/sc-test-namespace1/statefulsets/sc-test-statefulset1/pods"
+    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/%s/namespaces/sc-test-namespace1/statefulsets/sc-test-statefulset1/pods"
 }

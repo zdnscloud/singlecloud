@@ -1,8 +1,6 @@
 {
-    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters",
-    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/sc-test-cluster1", 
+    "importUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/%s?action=import",
 
-    "params": {
-        "name": "sc-test-cluster1"
-    }
+    "collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters",
+    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/%s"
 }
