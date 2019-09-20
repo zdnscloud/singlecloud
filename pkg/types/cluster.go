@@ -19,6 +19,8 @@ const (
 
 	CSCancelAction        = "cancel"
 	CSGetKubeConfigAction = "getkubeconfig"
+
+	ScVersionImported = "imported"
 )
 
 func SetClusterSchema(schema *types.Schema, handler types.Handler) {
@@ -43,6 +45,7 @@ type Cluster struct {
 	Status             ClusterStatus     `json:"status"`
 	NodesCount         int               `json:"nodeCount"`
 	Version            string            `json:"version"`
+	ScVersion          string            `json:"zcloudVersion"`
 
 	Cpu             int64  `json:"cpu"`
 	CpuUsed         int64  `json:"cpuUsed"`

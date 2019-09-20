@@ -8,7 +8,8 @@
         "replicas": {"type": "int"},
         "containers": {"type": "array", "elemType": "container"},
         "advancedOptions": {"type": "advancedOptions"},
-        "persistentVolumes": {"type": "array", "elemType": "persistentVolume"}
+        "persistentVolumes": {"type": "array", "elemType": "persistentVolume"},
+        "status": {"type": "deploymentStatus"}
     },
 
     "subResources": {
@@ -54,6 +55,26 @@
             "name": {"type": "string"},
             "size": {"type": "string"},
             "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
+        },
+
+        "deploymentStatus": {
+              "observedGeneration": {"type": "int"},
+              "replicas": {"type": "int"},
+              "readyReplicas": {"type": "int"},
+              "updatedReplicas": {"type": "int"},
+              "availableReplicas": {"type": "int"},
+              "unavailableReplicas": {"type": "int"},
+              "collisionCount": {"type": "int"},
+              "conditions": {"type": "array": "elemType": "deploymentCondition"}
+        },
+
+        "deploymentCondition":{
+            "type": {"type": "string"},
+            "status": {"type": "enum", "validValues": ["True", "False", "Unknown"]},
+            "lastTransitionTime": {"type": "date"},
+            "lastUpdateTime": {"type": "date"},
+            "reason": {"type": "string"},
+            "message": {"type": "string"}
         }
     },
 
@@ -111,7 +132,7 @@
             "persistentVolume": {
                 "name": {"type": "string"},
                 "size": {"type": "string"},
-                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "temporary", "cephfs"]}
             }
         }
     },

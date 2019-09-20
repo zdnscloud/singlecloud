@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	StorageClassNameLVM  = "lvm"
-	StorageClassNameCeph = "cephfs"
-	StorageClassNameTemp = "temporary"
+	StorageClassNameLVM    = "lvm"
+	StorageClassNameCephfs = "cephfs"
+	StorageClassNameTemp   = "temporary"
 )
 
 func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
@@ -35,6 +35,7 @@ type StatefulSet struct {
 	Containers         []Container                `json:"containers"`
 	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
 	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status             WorkloadStatus             `json:"status,omitempty"`
 }
 
 type PersistentVolumeTemplate struct {

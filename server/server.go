@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
+	"github.com/zsais/go-gin-prometheus"
 )
 
 type Server struct {
@@ -21,6 +22,10 @@ func NewServer(middlewares ...gin.HandlerFunc) (*Server, error) {
 	router.NoRoute(func(c *gin.Context) {
 		c.File("/www/index.html")
 	})
+
+	p := ginprometheus.NewPrometheus("gin")
+	p.Use(router)
+
 	return &Server{
 		router: router,
 	}, nil
