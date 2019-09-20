@@ -1,3 +1,16 @@
 {
-	"resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/%s/namespaces/sc-test-namespace1/ingresses/sc-test-deployment1"
+	"collectionUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/%s/namespaces/sc-test-namespace1/ingresses",
+	"resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/%s/namespaces/sc-test-namespace1/ingresses/sc-test-ing1",
+
+    "params": {
+        "name": "sc-test-ing1",
+        "rules": [
+            {
+                "host": "sc.test.ing",
+                "path": "/",
+                "serviceName": "sc-test-deployment1",
+                "servicePort": 44444
+            }
+        ]
+    }
 }

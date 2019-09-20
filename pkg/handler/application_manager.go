@@ -87,16 +87,16 @@ func (m *ApplicationManager) eventLoop() {
 	}
 }
 
-func (m *ApplicationManager) addChartsConfig(charts []interface{}) error {
-	for _, chart := range charts {
-		typ := reflect.TypeOf(chart)
+func (m *ApplicationManager) addChartsConfig(chartsConfig []interface{}) error {
+	for _, config := range chartsConfig {
+		typ := reflect.TypeOf(config)
 		fields, err := resourcefield.New(typ)
 		if err != nil {
 			return err
 		}
 
 		m.chartConfigs[strings.ToLower(typ.Name())] = chartConfig{
-			structVal: reflect.ValueOf(chart),
+			structVal: reflect.ValueOf(config),
 			fields:    fields,
 		}
 	}
@@ -166,6 +166,31 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	return apps
 }
 
+func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil
+	}
+
+	namespace := ctx.Resource.GetParent().GetID()
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
+	if err != nil {
+		log.Warnf("get applications failed %s", err.Error())
+		return nil
+	}
+
+	app, err := getApplicationFromDB(tx, getCurrentUser(ctx), ctx.Resource.GetID())
+	tx.Commit()
+	if err != nil {
+		log.Warnf("get applications failed %s", err.Error())
+		return nil
+	}
+
+	app.Configs = nil
+	app.Manifests = nil
+	return app
+}
+
 func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
@@ -217,18 +242,9 @@ func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, sta
 	}
 
 	defer tx.Rollback()
-	value, err := tx.Get(name)
+	app, err := getApplicationFromDB(tx, userName, name)
 	if err != nil {
 		return nil, err
-	}
-
-	var app types.Application
-	if err := json.Unmarshal(value, &app); err != nil {
-		return nil, err
-	}
-
-	if isAdmin(userName) == false && app.SystemChart {
-		return nil, fmt.Errorf("user %s no authority to delete application %s", userName, name)
 	}
 
 	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
@@ -236,7 +252,7 @@ func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, sta
 	}
 
 	app.Status = status
-	value, err = json.Marshal(app)
+	value, err := json.Marshal(app)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +261,7 @@ func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, sta
 		return nil, err
 	}
 
-	return &app, tx.Commit()
+	return app, tx.Commit()
 }
 
 func deleteAppResources(cli client.Client, namespace string, manifests []types.Manifest) error {
@@ -391,6 +407,24 @@ func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, 
 	}
 
 	return appValues, nil
+}
+
+func getApplicationFromDB(tx storage.Transaction, userName, appName string) (*types.Application, error) {
+	value, err := tx.Get(appName)
+	if err != nil {
+		return nil, err
+	}
+
+	var app types.Application
+	if err := json.Unmarshal(value, &app); err != nil {
+		return nil, err
+	}
+
+	if isAdmin(userName) == false && app.SystemChart {
+		return nil, fmt.Errorf("user %s no authority to delete application %s", userName, appName)
+	}
+
+	return &app, nil
 }
 
 func loadChartFiles(namespace, chartPath, appName string, configs map[string]interface{}, caps *chartutil.Capabilities) ([]types.Manifest, error) {
