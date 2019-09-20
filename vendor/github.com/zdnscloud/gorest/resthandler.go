@@ -120,6 +120,7 @@ func handleList(ctx *resource.Context) *goresterr.APIError {
 			if err := schema.AddLinksToResource(r, httpSchemeAndHost); err != nil {
 				return goresterr.NewAPIError(goresterr.ServerError, fmt.Sprintf("generate links failed:%s", err.Error()))
 			}
+			r.SetType(ctx.Resource.GetType())
 		}
 		result = r
 	}
