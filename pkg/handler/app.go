@@ -89,7 +89,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.User{}, userManager)
 	server := gorest.NewAPIServer(schemas)
 	server.Use(a.clusterManager.authorizationHandler())
-	adaptor.RegisterHandler(router, gorest.NewAPIServer(schemas), schemas.GenerateResourceRoute())
+	adaptor.RegisterHandler(router, server, schemas.GenerateResourceRoute())
 	return nil
 }
 
