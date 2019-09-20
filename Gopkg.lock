@@ -562,7 +562,7 @@
   revision = "7eb205536ab847a023df949a9d333c0f41bfd9f3"
 
 [[projects]]
-  branch = "storage-predigest"
+  branch = "master"
   digest = "1:1791e116ec36832f6701351125a55db0d9f9d05b1f6774acfd1ee69a35a84bfd"
   name = "github.com/zdnscloud/cluster-agent"
   packages = [
@@ -570,7 +570,7 @@
     "nodeagent",
   ]
   pruneopts = "UT"
-  revision = "f4bf0b124e40a7040af4657aabba1f53d2b52e48"
+  revision = "01d4300c52cd10056165dd102ffb598b95788ff2"
 
 [[projects]]
   branch = "master"
@@ -631,12 +631,12 @@
   revision = "b515ac7fed0e4002895a90be54b0a9c68f5ee78b"
 
 [[projects]]
-  branch = "add-finalizer"
+  branch = "master"
   digest = "1:4eebad89a7f61caf5d2ef2b53d53092e33fd17f155d6c12dac81f7ffd0ee32a4"
   name = "github.com/zdnscloud/immense"
   packages = ["pkg/apis/zcloud/v1"]
   pruneopts = "UT"
-  revision = "5df64e4b03d632baa72d99bef4ad23f7e7c2004b"
+  revision = "4d3b6a7f75c61f97e69c9883d975acba71b48f71"
 
 [[projects]]
   branch = "master"
@@ -673,7 +673,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d07079a47e3f27149cf65c2b4c9a432f605ac4f2c2e040d31bf6375777c9ffc5"
+  digest = "1:de05fa2eba4499828a5bfc4ce2a2d804fe440b9681e712fc1437c837c2ba49fe"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -703,7 +703,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "ee296128b1137a9c9d1cbc9ca899da51be060aea"
+  revision = "a53b1b6b1df62c8836cbf3c20e0bb2ff13741f4f"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"

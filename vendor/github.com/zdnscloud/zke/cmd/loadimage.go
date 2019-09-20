@@ -18,10 +18,9 @@ import (
 
 func LoadImageCommand() cli.Command {
 	loadImageFlags := []cli.Flag{
-		cli.StringFlag{
+		cli.StringSliceFlag{
 			Name:  "input-file",
-			Usage: "Specify the images tar file",
-			Value: "zcloud-images.tar",
+			Usage: "Specify the images tar file, example: --input-file zcloud_images.tar --input-file zke_images.tar",
 		},
 	}
 	return cli.Command{
@@ -33,7 +32,7 @@ func LoadImageCommand() cli.Command {
 }
 
 func loadImageFromCli(cliCtx *cli.Context) error {
-	imageFilePath := cliCtx.String("input-file")
+	imageFilePaths := cliCtx.StringSlice("input-file")
 
 	parentCtx := context.Background()
 	logger := cementlog.NewLog4jConsoleLogger(log.LogLevel)
@@ -53,10 +52,10 @@ func loadImageFromCli(cliCtx *cli.Context) error {
 		return fmt.Errorf("Failed to parse cluster file: %v", err)
 	}
 
-	return LoadImage(ctx, zkeConfig, imageFilePath)
+	return LoadImage(ctx, zkeConfig, imageFilePaths)
 }
 
-func LoadImage(ctx context.Context, zkeConfig *types.ZKEConfig, imageFilePath string) error {
+func LoadImage(ctx context.Context, zkeConfig *types.ZKEConfig, imageFilePaths []string) error {
 	kubeCluster, err := core.InitClusterObject(ctx, zkeConfig)
 	if err != nil {
 		return err
@@ -68,14 +67,20 @@ func LoadImage(ctx context.Context, zkeConfig *types.ZKEConfig, imageFilePath st
 	if err != nil {
 		return err
 	}
-	log.Infof(ctx, "Starting load images")
 
-	allHosts := hosts.GetUniqueHostList(kubeCluster.ControlPlaneHosts, kubeCluster.EtcdHosts, kubeCluster.WorkerHosts, kubeCluster.EdgeHosts)
+	for _, imageFilePath := range imageFilePaths {
+		log.Infof(ctx, "Starting load [%s]", imageFilePath)
 
-	_, err = errgroup.Batch(allHosts, func(h interface{}) (interface{}, error) {
-		runHost := h.(*hosts.Host)
-		return nil, docker.LoadImage(ctx, runHost.DClient, runHost.Address, imageFilePath)
-	})
+		allHosts := hosts.GetUniqueHostList(kubeCluster.ControlPlaneHosts, kubeCluster.EtcdHosts, kubeCluster.WorkerHosts, kubeCluster.EdgeHosts)
 
-	return err
+		_, err = errgroup.Batch(allHosts, func(h interface{}) (interface{}, error) {
+			runHost := h.(*hosts.Host)
+			return nil, docker.LoadImage(ctx, runHost.DClient, runHost.Address, imageFilePath)
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
