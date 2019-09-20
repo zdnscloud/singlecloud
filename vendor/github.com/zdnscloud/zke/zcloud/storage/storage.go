@@ -20,7 +20,7 @@ spec:
         spec:
           properties:
             storageType:
-              pattern: ^(lvm|ceph)$
+              pattern: ^(lvm|cephfs)$
               type: string
             hosts:
               type: array
@@ -68,6 +68,9 @@ rules:
     resources: ["persistentvolumes", "persistentvolumeclaims"]
     verbs: ["get" ,"list" ,"watch" ,"update", "create", "delete"]
   - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["patch"]
+  - apiGroups: [""]
     resources: ["services"]
     verbs: ["create", "delete", "get"]
   - apiGroups: [""]
@@ -77,14 +80,20 @@ rules:
     resources: ["podsecuritypolicies", "privileged"]
     verbs: ["use"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses", "volumeattachments"]
+    resources: ["storageclasses", "volumeattachments", "csinodes"]
     verbs: ["get", "list", "watch", "create", "update", "delete"]
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "update", "watch"]
   - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["patch", "get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["patch", "get", "list", "watch", "update"]
+  - apiGroups: [""]
     resources: ["pods"]
-    verbs: ["watch", "list"]
+    verbs: ["watch", "list", "get"]
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list", "create", "delete"]

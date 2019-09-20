@@ -132,7 +132,7 @@
             "persistentVolume": {
                 "name": {"type": "string"},
                 "size": {"type": "string"},
-                "storageClassName": {"type": "enum", "validValues": ["lvm", "nfs", "temporary", "cephfs"]}
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "temporary", "cephfs"]}
             }
         }
     },

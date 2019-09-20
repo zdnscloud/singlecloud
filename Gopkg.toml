@@ -57,6 +57,10 @@
   name = "github.com/zdnscloud/immense"
   branch = "master"
 
+[[constraint]]
+  name = "github.com/zdnscloud/cluster-agent"
+  branch = "master"
+
 [[override]]
  branch = "release-1.13"
  name = "k8s.io/metrics"
