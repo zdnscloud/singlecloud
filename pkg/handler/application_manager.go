@@ -108,7 +108,6 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 		return nil
 	}
 
-	isAdminUser := isAdmin(getCurrentUser(ctx))
 	namespace := ctx.Object.GetParent().GetID()
 	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
 	if err != nil {
@@ -128,7 +127,7 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 			return nil
 		}
 
-		if isAdminUser == false && app.SystemChart {
+		if app.SystemChart {
 			continue
 		}
 
@@ -361,6 +360,51 @@ func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, 
 	}
 
 	return appValues, nil
+}
+
+func getApplicationsFromDBByChartName(db storage.DB, tableName, chartName string) ([]*types.Application, error) {
+	apps := []*types.Application{}
+
+	appValues, err := getApplicationsFromDB(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, appValue := range appValues {
+		app := &types.Application{}
+		if err := json.Unmarshal(appValue, app); err != nil {
+			continue
+		}
+		if app.ChartName == chartName {
+			apps = append(apps, app)
+		}
+	}
+
+	return apps, nil
+}
+
+func getApplicationFromDB(db storage.DB, tableName, appName string) (*types.Application, error) {
+	tx, err := BeginTableTransaction(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback()
+	appValue, err := tx.Get(appName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	app := types.Application{}
+	if err := json.Unmarshal(appValue, &app); err != nil {
+		return nil, fmt.Errorf("Unmarshal application %s failed %s", appName, err.Error())
+	}
+
+	return &app, nil
 }
 
 func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *types.Application, caps *chartutil.Capabilities) ([]types.Manifest, error) {

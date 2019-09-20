@@ -3,13 +3,13 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"math/rand"
 	"strconv"
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
@@ -19,111 +19,151 @@ import (
 )
 
 const (
-	monitorNameSpace         = "zcloud"
-	monitorAppName           = "zcloud-monitor"
-	monitorChartName         = "prometheus"
-	monitorChartVersion      = "6.4.1"
-	monitorTableName         = "monitor"
-	zcloudDynamicalDnsPrefix = "zc.zdns.cn"
-	monitorAppStorageClass   = "lvm"
-	monitorAppStorageSize    = "10Gi"
-	monitorAdminPassword     = "zcloud"
+	monitorAppNamePrefix = "monitor"
+	monitorChartName     = "prometheus"
+	monitorChartVersion  = "6.4.1"
+	monitorStorageClass  = "lvm"
+	monitorStorageSize   = "10Gi"
+	monitorAdminPassword = "zcloud"
+
+	ZcloudDynamicaDomainPrefix  = "zc.zdns.cn"
+	sysApplicationCheckInterval = time.Second * 5
+	sysApplicationCheckTimes    = 30
 )
 
 type MonitorManager struct {
 	api.DefaultHandler
-	clusters       *ClusterManager
-	apps           *ApplicationManager
-	clusterEventCh <-chan interface{}
+	clusters *ClusterManager
+	apps     *ApplicationManager
 }
 
 func newMonitorManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *MonitorManager {
-	mgr := &MonitorManager{
-		clusters:       clusterMgr,
-		apps:           appMgr,
-		clusterEventCh: clusterMgr.GetEventBus().Sub(eventbus.ClusterEvent),
+	return &MonitorManager{
+		clusters: clusterMgr,
+		apps:     appMgr,
 	}
-	go mgr.eventLoop()
-	return mgr
 }
 
 func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can enable cluster monitor")
 	}
+
 	monitor := ctx.Object.(*types.Monitor)
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+
 	if cluster == nil {
 		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
-	if existMonitor, _ := m.getFromDB(cluster.Name); existMonitor != nil {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, "cluster monitor has exist")
+
+	existApps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
+
+	if err != nil {
+		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("get monitor application from db failed %s", err.Error()))
+	}
+	if len(existApps) > 0 {
+		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
 	}
 
-	if !isStorageClassExist(cluster.KubeClient, monitorAppStorageClass) {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", monitorAppStorageClass, cluster.Name))
+	// check the storage class exist
+	requiredStorageClass := monitorStorageClass
+	if len(monitor.StorageClass) > 0 {
+		requiredStorageClass = monitor.StorageClass
+	}
+	if !isStorageClassExist(cluster.KubeClient, requiredStorageClass) {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
 	}
 
 	app, err := genMonitorApplication(cluster.KubeClient, monitor, cluster.Name)
 	if err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
 	}
+
+	// check duplicate application resource, if exist, gen a new name for monitor app
+	for {
+		duplicateApp, _ := getApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
+		if duplicateApp != nil {
+			app.Name = monitorAppNamePrefix + "-" + genRandomStr(12)
+		} else {
+			break
+		}
+	}
+
 	app.SetID(app.Name)
-	if err := m.apps.create(ctx, cluster, monitorNameSpace, app); err != nil {
+
+	if err := m.apps.create(ctx, cluster, ZCloudNamespace, app); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
 	}
-	monitor.SetID(app.Name)
+
+	// make sure the monitor application is succeed, if it failed will delete this monitor application
+	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
+
+	monitor.Status = types.AppStatusCreate
+	monitor.SetID(monitorAppNamePrefix)
 	monitor.SetCreationTimestamp(time.Now())
-	if err := m.addToDB(cluster.Name, monitor); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("add monitor to db failed %s", err.Error()))
-	}
 	return monitor, nil
 }
 
 func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
+	monitor := m.get(ctx)
+	if monitor == nil {
+		return nil
+	} else {
+		return []*types.Monitor{monitor.(*types.Monitor)}
+	}
+}
+
+func (m *MonitorManager) Get(ctx *resttypes.Context) interface{} {
+	id := ctx.Object.GetID()
+	if id != monitorAppNamePrefix {
+		return nil
+	}
+	return m.get(ctx)
+}
+
+func (m *MonitorManager) get(ctx *resttypes.Context) interface{} {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return nil
 	}
-	monitors := []*types.Monitor{}
-	monitor, err := m.getFromDB(cluster.Name)
-	if err != nil {
-		return monitors
+
+	apps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
+	if err != nil || len(apps) == 0 {
+		return nil
 	}
-	monitors = append(monitors, monitor)
-	return monitors
+
+	monitor, err := genMonitorFromApp(ctx, cluster.Name, apps[0])
+	if err != nil {
+		return nil
+	}
+
+	return monitor
 }
 
 func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	if isAdmin(getCurrentUser(ctx)) == false {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can disable cluster monitor")
-	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
 	if cluster == nil {
 		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
 	}
 
-	if existMonitor, _ := m.getFromDB(cluster.Name); existMonitor == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
+	apps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
+	if err != nil || len(apps) == 0 {
+		return resttypes.NewAPIError(resttypes.NotFound, "monitor doesn't exist")
 	}
+	appName := apps[0].Name
 
-	appTableName := storage.GenTableName(ApplicationTable, cluster.Name, monitorNameSpace)
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), appTableName, monitorAppName, types.AppStatusDelete)
+	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
-			if err := m.deleteFromDB(cluster.Name); err != nil {
-				return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
-			}
-			return nil
+			return resttypes.NewAPIError(resttypes.NotFound,
+				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, ZCloudNamespace))
 		} else {
-			return resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("delete cluster %s monitor application %s failed: %s", cluster.Name, monitorAppName, err.Error()))
+			return resttypes.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
 		}
 	}
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, appTableName, monitorNameSpace, app)
 
-	if err := m.deleteFromDB(cluster.Name); err != nil {
-		return resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("delete cluster monitor from db failed: %s", err.Error()))
-	}
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), ZCloudNamespace, app)
 	return nil
 }
 
@@ -133,7 +173,7 @@ func genMonitorApplication(cli client.Client, m *types.Monitor, clusterName stri
 		return nil, err
 	}
 	return &types.Application{
-		Name:         monitorAppName,
+		Name:         monitorAppNamePrefix + "-" + genRandomStr(12),
 		ChartName:    monitorChartName,
 		ChartVersion: monitorChartVersion,
 		Configs:      config,
@@ -147,7 +187,7 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) 
 		if len(firstEdgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		m.IngressDomain = monitorAppName + "-" + monitorNameSpace + "-svc-" + clusterName + "." + firstEdgeNodeIP + "." + zcloudDynamicalDnsPrefix
+		m.IngressDomain = monitorAppNamePrefix + "-" + ZCloudNamespace + "-" + clusterName + "." + firstEdgeNodeIP + "." + ZcloudDynamicaDomainPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
 
@@ -160,13 +200,13 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) 
 		},
 		Prometheus: charts.PrometheusPrometheus{
 			PrometheusSpec: charts.PrometheusSpec{
-				StorageClass: monitorAppStorageClass,
-				StorageSize:  monitorAppStorageSize,
+				StorageClass: monitorStorageClass,
+				StorageSize:  monitorStorageSize,
 			},
 		},
 		AlertManager: charts.PrometheusAlertManager{
 			AlertManagerSpec: charts.AlertManagerSpec{
-				StorageClass: monitorAppStorageClass,
+				StorageClass: monitorStorageClass,
 			},
 		},
 		KubeEtcd: charts.PrometheusEtcd{
@@ -204,54 +244,6 @@ func genMonitorConfigs(cli client.Client, m *types.Monitor, clusterName string) 
 	return content, nil
 }
 
-func (m *MonitorManager) addToDB(clusterName string, monitor *types.Monitor) error {
-	value, err := json.Marshal(monitor)
-	if err != nil {
-		return fmt.Errorf("marshal monitor %s failed: %s", monitorAppName, err.Error())
-	}
-
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(monitorTableName))
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := tx.Add(clusterName, value); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-func (m *MonitorManager) getFromDB(clusterName string) (*types.Monitor, error) {
-	monitor := &types.Monitor{}
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(monitorTableName))
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Commit()
-
-	value, err := tx.Get(clusterName)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(value, monitor)
-	return monitor, err
-}
-
-func (m *MonitorManager) deleteFromDB(clusterName string) error {
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(monitorTableName))
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := tx.Delete(clusterName); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
 func getFirstEdgeNodeAddress(cli client.Client) string {
 	nodes, err := getNodes(cli)
 	if err != nil {
@@ -279,17 +271,56 @@ func getClusterEtcds(cli client.Client) []string {
 	return etcds
 }
 
-func (m *MonitorManager) eventLoop() {
-	for {
-		event := <-m.clusterEventCh
-		switch e := event.(type) {
-		case zke.DeleteCluster:
-			monitor, _ := m.getFromDB(e.Cluster.Name)
-			if monitor != nil {
-				if err := m.deleteFromDB(e.Cluster.Name); err != nil {
-					log.Warnf("delete cluster %s monitor failed: %s", e.Cluster.Name, err.Error())
-				}
+func genMonitorFromApp(ctx *resttypes.Context, cluster string, app *types.Application) (*types.Monitor, error) {
+	p := charts.Prometheus{}
+	if err := json.Unmarshal(app.Configs, &p); err != nil {
+		return nil, err
+	}
+	m := types.Monitor{
+		IngressDomain: p.Grafana.Ingress.Hosts,
+		StorageClass:  p.Prometheus.PrometheusSpec.StorageClass,
+		RedirectUrl:   "http://" + p.Grafana.Ingress.Hosts,
+		Status:        app.Status,
+	}
+	m.SetID(monitorAppNamePrefix)
+	m.CreationTimestamp = app.CreationTimestamp
+	return &m, nil
+}
+
+func genRandomStr(length int) string {
+	str := "0123456789abcdefghijklmnopqrstuvwxyz"
+	bytes := []byte(str)
+	result := []byte{}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < length; i++ {
+		result = append(result, bytes[r.Intn(len(bytes))])
+	}
+	return string(result)
+}
+
+func ensureApplicationSucceedOrDie(ctx *resttypes.Context, db storage.DB, cluster *zke.Cluster, tableName, appName string) {
+	for i := 0; i < sysApplicationCheckTimes; i++ {
+		sysApp, err := getApplicationFromDB(db, tableName, appName)
+		if err != nil {
+			if err == storage.ErrNotFoundResource {
+				log.Infof("delete system application %s succeed", appName)
+				return
+			} else {
+				log.Warnf("get system application %s failed %s", appName, err.Error())
 			}
 		}
+		switch sysApp.Status {
+		case types.AppStatusFailed:
+			app, err := updateApplicationStatusFromDB(db, getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
+			if err != nil {
+				log.Warnf("delete system application %s failed %s", appName, err.Error())
+				return
+			}
+			go deleteApplication(db, cluster.KubeClient, tableName, ZCloudNamespace, app)
+		case types.AppStatusSucceed:
+			log.Infof("create system application %s succeed", appName)
+			return
+		}
+		time.Sleep(sysApplicationCheckInterval)
 	}
 }

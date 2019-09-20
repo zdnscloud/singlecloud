@@ -72,11 +72,35 @@ type Deployment struct {
 	Containers         []Container                `json:"containers"`
 	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
 	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status             WorkloadStatus             `json:"status,omitempty"`
 }
 
 type ExposedMetric struct {
 	Path string `json:"path"`
 	Port int    `json:"port"`
+}
+
+type WorkloadStatus struct {
+	ObservedGeneration  int                 `json:"observedGeneration,omitempty"`
+	Replicas            int                 `json:"replicas,omitempty"`
+	ReadyReplicas       int                 `json:"readyReplicas,omitempty"`
+	UpdatedReplicas     int                 `json:"updatedReplicas,omitempty"`
+	AvailableReplicas   int                 `json:"availableReplicas,omitempty"`
+	UnavailableReplicas int                 `json:"unavailableReplicas,omitempty"`
+	CurrentReplicas     int                 `json:"currentReplicas,omitempty"`
+	CurrentRevision     string              `json:"currentRevision,omitempty"`
+	UpdateRevision      string              `json:"updateRevision,omitempty"`
+	CollisionCount      int                 `json:"collisionCount,omitempty"`
+	Conditions          []WorkloadCondition `json:"conditions,omitempty"`
+}
+
+type WorkloadCondition struct {
+	Type               string            `json:"type,omitempty"`
+	Status             string            `json:"status,omitempty"`
+	LastTransitionTime resttypes.ISOTime `json:"lastTransitionTime,omitempty"`
+	LastUpdateTime     resttypes.ISOTime `json:"lastUpdateTime,omitempty"`
+	Reason             string            `json:"reason,omitempty"`
+	Message            string            `json:"message,omitempty"`
 }
 
 var DeploymentType = resttypes.GetResourceType(Deployment{})
