@@ -254,28 +254,30 @@ func TestDeployment(t *testing.T) {
 	}
 }
 
-func testService(t *testing.T) {
+func TestService(t *testing.T) {
 	serviceResource, err := loadTestResource("service.json")
 	ut.Equal(t, err, nil)
 	var service types.Service
-	err = sendRequest("GET", serviceResource.ResourceUrl, nil, &service)
+	err = testOperatorResource(serviceResource, &service)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, service.Name, "sc-test-deployment1")
 	ut.Equal(t, service.ServiceType, "clusterip")
 	ut.Equal(t, service.ExposedPorts[0].Name, "sc-test-port1")
-	ut.Equal(t, service.ExposedPorts[0].Port, 22222)
+	ut.Equal(t, service.ExposedPorts[0].Port, 44444)
+	ut.Equal(t, service.ExposedPorts[0].TargetPort, 22222)
 	ut.Equal(t, service.ExposedPorts[0].Protocol, "tcp")
 }
 
-func testIngress(t *testing.T) {
+func TestIngress(t *testing.T) {
 	ingressResource, err := loadTestResource("ingress.json")
 	ut.Equal(t, err, nil)
 	var ingress types.Ingress
-	err = sendRequest("GET", ingressResource.ResourceUrl, nil, &ingress)
+	err = testOperatorResource(ingressResource, &ingress)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, ingress.Rules[0].Host, "")
+	ut.Equal(t, ingress.Name, "sc-test-ing1")
+	ut.Equal(t, ingress.Rules[0].Host, "sc.test.ing")
 	ut.Equal(t, ingress.Rules[0].Path, "/")
-	ut.Equal(t, ingress.Rules[0].ServicePort, 22222)
+	ut.Equal(t, ingress.Rules[0].ServicePort, 44444)
 	ut.Equal(t, ingress.Rules[0].ServiceName, "sc-test-deployment1")
 }
 
