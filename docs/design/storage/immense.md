@@ -11,8 +11,8 @@ k8s1.7+开始允许用户注册一个自定义资源到集群中，可以通过A
 ## LVM
 	本地存储
 >   局限性：使用本地存储的pod调度是由pv决定的
-## Ceph
-	网络存储。这里单指cephfs
+## Cephfs
+	网络存储
 
   
 
@@ -36,11 +36,14 @@ func New(cli client.Client) *HandlerManager {
     监听VolumeAttachment是为了给资源对象增加/删除Finalizer属性
     
     监听Cluster，调用common完成块设备信息补充，再交由相应类型存储完成
+    
+    监听Endpoints是针对cephfs需要根据mon的地址更新configmap交给csi使用
 pkg/controller/controller.go 
 ```
 ctrl := controller.New("zcloudStorage", c, scm)
 ctrl.Watch(&storagev1.Cluster{})
 ctrl.Watch(&k8sstorage.VolumeAttachment{})
+ctrl.Watch(&corev1.Endpoints{})
 ctrl.Start(stopCh, storageCtrl, predicate.NewIgnoreUnchangedUpdate())
 ```
 
@@ -49,21 +52,21 @@ pkg/controller/controller.go
 
 对于新增节点，通过k8s服务cluster-agent获取
 ```
-func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (storagev1.Cluster, error) {
+func AssembleCreateConfig(cli client.Client, cluster *storagev1.Cluster) (*storagev1.Cluster, error) {
   devstmp, err := GetBlocksFromClusterAgent(cli, h)
 	if err := UpdateStorageclusterConfig(cli, cluster.Name, "add", infos); err != nil {}
 }
 ```
 对于删除节点，通过k8s对象的Status.Config字段获取
 ```
-func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (storagev1.Cluster, error) {
+func AssembleDeleteConfig(cli client.Client, cluster *storagev1.Cluster) (*storagev1.Cluster, error) {
 	storagecluster, err := GetStorage(cli, cluster.Name)
 	if err := UpdateStorageclusterConfig(cli, cluster.Name, "del", infos); err != nil {}
 }
 ```
 对于更新操作，先对比出新增和删除节点，然后分别调用上面俩个函数
 ```
-func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (storagev1.Cluster, storagev1.Cluster, error) {
+func AssembleUpdateConfig(cli client.Client, oldc, newc *storagev1.Cluster) (*storagev1.Cluster, *storagev1.Cluster, error) {
 	del, add := HostsDiff(oldc.Spec.Hosts, newc.Spec.Hosts)
 	dels, err := AssembleDeleteConfig(cli, delc)
 	adds, err := AssembleCreateConfig(cli, addc)
@@ -94,7 +97,8 @@ lvm/
     >
     >  注：如果创建Volume Group之前不存在，则直接vgcreate。如果已经存在，则进行vgextend
   4. 部署CSI并等待其全部运行
-  5. gorouting循环检查lvm的运行及磁盘空间并更新cluster状态（频率60秒）   
+  5. 部署storageclass
+  6. gorouting循环检查lvm的运行及磁盘空间并更新cluster状态（频率60秒）   
   
 - 更新  
   1. 对比更新前后的配置，确定删除的主机、增加的主机
@@ -105,13 +109,16 @@ lvm/
   > 如果有Pod正在使用这个Volume Group，则Volume Group的操作将会失败
      
 - 删除  
-  1. 删除CSI
-  2. 格式化磁盘
-  3. 删除Lvmd
-  4. 删除节点的labels
+  1. 删除storageclass
+  2. 删除CSI
+  3. 格式化磁盘
+  4. 删除Lvmd
+  5. 删除节点的labels
   
   
 ### ceph说明
+[ceph简介](https://github.com/zdnscloud/immense/blob/master/docs/ceph.md)
+
 目录结构
 ```
 ├── ceph
@@ -138,10 +145,11 @@ lvm/
      2. 随机生成adminkey, monkey，并根据crd的uuid作为ceph的集群id
      3. 根据磁盘个数设置副本数（默认为2）
      4. 根据前面3步的配置
-        1. 创建configmap保存ceph集群配置文件，用于后面启动ceph组件挂载使用
-        2. 创建无头服务，用于后面ceph组件连接mon
-        3. 创建secret，保存账户和密钥，用于后面storageclass使用
-	4. 创建serviceaccount，用于后面部署ceph组件用
+		1. 创建configmap保存ceph集群配置文件，用于后面启动ceph组件挂载使用
+		2. 创建无头服务，用于后面ceph组件连接mon
+		3. 创建secret，保存账户和密钥，用于后面storageclass使用
+		4. 创建serviceaccount，用于后面部署ceph组件用
+	
      5. 保存ceph集群配置到本地
      6. 启动mon并等待其全部运行
      7. 启动mgr并等待其全部运行
