@@ -99,22 +99,20 @@ func (c *Cluster) GetNodeIpsByRole(role types.NodeRole) []string {
 }
 
 func (c *Cluster) Cancel() error {
-	s := c.getStatus()
-	if s == types.CSCreateing || s == types.CSUpdateing || s == types.CSConnecting {
-		c.fsm.Event(CancelEvent)
-		c.cancel()
-		c.isCanceled = true
-		return nil
-	} else {
-		return fmt.Errorf("cluster %s current status is %s, can not cancel", c.Name, s)
+	if err := c.fsm.Event(CancelEvent); err != nil {
+		return err
 	}
+	c.cancel()
+	c.isCanceled = true
+	return nil
 }
 
 func (c *Cluster) CanDelete() bool {
-	if c.IsReady() || c.getStatus() == types.CSUnavailable {
-		return true
-	}
-	return false
+	return c.fsm.Can(DeleteEvent)
+}
+
+func (c *Cluster) CanUpdate() bool {
+	return c.fsm.Can(UpdateEvent)
 }
 
 func (c *Cluster) getStatus() types.ClusterStatus {

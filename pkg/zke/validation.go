@@ -2,6 +2,7 @@ package zke
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -161,4 +162,39 @@ func isNodeRolesChanage(oldNode, newNode types.Node) bool {
 	}
 
 	return !newRoles.Equal(oldRoles)
+}
+
+func isIPv4(input string) bool {
+	ip := net.ParseIP(input)
+	return ip != nil && ip.To4() != nil
+}
+
+func isCIDRv4(input string) bool {
+	ip, _, err := net.ParseCIDR(input)
+	return err == nil && ip.To4() != nil
+}
+
+func isIPv4Belong(ip, network string) bool {
+	ipv4 := net.ParseIP(ip)
+	if ipv4 == nil || ipv4.To4() == nil {
+		return false
+	}
+
+	_, networkv4, err := net.ParseCIDR(network)
+	return err == nil && networkv4.Contains(ipv4)
+}
+
+func isCIDRConflict(cidr1, cidr2 string) bool {
+	return false
+}
+
+func isIP4Addr(input string) bool {
+	if idx := strings.LastIndex(input, ":"); idx != -1 {
+		input = input[0:idx]
+		port := input[idx]
+	}
+
+	ip := net.ParseIP(input)
+
+	return ip != nil && ip.To4() != nil
 }

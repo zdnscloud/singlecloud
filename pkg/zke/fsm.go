@@ -18,6 +18,7 @@ const (
 	GetInfoSuccessEvent = "getInfoSuccess"
 	CancelEvent         = "cancel"
 	CancelSuccessEvent  = "cancelSuccess"
+	DeleteEvent         = "delete"
 )
 
 func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM {
@@ -35,6 +36,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 			{Name: GetInfoSuccessEvent, Src: []string{string(types.CSUnreachable)}, Dst: string(types.CSRunning)},
 			{Name: CancelEvent, Src: []string{string(types.CSUpdateing), string(types.CSCreateing), string(types.CSConnecting)}, Dst: string(types.CSCanceling)},
 			{Name: CancelSuccessEvent, Src: []string{string(types.CSCanceling)}, Dst: string(types.CSUnavailable)},
+			{Name: DeleteEvent, Src: []string{string(types.CSRunning), string(types.CSUnreachable), string(types.CSUnavailable)}, Dst: string(types.CSDeleted)},
 		},
 		fsm.Callbacks{
 			InitSuccessEvent: func(e *fsm.Event) {
