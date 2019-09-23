@@ -121,7 +121,11 @@ func runTestServer() {
 	}
 
 	agent := clusteragent.New()
-	app := handler.NewApp(authenticator, authorizer, eventBus, agent, db, "")
+	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, db, "", "")
+	if err != nil {
+		panic("init app failed:" + err.Error())
+	}
+
 	if err := server.RegisterHandler(app); err != nil {
 		panic("register resource handler failed:" + err.Error())
 	}
@@ -320,7 +324,7 @@ func TestStatefulSet(t *testing.T) {
 		case types.StorageClassNameLVM:
 			ut.Equal(t, template.Name, "sc-test-lvm-pvc2")
 			ut.Equal(t, template.Size, "200Mi")
-		case types.StorageClassNameCeph:
+		case types.StorageClassNameCephfs:
 		}
 	}
 }
@@ -426,7 +430,7 @@ func testGetStorageClass(t *testing.T) {
 		switch object["name"] {
 		case types.StorageClassNameLVM:
 			existLVM = true
-		case types.StorageClassNameCeph:
+		case types.StorageClassNameCephfs:
 			existCephNFS = true
 		}
 	}
