@@ -33,13 +33,13 @@ func (m *PodNetworkManager) List(ctx *resource.Context) interface{} {
 
 func getPodNetworks(cluster string, agent *clusteragent.AgentManager) ([]*types.PodNetwork, error) {
 	url := "/apis/agent.zcloud.cn/v1/podnetworks"
-	podNetworks := make([]*types.PodNetwork, 0)
 	res := make([]types.PodNetwork, 0)
 	if err := agent.ListResource(cluster, url, &res); err != nil {
-		return podNetworks, err
+		return []*types.PodNetwork{}, err
 	}
-	for _, podNetwork := range res {
-		podNetworks = append(podNetworks, &podNetwork)
+	podNetworks := make([]*types.PodNetwork, len(res))
+	for i := 0; i < len(res); i++ {
+		podNetworks[i] = &res[i]
 	}
 	return podNetworks, nil
 }

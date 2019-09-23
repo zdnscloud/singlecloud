@@ -33,13 +33,13 @@ func (m *NodeNetworkManager) List(ctx *resource.Context) interface{} {
 
 func getNodeNetworks(cluster string, agent *clusteragent.AgentManager) ([]*types.NodeNetwork, error) {
 	url := "/apis/agent.zcloud.cn/v1/nodenetworks"
-	nodeNetworks := make([]*types.NodeNetwork, 0)
 	res := make([]types.NodeNetwork, 0)
 	if err := agent.ListResource(cluster, url, &res); err != nil {
-		return nodeNetworks, err
+		return []*types.NodeNetwork{}, err
 	}
-	for _, nodeNetwork := range res {
-		nodeNetworks = append(nodeNetworks, &nodeNetwork)
+	nodeNetworks := make([]*types.NodeNetwork, len(res))
+	for i := 0; i < len(res); i++ {
+		nodeNetworks[i] = &res[i]
 	}
 	return nodeNetworks, nil
 }
