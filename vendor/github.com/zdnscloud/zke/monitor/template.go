@@ -114,7 +114,7 @@ spec:
       containers:
       - name: metrics-server
         image: {{ .MetricsServerImage }}
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         command:
         - /metrics-server
         {{- if eq .MetricsServerMajorVersion "v0.3" }}

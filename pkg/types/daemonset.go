@@ -14,24 +14,16 @@ type DaemonSet struct {
 }
 
 type DaemonSetStatus struct {
-	CurrentNumberScheduled int32                `json:"currentNumberScheduled,omitempty"`
-	NumberMisscheduled     int32                `json:"numberMisscheduled,omitempty"`
-	DesiredNumberScheduled int32                `json:"desiredNumberScheduled,omitempty"`
-	NumberReady            int32                `json:"numberReady,omitempty"`
-	ObservedGeneration     int64                `json:"observedGeneration,omitempty"`
-	UpdatedNumberScheduled int32                `json:"updatedNumberScheduled,omitempty"`
-	NumberAvailable        int32                `json:"numberAvailable,omitempty"`
-	NumberUnavailable      int32                `json:"numberUnavailable,omitempty"`
-	CollisionCount         int32                `json:"collisionCount,omitempty"`
-	DaemonSetConditions    []DaemonSetCondition `json:"conditions,omitempty"`
-}
-
-type DaemonSetCondition struct {
-	Type               string           `json:"type,omitempty"`
-	Status             string           `json:"status,omitempty"`
-	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty"`
-	Reason             string           `json:"reason,omitempty"`
-	Message            string           `json:"message,omitempty"`
+	CurrentNumberScheduled int                 `json:"currentNumberScheduled,omitempty"`
+	NumberMisscheduled     int                 `json:"numberMisscheduled,omitempty"`
+	DesiredNumberScheduled int                 `json:"desiredNumberScheduled,omitempty"`
+	NumberReady            int                 `json:"numberReady,omitempty"`
+	ObservedGeneration     int                 `json:"observedGeneration,omitempty"`
+	UpdatedNumberScheduled int                 `json:"updatedNumberScheduled,omitempty"`
+	NumberAvailable        int                 `json:"numberAvailable,omitempty"`
+	NumberUnavailable      int                 `json:"numberUnavailable,omitempty"`
+	CollisionCount         int                 `json:"collisionCount,omitempty"`
+	Conditions             []WorkloadCondition `json:"conditions,omitempty"`
 }
 
 func (d DaemonSet) GetParents() []resource.ResourceKind {

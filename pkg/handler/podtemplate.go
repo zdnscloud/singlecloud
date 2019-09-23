@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
+	resttypes "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -200,14 +202,11 @@ func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.V
 				},
 			})
 			continue
-		case types.StorageClassNameLVM:
-			accessModes = append(accessModes, corev1.ReadWriteOnce)
-		case types.StorageClassNameCeph:
-			accessModes = append(accessModes, corev1.ReadWriteMany)
+		case types.StorageClassNameLVM, types.StorageClassNameCephfs:
+			accessModes = append(accessModes, types.StorageAccessModeMap[storageClassName])
 		default:
 			return nil, nil, fmt.Errorf("persistent volumes storageclass %s isn`t supported", storageClassName)
 		}
-
 		if k8sQuantity == nil {
 			return nil, nil, fmt.Errorf("persistentClaimVolumes storage size must not be zero")
 		}
@@ -490,4 +489,57 @@ func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.Expose
 		}
 	}
 	return types.ExposedMetric{}
+}
+
+func k8sWorkloadStatusToScWorkloadStatus(k8sStatus interface{}) types.WorkloadStatus {
+	_, isDeploy := k8sStatus.(*appsv1.DeploymentStatus)
+	structVal := reflect.ValueOf(k8sStatus).Elem()
+	k8sCollisionCount := structVal.FieldByName("CollisionCount").Interface().(*int32)
+	var collisionCount int
+	if k8sCollisionCount != nil {
+		collisionCount = int(*k8sCollisionCount)
+	}
+
+	status := types.WorkloadStatus{
+		ObservedGeneration: int(structVal.FieldByName("ObservedGeneration").Int()),
+		Replicas:           int(structVal.FieldByName("Replicas").Int()),
+		ReadyReplicas:      int(structVal.FieldByName("ReadyReplicas").Int()),
+		UpdatedReplicas:    int(structVal.FieldByName("UpdatedReplicas").Int()),
+		CollisionCount:     collisionCount,
+		Conditions:         k8sWorkloadConditionsToScWorkloadConditions(structVal.FieldByName("Conditions").Interface(), isDeploy),
+	}
+
+	if isDeploy {
+		status.AvailableReplicas = int(structVal.FieldByName("AvailableReplicas").Int())
+		status.UnavailableReplicas = int(structVal.FieldByName("UnavailableReplicas").Int())
+	} else {
+		status.CurrentReplicas = int(structVal.FieldByName("CurrentReplicas").Int())
+		status.CurrentRevision = structVal.FieldByName("CurrentRevision").String()
+		status.UpdateRevision = structVal.FieldByName("UpdateRevision").String()
+	}
+
+	return status
+}
+
+func k8sWorkloadConditionsToScWorkloadConditions(k8sConditions interface{}, isDeploy bool) []types.WorkloadCondition {
+	k8sConditionsData := reflect.ValueOf(k8sConditions)
+	var conditions []types.WorkloadCondition
+	if k8sConditionsData.Kind() == reflect.Slice {
+		for i := 0; i < k8sConditionsData.Len(); i++ {
+			val := k8sConditionsData.Index(i)
+			condition := types.WorkloadCondition{
+				Type:               val.FieldByName("Type").String(),
+				Status:             val.FieldByName("Status").String(),
+				LastTransitionTime: resttypes.ISOTime(val.FieldByName("LastTransitionTime").Interface().(metav1.Time).Time),
+				Reason:             val.FieldByName("Reason").String(),
+				Message:            val.FieldByName("Message").String(),
+			}
+			if isDeploy {
+				condition.LastUpdateTime = resttypes.ISOTime(val.FieldByName("LastUpdateTime").Interface().(metav1.Time).Time)
+			}
+			conditions = append(conditions, condition)
+		}
+	}
+
+	return conditions
 }

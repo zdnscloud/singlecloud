@@ -34,7 +34,7 @@ type ClusterManager struct {
 	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB) *ClusterManager {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB, scVersion string) (*ClusterManager, error) {
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
@@ -42,14 +42,14 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 		db:            db,
 		Agent:         agent,
 	}
-	zkeMgr, err := zke.New(db)
+	zkeMgr, err := zke.New(db, scVersion)
 	if err != nil {
-		log.Fatalf("create zke-manager failed %s", err)
-		return clusterMgr
+		log.Errorf("create zke-manager failed %s", err.Error())
+		return nil, err
 	}
 	clusterMgr.zkeManager = zkeMgr
 	go clusterMgr.eventLoop()
-	return clusterMgr
+	return clusterMgr, nil
 }
 
 func (m *ClusterManager) GetDB() storage.DB {

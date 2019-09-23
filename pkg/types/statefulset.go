@@ -5,18 +5,19 @@ import (
 )
 
 const (
-	StorageClassNameLVM  = "lvm"
-	StorageClassNameCeph = "cephfs"
-	StorageClassNameTemp = "temporary"
+	StorageClassNameLVM    = "lvm"
+	StorageClassNameCephfs = "cephfs"
+	StorageClassNameTemp   = "temporary"
 )
 
 type StatefulSet struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string                     `json:"name,omitempty"`
-	Replicas              int                        `json:"replicas"`
-	Containers            []Container                `json:"containers"`
-	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
-	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Name               string                     `json:"name,omitempty"`
+	Replicas           int                        `json:"replicas"`
+	Containers         []Container                `json:"containers"`
+	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
+	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status             WorkloadStatus             `json:"status,omitempty"`
 }
 
 type PersistentVolumeTemplate struct {

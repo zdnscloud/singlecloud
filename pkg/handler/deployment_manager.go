@@ -260,6 +260,7 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 		Containers:        containers,
 		PersistentVolumes: pvs,
 		AdvancedOptions:   advancedOpts,
+		Status:            k8sWorkloadStatusToScWorkloadStatus(&k8sDeploy.Status),
 	}
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)

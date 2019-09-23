@@ -255,6 +255,7 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 		Containers:        containers,
 		AdvancedOptions:   advancedOpts,
 		PersistentVolumes: pvs,
+		Status:            k8sWorkloadStatusToScWorkloadStatus(&k8sStatefulSet.Status),
 	}
 	statefulset.SetID(k8sStatefulSet.Name)
 	statefulset.SetCreationTimestamp(k8sStatefulSet.CreationTimestamp.Time)

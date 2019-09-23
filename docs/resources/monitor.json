@@ -25,9 +25,13 @@
         },
         "redirectUrl": {
             "type": "string"
+        },
+        "status": {
+            "type": "enum",
+            "validValues": ["create", "succeed"]
         }
     },
-    "resourceMethods": ["DELETE"],
+    "resourceMethods": ["GET"],
     "collectionMethods": ["GET", "POST"],
     "postParameters": {
         "fields": {

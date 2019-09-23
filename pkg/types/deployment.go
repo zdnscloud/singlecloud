@@ -49,11 +49,12 @@ type AdvancedOptions struct {
 
 type Deployment struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string                     `json:"name,omitempty"`
-	Replicas              int                        `json:"replicas"`
-	Containers            []Container                `json:"containers"`
-	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
-	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Name               string                     `json:"name,omitempty"`
+	Replicas           int                        `json:"replicas"`
+	Containers         []Container                `json:"containers"`
+	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
+	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status             WorkloadStatus             `json:"status,omitempty"`
 }
 
 type ExposedMetric struct {
@@ -84,6 +85,29 @@ func (d Deployment) CreateAction(name string) *resource.Action {
 	default:
 		return nil
 	}
+}
+
+type WorkloadStatus struct {
+	ObservedGeneration  int                 `json:"observedGeneration,omitempty"`
+	Replicas            int                 `json:"replicas,omitempty"`
+	ReadyReplicas       int                 `json:"readyReplicas,omitempty"`
+	UpdatedReplicas     int                 `json:"updatedReplicas,omitempty"`
+	AvailableReplicas   int                 `json:"availableReplicas,omitempty"`
+	UnavailableReplicas int                 `json:"unavailableReplicas,omitempty"`
+	CurrentReplicas     int                 `json:"currentReplicas,omitempty"`
+	CurrentRevision     string              `json:"currentRevision,omitempty"`
+	UpdateRevision      string              `json:"updateRevision,omitempty"`
+	CollisionCount      int                 `json:"collisionCount,omitempty"`
+	Conditions          []WorkloadCondition `json:"conditions,omitempty"`
+}
+
+type WorkloadCondition struct {
+	Type               string            `json:"type,omitempty"`
+	Status             string            `json:"status,omitempty"`
+	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty"`
+	LastUpdateTime     resource.ISOTime `json:"lastUpdateTime,omitempty"`
+	Reason             string            `json:"reason,omitempty"`
+	Message            string            `json:"message,omitempty"`
 }
 
 type VersionHistory struct {

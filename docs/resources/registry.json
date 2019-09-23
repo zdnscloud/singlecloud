@@ -1,12 +1,9 @@
 {
     "resourceType": "registry",
     "collectionName": "registries",
-    "parentResources": [],
+    "parentResources": ["cluster"],
 
     "resourceFields": {
-        "cluster": {
-            "type": "string"
-        },
         "ingressDomain": {
             "type": "string"
         },
@@ -22,16 +19,16 @@
         },
         "redirectUrl": {
             "type": "string"
+        },
+        "status": {
+            "type": "enum",
+            "validValues": ["create", "succeed"]
         }
     },
-    "resourceMethods": ["DELETE"],
+    "resourceMethods": ["GET"],
     "collectionMethods": ["GET", "POST"],
     "postParameters": {
         "fields": {
-            "cluster": {
-                "type": "string",
-                "required": true
-            },
             "ingressDomain": {
                 "type": "string"
             },

@@ -45,6 +45,10 @@ func (c *Cluster) IsReady() bool {
 	return true
 }
 
+func (c *Cluster) CanUpdate() bool {
+	return c.fsm.Can(UpdateEvent)
+}
+
 func (c *Cluster) getStatus() types.ClusterStatus {
 	return types.ClusterStatus(c.fsm.Current())
 }

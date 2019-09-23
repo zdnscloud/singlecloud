@@ -25,14 +25,16 @@ type ZKEManager struct {
 	unreadyClusters []*Cluster
 	db              storage.DB
 	lock            sync.Mutex
+	scVersion       string // add cluster singlecloud version for easy to confirm zcloud component version
 }
 
-func New(db storage.DB) (*ZKEManager, error) {
+func New(db storage.DB, scVersion string) (*ZKEManager, error) {
 	mgr := &ZKEManager{
 		readyClusters:   make([]*Cluster, 0),
 		unreadyClusters: make([]*Cluster, 0),
 		PubEventCh:      make(chan interface{}, PubEventBufferCount),
 		db:              db,
+		scVersion:       scVersion,
 	}
 	if err := mgr.loadDB(); err != nil {
 		return mgr, err
@@ -61,6 +63,7 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 		CreateTime:   time.Now(),
 		FullState:    &core.FullState{},
 		IsUnvailable: true,
+		ScVersion:    m.scVersion,
 	}
 
 	if err := createOrUpdateState(inner.Name, state, m.db); err != nil {
@@ -70,6 +73,7 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 	cluster := newInitialCluster(inner.Name)
 	cluster.CreateTime = state.CreateTime
 	cluster.config = config
+	cluster.scVersion = m.scVersion
 	m.unreadyClusters = append(m.unreadyClusters, cluster)
 	cluster.fsm.Event(CreateEvent)
 
@@ -103,6 +107,7 @@ func (m *ZKEManager) Import(ctx *restsource.Context) (interface{}, *resterr.APIE
 		FullState:  zkeFullState,
 		ZKEConfig:  zkeFullState.CurrentState.ZKEConfig.DeepCopy(),
 		CreateTime: time.Now(),
+		ScVersion:  types.ScVersionImported,
 	}
 
 	if err := createOrUpdateState(id, state, m.db); err != nil {
@@ -112,6 +117,7 @@ func (m *ZKEManager) Import(ctx *restsource.Context) (interface{}, *resterr.APIE
 	cluster := newClusterWithStatus(id, types.CSConnecting)
 	cluster.CreateTime = state.CreateTime
 	cluster.config = state.ZKEConfig
+	cluster.scVersion = types.ScVersionImported
 	m.unreadyClusters = append(m.unreadyClusters, cluster)
 
 	kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
@@ -129,6 +135,10 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 
 	if c == nil {
 		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", inner.Name))
+	}
+
+	if !c.CanUpdate() {
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster can't update when it's %s status now", c.getStatus()))
 	}
 
 	if err := validateConfigForUpdate(c.ToTypesCluster(), inner); err != nil {

@@ -96,6 +96,9 @@
         },
         "disablePortCheck": {
             "type": "bool"
+        },
+        "zcloudVersion": {
+            "type": "string"
         }
     },
     "subResources": {

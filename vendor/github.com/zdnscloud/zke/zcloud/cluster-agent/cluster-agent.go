@@ -42,4 +42,8 @@ spec:
         image: {{.Image}}
         ports:
         - name: cluster-agent
-          containerPort: 8090`
+          containerPort: 8090
+        env:
+          - name: CACHE_TIME
+            value: "300"
+`

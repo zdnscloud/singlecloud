@@ -27,6 +27,8 @@ const (
 	DefaultServiceCIDR         = "10.43.0.0/16"
 	DefaultClusterDNSServiceIP = "10.43.0.10"
 	DefaultClusterDomain       = "cluster.local"
+
+	ScVersionImported = "imported"
 )
 
 var DefaultClusterUpstreamDNS = []string{
@@ -44,6 +46,7 @@ type Cluster struct {
 	Status                ClusterStatus     `json:"status"`
 	NodesCount            int               `json:"nodeCount"`
 	Version               string            `json:"version"`
+	ScVersion             string            `json:"zcloudVersion"`
 
 	Cpu             int64  `json:"cpu"`
 	CpuUsed         int64  `json:"cpuUsed"`

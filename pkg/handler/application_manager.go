@@ -133,7 +133,6 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
-	isAdminUser := isAdmin(getCurrentUser(ctx))
 	namespace := ctx.Resource.GetParent().GetID()
 	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
 	if err != nil {
@@ -153,7 +152,7 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 			return nil
 		}
 
-		if isAdminUser == false && app.SystemChart {
+		if app.SystemChart {
 			continue
 		}
 
@@ -179,7 +178,7 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 
-	app, err := getApplicationFromDB(tx, getCurrentUser(ctx), ctx.Resource.GetID())
+	app, err := getApplicationFromDB(tx, ctx.Resource.GetID())
 	tx.Commit()
 	if err != nil {
 		log.Warnf("get applications failed %s", err.Error())
@@ -242,7 +241,7 @@ func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, sta
 	}
 
 	defer tx.Rollback()
-	app, err := getApplicationFromDB(tx, userName, name)
+	app, err := getApplicationFromDB(tx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +408,52 @@ func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, 
 	return appValues, nil
 }
 
-func getApplicationFromDB(tx storage.Transaction, userName, appName string) (*types.Application, error) {
+func getApplicationsFromDBByChartName(db storage.DB, tableName, chartName string) ([]*types.Application, error) {
+	apps := []*types.Application{}
+
+	appValues, err := getApplicationsFromDB(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, appValue := range appValues {
+		app := &types.Application{}
+		if err := json.Unmarshal(appValue, app); err != nil {
+			continue
+		}
+		if app.ChartName == chartName {
+			apps = append(apps, app)
+		}
+	}
+
+	return apps, nil
+}
+
+func getSysApplicationFromDB(db storage.DB, tableName, appName string) (*types.Application, error) {
+	tx, err := BeginTableTransaction(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback()
+	appValue, err := tx.Get(appName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	app := types.Application{}
+	if err := json.Unmarshal(appValue, &app); err != nil {
+		return nil, fmt.Errorf("Unmarshal application %s failed %s", appName, err.Error())
+	}
+
+	return &app, nil
+}
+
+func getApplicationFromDB(tx storage.Transaction, appName string) (*types.Application, error) {
 	value, err := tx.Get(appName)
 	if err != nil {
 		return nil, err
@@ -420,8 +464,8 @@ func getApplicationFromDB(tx storage.Transaction, userName, appName string) (*ty
 		return nil, err
 	}
 
-	if isAdmin(userName) == false && app.SystemChart {
-		return nil, fmt.Errorf("user %s no authority to delete application %s", userName, appName)
+	if app.SystemChart {
+		return nil, nil
 	}
 
 	return &app, nil
