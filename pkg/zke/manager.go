@@ -126,6 +126,10 @@ func (m *ZKEManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.API
 		return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s desn't exist", inner.Name))
 	}
 
+	if !c.CanUpdate() {
+		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("cluster can't update when it's %s status now", c.getStatus()))
+	}
+
 	if err := validateConfigForUpdate(c.ToTypesCluster(), inner); err != nil {
 		return nil, resttypes.NewAPIError(resttypes.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
