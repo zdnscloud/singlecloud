@@ -362,12 +362,14 @@ func (m *ZKEManager) loadDB() error {
 			cluster.config = v.ZKEConfig
 			cluster.stopCh = make(chan struct{})
 			cluster.CreateTime = v.CreateTime
+			cluster.scVersion = v.ScVersion
 			m.addToUnreadyWithLock(cluster)
 		} else {
 			cluster := newInitialCluster(k)
 			cluster.config = v.ZKEConfig
 			cluster.stopCh = make(chan struct{})
 			cluster.CreateTime = v.CreateTime
+			cluster.scVersion = v.ScVersion
 			m.addToUnreadyWithLock(cluster)
 			cluster.fsm.Event(InitEvent)
 			ctx, cancel := context.WithCancel(context.Background())
