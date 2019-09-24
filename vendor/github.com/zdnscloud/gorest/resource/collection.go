@@ -31,7 +31,7 @@ func NewResourceCollection(collection Resource, i interface{}) (*ResourceCollect
 
 func interfaceToResourceCollection(typ string, i interface{}) ([]Resource, error) {
 	if i == nil {
-		return nil, nil
+		return []Resource{}, nil
 	}
 
 	v := reflect.ValueOf(i)
