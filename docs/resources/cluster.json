@@ -57,7 +57,7 @@
             "type": "array",
             "elemType": "privateRegistry"
         },
-        "singleCloudAddress": {
+        "singlecloudAddress": {
             "type": "string"
         },
         "sshUser": {
