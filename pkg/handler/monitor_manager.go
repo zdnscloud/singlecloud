@@ -148,7 +148,7 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	}
 	appName := apps[0].Name
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
+	app, err := updateSysApplicationStatusFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterr.NewAPIError(resterr.NotFound,
@@ -319,4 +319,77 @@ func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, clu
 		}
 		time.Sleep(sysApplicationCheckInterval)
 	}
+}
+
+func getApplicationsFromDBByChartName(db storage.DB, tableName, chartName string) ([]*types.Application, error) {
+	apps := []*types.Application{}
+
+	appValues, err := getApplicationsFromDB(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, appValue := range appValues {
+		app := &types.Application{}
+		if err := json.Unmarshal(appValue, app); err != nil {
+			continue
+		}
+		if app.ChartName == chartName {
+			apps = append(apps, app)
+		}
+	}
+
+	return apps, nil
+}
+
+func getSysApplicationFromDB(db storage.DB, tableName, appName string) (*types.Application, error) {
+	tx, err := BeginTableTransaction(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback()
+	appValue, err := tx.Get(appName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	app := types.Application{}
+	if err := json.Unmarshal(appValue, &app); err != nil {
+		return nil, fmt.Errorf("Unmarshal application %s failed %s", appName, err.Error())
+	}
+
+	return &app, nil
+}
+
+func updateSysApplicationStatusFromDB(db storage.DB, tableName, name, status string) (*types.Application, error) {
+	app, err := getSysApplicationFromDB(db, tableName, name)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := BeginTableTransaction(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
+		return nil, fmt.Errorf("application %s can`t delete when its status is %s", name, app.Status)
+	}
+
+	app.Status = status
+	value, err := json.Marshal(app)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Update(name, value); err != nil {
+		return nil, err
+	}
+
+	return app, tx.Commit()
 }

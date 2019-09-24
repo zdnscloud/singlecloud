@@ -149,7 +149,7 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	}
 	appName := apps[0].Name
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
+	app, err := updateSysApplicationStatusFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterr.NewAPIError(resterr.NotFound,
