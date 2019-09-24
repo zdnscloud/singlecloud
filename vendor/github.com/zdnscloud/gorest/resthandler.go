@@ -118,6 +118,7 @@ func handleList(ctx *resource.Context) *goresterr.APIError {
 		} else {
 			//the resource handler returns mayn't include schema
 			r.SetSchema(ctx.Resource.GetSchema())
+			r.SetParent(ctx.Resource.GetParent())
 			httpSchemeAndHost := path.Join(ctx.Request.URL.Scheme, ctx.Request.URL.Host)
 			if err := schema.AddLinksToResource(r, httpSchemeAndHost); err != nil {
 				return goresterr.NewAPIError(goresterr.ServerError, fmt.Sprintf("generate links failed:%s", err.Error()))
