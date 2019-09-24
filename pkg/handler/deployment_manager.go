@@ -117,42 +117,6 @@ func (m *DeploymentManager) Get(ctx *resource.Context) resource.Resource {
 	}
 }
 
-func (m *DeploymentManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
-	}
-
-	namespace := ctx.Resource.GetParent().GetID()
-	deploy := ctx.Resource.(*types.Deployment)
-
-	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
-		}
-	}
-
-	if int(*k8sDeploy.Spec.Replicas) == deploy.Replicas {
-		return deploy, nil
-	} else {
-		replicas := int32(deploy.Replicas)
-		k8sDeploy.Spec.Replicas = &replicas
-		newDeploy, err := k8sDeployToSCDeploy(cluster.KubeClient, k8sDeploy)
-		if err != nil {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
-		}
-
-		if err := cluster.KubeClient.Update(context.TODO(), k8sDeploy); err != nil {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
-		} else {
-			return newDeploy, nil
-		}
-	}
-}
-
 func (m *DeploymentManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
@@ -165,7 +129,7 @@ func (m *DeploymentManager) Delete(ctx *resource.Context) *resterror.APIError {
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s doesn't exist", namespace))
 		} else {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
 		}
@@ -189,6 +153,8 @@ func (m *DeploymentManager) Action(ctx *resource.Context) (interface{}, *resterr
 		return nil, m.rollback(ctx)
 	case types.ActionSetImage:
 		return nil, m.setImage(ctx)
+	case types.ActionSetPodCount:
+		return nil, m.setPodCount(ctx)
 	default:
 		return nil, resterror.NewAPIError(resterror.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Resource.GetAction().Name))
 	}
@@ -279,7 +245,7 @@ func (m *DeploymentManager) getDeploymentHistory(ctx *resource.Context) (interfa
 	_, replicasets, err := getDeploymentAndReplicaSets(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s doesn't exist", namespace))
 		} else {
 			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment history failed %s", err.Error()))
 		}
@@ -313,9 +279,9 @@ func (m *DeploymentManager) rollback(ctx *resource.Context) *resterror.APIError 
 	}
 
 	param, ok := ctx.Resource.GetAction().Input.(*types.RollBackVersion)
-	if ok == false || param.Version < 0 {
+	if ok == false {
 		return resterror.NewAPIError(resterror.InvalidFormat,
-			fmt.Sprintf("rollback version param is not valid: %v", ctx.Resource.GetAction().Input))
+			fmt.Sprintf("action rollback version param is not valid"))
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -323,7 +289,7 @@ func (m *DeploymentManager) rollback(ctx *resource.Context) *resterror.APIError 
 	k8sDeploy, replicasets, err := getDeploymentAndReplicaSets(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s doesn't exist", namespace))
 		} else {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed %s", err.Error()))
 		}
@@ -381,8 +347,8 @@ func (m *DeploymentManager) setImage(ctx *resource.Context) *resterror.APIError 
 	}
 
 	param, ok := ctx.Resource.GetAction().Input.(*types.SetImage)
-	if ok == false || len(param.Images) == 0 {
-		return resterror.NewAPIError(resterror.InvalidFormat, "set image param is not valid")
+	if ok == false {
+		return resterror.NewAPIError(resterror.InvalidFormat, "action set image param is not valid")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -390,7 +356,7 @@ func (m *DeploymentManager) setImage(ctx *resource.Context) *resterror.APIError 
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s doesn't exist", namespace))
 		} else {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
 		}
@@ -407,6 +373,41 @@ func (m *DeploymentManager) setImage(ctx *resource.Context) *resterror.APIError 
 	}
 
 	return nil
+}
+
+func (m *DeploymentManager) setPodCount(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+	}
+
+	param, ok := ctx.Resource.GetAction().Input.(*types.SetPodCount)
+	if ok == false {
+		return resterror.NewAPIError(resterror.InvalidFormat, "action set pod count param is not valid")
+	}
+
+	namespace := ctx.Resource.GetParent().GetID()
+	deploy := ctx.Resource.(*types.Deployment)
+	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s doesn't exist", deploy.GetID()))
+		} else {
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+		}
+	}
+
+	if int(*k8sDeploy.Spec.Replicas) == param.Replicas {
+		return nil
+	} else {
+		replicas := int32(param.Replicas)
+		k8sDeploy.Spec.Replicas = &replicas
+		if err := cluster.KubeClient.Update(context.TODO(), k8sDeploy); err != nil {
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment pod count failed %s", err.Error()))
+		} else {
+			return nil
+		}
+	}
 }
 
 func getDeploymentAndReplicaSets(cli client.Client, namespace, deployName string) (*appsv1.Deployment, []appsv1.ReplicaSet, error) {

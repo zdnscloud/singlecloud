@@ -12,12 +12,12 @@ const (
 
 type StatefulSet struct {
 	resource.ResourceBase `json:",inline"`
-	Name               string                     `json:"name,omitempty"`
-	Replicas           int                        `json:"replicas"`
-	Containers         []Container                `json:"containers"`
-	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
-	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
-	Status             WorkloadStatus             `json:"status,omitempty"`
+	Name                  string                     `json:"name,omitempty"`
+	Replicas              int                        `json:"replicas" rest:"min=0,max=50"`
+	Containers            []Container                `json:"containers"`
+	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
+	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status                WorkloadStatus             `json:"status,omitempty"`
 }
 
 type PersistentVolumeTemplate struct {
@@ -45,6 +45,11 @@ func (s StatefulSet) CreateAction(name string) *resource.Action {
 		return &resource.Action{
 			Name:  ActionSetImage,
 			Input: SetImage{},
+		}
+	case ActionSetPodCount:
+		return &resource.Action{
+			Name:  ActionSetPodCount,
+			Input: SetPodCount{},
 		}
 	default:
 		return nil

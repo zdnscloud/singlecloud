@@ -23,6 +23,7 @@ import (
 var FilesystemVolumeMode = corev1.PersistentVolumeFilesystem
 
 const (
+	AnnotationForCreateWorkload          = "init version"
 	VolumeNamePrefix                     = "vol"
 	AnnkeyForWordloadAdvancedoption      = "zcloud_workload_advanded_options"
 	AnnkeyForPromethusScrape             = "prometheus.io/scrape"
@@ -75,6 +76,7 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 	if advancedOpts.DeletePVsWhenDeleteWorkload {
 		annotations[AnnkeyForDeletePVsWhenDeleteWorkload] = "true"
 	}
+	annotations[ChangeCauseAnnotation] = AnnotationForCreateWorkload
 	return metav1.ObjectMeta{
 		Name:        structVal.FieldByName("Name").String(),
 		Namespace:   namespace,

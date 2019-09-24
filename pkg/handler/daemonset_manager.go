@@ -293,9 +293,8 @@ func (m *DaemonSetManager) rollback(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.GetParent().GetID()
 	daemonset := ctx.Resource.(*types.DaemonSet)
 	param, ok := ctx.Resource.GetAction().Input.(*types.RollBackVersion)
-	if ok == false || param.Version < 0 {
-		return resterror.NewAPIError(resterror.InvalidFormat,
-			fmt.Sprintf("rollback version param is not valid: %v", ctx.Resource.GetAction().Input))
+	if ok == false {
+		return resterror.NewAPIError(resterror.InvalidFormat, fmt.Sprintf("action rollback version param is not valid"))
 	}
 
 	k8sDaemonSet, controllerRevisions, err := getDaemonSetAndControllerRevisions(cluster.KubeClient, namespace, daemonset.GetID())
@@ -334,8 +333,8 @@ func (m *DaemonSetManager) setImage(ctx *resource.Context) *resterror.APIError {
 	}
 
 	param, ok := ctx.Resource.GetAction().Input.(*types.SetImage)
-	if ok == false || len(param.Images) == 0 {
-		return resterror.NewAPIError(resterror.InvalidFormat, "set image param is not valid")
+	if ok == false {
+		return resterror.NewAPIError(resterror.InvalidFormat, "action set image param is not valid")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()

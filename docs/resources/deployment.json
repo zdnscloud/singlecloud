@@ -78,7 +78,7 @@
         }
     },
 
-    "resourceMethods": [ "GET", "PUT", "DELETE" ],
+    "resourceMethods": [ "GET", "DELETE" ],
     "collectionMethods": [ "POST", "GET" ],
 
     "postParameters": {
@@ -137,13 +137,13 @@
         }
     },
 
-    "putParameters": {
-        "fields": {
-            "replicas": {"type": "int", "required": true}
-        }
-    },
-
     "resourceActions":[ 
+        {
+            "name": "setPodCount",
+            "input": {
+                "replicas": {"type": "int"}
+            }
+        },
         {
             "name": "history",
             "output": {

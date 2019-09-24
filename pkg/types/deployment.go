@@ -5,9 +5,10 @@ import (
 )
 
 const (
-	ActionGetHistory = "history"
-	ActionRollback   = "rollback"
-	ActionSetImage   = "setImage"
+	ActionGetHistory  = "history"
+	ActionRollback    = "rollback"
+	ActionSetImage    = "setImage"
+	ActionSetPodCount = "setPodCount"
 
 	VolumeTypeConfigMap        = "configmap"
 	VolumeTypeSecret           = "secret"
@@ -49,12 +50,12 @@ type AdvancedOptions struct {
 
 type Deployment struct {
 	resource.ResourceBase `json:",inline"`
-	Name               string                     `json:"name,omitempty"`
-	Replicas           int                        `json:"replicas"`
-	Containers         []Container                `json:"containers"`
-	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
-	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
-	Status             WorkloadStatus             `json:"status,omitempty"`
+	Name                  string                     `json:"name,omitempty"`
+	Replicas              int                        `json:"replicas" rest:"min=0,max=50"`
+	Containers            []Container                `json:"containers"`
+	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
+	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status                WorkloadStatus             `json:"status,omitempty"`
 }
 
 type ExposedMetric struct {
@@ -82,6 +83,11 @@ func (d Deployment) CreateAction(name string) *resource.Action {
 			Name:  ActionSetImage,
 			Input: SetImage{},
 		}
+	case ActionSetPodCount:
+		return &resource.Action{
+			Name:  ActionSetPodCount,
+			Input: SetPodCount{},
+		}
 	default:
 		return nil
 	}
@@ -102,12 +108,12 @@ type WorkloadStatus struct {
 }
 
 type WorkloadCondition struct {
-	Type               string            `json:"type,omitempty"`
-	Status             string            `json:"status,omitempty"`
+	Type               string           `json:"type,omitempty"`
+	Status             string           `json:"status,omitempty"`
 	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty"`
 	LastUpdateTime     resource.ISOTime `json:"lastUpdateTime,omitempty"`
-	Reason             string            `json:"reason,omitempty"`
-	Message            string            `json:"message,omitempty"`
+	Reason             string           `json:"reason,omitempty"`
+	Message            string           `json:"message,omitempty"`
 }
 
 type VersionHistory struct {
@@ -135,7 +141,7 @@ func (vs VersionInfos) Less(i, j int) bool {
 }
 
 type RollBackVersion struct {
-	Version int    `json:"version"`
+	Version int    `json:"version" rest:"required=true"`
 	Reason  string `json:"reason"`
 }
 
@@ -145,6 +151,10 @@ type SetImage struct {
 }
 
 type ContainerImage struct {
-	Name  string `json:"name"`
-	Image string `json:"image"`
+	Name  string `json:"name" rest:"required=true,minLen=1,maxLen=128"`
+	Image string `json:"image" rest:"required=true,minLen=1,maxLen=1000"`
+}
+
+type SetPodCount struct {
+	Replicas int `json:"replicas" rest:"required=true,min=1,max=50"`
 }
