@@ -76,17 +76,17 @@ func (d Deployment) CreateAction(name string) *resource.Action {
 	case ActionRollback:
 		return &resource.Action{
 			Name:  ActionRollback,
-			Input: RollBackVersion{},
+			Input: &RollBackVersion{},
 		}
 	case ActionSetImage:
 		return &resource.Action{
 			Name:  ActionSetImage,
-			Input: SetImage{},
+			Input: &SetImage{},
 		}
 	case ActionSetPodCount:
 		return &resource.Action{
 			Name:  ActionSetPodCount,
-			Input: SetPodCount{},
+			Input: &SetPodCount{},
 		}
 	default:
 		return nil
