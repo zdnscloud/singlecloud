@@ -21,7 +21,7 @@
     },
 
     "collectionMethods": [ "GET", "POST" ],
-    "resourceMethods": [ "DELETE" ],
+    "resourceMethods": [ "DELETE", "GET" ],
 
     "postParameters": {
         "fields": {
