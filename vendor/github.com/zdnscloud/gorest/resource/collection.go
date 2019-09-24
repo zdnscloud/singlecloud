@@ -40,7 +40,7 @@ func interfaceToResourceCollection(typ string, i interface{}) ([]Resource, error
 	}
 	l := v.Len()
 	if l == 0 {
-		return nil, nil
+		return []Resource{}, nil
 	}
 
 	resources := make([]Resource, 0, l)
