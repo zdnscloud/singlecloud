@@ -34,13 +34,13 @@ func (m *InnerServiceManager) List(ctx *resource.Context) interface{} {
 
 func getInnerServices(cluster string, agent *clusteragent.AgentManager, namespace string) ([]*types.InnerService, error) {
 	url := "/apis/agent.zcloud.cn/v1/namespaces/" + namespace + "/innerservices"
-	innerservices := make([]*types.InnerService, 0)
 	res := make([]types.InnerService, 0)
 	if err := agent.ListResource(cluster, url, &res); err != nil {
-		return innerservices, err
+		return []*types.InnerService{}, err
 	}
-	for _, innerservice := range res {
-		innerservices = append(innerservices, &innerservice)
+	innerservices := make([]*types.InnerService, len(res))
+	for i := 0; i < len(res); i++ {
+		innerservices[i] = &res[i]
 	}
 	return innerservices, nil
 }
