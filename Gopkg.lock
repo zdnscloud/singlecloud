@@ -605,7 +605,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f317b45371e0876d8b51a94429a9afae41c4d59464a1d59c85c3acef76b1a22c"
+  digest = "1:815da94d294f61e8d8afa843b808c89c62ea8e7b0577e7f1362ef3fdde2dc7e7"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -617,7 +617,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "53fb708b94507f01762fd6396765699c61a38ffd"
+  revision = "d6a4e0ba72b0cd043694ed2053183f8111e1a519"
 
 [[projects]]
   branch = "master"
@@ -1122,14 +1122,22 @@
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/runtime",
+    "k8s.io/apimachinery/pkg/util/wait",
+    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/cache",
+    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/remotecommand",
+    "k8s.io/client-go/util/workqueue",
+    "k8s.io/klog",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"
