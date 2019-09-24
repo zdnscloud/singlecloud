@@ -113,7 +113,7 @@ func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource,
 			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed %s", err.Error()))
 		}
 	}
-	storagecluster.SetID(storagecluster.Name)
+	storagecluster.SetID(types.StorageclusterMap[storagecluster.StorageType])
 	return storagecluster, nil
 }
 
