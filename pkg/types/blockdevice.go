@@ -1,20 +1,14 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetBlockDeviceSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.Parents = []string{ClusterType}
-}
-
 type BlockDevice struct {
-	resttypes.Resource `json:",inline"`
-	NodeName           string `json:"nodeName"`
-	BlockDevices       []Dev  `json:"blockDevices"`
-	UsedBy             string `json:"usedby"`
+	resource.ResourceBase `json:",inline"`
+	NodeName              string `json:"nodeName"`
+	BlockDevices          []Dev  `json:"blockDevices"`
+	UsedBy                string `json:"usedby"`
 }
 
 type Dev struct {
@@ -22,3 +16,21 @@ type Dev struct {
 	Size   string `json:"size"`
 	UsedBy string `json:"-"`
 }
+
+func (b BlockDevice) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Cluster{}}
+}
+
+type ClusterAgentBlockDevice struct {
+	resource.ResourceBase `json:",inline"`
+        NodeName           string `json:"nodeName"`
+        BlockDevices       []ClusterAgentDev  `json:"blockDevices"`
+}
+type ClusterAgentDev struct {
+        Name       string `json:"name"`
+        Size       string `json:"size"`
+        Parted     bool   `json:"parted"`
+        Filesystem bool   `json:"filesystem"`
+        Mount      bool   `json:"mount"`
+}
+

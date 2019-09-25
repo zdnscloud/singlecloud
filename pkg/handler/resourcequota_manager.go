@@ -6,19 +6,18 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type ResourceQuotaManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -26,20 +25,20 @@ func newResourceQuotaManager(clusters *ClusterManager) *ResourceQuotaManager {
 	return &ResourceQuotaManager{clusters: clusters}
 }
 
-func (m *ResourceQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *ResourceQuotaManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	resourceQuota := ctx.Object.(*types.ResourceQuota)
+	namespace := ctx.Resource.GetParent().GetID()
+	resourceQuota := ctx.Resource.(*types.ResourceQuota)
 	err := createResourceQuota(cluster.KubeClient, namespace, resourceQuota)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate resourceQuota name %s", resourceQuota.Name))
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate resourceQuota name %s", resourceQuota.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create resourceQuota failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create resourceQuota failed %s", err.Error()))
 		}
 	}
 
@@ -47,13 +46,13 @@ func (m *ResourceQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (
 	return resourceQuota, nil
 }
 
-func (m *ResourceQuotaManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *ResourceQuotaManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sResourceQuotas, err := getResourceQuotas(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -69,14 +68,14 @@ func (m *ResourceQuotaManager) List(ctx *resttypes.Context) interface{} {
 	return resourceQuotas
 }
 
-func (m *ResourceQuotaManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *ResourceQuotaManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	resourceQuota := ctx.Object.(*types.ResourceQuota)
+	namespace := ctx.Resource.GetParent().GetID()
+	resourceQuota := ctx.Resource.(*types.ResourceQuota)
 	k8sResourceQuota, err := getResourceQuota(cluster.KubeClient, namespace, resourceQuota.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -88,20 +87,20 @@ func (m *ResourceQuotaManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sResourceQuotaToSCResourceQuota(k8sResourceQuota)
 }
 
-func (m *ResourceQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *ResourceQuotaManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	resourceQuota := ctx.Object.(*types.ResourceQuota)
+	namespace := ctx.Resource.GetParent().GetID()
+	resourceQuota := ctx.Resource.(*types.ResourceQuota)
 	if err := deleteResourceQuota(cluster.KubeClient, namespace, resourceQuota.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("resourceQuota %s with namespace %s desn't exist", resourceQuota.GetID(), namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete resourceQuota failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete resourceQuota failed %s", err.Error()))
 		}
 	}
 
@@ -139,14 +138,14 @@ func createResourceQuota(cli client.Client, namespace string, resourceQuota *typ
 }
 
 func scQuotaResourceListToK8sResourceList(resourceList map[string]string) (corev1.ResourceList, error) {
-	k8sResourceList := make(map[corev1.ResourceName]resource.Quantity)
+	k8sResourceList := make(map[corev1.ResourceName]apiresource.Quantity)
 	for name, quantity := range resourceList {
 		k8sResourceName, err := scQuotaResourceNameToK8sResourceName(name)
 		if err != nil {
 			return nil, fmt.Errorf("parse resource name %s failed: %s", name, err.Error())
 		}
 
-		k8sQuantity, err := resource.ParseQuantity(quantity)
+		k8sQuantity, err := apiresource.ParseQuantity(quantity)
 		if err != nil {
 			return nil, fmt.Errorf("parse resource %s quantity %s failed: %s", name, quantity, err.Error())
 		}
@@ -173,7 +172,6 @@ func k8sResourceQuotaToSCResourceQuota(k8sResourceQuota *corev1.ResourceQuota) *
 		},
 	}
 	resourceQuota.SetID(k8sResourceQuota.Name)
-	resourceQuota.SetType(types.ResourceQuotaType)
 	resourceQuota.SetCreationTimestamp(k8sResourceQuota.CreationTimestamp.Time)
 	return resourceQuota
 }

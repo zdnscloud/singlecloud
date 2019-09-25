@@ -6,19 +6,18 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type LimitRangeManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -26,20 +25,20 @@ func newLimitRangeManager(clusters *ClusterManager) *LimitRangeManager {
 	return &LimitRangeManager{clusters: clusters}
 }
 
-func (m *LimitRangeManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *LimitRangeManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	limitRange := ctx.Object.(*types.LimitRange)
+	namespace := ctx.Resource.GetParent().GetID()
+	limitRange := ctx.Resource.(*types.LimitRange)
 	err := createLimitRange(cluster.KubeClient, namespace, limitRange)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate limitRange name %s", limitRange.Name))
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate limitRange name %s", limitRange.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create limitRange failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create limitRange failed %s", err.Error()))
 		}
 	}
 
@@ -47,13 +46,13 @@ func (m *LimitRangeManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 	return limitRange, nil
 }
 
-func (m *LimitRangeManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *LimitRangeManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sLimitRanges, err := getLimitRanges(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -69,14 +68,14 @@ func (m *LimitRangeManager) List(ctx *resttypes.Context) interface{} {
 	return limitRanges
 }
 
-func (m *LimitRangeManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *LimitRangeManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	limitRange := ctx.Object.(*types.LimitRange)
+	namespace := ctx.Resource.GetParent().GetID()
+	limitRange := ctx.Resource.(*types.LimitRange)
 	k8sLimitRange, err := getLimitRange(cluster.KubeClient, namespace, limitRange.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -88,20 +87,20 @@ func (m *LimitRangeManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sLimitRangeToSCLimitRange(k8sLimitRange)
 }
 
-func (m *LimitRangeManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *LimitRangeManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	limitRange := ctx.Object.(*types.LimitRange)
+	namespace := ctx.Resource.GetParent().GetID()
+	limitRange := ctx.Resource.(*types.LimitRange)
 	if err := deleteLimitRange(cluster.KubeClient, namespace, limitRange.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("limitRange %s with namespace %s desn't exist", limitRange.GetID(), namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete limitRange failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete limitRange failed %s", err.Error()))
 		}
 	}
 
@@ -155,14 +154,14 @@ func createLimitRange(cli client.Client, namespace string, limitRange *types.Lim
 }
 
 func scLimitResourceListToK8sResourceList(resourceList map[string]string) (corev1.ResourceList, error) {
-	k8sResourceList := make(map[corev1.ResourceName]resource.Quantity)
+	k8sResourceList := make(map[corev1.ResourceName]apiresource.Quantity)
 	for name, quantity := range resourceList {
 		k8sResourceName, err := scLimitsResourceNameToK8sResourceName(name)
 		if err != nil {
 			return nil, fmt.Errorf("parse resource name %s failed: %s", name, err.Error())
 		}
 
-		k8sQuantity, err := resource.ParseQuantity(quantity)
+		k8sQuantity, err := apiresource.ParseQuantity(quantity)
 		if err != nil {
 			return nil, fmt.Errorf("parse resource %s quantity %s failed: %s", name, quantity, err.Error())
 		}
@@ -192,7 +191,6 @@ func k8sLimitRangeToSCLimitRange(k8sLimitRange *corev1.LimitRange) *types.LimitR
 	}
 
 	limitRange.SetID(k8sLimitRange.Name)
-	limitRange.SetType(types.LimitRangeType)
 	limitRange.SetCreationTimestamp(k8sLimitRange.CreationTimestamp.Time)
 	return limitRange
 }

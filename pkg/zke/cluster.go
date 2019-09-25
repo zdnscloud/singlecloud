@@ -112,6 +112,10 @@ func (c *Cluster) CanDelete() bool {
 }
 
 func (c *Cluster) CanUpdate() bool {
+	// doesn't support imported cluster update because no sshkey
+	if c.scVersion == types.ScVersionImported {
+		return false
+	}
 	return c.fsm.Can(UpdateEvent)
 }
 
@@ -147,10 +151,14 @@ func (c *Cluster) InitLoop(ctx context.Context, kubeConfig string, mgr *ZKEManag
 				c.KubeClient = kubeClient
 				if err := c.setCache(k8sConfig); err != nil {
 					log.Errorf("set cluster %s cache failed %s", c.Name, err)
-					c.fsm.Event(InitFailedEvent)
+					if err := c.fsm.Event(InitFailedEvent); err != nil {
+						log.Warnf("send cluster fsm %s event failed %s", InitFailedEvent, err.Error())
+					}
 					return
 				}
-				c.fsm.Event(InitSuccessEvent, mgr)
+				if err := c.fsm.Event(InitSuccessEvent, mgr); err != nil {
+					log.Warnf("send cluster fsm %s event failed %s", InitSuccessEvent, err.Error())
+				}
 				return
 			}
 			time.Sleep(ClusterRetryInterval)
@@ -317,7 +325,6 @@ func (c *Cluster) toTypesCluster() *types.Cluster {
 	}
 
 	sc.SetID(c.Name)
-	sc.SetType(types.ClusterType)
 	sc.SetCreationTimestamp(c.CreateTime)
 	sc.Status = c.getStatus()
 	return sc

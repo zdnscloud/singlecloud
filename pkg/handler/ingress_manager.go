@@ -13,13 +13,12 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type IngressManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -27,14 +26,14 @@ func newIngressManager(clusters *ClusterManager) *IngressManager {
 	return &IngressManager{clusters: clusters}
 }
 
-func (m *IngressManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *IngressManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	ingress := ctx.Object.(*types.Ingress)
+	namespace := ctx.Resource.GetParent().GetID()
+	ingress := ctx.Resource.(*types.Ingress)
 	err := createIngress(cluster.KubeClient, namespace, ingress)
 	if err == nil {
 		ingress.SetID(ingress.Name)
@@ -42,19 +41,19 @@ func (m *IngressManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	}
 
 	if apierrors.IsAlreadyExists(err) {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate ingress name %s", ingress.Name))
+		return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate ingress name %s", ingress.Name))
 	} else {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create ingress failed %s", err.Error()))
 	}
 }
 
-func (m *IngressManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *IngressManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sIngresss, err := getIngresss(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -70,14 +69,14 @@ func (m *IngressManager) List(ctx *resttypes.Context) interface{} {
 	return ingresss
 }
 
-func (m *IngressManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *IngressManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	ingress := ctx.Object.(*types.Ingress)
+	namespace := ctx.Resource.GetParent().GetID()
+	ingress := ctx.Resource.(*types.Ingress)
 	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
 	if err == nil {
 		ingress = k8sIngressToSCIngress(k8sIngress)
@@ -87,25 +86,24 @@ func (m *IngressManager) Get(ctx *resttypes.Context) interface{} {
 			return nil
 		}
 		ingress.SetID(ingress.GetID())
-		ingress.SetType(types.IngressType)
 	}
 
 	return ingress
 }
 
-func (m *IngressManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *IngressManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	err := deleteIngress(cluster.KubeClient, namespace, ctx.Object.GetID())
+	namespace := ctx.Resource.GetParent().GetID()
+	err := deleteIngress(cluster.KubeClient, namespace, ctx.Resource.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return resttypes.NewAPIError(resttypes.NotFound, "ingress doesn't exist")
+			return resterror.NewAPIError(resterror.NotFound, "ingress doesn't exist")
 		}
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete ingress failed %s", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete ingress failed %s", err.Error()))
 	} else {
 		return nil
 	}
@@ -199,7 +197,6 @@ func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {
 		Rules: rules,
 	}
 	ingress.SetID(k8sIngress.Name)
-	ingress.SetType(types.IngressType)
 	ingress.SetCreationTimestamp(k8sIngress.CreationTimestamp.Time)
 	return ingress
 }

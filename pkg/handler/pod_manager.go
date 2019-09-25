@@ -14,8 +14,8 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -26,8 +26,15 @@ const (
 	OwnerKindDaemonSet   = "DaemonSet"
 )
 
+var (
+	DeploymentType  = resource.DefaultKindName(types.Deployment{})
+	DaemonSetType   = resource.DefaultKindName(types.DaemonSet{})
+	StatefulSetType = resource.DefaultKindName(types.StatefulSet{})
+	JobType         = resource.DefaultKindName(types.Job{})
+	CronJobType     = resource.DefaultKindName(types.CronJob{})
+)
+
 type PodManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -35,15 +42,15 @@ func newPodManager(clusters *ClusterManager) *PodManager {
 	return &PodManager{clusters: clusters}
 }
 
-func (m *PodManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *PodManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetParent().GetID()
-	ownerType := ctx.Object.GetParent().GetType()
-	ownerName := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetParent().GetID()
+	ownerType := ctx.Resource.GetParent().GetType()
+	ownerName := ctx.Resource.GetParent().GetID()
 	k8sPods, err := getOwnerPods(cluster.KubeClient, namespace, ownerType, ownerName)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -59,14 +66,14 @@ func (m *PodManager) List(ctx *resttypes.Context) interface{} {
 	return pods
 }
 
-func (m *PodManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *PodManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetParent().GetID()
-	pod := ctx.Object.(*types.Pod)
+	namespace := ctx.Resource.GetParent().GetParent().GetID()
+	pod := ctx.Resource.(*types.Pod)
 	k8sPod, err := getPod(cluster.KubeClient, namespace, pod.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -78,20 +85,20 @@ func (m *PodManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sPodToSCPod(k8sPod)
 }
 
-func (m *PodManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *PodManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetParent().GetID()
-	pod := ctx.Object.(*types.Pod)
+	namespace := ctx.Resource.GetParent().GetParent().GetID()
+	pod := ctx.Resource.(*types.Pod)
 	err := deletePod(cluster.KubeClient, namespace, pod.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("pod %s desn't exist", pod.GetID()))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("pod %s desn't exist", pod.GetID()))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete pod failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete pod failed %s", err.Error()))
 		}
 	}
 	return nil
@@ -119,30 +126,30 @@ func getOwnerPods(cli client.Client, namespace, ownerType, ownerName string) (*c
 func getPodParentSelector(cli client.Client, namespace string, typ string, name string) (labels.Selector, error) {
 	var selector *metav1.LabelSelector
 	switch typ {
-	case types.DeploymentType:
+	case DeploymentType:
 		k8sDeploy, err := getDeployment(cli, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 
 		selector = k8sDeploy.Spec.Selector
-	case types.DaemonSetType:
+	case DaemonSetType:
 		k8sDaemonSet, err := getDaemonSet(cli, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 
 		selector = k8sDaemonSet.Spec.Selector
-	case types.StatefulSetType:
+	case StatefulSetType:
 		k8sStatefulSet, err := getStatefulSet(cli, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 
 		selector = k8sStatefulSet.Spec.Selector
-	case types.JobType:
+	case JobType:
 		return genJobSelector(cli, namespace, name)
-	case types.CronJobType:
+	case CronJobType:
 		return genCronJobSelector(cli, namespace, name)
 	default:
 		return nil, fmt.Errorf("pod no such parent %v", typ)
@@ -158,7 +165,7 @@ func getPodParentSelector(cli client.Client, namespace string, typ string, name 
 func filterPodBasedOnOwner(pods *corev1.PodList, typ string, name string) {
 	var results []corev1.Pod
 	switch typ {
-	case types.DeploymentType:
+	case DeploymentType:
 		for _, pod := range pods.Items {
 			rsHash, ok := pod.Labels["pod-template-hash"]
 			if ok == false {
@@ -172,9 +179,9 @@ func filterPodBasedOnOwner(pods *corev1.PodList, typ string, name string) {
 				results = append(results, pod)
 			}
 		}
-	case types.DaemonSetType, types.StatefulSetType:
+	case DaemonSetType, StatefulSetType:
 		kind := OwnerKindDaemonSet
-		if typ == types.StatefulSetType {
+		if typ == StatefulSetType {
 			kind = OwnerKindStatefulSet
 		}
 
@@ -187,7 +194,7 @@ func filterPodBasedOnOwner(pods *corev1.PodList, typ string, name string) {
 				results = append(results, pod)
 			}
 		}
-	case types.JobType, types.CronJobType:
+	case JobType, CronJobType:
 		results = pods.Items
 	}
 	pods.Items = results
@@ -220,8 +227,8 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 		conditions = append(conditions, types.PodCondition{
 			Type:               string(condition.Type),
 			Status:             string(condition.Status),
-			LastProbeTime:      resttypes.ISOTime(condition.LastProbeTime.Time),
-			LastTransitionTime: resttypes.ISOTime(condition.LastTransitionTime.Time),
+			LastProbeTime:      resource.ISOTime(condition.LastProbeTime.Time),
+			LastTransitionTime: resource.ISOTime(condition.LastTransitionTime.Time),
 		})
 	}
 
@@ -256,7 +263,6 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 		Status:     podStatus,
 	}
 	pod.SetID(k8sPod.Name)
-	pod.SetType(types.PodType)
 	pod.SetCreationTimestamp(k8sPod.CreationTimestamp.Time)
 	return pod
 }
@@ -272,7 +278,7 @@ func k8sContainerStateToScContainerState(k8sContainerState corev1.ContainerState
 	} else if k8sContainerState.Running != nil {
 		state = &types.ContainerState{
 			Type:      types.RunningState,
-			StartedAt: resttypes.ISOTime(k8sContainerState.Running.StartedAt.Time),
+			StartedAt: resource.ISOTime(k8sContainerState.Running.StartedAt.Time),
 		}
 	} else if k8sContainerState.Terminated != nil {
 		state = &types.ContainerState{
@@ -280,8 +286,8 @@ func k8sContainerStateToScContainerState(k8sContainerState corev1.ContainerState
 			ContainerID: k8sContainerState.Terminated.ContainerID,
 			ExitCode:    k8sContainerState.Terminated.ExitCode,
 			Reason:      k8sContainerState.Terminated.Reason,
-			StartedAt:   resttypes.ISOTime(k8sContainerState.Terminated.StartedAt.Time),
-			FinishedAt:  resttypes.ISOTime(k8sContainerState.Terminated.FinishedAt.Time),
+			StartedAt:   resource.ISOTime(k8sContainerState.Terminated.StartedAt.Time),
+			FinishedAt:  resource.ISOTime(k8sContainerState.Terminated.FinishedAt.Time),
 		}
 	}
 

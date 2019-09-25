@@ -1,15 +1,8 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
-
-func SetIngressSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE"}
-	schema.Parents = []string{NamespaceType}
-}
 
 type IngressRule struct {
 	Host        string `json:"host"`
@@ -19,12 +12,14 @@ type IngressRule struct {
 }
 
 type Ingress struct {
-	resttypes.Resource `json:",inline"`
-	Name               string        `json:"name"`
-	Rules              []IngressRule `json:"rules"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string        `json:"name"`
+	Rules                 []IngressRule `json:"rules"`
 }
 
-var IngressType = resttypes.GetResourceType(Ingress{})
+func (i Ingress) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}
 
 /*
 ing_a ---> host1 ---> path1 --> svc/port

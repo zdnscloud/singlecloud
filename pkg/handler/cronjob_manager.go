@@ -13,13 +13,12 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type CronJobManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -27,20 +26,20 @@ func newCronJobManager(clusters *ClusterManager) *CronJobManager {
 	return &CronJobManager{clusters: clusters}
 }
 
-func (m *CronJobManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *CronJobManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	cronJob := ctx.Object.(*types.CronJob)
+	namespace := ctx.Resource.GetParent().GetID()
+	cronJob := ctx.Resource.(*types.CronJob)
 	err := createCronJob(cluster.KubeClient, namespace, cronJob)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate cronJob name %s", cronJob.Name))
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate cronJob name %s", cronJob.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create cronJob failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create cronJob failed %s", err.Error()))
 		}
 	}
 
@@ -48,13 +47,13 @@ func (m *CronJobManager) Create(ctx *resttypes.Context, yamlConf []byte) (interf
 	return cronJob, nil
 }
 
-func (m *CronJobManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *CronJobManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sCronJobs, err := getCronJobs(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -70,14 +69,14 @@ func (m *CronJobManager) List(ctx *resttypes.Context) interface{} {
 	return cronJobs
 }
 
-func (m *CronJobManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *CronJobManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	cronJob := ctx.Object.(*types.CronJob)
+	namespace := ctx.Resource.GetParent().GetID()
+	cronJob := ctx.Resource.(*types.CronJob)
 	k8sCronJob, err := getCronJob(cluster.KubeClient, namespace, cronJob.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -89,20 +88,20 @@ func (m *CronJobManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sCronJobToScCronJob(k8sCronJob)
 }
 
-func (m *CronJobManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *CronJobManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	cronJob := ctx.Object.(*types.CronJob)
+	namespace := ctx.Resource.GetParent().GetID()
+	cronJob := ctx.Resource.(*types.CronJob)
 	if err := deleteCronJob(cluster.KubeClient, namespace, cronJob.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("cronJob %s with namespace %s desn't exist", cronJob.GetID(), namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete cronJob failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete cronJob failed %s", err.Error()))
 		}
 	}
 
@@ -189,7 +188,6 @@ func k8sCronJobToScCronJob(k8sCronJob *batchv1beta1.CronJob) *types.CronJob {
 		Status:        cronJobStatus,
 	}
 	cronJob.SetID(k8sCronJob.Name)
-	cronJob.SetType(types.CronJobType)
 	cronJob.SetCreationTimestamp(k8sCronJob.CreationTimestamp.Time)
 	return cronJob
 }

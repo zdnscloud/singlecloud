@@ -535,10 +535,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0ae7892c219c044d37713faf060b6c026281976b6450ee57b5ce3a748a5e35f7"
+  digest = "1:fc14e4757e3280fc1be5f15cad43b919ce6ae2410ff61c00a21c6661dabc29a3"
   name = "github.com/zdnscloud/cement"
   packages = [
-    "cache",
     "configure",
     "domaintree",
     "errgroup",
@@ -563,17 +562,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:1791e116ec36832f6701351125a55db0d9f9d05b1f6774acfd1ee69a35a84bfd"
-  name = "github.com/zdnscloud/cluster-agent"
-  packages = [
-    "blockdevice",
-    "nodeagent",
-  ]
-  pruneopts = "UT"
-  revision = "01d4300c52cd10056165dd102ffb598b95788ff2"
-
-[[projects]]
-  branch = "master"
   digest = "1:690cd103a39184f2f7f74240941bcee1eecd45d87528a38fc1f2e4fad67c1762"
   name = "github.com/zdnscloud/g53"
   packages = [
@@ -586,7 +574,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:11cc884eab72f1af9756025891c195b61443bc758cc7f8c2c8990876273a97a1"
+  digest = "1:177b76de18fe2b642eedb098c972c1fc4b28e61b65a4909a19515c7e592aa770"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -605,7 +593,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "106967c314809f9a9bb33b4f83938f642b83d501"
+  revision = "129bd48fe0c9be145a816bc094acebb153d00025"
 
 [[projects]]
   branch = "master"
@@ -617,18 +605,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:dff9b80335d30b4f163ee3da352c96391e69dcaa1f43ae67bdec1a22d0aaead2"
+  digest = "1:7c345faf56d41f1989fe5be2c9673aa018d3950e82f5686fb1891db9dade46da"
   name = "github.com/zdnscloud/gorest"
   packages = [
+    ".",
     "adaptor",
-    "api",
-    "api/handler",
-    "parse",
-    "types",
+    "error",
+    "resource",
+    "resource/schema",
+    "resource/schema/resourcefield",
     "util",
   ]
   pruneopts = "UT"
-  revision = "b515ac7fed0e4002895a90be54b0a9c68f5ee78b"
+  revision = "2917441646e95c2212afdccd5b996161ceeafe87"
 
 [[projects]]
   branch = "master"
@@ -637,17 +626,6 @@
   packages = ["pkg/apis/zcloud/v1"]
   pruneopts = "UT"
   revision = "4d3b6a7f75c61f97e69c9883d975acba71b48f71"
-
-[[projects]]
-  branch = "master"
-  digest = "1:d83d7db0249aa1601d227c3befc69c089112d8a1fcd8ce0a37f37749a59cf5a3"
-  name = "github.com/zdnscloud/node-agent"
-  packages = [
-    "client",
-    "proto",
-  ]
-  pruneopts = "UT"
-  revision = "b2ad63324d36f41efb3affa1ee32981450a46807"
 
 [[projects]]
   branch = "master"
@@ -734,7 +712,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ea88904a70cd999974f85501bf4a4d500edda05c28abdd60cd465fba4526c72b"
+  digest = "1:03889bda9d5d0b86ee7a16eaf733db664bdba2ce0408f3c41309338f3be10b8b"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -744,9 +722,7 @@
     "http2/hpack",
     "idna",
     "internal/socks",
-    "internal/timeseries",
     "proxy",
-    "trace",
   ]
   pruneopts = "UT"
   revision = "74dc4d7220e7acc4e100824340f3e66577424772"
@@ -822,56 +798,6 @@
   pruneopts = "UT"
   revision = "b2f4a3cf3c67576a2ee09e1fe62656a5086ce880"
   version = "v1.6.1"
-
-[[projects]]
-  branch = "master"
-  digest = "1:583a0c80f5e3a9343d33aea4aead1e1afcc0043db66fdf961ddd1fe8cd3a4faf"
-  name = "google.golang.org/genproto"
-  packages = ["googleapis/rpc/status"]
-  pruneopts = "UT"
-  revision = "1774047e7e5133fa3573a4e51b37a586b6b0360c"
-
-[[projects]]
-  digest = "1:2e18183989c76d073e9088f1a56f8b1c46ca920b74b529a50c2d7e5877ff18ac"
-  name = "google.golang.org/grpc"
-  packages = [
-    ".",
-    "balancer",
-    "balancer/base",
-    "balancer/roundrobin",
-    "binarylog/grpc_binarylog_v1",
-    "codes",
-    "connectivity",
-    "credentials",
-    "credentials/internal",
-    "encoding",
-    "encoding/proto",
-    "grpclog",
-    "internal",
-    "internal/backoff",
-    "internal/balancerload",
-    "internal/binarylog",
-    "internal/channelz",
-    "internal/envconfig",
-    "internal/grpcrand",
-    "internal/grpcsync",
-    "internal/syscall",
-    "internal/transport",
-    "keepalive",
-    "metadata",
-    "naming",
-    "peer",
-    "resolver",
-    "resolver/dns",
-    "resolver/passthrough",
-    "serviceconfig",
-    "stats",
-    "status",
-    "tap",
-  ]
-  pruneopts = "UT"
-  revision = "39e8a7b072a67ca2a75f57fa2e0d50995f5b22f6"
-  version = "v1.23.1"
 
 [[projects]]
   digest = "1:cbc72c4c4886a918d6ab4b95e347ffe259846260f99ebdd8a198c2331cf2b2e9"
@@ -1018,7 +944,7 @@
   revision = "bf4de9df677cd119930fa83483bad158956cdfcf"
 
 [[projects]]
-  digest = "1:654fac90d3d8642192ce9cc2c87fa703c1ca91dc4730e2880b3a300302ebb974"
+  digest = "1:134a643fcbe65189b9fed8a8c75195490f32b15f37b1a3a2184e1ed7a17363f1"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -1064,7 +990,6 @@
     "plugin/pkg/client/auth/exec",
     "rest",
     "rest/watch",
-    "restmapper",
     "tools/auth",
     "tools/cache",
     "tools/clientcmd",
@@ -1149,10 +1074,10 @@
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",
     "github.com/zdnscloud/cement/set",
+    "github.com/zdnscloud/cement/slice",
     "github.com/zdnscloud/cement/unittest",
     "github.com/zdnscloud/cement/uuid",
     "github.com/zdnscloud/cement/x509",
-    "github.com/zdnscloud/cluster-agent/blockdevice",
     "github.com/zdnscloud/g53",
     "github.com/zdnscloud/gok8s/cache",
     "github.com/zdnscloud/gok8s/client",
@@ -1164,10 +1089,12 @@
     "github.com/zdnscloud/gok8s/helper",
     "github.com/zdnscloud/gok8s/predicate",
     "github.com/zdnscloud/goproxy",
+    "github.com/zdnscloud/gorest",
     "github.com/zdnscloud/gorest/adaptor",
-    "github.com/zdnscloud/gorest/api",
-    "github.com/zdnscloud/gorest/api/handler",
-    "github.com/zdnscloud/gorest/types",
+    "github.com/zdnscloud/gorest/error",
+    "github.com/zdnscloud/gorest/resource",
+    "github.com/zdnscloud/gorest/resource/schema",
+    "github.com/zdnscloud/gorest/resource/schema/resourcefield",
     "github.com/zdnscloud/gorest/util",
     "github.com/zdnscloud/immense/pkg/apis/zcloud/v1",
     "github.com/zdnscloud/vanguard/httpcmd",

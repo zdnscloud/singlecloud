@@ -1,22 +1,15 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetChartSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.ResourceMethods = []string{"GET"}
-	schema.Parents = []string{NamespaceType}
-}
-
 type Chart struct {
-	resttypes.Resource `json:",inline"`
-	Name               string         `json:"name"`
-	Description        string         `json:"description"`
-	Icon               string         `json:"icon"`
-	Versions           []ChartVersion `json:"versions"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string         `json:"name"`
+	Description           string         `json:"description"`
+	Icon                  string         `json:"icon"`
+	Versions              []ChartVersion `json:"versions"`
 }
 
 type ChartVersion struct {
@@ -38,4 +31,6 @@ func (c Charts) Less(i, j int) bool {
 	return c[i].Name < c[j].Name
 }
 
-var ChartType = resttypes.GetResourceType(Chart{})
+func (c Chart) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}

@@ -1,20 +1,14 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetPodNetworkSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.Parents = []string{ClusterType}
-}
-
 type PodNetwork struct {
-	resttypes.Resource `json:",inline"`
-	NodeName           string  `json:"nodeName"`
-	PodCIDR            string  `json:"podCIDR"`
-	PodIPs             []PodIP `json:"podIPs"`
+	resource.ResourceBase `json:",inline"`
+	NodeName              string  `json:"nodeName"`
+	PodCIDR               string  `json:"podCIDR"`
+	PodIPs                []PodIP `json:"podIPs"`
 }
 
 type PodIP struct {
@@ -23,4 +17,6 @@ type PodIP struct {
 	IP        string `json:"ip"`
 }
 
-var PodNetworkType = resttypes.GetResourceType(PodNetwork{})
+func (p PodNetwork) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Cluster{}}
+}

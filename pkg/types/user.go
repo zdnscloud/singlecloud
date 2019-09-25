@@ -1,7 +1,7 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -10,20 +10,6 @@ const (
 	ActionLogin         string = "login"
 	ActionResetPassword string = "resetPassword"
 )
-
-func SetUserSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "PUT", "DELETE", "POST"}
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionLogin,
-		Input: UserPassword{},
-	})
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionResetPassword,
-		Input: ResetPassword{},
-	})
-}
 
 type UserPassword struct {
 	Password string `json:"password"`
@@ -35,10 +21,10 @@ type ResetPassword struct {
 }
 
 type User struct {
-	resttypes.Resource `json:",inline"`
-	Name               string    `json:"name"`
-	Password           string    `json:"password,omitempty"`
-	Projects           []Project `json:"projects"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string    `json:"name" rest:"required=true"`
+	Password              string    `json:"password,omitempty" rest:"required=true"`
+	Projects              []Project `json:"projects"`
 }
 
 type Project struct {
@@ -46,4 +32,19 @@ type Project struct {
 	Namespace string `json:"namespace"`
 }
 
-var UserType = resttypes.GetResourceType(User{})
+func (u User) CreateAction(name string) *resource.Action {
+	switch name {
+	case ActionLogin:
+		return &resource.Action{
+			Name:  ActionLogin,
+			Input: &UserPassword{},
+		}
+	case ActionResetPassword:
+		return &resource.Action{
+			Name:  ActionResetPassword,
+			Input: &ResetPassword{},
+		}
+	default:
+		return nil
+	}
+}

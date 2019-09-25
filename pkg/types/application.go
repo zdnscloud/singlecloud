@@ -3,7 +3,7 @@ package types
 import (
 	"encoding/json"
 
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -13,24 +13,17 @@ const (
 	AppStatusSucceed = "succeed"
 )
 
-func SetApplicationSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"DELETE"}
-	schema.Parents = []string{NamespaceType}
-}
-
 type Application struct {
-	resttypes.Resource `json:",inline"`
-	Name               string          `json:"name"`
-	ChartName          string          `json:"chartName"`
-	ChartVersion       string          `json:"chartVersion"`
-	ChartIcon          string          `json:"chartIcon"`
-	Status             string          `json:"status"`
-	AppResources       []AppResource   `json:"appResources,omitempty"`
-	Configs            json.RawMessage `json:"configs,omitempty"`
-	Manifests          []Manifest      `json:"manifests,omitempty"`
-	SystemChart        bool            `json:"systemChart,omitempty"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string          `json:"name"`
+	ChartName             string          `json:"chartName"`
+	ChartVersion          string          `json:"chartVersion"`
+	ChartIcon             string          `json:"chartIcon"`
+	Status                string          `json:"status"`
+	AppResources          []AppResource   `json:"appResources,omitempty"`
+	Configs               json.RawMessage `json:"configs,omitempty"`
+	Manifests             []Manifest      `json:"manifests,omitempty"`
+	SystemChart           bool            `json:"systemChart,omitempty"`
 }
 
 type AppResource struct {
@@ -43,6 +36,10 @@ type Manifest struct {
 	File      string `json:"file,omitempty"`
 	Content   string `json:"content,omitempty"`
 	Duplicate bool   `json:"duplicate,omitempty"`
+}
+
+func (a Application) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
 }
 
 type Applications []*Application
@@ -84,5 +81,3 @@ func (r AppResources) Less(i, j int) bool {
 		return r[i].Type < r[j].Type
 	}
 }
-
-var ApplicationType = resttypes.GetResourceType(Application{})

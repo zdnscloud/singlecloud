@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	resttypes "github.com/zdnscloud/gorest/types"
+	resttypes "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 )
@@ -48,7 +48,7 @@ func New(db storage.DB) (*Authorizer, error) {
 
 	if _, ok := auth.users[types.Administrator]; ok == false {
 		adminUser.SetID(types.Administrator)
-		adminUser.SetType(types.UserType)
+		// adminUser.SetType(types.UserType)
 		adminUser.SetCreationTimestamp(time.Now())
 		auth.AddUser(adminUser)
 	}

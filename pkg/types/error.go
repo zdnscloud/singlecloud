@@ -1,11 +1,11 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
 )
 
 var (
 	//cluster
-	InvalidClusterConfig = resttypes.ErrorCode{"InvalidClusterConfig", 422}
-	ConnectClusterFailed = resttypes.ErrorCode{"ConnectClusterFailed", 422}
+	InvalidClusterConfig = resterror.ErrorCode{"InvalidClusterConfig", 422}
+	ConnectClusterFailed = resterror.ErrorCode{"ConnectClusterFailed", 422}
 )

@@ -57,7 +57,7 @@
             "type": "array",
             "elemType": "privateRegistry"
         },
-        "singleCloudAddress": {
+        "singlecloudAddress": {
             "type": "string"
         },
         "sshUser": {
@@ -201,8 +201,7 @@
                 "required": true
             },
             "network": {
-                "type": "zkeConfigNetwork",
-                "required": true
+                "type": "zkeConfigNetwork"
             },
             "privateRegistries": {
                 "type": "array",
@@ -217,8 +216,7 @@
                 "required": true
             },
             "sshPort": {
-                "type": "string",
-                "required": true
+                "type": "string"
             },
             "sshKey": {
                 "type": "string",
@@ -234,25 +232,21 @@
                 "type": "bool"
             },
             "clusterCidr": {
-                "type": "string",
-                "required": true
+                "type": "string"
             },
             "serviceCidr": {
-                "type": "string",
-                "required": true
+                "type": "string"
             },
             "clusterDomain": {
                 "type": "string",
                 "required": true
             },
             "clusterDNSServiceIP": {
-                "type": "string",
-                "required": true
+                "type": "string"
             },
             "clusterUpstreamDNS": {
                 "type": "array",
-                "elemType": "string",
-                "required": true
+                "elemType": "string"
             },
             "disablePortCheck": {
                 "type": "bool"

@@ -1,7 +1,7 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -13,24 +13,6 @@ const (
 	VolumeTypeSecret           = "secret"
 	VolumeTypePersistentVolume = "persistentVolume"
 )
-
-func SetDeploymentSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "PUT", "DELETE", "POST"}
-	schema.Parents = []string{NamespaceType}
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name: ActionGetHistory,
-	})
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionRollback,
-		Input: RollBackVersion{},
-	})
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionSetImage,
-		Input: SetImage{},
-	})
-}
 
 type ContainerPort struct {
 	Name     string `json:"name"`
@@ -66,18 +48,43 @@ type AdvancedOptions struct {
 }
 
 type Deployment struct {
-	resttypes.Resource `json:",inline"`
-	Name               string                     `json:"name,omitempty"`
-	Replicas           int                        `json:"replicas"`
-	Containers         []Container                `json:"containers"`
-	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
-	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
-	Status             WorkloadStatus             `json:"status,omitempty"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string                     `json:"name,omitempty"`
+	Replicas              int                        `json:"replicas"`
+	Containers            []Container                `json:"containers"`
+	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
+	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status                WorkloadStatus             `json:"status,omitempty"`
 }
 
 type ExposedMetric struct {
 	Path string `json:"path"`
 	Port int    `json:"port"`
+}
+
+func (d Deployment) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}
+
+func (d Deployment) CreateAction(name string) *resource.Action {
+	switch name {
+	case ActionGetHistory:
+		return &resource.Action{
+			Name: ActionGetHistory,
+		}
+	case ActionRollback:
+		return &resource.Action{
+			Name:  ActionRollback,
+			Input: &RollBackVersion{},
+		}
+	case ActionSetImage:
+		return &resource.Action{
+			Name:  ActionSetImage,
+			Input: &SetImage{},
+		}
+	default:
+		return nil
+	}
 }
 
 type WorkloadStatus struct {
@@ -95,15 +102,13 @@ type WorkloadStatus struct {
 }
 
 type WorkloadCondition struct {
-	Type               string            `json:"type,omitempty"`
-	Status             string            `json:"status,omitempty"`
-	LastTransitionTime resttypes.ISOTime `json:"lastTransitionTime,omitempty"`
-	LastUpdateTime     resttypes.ISOTime `json:"lastUpdateTime,omitempty"`
-	Reason             string            `json:"reason,omitempty"`
-	Message            string            `json:"message,omitempty"`
+	Type               string           `json:"type,omitempty"`
+	Status             string           `json:"status,omitempty"`
+	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty"`
+	LastUpdateTime     resource.ISOTime `json:"lastUpdateTime,omitempty"`
+	Reason             string           `json:"reason,omitempty"`
+	Message            string           `json:"message,omitempty"`
 }
-
-var DeploymentType = resttypes.GetResourceType(Deployment{})
 
 type VersionHistory struct {
 	VersionInfos VersionInfos `json:"history"`

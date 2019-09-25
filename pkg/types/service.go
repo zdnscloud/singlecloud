@@ -1,15 +1,8 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
-
-func SetServiceSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE"}
-	schema.Parents = []string{NamespaceType}
-}
 
 type ServicePort struct {
 	Name       string `json:"name"`
@@ -20,12 +13,14 @@ type ServicePort struct {
 }
 
 type Service struct {
-	resttypes.Resource `json:",inline"`
-	Name               string        `json:"name"`
-	ServiceType        string        `json:"serviceType"`
-	Headless           bool          `json:"headless"`
-	ClusterIP          string        `json:"clusterIP,omitempty"`
-	ExposedPorts       []ServicePort `json:"exposedPorts,omitempty"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string        `json:"name"`
+	ServiceType           string        `json:"serviceType"`
+	Headless              bool          `json:"headless"`
+	ClusterIP             string        `json:"clusterIP,omitempty"`
+	ExposedPorts          []ServicePort `json:"exposedPorts,omitempty"`
 }
 
-var ServiceType = resttypes.GetResourceType(Service{})
+func (s Service) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}

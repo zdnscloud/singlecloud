@@ -13,13 +13,12 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type DaemonSetManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -27,19 +26,19 @@ func newDaemonSetManager(clusters *ClusterManager) *DaemonSetManager {
 	return &DaemonSetManager{clusters: clusters}
 }
 
-func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DaemonSetManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	daemonSet := ctx.Object.(*types.DaemonSet)
+	namespace := ctx.Resource.GetParent().GetID()
+	daemonSet := ctx.Resource.(*types.DaemonSet)
 	if err := createDaemonSet(cluster.KubeClient, namespace, daemonSet); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate daemonSet name %s", daemonSet.Name))
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate daemonSet name %s", daemonSet.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create daemonSet failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create daemonSet failed %s", err.Error()))
 		}
 	}
 
@@ -47,13 +46,13 @@ func (m *DaemonSetManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	return daemonSet, nil
 }
 
-func (m *DaemonSetManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DaemonSetManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sDaemonSets, err := getDaemonSets(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -74,14 +73,14 @@ func (m *DaemonSetManager) List(ctx *resttypes.Context) interface{} {
 	return daemonSets
 }
 
-func (m *DaemonSetManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DaemonSetManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	daemonSet := ctx.Object.(*types.DaemonSet)
+	namespace := ctx.Resource.GetParent().GetID()
+	daemonSet := ctx.Resource.(*types.DaemonSet)
 	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -98,27 +97,27 @@ func (m *DaemonSetManager) Get(ctx *resttypes.Context) interface{} {
 	}
 }
 
-func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DaemonSetManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	daemonSet := ctx.Object.(*types.DaemonSet)
+	namespace := ctx.Resource.GetParent().GetID()
+	daemonSet := ctx.Resource.(*types.DaemonSet)
 
 	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("daemonset %s with namespace %s desn't exist", daemonSet.GetID(), namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
 		}
 	}
 
 	if err := deleteDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID()); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete daemonSet failed %s", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete daemonSet failed %s", err.Error()))
 	}
 
 	if delete, ok := k8sDaemonSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
@@ -127,8 +126,8 @@ func (m *DaemonSetManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	return nil
 }
 
-func (m *DaemonSetManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	switch ctx.Action.Name {
+func (m *DaemonSetManager) Action(ctx *resource.Context) (interface{}, *resterror.APIError) {
+	switch ctx.Resource.GetAction().Name {
 	case types.ActionGetHistory:
 		return m.getDaemonsetHistory(ctx)
 	case types.ActionRollback:
@@ -136,7 +135,7 @@ func (m *DaemonSetManager) Action(ctx *resttypes.Context) (interface{}, *resttyp
 	case types.ActionSetImage:
 		return nil, m.setImage(ctx)
 	default:
-		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
+		return nil, resterror.NewAPIError(resterror.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Resource.GetAction().Name))
 	}
 }
 
@@ -224,27 +223,26 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 		Status:            daemonSetStatus,
 	}
 	daemonSet.SetID(k8sDaemonSet.Name)
-	daemonSet.SetType(types.DaemonSetType)
 	daemonSet.SetCreationTimestamp(k8sDaemonSet.CreationTimestamp.Time)
 	daemonSet.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDaemonSet.Spec.Template.Annotations)
 	return daemonSet, nil
 }
 
-func (m *DaemonSetManager) getDaemonsetHistory(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DaemonSetManager) getDaemonsetHistory(ctx *resource.Context) (interface{}, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	daemonset := ctx.Object.(*types.DaemonSet)
+	namespace := ctx.Resource.GetParent().GetID()
+	daemonset := ctx.Resource.(*types.DaemonSet)
 	_, controllerRevisions, err := getDaemonSetAndControllerRevisions(cluster.KubeClient, namespace, daemonset.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return nil, resttypes.NewAPIError(resttypes.NotFound,
+			return nil, resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("daemonset %s with namespace %s desn't exist", daemonset.GetID(), namespace))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
 		}
 	}
 
@@ -252,7 +250,7 @@ func (m *DaemonSetManager) getDaemonsetHistory(ctx *resttypes.Context) (interfac
 	for _, cr := range controllerRevisions {
 		var oldK8sDaemonSet appsv1.DaemonSet
 		if err := json.Unmarshal(cr.Data.Raw, &oldK8sDaemonSet); err != nil {
-			return nil, resttypes.NewAPIError(resttypes.InvalidFormat,
+			return nil, resterror.NewAPIError(resterror.InvalidFormat,
 				fmt.Sprintf("unmarshal controllerrevision data failed: %v", err.Error()))
 		}
 
@@ -286,27 +284,27 @@ func getDaemonSetAndControllerRevisions(cli client.Client, namespace, name strin
 	return k8sDaemonSet, controllerRevisions, err
 }
 
-func (m *DaemonSetManager) rollback(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DaemonSetManager) rollback(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	daemonset := ctx.Object.(*types.DaemonSet)
-	param, ok := ctx.Action.Input.(*types.RollBackVersion)
+	namespace := ctx.Resource.GetParent().GetID()
+	daemonset := ctx.Resource.(*types.DaemonSet)
+	param, ok := ctx.Resource.GetAction().Input.(*types.RollBackVersion)
 	if ok == false || param.Version < 0 {
-		return resttypes.NewAPIError(resttypes.InvalidFormat,
-			fmt.Sprintf("rollback version param is not valid: %v", ctx.Action.Input))
+		return resterror.NewAPIError(resterror.InvalidFormat,
+			fmt.Sprintf("rollback version param is not valid: %v", ctx.Resource.GetAction().Input))
 	}
 
 	k8sDaemonSet, controllerRevisions, err := getDaemonSetAndControllerRevisions(cluster.KubeClient, namespace, daemonset.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("daemonset %s with namespace %s desn't exist", daemonset.GetID(), namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
 		}
 	}
 
@@ -319,47 +317,47 @@ func (m *DaemonSetManager) rollback(ctx *resttypes.Context) *resttypes.APIError 
 	}
 
 	if len(patch) == 0 {
-		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("no found daemonset version: %v", param.Version))
+		return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found daemonset version: %v", param.Version))
 	}
 
 	if err := cluster.KubeClient.Patch(context.TODO(), k8sDaemonSet, k8stypes.StrategicMergePatchType, patch); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback daemonset failed: %v", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback daemonset failed: %v", err.Error()))
 	}
 
 	return nil
 }
 
-func (m *DaemonSetManager) setImage(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DaemonSetManager) setImage(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	param, ok := ctx.Action.Input.(*types.SetImage)
+	param, ok := ctx.Resource.GetAction().Input.(*types.SetImage)
 	if ok == false || len(param.Images) == 0 {
-		return resttypes.NewAPIError(resttypes.InvalidFormat, "set image param is not valid")
+		return resterror.NewAPIError(resterror.InvalidFormat, "set image param is not valid")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	daemonset := ctx.Object.(*types.DaemonSet)
+	namespace := ctx.Resource.GetParent().GetID()
+	daemonset := ctx.Resource.(*types.DaemonSet)
 	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonset.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("daemonset %s with namespace %s doesn't exist", daemonset.GetID(), namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
 		}
 	}
 
 	patch, err := getSetImagePatch(param, k8sDaemonSet.Spec.Template, k8sDaemonSet.Annotations)
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("get deployment patch when set image failed: %v", err.Error()))
 	}
 
 	if err := cluster.KubeClient.Patch(context.TODO(), k8sDaemonSet, k8stypes.JSONPatchType, patch); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set daemonset image failed: %v", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set daemonset image failed: %v", err.Error()))
 	}
 
 	return nil

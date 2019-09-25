@@ -1,23 +1,16 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetPersistentVolumeSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.ResourceMethods = []string{"GET", "DELETE"}
-	schema.Parents = []string{ClusterType}
-}
-
 type PersistentVolume struct {
-	resttypes.Resource `json:",inline"`
-	Name               string   `json:"name"`
-	StorageSize        string   `json:"storageSize"`
-	StorageClassName   string   `json:"storageClassName"`
-	ClaimRef           ClaimRef `json:"claimRef"`
-	Status             string   `json:"status"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string   `json:"name"`
+	StorageSize           string   `json:"storageSize"`
+	StorageClassName      string   `json:"storageClassName"`
+	ClaimRef              ClaimRef `json:"claimRef"`
+	Status                string   `json:"status"`
 }
 
 type ClaimRef struct {
@@ -26,4 +19,6 @@ type ClaimRef struct {
 	Namespace string `json:"namespace"`
 }
 
-var PersistentVolumeType = resttypes.GetResourceType(PersistentVolume{})
+func (pv PersistentVolume) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Cluster{}}
+}

@@ -137,6 +137,34 @@ func (c *client) GetNodeMetrics(name string, selector labels.Selector) (*metrics
 	return metrics, nil
 }
 
+func (c *client) GetPodMetrics(namespace, name string, selector labels.Selector) (*metricsapi.PodMetricsList, error) {
+	if c.metricsClient == nil {
+		return nil, errMetricsServerIsNotValiable
+	}
+
+	var err error
+	versionedMetrics := &metricsV1beta1api.PodMetricsList{}
+	nm := c.metricsClient.MetricsV1beta1().PodMetricses(namespace)
+	if name != "" {
+		m, err := nm.Get(name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		versionedMetrics.Items = []metricsV1beta1api.PodMetrics{*m}
+	} else {
+		versionedMetrics, err = nm.List(metav1.ListOptions{LabelSelector: selector.String()})
+		if err != nil {
+			return nil, err
+		}
+	}
+	metrics := &metricsapi.PodMetricsList{}
+	err = metricsV1beta1api.Convert_v1beta1_PodMetricsList_To_metrics_PodMetricsList(versionedMetrics, metrics, nil)
+	if err != nil {
+		return nil, err
+	}
+	return metrics, nil
+}
+
 func (c *client) RestClientForObject(obj runtime.Object, timeout time.Duration) (rest.Interface, error) {
 	return c.typedClient.RestClientForObject(obj, timeout)
 }

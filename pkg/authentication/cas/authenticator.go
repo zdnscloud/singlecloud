@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/zdnscloud/gorest/types"
+	resterr "github.com/zdnscloud/gorest/error"
 )
 
 type Authenticator struct {
@@ -22,7 +22,7 @@ func NewAuthenticator(casServer string) (*Authenticator, error) {
 	}, nil
 }
 
-func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (string, *types.APIError) {
+func (a *Authenticator) Authenticate(w http.ResponseWriter, r *http.Request) (string, *resterr.APIError) {
 	resp, err := a.client.GetAuthResponse(w, r)
 	if err != nil || resp == nil {
 		return "", nil

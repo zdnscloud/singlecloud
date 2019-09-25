@@ -10,12 +10,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 )
@@ -23,7 +23,6 @@ import (
 const UserQuotaTable = "userquota"
 
 type UserQuotaManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -31,45 +30,45 @@ func newUserQuotaManager(clusters *ClusterManager) *UserQuotaManager {
 	return &UserQuotaManager{clusters: clusters}
 }
 
-func (m *UserQuotaManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+func (m *UserQuotaManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	userName := getCurrentUser(ctx)
 	if userName == "" {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, "create user quota failed: user name should not be empty")
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, "create user quota failed: user name should not be empty")
 	}
 
-	userQuota := ctx.Object.(*types.UserQuota)
+	userQuota := ctx.Resource.(*types.UserQuota)
 	if err := checkUserQuotaParamsValid(userQuota); err != nil {
-		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
+		return nil, resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
 	}
 
 	setUserQuota(userQuota, userName, types.TypeUserQuotaCreate, time.Now())
 	value, err := json.Marshal(userQuota)
 	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
 	}
 
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("create user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
 	defer tx.Rollback()
 	if err := tx.Add(userQuota.GetID(), value); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("create user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("commit user_resource_quota table failed: %s", err.Error()))
 	}
 
 	return userQuota, nil
 }
 
-func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
+func (m *UserQuotaManager) List(ctx *resource.Context) interface{} {
 	userName := getCurrentUser(ctx)
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
@@ -103,9 +102,9 @@ func (m *UserQuotaManager) List(ctx *resttypes.Context) interface{} {
 	return userQuotas
 }
 
-func (m *UserQuotaManager) Get(ctx *resttypes.Context) interface{} {
+func (m *UserQuotaManager) Get(ctx *resource.Context) resource.Resource {
 	userName := getCurrentUser(ctx)
-	userQuota := ctx.Object.(*types.UserQuota)
+	userQuota := ctx.Resource.(*types.UserQuota)
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
 		log.Warnf("get user quota info failed: %s", err.Error())
@@ -127,113 +126,113 @@ func (m *UserQuotaManager) Get(ctx *resttypes.Context) interface{} {
 	return quota
 }
 
-func (m *UserQuotaManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+func (m *UserQuotaManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	userName := getCurrentUser(ctx)
 	if userName == "" {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, "update user quota failed: user name should not be empty")
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, "update user quota failed: user name should not be empty")
 	}
 
-	userQuota := ctx.Object.(*types.UserQuota)
+	userQuota := ctx.Resource.(*types.UserQuota)
 	if err := checkUserQuotaParamsValid(userQuota); err != nil {
-		return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
+		return nil, resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
 	}
 
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("update user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
 	defer tx.Rollback()
 	quota, err := getUserQuotaFromDB(tx, userQuota.GetID())
 	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("update user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
 	if quota.UserName != userName {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("user %s can`t update quota which belong to %s", userName, quota.UserName))
 	}
 
 	if quota.Status == types.StatusUserQuotaProcessing {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("can`t update user quota which status is processing"))
 	}
 
 	if quota.Namespace != userQuota.Namespace || quota.ClusterName != userQuota.ClusterName {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("can`t update namespace or clusterName for quota"))
 	}
 
 	setUserQuota(userQuota, userName, types.TypeUserQuotaUpdate, quota.GetCreationTimestamp())
 	value, err := json.Marshal(userQuota)
 	if err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
 	}
 
 	if err := tx.Update(userQuota.GetID(), value); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("update user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("commit user_resource_quota table failed: %s", err.Error()))
 	}
 
 	return userQuota, nil
 }
 
-func (m *UserQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+func (m *UserQuotaManager) Delete(ctx *resource.Context) *resterror.APIError {
 	userName := getCurrentUser(ctx)
 	if userName == "" {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, "update user quota failed: user name should not be empty")
+		return resterror.NewAPIError(types.ConnectClusterFailed, "update user quota failed: user name should not be empty")
 	}
 
-	userQuota := ctx.Object.(*types.UserQuota)
+	userQuota := ctx.Resource.(*types.UserQuota)
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
 	defer tx.Rollback()
 	quota, err := getUserQuotaFromDB(tx, userQuota.GetID())
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
 	}
 
 	if isAdmin(userName) == false && quota.UserName != userName {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("user %s can`t delete quota which belong to %s", userName, quota.UserName))
 	}
 
 	if quota.Status == types.StatusUserQuotaProcessing {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("can`t delete user quota which status is processing"))
 	}
 
 	if quota.ClusterName != "" {
 		cluster := m.clusters.GetClusterByName(quota.ClusterName)
 		if cluster == nil {
-			return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+			return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 		}
 
 		if err := deleteNamespace(cluster.KubeClient, quota.Namespace); err != nil && apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
 		}
 	}
 
 	if err := tx.Delete(userQuota.GetID()); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user quota failed: %v", err.Error()))
 	}
 
 	if err := tx.Commit(); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user quota failed: %v", err.Error()))
 	}
 
@@ -253,48 +252,48 @@ func (m *UserQuotaManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	return nil
 }
 
-func (m *UserQuotaManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
+func (m *UserQuotaManager) Action(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can approval or reject user quota")
+		return nil, resterror.NewAPIError(resterror.PermissionDenied, "only admin can approval or reject user quota")
 	}
 
-	switch ctx.Action.Name {
+	switch ctx.Resource.GetAction().Name {
 	case types.ActionApproval:
 		return nil, m.approval(ctx)
 	case types.ActionRejection:
 		return nil, m.reject(ctx)
 	default:
-		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
+		return nil, resterror.NewAPIError(resterror.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Resource.GetAction().Name))
 	}
 }
 
-func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError {
-	clusterInfo, ok := ctx.Action.Input.(*types.ClusterInfo)
-	if ok == false {
-		return resttypes.NewAPIError(resttypes.InvalidFormat, "approval param is not valid")
+func (m *UserQuotaManager) approval(ctx *resource.Context) *resterror.APIError {
+	clusterInfo, ok := ctx.Resource.GetAction().Input.(*types.ClusterInfo)
+	if ok == false || clusterInfo.ClusterName == "" {
+		return resterror.NewAPIError(resterror.InvalidFormat, "approval param is not valid")
 	}
 
 	cluster := m.clusters.GetClusterByName(clusterInfo.ClusterName)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("cluster %s doesn't exist", clusterInfo.ClusterName))
+		return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("cluster %s doesn't exist", clusterInfo.ClusterName))
 	}
 
-	userQuotaID := ctx.Object.(*types.UserQuota).GetID()
+	userQuotaID := ctx.Resource.(*types.UserQuota).GetID()
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user quota %s failed %s", userQuotaID, err.Error()))
 	}
 
 	defer tx.Rollback()
 	quota, err := getUserQuotaFromDB(tx, userQuotaID)
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user quota %s failed %s", userQuotaID, err.Error()))
 	}
 
 	if quota.Status != types.StatusUserQuotaProcessing {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user quota %s failed: only approval request that status is processing", userQuotaID))
 	}
 
@@ -308,28 +307,28 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 
 	exists, err := hasNamespace(cluster.KubeClient, quota.Namespace)
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("check user %s namespace %s whether exists failed %s",
 				quota.UserName, quota.Namespace, err.Error()))
 	}
 
 	if exists == false {
 		if err := createNamespace(cluster.KubeClient, quota.Namespace); err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
+			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("create user %s namespace %s failed %s",
 					quota.UserName, quota.Namespace, err.Error()))
 		}
 
 		if err := createResourceQuota(cluster.KubeClient, quota.Namespace, resourceQuota); err != nil {
 			deleteNamespace(cluster.KubeClient, quota.Namespace)
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
+			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("create user %s resourcequota with namespace %s failed %s",
 					quota.UserName, quota.Namespace, err.Error()))
 		}
 	} else {
 		oldK8sResourceQuota, err = updateResourceQuota(cluster.KubeClient, quota.Namespace, resourceQuota.Limits)
 		if err != nil {
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
+			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("update user %s resourcequota with namespace %s failed %s",
 					quota.UserName, quota.Namespace, err.Error()))
 		}
@@ -338,7 +337,7 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 	setUserQuotaByAdmin(quota, clusterInfo.ClusterName, "", types.StatusUserQuotaApproval)
 	value, err := json.Marshal(quota)
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
 	}
 
@@ -352,14 +351,14 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 
 	if err := tx.Update(userQuotaID, value); err != nil {
 		rollbackResource()
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user %s quota with namespace %s failed %s",
 				quota.UserName, quota.Namespace, err.Error()))
 	}
 
 	if err := tx.Commit(); err != nil {
 		rollbackResource()
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user %s quota with namespace %s failed %s",
 				quota.UserName, quota.Namespace, err.Error()))
 	}
@@ -379,46 +378,46 @@ func (m *UserQuotaManager) approval(ctx *resttypes.Context) *resttypes.APIError 
 	return nil
 }
 
-func (m *UserQuotaManager) reject(ctx *resttypes.Context) *resttypes.APIError {
-	rejection, ok := ctx.Action.Input.(*types.Rejection)
+func (m *UserQuotaManager) reject(ctx *resource.Context) *resterror.APIError {
+	rejection, ok := ctx.Resource.GetAction().Input.(*types.Rejection)
 	if ok == false || rejection.Reason == "" {
-		return resttypes.NewAPIError(resttypes.InvalidFormat, "rejection param is not valid")
+		return resterror.NewAPIError(resterror.InvalidFormat, "rejection param is not valid")
 	}
 
-	userQuotaID := ctx.Object.(*types.UserQuota).GetID()
+	userQuotaID := ctx.Resource.(*types.UserQuota).GetID()
 	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user quota %s failed %s", userQuotaID, err.Error()))
 	}
 
 	defer tx.Rollback()
 	quota, err := getUserQuotaFromDB(tx, userQuotaID)
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user quota %s failed: %s", userQuotaID, err.Error()))
 	}
 
 	if quota.Status != types.StatusUserQuotaProcessing {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user quota %s failed: only reject request that status is processing", userQuotaID))
 	}
 
 	setUserQuotaByAdmin(quota, quota.ClusterName, rejection.Reason, types.StatusUserQuotaRejection)
 	value, err := json.Marshal(quota)
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
 	}
 
 	if err := tx.Update(userQuotaID, value); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user %s quota with namespace %s failed %s",
 				quota.UserName, quota.Namespace, err.Error()))
 	}
 
 	if err := tx.Commit(); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user %s quota with namespace %s failed %s",
 				quota.UserName, quota.Namespace, err.Error()))
 	}
@@ -428,7 +427,6 @@ func (m *UserQuotaManager) reject(ctx *resttypes.Context) *resttypes.APIError {
 func setUserQuota(userQuota *types.UserQuota, userName, requestType string, creationTimestamp time.Time) {
 	userQuota.Name = userQuota.Namespace
 	userQuota.SetID(userQuota.Name)
-	userQuota.SetType(types.UserQuotaType)
 	userQuota.SetCreationTimestamp(creationTimestamp)
 	userQuota.Status = types.StatusUserQuotaProcessing
 	userQuota.UserName = userName
@@ -439,7 +437,7 @@ func setUserQuotaByAdmin(userQuota *types.UserQuota, clusterName, reason, status
 	userQuota.ClusterName = clusterName
 	userQuota.RejectionReason = reason
 	userQuota.Status = status
-	userQuota.ResponseTimestamp = resttypes.ISOTime(time.Now())
+	userQuota.ResponseTimestamp = resource.ISOTime(time.Now())
 }
 
 func updateResourceQuota(cli client.Client, namespace string, limits map[string]string) (*corev1.ResourceQuota, error) {
@@ -474,7 +472,6 @@ func storageResourceValueToSCUserQuota(value []byte) (*types.UserQuota, error) {
 		return nil, err
 	}
 
-	userQuota.SetType(types.UserQuotaType)
 	return &userQuota, nil
 }
 
@@ -519,15 +516,15 @@ func checkUserQuotaParamsValid(quota *types.UserQuota) error {
 		return fmt.Errorf("namespace %s is invalid, must match regex [-a-z0-9]", quota.Namespace)
 	}
 
-	if _, err := resource.ParseQuantity(quota.CPU); err != nil {
+	if _, err := apiresource.ParseQuantity(quota.CPU); err != nil {
 		return fmt.Errorf("cpu %s is invalid: %s", quota.CPU, err.Error())
 	}
 
-	if _, err := resource.ParseQuantity(quota.Memory); err != nil {
+	if _, err := apiresource.ParseQuantity(quota.Memory); err != nil {
 		return fmt.Errorf("memory %s is invalid: %s", quota.Memory, err.Error())
 	}
 
-	if _, err := resource.ParseQuantity(quota.Storage); err != nil {
+	if _, err := apiresource.ParseQuantity(quota.Storage); err != nil {
 		return fmt.Errorf("storage %s is invalid: %s", quota.Storage, err.Error())
 	}
 

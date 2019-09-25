@@ -10,8 +10,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -28,7 +27,6 @@ type ChartInfo struct {
 }
 
 type ChartManager struct {
-	api.DefaultHandler
 	chartDir string
 }
 
@@ -36,7 +34,7 @@ func newChartManager(chartDir string) *ChartManager {
 	return &ChartManager{chartDir: chartDir}
 }
 
-func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
+func (m *ChartManager) List(ctx *resource.Context) interface{} {
 	chts, err := ioutil.ReadDir(m.chartDir)
 	if err != nil {
 		log.Warnf("list charts info failed:%s", err.Error())
@@ -62,7 +60,6 @@ func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
 					Versions:    versions,
 				}
 				chart.SetID(chart.Name)
-				chart.SetType(types.ChartType)
 				charts = append(charts, chart)
 			}
 		}
@@ -77,8 +74,8 @@ func (m *ChartManager) List(ctx *resttypes.Context) interface{} {
 	return charts
 }
 
-func (m *ChartManager) Get(ctx *resttypes.Context) interface{} {
-	chart := ctx.Object.(*types.Chart)
+func (m *ChartManager) Get(ctx *resource.Context) resource.Resource {
+	chart := ctx.Resource.(*types.Chart)
 	versions, description, isSystemChart, err := listVersions(path.Join(m.chartDir, chart.GetID()))
 	if err != nil {
 		log.Warnf("get chart %s failed:%s", chart.Name, err.Error())
@@ -94,7 +91,6 @@ func (m *ChartManager) Get(ctx *resttypes.Context) interface{} {
 	chart.Description = description
 	chart.Icon = genChartIcon(chart.Name)
 	chart.Versions = versions
-	chart.SetType(types.ChartType)
 	return chart
 }
 

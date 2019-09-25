@@ -3,7 +3,7 @@ package types
 import (
 	"time"
 
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -18,20 +18,6 @@ const (
 	ActionRejection = "reject"
 )
 
-func SetUserQuotaSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "PUT", "DELETE", "POST"}
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionApproval,
-		Input: ClusterInfo{},
-	})
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionRejection,
-		Input: Rejection{},
-	})
-}
-
 type ClusterInfo struct {
 	ClusterName string `json:"clusterName"`
 }
@@ -41,21 +27,38 @@ type Rejection struct {
 }
 
 type UserQuota struct {
-	resttypes.Resource `json:",inline"`
-	Name               string            `json:"name,omitempty"`
-	ClusterName        string            `json:"clusterName,omitempty"`
-	Namespace          string            `json:"namespace"`
-	UserName           string            `json:"userName"`
-	CPU                string            `json:"cpu"`
-	Memory             string            `json:"memory"`
-	Storage            string            `json:"storage"`
-	RequestType        string            `json:"requestType"`
-	Status             string            `json:"status"`
-	Purpose            string            `json:"purpose"`
-	Requestor          string            `json:"requestor,omitempty"`
-	Telephone          string            `json:"telephone,omitempty"`
-	RejectionReason    string            `json:"rejectionReason,omitempty"`
-	ResponseTimestamp  resttypes.ISOTime `json:"responseTimestamp,omitempty"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string           `json:"name,omitempty"`
+	ClusterName           string           `json:"clusterName,omitempty"`
+	Namespace             string           `json:"namespace"`
+	UserName              string           `json:"userName"`
+	CPU                   string           `json:"cpu"`
+	Memory                string           `json:"memory"`
+	Storage               string           `json:"storage"`
+	RequestType           string           `json:"requestType"`
+	Status                string           `json:"status"`
+	Purpose               string           `json:"purpose"`
+	Requestor             string           `json:"requestor,omitempty"`
+	Telephone             string           `json:"telephone,omitempty"`
+	RejectionReason       string           `json:"rejectionReason,omitempty"`
+	ResponseTimestamp     resource.ISOTime `json:"responseTimestamp,omitempty"`
+}
+
+func (uq UserQuota) CreateAction(name string) *resource.Action {
+	switch name {
+	case ActionApproval:
+		return &resource.Action{
+			Name:  ActionApproval,
+			Input: &ClusterInfo{},
+		}
+	case ActionRejection:
+		return &resource.Action{
+			Name:  ActionRejection,
+			Input: &Rejection{},
+		}
+	default:
+		return nil
+	}
 }
 
 type UserQuotas []*UserQuota
@@ -77,5 +80,3 @@ func (u UserQuotas) Less(i, j int) bool {
 		return time.Time(u[i].CreationTimestamp).Before(time.Time(u[j].CreationTimestamp))
 	}
 }
-
-var UserQuotaType = resttypes.GetResourceType(UserQuota{})

@@ -12,8 +12,8 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -23,7 +23,6 @@ var (
 )
 
 type SecretManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -31,19 +30,19 @@ func newSecretManager(clusters *ClusterManager) *SecretManager {
 	return &SecretManager{clusters: clusters}
 }
 
-func (m *SecretManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *SecretManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	secret := ctx.Object.(*types.Secret)
+	namespace := ctx.Resource.GetParent().GetID()
+	secret := ctx.Resource.(*types.Secret)
 	if err := createSecret(cluster.KubeClient, namespace, secret); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate secret name %s", secret.Name))
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate secret name %s", secret.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create secret failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create secret failed %s", err.Error()))
 		}
 	}
 
@@ -51,28 +50,28 @@ func (m *SecretManager) Create(ctx *resttypes.Context, yamlConf []byte) (interfa
 	return secret, nil
 }
 
-func (m *SecretManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *SecretManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	secret := ctx.Object.(*types.Secret)
+	namespace := ctx.Resource.GetParent().GetID()
+	secret := ctx.Resource.(*types.Secret)
 	if err := updateSecret(cluster.KubeClient, namespace, secret); err != nil {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update secret failed %s", err.Error()))
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update secret failed %s", err.Error()))
 	} else {
 		return secret, nil
 	}
 }
 
-func (m *SecretManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *SecretManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sSecrets, err := getSecrets(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -88,14 +87,14 @@ func (m *SecretManager) List(ctx *resttypes.Context) interface{} {
 	return secrets
 }
 
-func (m SecretManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m SecretManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	secret := ctx.Object.(*types.Secret)
+	namespace := ctx.Resource.GetParent().GetID()
+	secret := ctx.Resource.(*types.Secret)
 	k8sSecret, err := getSecret(cluster.KubeClient, namespace, secret.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -107,20 +106,20 @@ func (m SecretManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sSecretToSCSecret(k8sSecret)
 }
 
-func (m SecretManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m SecretManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	secret := ctx.Object.(*types.Secret)
+	namespace := ctx.Resource.GetParent().GetID()
+	secret := ctx.Resource.(*types.Secret)
 	err := deleteSecret(cluster.KubeClient, namespace, secret.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("secret %s desn't exist", namespace))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("secret %s desn't exist", namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete secret failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete secret failed %s", err.Error()))
 		}
 	}
 	return nil
@@ -204,7 +203,6 @@ func k8sSecretToSCSecret(k8sSecret *corev1.Secret) *types.Secret {
 		Data: data,
 	}
 	secret.SetID(k8sSecret.Name)
-	secret.SetType(types.SecretType)
 	secret.SetCreationTimestamp(k8sSecret.CreationTimestamp.Time)
 	return secret
 }

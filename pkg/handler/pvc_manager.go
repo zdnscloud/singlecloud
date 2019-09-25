@@ -11,13 +11,12 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type PersistentVolumeClaimManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -25,13 +24,13 @@ func newPersistentVolumeClaimManager(clusters *ClusterManager) *PersistentVolume
 	return &PersistentVolumeClaimManager{clusters: clusters}
 }
 
-func (m *PersistentVolumeClaimManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sPersistentVolumeClaims, err := getPersistentVolumeClaims(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -47,14 +46,14 @@ func (m *PersistentVolumeClaimManager) List(ctx *resttypes.Context) interface{} 
 	return pvcs
 }
 
-func (m PersistentVolumeClaimManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m PersistentVolumeClaimManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	pvc := ctx.Object.(*types.PersistentVolumeClaim)
+	namespace := ctx.Resource.GetParent().GetID()
+	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
 	k8sPersistentVolumeClaim, err := getPersistentVolumeClaim(cluster.KubeClient, namespace, pvc.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -66,21 +65,21 @@ func (m PersistentVolumeClaimManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sPVCToSCPVC(k8sPersistentVolumeClaim)
 }
 
-func (m PersistentVolumeClaimManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m PersistentVolumeClaimManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	pvc := ctx.Object.(*types.PersistentVolumeClaim)
+	namespace := ctx.Resource.GetParent().GetID()
+	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
 	err := deletePersistentVolumeClaim(cluster.KubeClient, namespace, pvc.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("persistentvolumeclaim %s with namespace %s doesn't exist", pvc.GetID(), namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete persistentvolumeclaim failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete persistentvolumeclaim failed %s", err.Error()))
 		}
 	}
 	return nil
@@ -131,7 +130,6 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 		Status:             string(k8sPersistentVolumeClaim.Status.Phase),
 	}
 	pvc.SetID(k8sPersistentVolumeClaim.Name)
-	pvc.SetType(types.PersistentVolumeClaimType)
 	pvc.SetCreationTimestamp(k8sPersistentVolumeClaim.CreationTimestamp.Time)
 	return pvc
 }

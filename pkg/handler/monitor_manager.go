@@ -14,8 +14,8 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterr "github.com/zdnscloud/gorest/error"
+	restresource "github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -32,7 +32,6 @@ const (
 )
 
 type MonitorManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 	apps     *ApplicationManager
 }
@@ -44,25 +43,23 @@ func newMonitorManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *
 	}
 }
 
-func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{}, *resttypes.APIError) {
+func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can enable cluster monitor")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can enable cluster monitor")
 	}
-
-	monitor := ctx.Object.(*types.Monitor)
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
-
+	monitor := ctx.Resource.(*types.Monitor)
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	existApps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
 
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("get monitor application from db failed %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get monitor application from db failed %s", err.Error()))
 	}
 	if len(existApps) > 0 {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
+		return nil, resterr.NewAPIError(resterr.DuplicateResource, fmt.Sprintf("cluster %s monitor has exist", cluster.Name))
 	}
 
 	// check the storage class exist
@@ -71,17 +68,17 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 		requiredStorageClass = monitor.StorageClass
 	}
 	if !isStorageClassExist(cluster.KubeClient, requiredStorageClass) {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
 	}
 
 	app, err := genMonitorApplication(cluster.KubeClient, monitor, cluster.Name)
 	if err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, err.Error())
+		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
 	// check duplicate application resource, if exist, gen a new name for monitor app
 	for {
-		duplicateApp, _ := getApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
+		duplicateApp, _ := getSysApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
 		if duplicateApp != nil {
 			app.Name = monitorAppNamePrefix + "-" + genRandomStr(12)
 		} else {
@@ -90,9 +87,8 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	}
 
 	app.SetID(app.Name)
-
 	if err := m.apps.create(ctx, cluster, ZCloudNamespace, app); err != nil {
-		return nil, resttypes.NewAPIError(resttypes.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
 	}
 
 	// make sure the monitor application is succeed, if it failed will delete this monitor application
@@ -104,7 +100,7 @@ func (m *MonitorManager) Create(ctx *resttypes.Context, yaml []byte) (interface{
 	return monitor, nil
 }
 
-func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
+func (m *MonitorManager) List(ctx *restresource.Context) interface{} {
 	monitor := m.get(ctx)
 	if monitor == nil {
 		return nil
@@ -113,16 +109,16 @@ func (m *MonitorManager) List(ctx *resttypes.Context) interface{} {
 	}
 }
 
-func (m *MonitorManager) Get(ctx *resttypes.Context) interface{} {
-	id := ctx.Object.GetID()
+func (m *MonitorManager) Get(ctx *restresource.Context) restresource.Resource {
+	id := ctx.Resource.GetID()
 	if id != monitorAppNamePrefix {
 		return nil
 	}
 	return m.get(ctx)
 }
 
-func (m *MonitorManager) get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *MonitorManager) get(ctx *restresource.Context) restresource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -140,25 +136,25 @@ func (m *MonitorManager) get(ctx *resttypes.Context) interface{} {
 	return monitor
 }
 
-func (m *MonitorManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	apps, err := getApplicationsFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
 	if err != nil || len(apps) == 0 {
-		return resttypes.NewAPIError(resttypes.NotFound, "monitor doesn't exist")
+		return resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
 	}
 	appName := apps[0].Name
 
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
+	app, err := updateSysApplicationStatusFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterr.NewAPIError(resterr.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, ZCloudNamespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
+			return resterr.NewAPIError(resterr.ServerError,
 				fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
 		}
 	}
@@ -271,7 +267,7 @@ func getClusterEtcds(cli client.Client) []string {
 	return etcds
 }
 
-func genMonitorFromApp(ctx *resttypes.Context, cluster string, app *types.Application) (*types.Monitor, error) {
+func genMonitorFromApp(ctx *restresource.Context, cluster string, app *types.Application) (*types.Monitor, error) {
 	p := charts.Prometheus{}
 	if err := json.Unmarshal(app.Configs, &p); err != nil {
 		return nil, err
@@ -298,9 +294,9 @@ func genRandomStr(length int) string {
 	return string(result)
 }
 
-func ensureApplicationSucceedOrDie(ctx *resttypes.Context, db storage.DB, cluster *zke.Cluster, tableName, appName string) {
+func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, cluster *zke.Cluster, tableName, appName string) {
 	for i := 0; i < sysApplicationCheckTimes; i++ {
-		sysApp, err := getApplicationFromDB(db, tableName, appName)
+		sysApp, err := getSysApplicationFromDB(db, tableName, appName)
 		if err != nil {
 			if err == storage.ErrNotFoundResource {
 				log.Infof("delete system application %s succeed", appName)
@@ -323,4 +319,77 @@ func ensureApplicationSucceedOrDie(ctx *resttypes.Context, db storage.DB, cluste
 		}
 		time.Sleep(sysApplicationCheckInterval)
 	}
+}
+
+func getApplicationsFromDBByChartName(db storage.DB, tableName, chartName string) ([]*types.Application, error) {
+	apps := []*types.Application{}
+
+	appValues, err := getApplicationsFromDB(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, appValue := range appValues {
+		app := &types.Application{}
+		if err := json.Unmarshal(appValue, app); err != nil {
+			continue
+		}
+		if app.ChartName == chartName {
+			apps = append(apps, app)
+		}
+	}
+
+	return apps, nil
+}
+
+func getSysApplicationFromDB(db storage.DB, tableName, appName string) (*types.Application, error) {
+	tx, err := BeginTableTransaction(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback()
+	appValue, err := tx.Get(appName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	app := types.Application{}
+	if err := json.Unmarshal(appValue, &app); err != nil {
+		return nil, fmt.Errorf("Unmarshal application %s failed %s", appName, err.Error())
+	}
+
+	return &app, nil
+}
+
+func updateSysApplicationStatusFromDB(db storage.DB, tableName, name, status string) (*types.Application, error) {
+	app, err := getSysApplicationFromDB(db, tableName, name)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := BeginTableTransaction(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
+		return nil, fmt.Errorf("application %s can`t delete when its status is %s", name, app.Status)
+	}
+
+	app.Status = status
+	value, err := json.Marshal(app)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Update(name, value); err != nil {
+		return nil, err
+	}
+
+	return app, tx.Commit()
 }

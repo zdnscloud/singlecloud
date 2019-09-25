@@ -1,27 +1,20 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetCronJobSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE"}
-	schema.Parents = []string{NamespaceType}
-}
-
 type CronJob struct {
-	resttypes.Resource `json:",inline"`
-	Name               string        `json:"name,omitempty"`
-	Schedule           string        `json:"schedule,omitempty"`
-	RestartPolicy      string        `json:"restartPolicy,omitempty"`
-	Containers         []Container   `json:"containers"`
-	Status             CronJobStatus `json:"status"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string        `json:"name,omitempty"`
+	Schedule              string        `json:"schedule,omitempty"`
+	RestartPolicy         string        `json:"restartPolicy,omitempty"`
+	Containers            []Container   `json:"containers"`
+	Status                CronJobStatus `json:"status"`
 }
 
 type CronJobStatus struct {
-	LastScheduleTime resttypes.ISOTime `json:"lastScheduleTime,omitempty"`
+	LastScheduleTime resource.ISOTime  `json:"lastScheduleTime,omitempty"`
 	ObjectReferences []ObjectReference `json:"objectReferences,omitempty"`
 }
 
@@ -35,4 +28,6 @@ type ObjectReference struct {
 	FieldPath       string `json:"fieldPath,omitempty"`
 }
 
-var CronJobType = resttypes.GetResourceType(CronJob{})
+func (c CronJob) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}

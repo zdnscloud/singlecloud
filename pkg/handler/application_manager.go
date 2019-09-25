@@ -21,11 +21,12 @@ import (
 	"helm.sh/helm/pkg/engine"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
-	"github.com/zdnscloud/gorest/api"
-	restHandler "github.com/zdnscloud/gorest/api/handler"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/gorest/resource/schema/resourcefield"
 	restutil "github.com/zdnscloud/gorest/util"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -42,6 +43,8 @@ var (
 		},
 		APIVersions: chartutil.DefaultVersionSet,
 	}
+
+	AppSupportResourceTypes = []string{"deployment", "daemonset", "statefulset", "cronjob", "job", "configmap", "secret", "service", "ing    ress"}
 )
 
 const (
@@ -50,10 +53,15 @@ const (
 )
 
 type ApplicationManager struct {
-	api.DefaultHandler
 	clusters       *ClusterManager
 	chartDir       string
 	clusterEventCh <-chan interface{}
+	chartConfigs   map[string]chartConfig
+}
+
+type chartConfig struct {
+	structVal reflect.Value
+	fields    resourcefield.ResourceField
 }
 
 func newApplicationManager(clusters *ClusterManager, chartDir string) *ApplicationManager {
@@ -61,6 +69,7 @@ func newApplicationManager(clusters *ClusterManager, chartDir string) *Applicati
 		clusters:       clusters,
 		chartDir:       chartDir,
 		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
+		chartConfigs:   make(map[string]chartConfig),
 	}
 	go m.eventLoop()
 	return m
@@ -78,21 +87,37 @@ func (m *ApplicationManager) eventLoop() {
 	}
 }
 
-func (m *ApplicationManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *ApplicationManager) addChartsConfig(chartsConfig []interface{}) error {
+	for _, config := range chartsConfig {
+		typ := reflect.TypeOf(config)
+		fields, err := resourcefield.New(typ)
+		if err != nil {
+			return err
+		}
+
+		m.chartConfigs[strings.ToLower(typ.Name())] = chartConfig{
+			structVal: reflect.ValueOf(config),
+			fields:    fields,
+		}
+	}
+	return nil
+}
+
+func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	app := ctx.Object.(*types.Application)
+	namespace := ctx.Resource.GetParent().GetID()
+	app := ctx.Resource.(*types.Application)
 	app.SetID(app.Name)
 	if err := m.create(ctx, cluster, namespace, app); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource,
+			return nil, resterror.NewAPIError(resterror.DuplicateResource,
 				fmt.Sprintf("duplicate chart %s with name %s", app.ChartName, app.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create application failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create application failed %s", err.Error()))
 		}
 	}
 
@@ -102,13 +127,13 @@ func (m *ApplicationManager) Create(ctx *resttypes.Context, yamlConf []byte) (in
 	return &retApp, nil
 }
 
-func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
 	if err != nil {
 		log.Warnf("list applications failed %s", err.Error())
@@ -140,22 +165,47 @@ func (m *ApplicationManager) List(ctx *resttypes.Context) interface{} {
 	return apps
 }
 
-func (m *ApplicationManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	appName := ctx.Object.GetID()
+	namespace := ctx.Resource.GetParent().GetID()
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
+	if err != nil {
+		log.Warnf("get applications failed %s", err.Error())
+		return nil
+	}
+
+	app, err := getApplicationFromDB(tx, ctx.Resource.GetID())
+	tx.Commit()
+	if err != nil {
+		log.Warnf("get applications failed %s", err.Error())
+		return nil
+	}
+
+	app.Configs = nil
+	app.Manifests = nil
+	return app
+}
+
+func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+	}
+
+	namespace := ctx.Resource.GetParent().GetID()
+	appName := ctx.Resource.GetID()
 	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
 	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
+			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
 		}
 	}
@@ -191,18 +241,9 @@ func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, sta
 	}
 
 	defer tx.Rollback()
-	value, err := tx.Get(name)
+	app, err := getApplicationFromDB(tx, name)
 	if err != nil {
 		return nil, err
-	}
-
-	var app types.Application
-	if err := json.Unmarshal(value, &app); err != nil {
-		return nil, err
-	}
-
-	if isAdmin(userName) == false && app.SystemChart {
-		return nil, fmt.Errorf("user %s no authority to delete application %s", userName, name)
 	}
 
 	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
@@ -210,7 +251,7 @@ func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, sta
 	}
 
 	app.Status = status
-	value, err = json.Marshal(app)
+	value, err := json.Marshal(app)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +260,7 @@ func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, sta
 		return nil, err
 	}
 
-	return &app, tx.Commit()
+	return app, tx.Commit()
 }
 
 func deleteAppResources(cli client.Client, namespace string, manifests []types.Manifest) error {
@@ -267,7 +308,7 @@ func deleteApplicationFromDB(db storage.DB, tableName, name string) error {
 	return tx.Commit()
 }
 
-func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
+func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
 	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
 		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
 	} else if exists == false {
@@ -299,7 +340,12 @@ func (m *ApplicationManager) create(ctx *resttypes.Context, cluster *zke.Cluster
 		DefaultCapabilities.KubeVersion.Minor = clusterVersion.Minor
 	}
 
-	manifests, err := loadChartFiles(ctx, namespace, chartPath, app, DefaultCapabilities)
+	configs, err := m.parseChartConfigs(app.ChartName, app.Configs)
+	if err != nil {
+		return fmt.Errorf("parse chart %s with version %s configs failed: %s", app.ChartName, app.ChartVersion, err.Error())
+	}
+
+	manifests, err := loadChartFiles(namespace, chartPath, app.Name, configs, DefaultCapabilities)
 	if err != nil {
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
@@ -362,71 +408,36 @@ func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, 
 	return appValues, nil
 }
 
-func getApplicationsFromDBByChartName(db storage.DB, tableName, chartName string) ([]*types.Application, error) {
-	apps := []*types.Application{}
-
-	appValues, err := getApplicationsFromDB(db, tableName)
+func getApplicationFromDB(tx storage.Transaction, appName string) (*types.Application, error) {
+	value, err := tx.Get(appName)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, appValue := range appValues {
-		app := &types.Application{}
-		if err := json.Unmarshal(appValue, app); err != nil {
-			continue
-		}
-		if app.ChartName == chartName {
-			apps = append(apps, app)
-		}
-	}
-
-	return apps, nil
-}
-
-func getApplicationFromDB(db storage.DB, tableName, appName string) (*types.Application, error) {
-	tx, err := BeginTableTransaction(db, tableName)
-	if err != nil {
+	var app types.Application
+	if err := json.Unmarshal(value, &app); err != nil {
 		return nil, err
 	}
 
-	defer tx.Rollback()
-	appValue, err := tx.Get(appName)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	app := types.Application{}
-	if err := json.Unmarshal(appValue, &app); err != nil {
-		return nil, fmt.Errorf("Unmarshal application %s failed %s", appName, err.Error())
+	if app.SystemChart {
+		return nil, fmt.Errorf("user no authority to delete application %s", appName)
 	}
 
 	return &app, nil
 }
 
-func loadChartFiles(ctx *resttypes.Context, namespace, chartPath string, app *types.Application, caps *chartutil.Capabilities) ([]types.Manifest, error) {
-	rawValues, err := getChartValues(ctx, app)
-	if err != nil {
-		return nil, err
-	}
-	if rawValues == nil {
-		rawValues = make(map[string]interface{})
-	}
-
+func loadChartFiles(namespace, chartPath, appName string, configs map[string]interface{}, caps *chartutil.Capabilities) ([]types.Manifest, error) {
 	chartRequested, err := loader.Load(chartPath)
 	if err != nil {
 		return nil, err
 	}
 
 	options := chartutil.ReleaseOptions{
-		Name:      app.Name,
+		Name:      appName,
 		Namespace: namespace,
 		IsInstall: true,
 	}
-	valuesToRender, err := chartutil.ToRenderValues(chartRequested, rawValues, options, caps)
+	valuesToRender, err := chartutil.ToRenderValues(chartRequested, configs, options, caps)
 	if err != nil {
 		return nil, err
 	}
@@ -507,10 +518,8 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				return fmt.Errorf("create resource with file %s failed: %s", manifest.File, err.Error())
 			}
 
-			switch typ := strings.ToLower(gvk.Kind); typ {
-			case types.DeploymentType, types.DaemonSetType, types.StatefulSetType,
-				types.ConfigMapType, types.SecretType, types.ServiceType, types.IngressType,
-				types.CronJobType, types.JobType:
+			typ := strings.ToLower(gvk.Kind)
+			if slice.SliceIndex(AppSupportResourceTypes, typ) != -1 {
 				appResources = append(appResources, types.AppResource{
 					Name: metaObj.GetName(),
 					Type: typ,
@@ -527,39 +536,45 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 	return appResources, nil
 }
 
-func getChartValues(ctx *resttypes.Context, app *types.Application) (map[string]interface{}, error) {
-	if app.Configs == nil {
-		return nil, nil
+func (m *ApplicationManager) parseChartConfigs(chartName string, appConfigs json.RawMessage) (map[string]interface{}, error) {
+	objMap := make(map[string]interface{})
+	if appConfigs == nil {
+		return objMap, nil
 	}
 
-	schema := ctx.Schemas.Schema(&ctx.Object.GetSchema().Version, app.ChartName)
-	if schema == nil {
-		return nil, fmt.Errorf("no found schema %s", app.ChartName)
+	if err := json.Unmarshal(appConfigs, &objMap); err != nil {
+		return nil, fmt.Errorf("unmarshal chart %s configs failed: %v", chartName, err.Error())
 	}
 
-	chartCtx := &resttypes.Context{
-		Schemas: ctx.Schemas,
-		Object: &resttypes.Resource{
-			Schema: schema,
-		},
+	chartConfig, ok := m.chartConfigs[strings.ToLower(chartName)]
+	if ok == false {
+		return nil, fmt.Errorf("no found chart %s resource info", chartName)
 	}
 
-	val := schema.StructVal
+	if chartConfig.fields != nil {
+		if err := chartConfig.fields.CheckRequired(objMap); err != nil {
+			return nil, err
+		}
+	}
+
+	val := chartConfig.structVal
 	valPtr := reflect.New(val.Type())
 	valPtr.Elem().Set(val)
 	obj := valPtr.Interface()
-	if err := json.Unmarshal(app.Configs, obj); err != nil {
-		return nil, fmt.Errorf("unmarshal application %s config failed: %v", app.Name, err.Error())
+	if err := json.Unmarshal(appConfigs, obj); err != nil {
+		return nil, fmt.Errorf("unmarshal chart %s configs failed: %v", chartName, err.Error())
 	}
 
-	m, err := restHandler.ObjectToMap(chartCtx, obj)
-	if err != nil {
-		return nil, fmt.Errorf("create application %s config is invalid: %v", app.ChartName, err.Error())
+	if chartConfig.fields != nil {
+		if err := chartConfig.fields.Validate(obj); err != nil {
+			return nil, err
+		}
 	}
-	return m, nil
+
+	return objMap, nil
 }
 
-func genUrlPrefix(ctx *resttypes.Context, clusterName string) string {
+func genUrlPrefix(ctx *resource.Context, clusterName string) string {
 	req := ctx.Request
 	scheme := "http"
 	if req.TLS != nil {
@@ -570,9 +585,8 @@ func genUrlPrefix(ctx *resttypes.Context, clusterName string) string {
 	if len(urls) == 2 {
 		return fmt.Sprintf("%s://%s%s", scheme, req.Host, urls[0])
 	} else {
-		apiVersion := ctx.Object.GetSchema().Version
 		return path.Join(fmt.Sprintf("%s://%s", scheme, req.Host),
-			resttypes.GroupPrefix, apiVersion.Group, apiVersion.Version,
+			resource.GroupPrefix, Version.Group, Version.Version,
 			fmt.Sprintf("/clusters/%s/namespaces/", clusterName))
 	}
 }

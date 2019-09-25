@@ -11,14 +11,13 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 )
 
 type NamespaceManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -26,17 +25,17 @@ func newNamespaceManager(clusters *ClusterManager) *NamespaceManager {
 	return &NamespaceManager{clusters: clusters}
 }
 
-func (m *NamespaceManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
+func (m *NamespaceManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can create namespace")
+		return nil, resterror.NewAPIError(resterror.PermissionDenied, "only admin can create namespace")
 	}
 
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.(*types.Namespace)
+	namespace := ctx.Resource.(*types.Namespace)
 	err := createNamespace(cluster.KubeClient, namespace.Name)
 	if err == nil {
 		namespace.SetID(namespace.Name)
@@ -44,14 +43,14 @@ func (m *NamespaceManager) Create(ctx *resttypes.Context, yamlConf []byte) (inte
 	}
 
 	if apierrors.IsAlreadyExists(err) {
-		return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate namespace name %s", namespace.Name))
+		return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate namespace name %s", namespace.Name))
 	} else {
-		return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create namespace failed %s", err.Error()))
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create namespace failed %s", err.Error()))
 	}
 }
 
-func (m *NamespaceManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -72,13 +71,13 @@ func (m *NamespaceManager) List(ctx *resttypes.Context) interface{} {
 	return namespaces
 }
 
-func (m *NamespaceManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.(*types.Namespace)
+	namespace := ctx.Resource.(*types.Namespace)
 	if m.clusters.authorizer.Authorize(getCurrentUser(ctx), cluster.Name, namespace.GetID()) == false {
 		return nil
 	}
@@ -94,40 +93,40 @@ func (m *NamespaceManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sNamespaceToSCNamespace(k8sNamespace)
 }
 
-func (m *NamespaceManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
+func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return resttypes.NewAPIError(resttypes.PermissionDenied, "only admin can delete namespace")
+		return resterror.NewAPIError(resterror.PermissionDenied, "only admin can delete namespace")
 	}
 
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.(*types.Namespace)
+	namespace := ctx.Resource.(*types.Namespace)
 	exits, err := IsExistsNamespaceInDB(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable), namespace.GetID())
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))
 	}
 
 	if exits {
-		return resttypes.NewAPIError(resttypes.PermissionDenied,
+		return resterror.NewAPIError(resterror.PermissionDenied,
 			fmt.Sprintf("can`t delete namespace %s for other user using", namespace.GetID()))
 	}
 
 	if err := clearApplications(m.clusters.GetDB(), cluster.KubeClient, cluster.Name, namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(types.ConnectClusterFailed,
+			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("delete namespace applications failed: %s", err.Error()))
 		}
 	}
 
 	if err := deleteNamespace(cluster.KubeClient, namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
 		}
 	} else {
 		/*
@@ -181,7 +180,6 @@ func k8sNamespaceToSCNamespace(k8sNamespace *corev1.Namespace) *types.Namespace 
 		Name: k8sNamespace.Name,
 	}
 	ns.SetID(k8sNamespace.Name)
-	ns.SetType(types.NamespaceType)
 	ns.SetCreationTimestamp(k8sNamespace.CreationTimestamp.Time)
 	return ns
 }

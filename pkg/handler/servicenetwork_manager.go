@@ -1,17 +1,13 @@
 package handler
 
 import (
-	"encoding/json"
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"reflect"
 )
 
 type ServiceNetworkManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -21,8 +17,8 @@ func newServiceNetworkManager(clusters *ClusterManager) *ServiceNetworkManager {
 	}
 }
 
-func (m *ServiceNetworkManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *ServiceNetworkManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -34,20 +30,15 @@ func (m *ServiceNetworkManager) List(ctx *resttypes.Context) interface{} {
 	}
 	return resp
 }
-func getServiceNetworks(cluster string, agent *clusteragent.AgentManager) ([]types.ServiceNetwork, error) {
-	nets := make([]types.ServiceNetwork, 0)
+func getServiceNetworks(cluster string, agent *clusteragent.AgentManager) ([]*types.ServiceNetwork, error) {
 	url := "/apis/agent.zcloud.cn/v1/servicenetworks"
-	res, err := agent.GetData(cluster, url)
-	if err != nil {
-		return nets, err
+	res := make([]types.ServiceNetwork, 0)
+	if err := agent.ListResource(cluster, url, &res); err != nil {
+		return []*types.ServiceNetwork{}, err
 	}
-	s := reflect.ValueOf(res)
-	for i := 0; i < s.Len(); i++ {
-		newp := new(types.ServiceNetwork)
-		p := s.Index(i).Interface()
-		tmp, _ := json.Marshal(&p)
-		json.Unmarshal(tmp, newp)
-		nets = append(nets, *newp)
+	svcNetworks := make([]*types.ServiceNetwork, len(res))
+	for i := 0; i < len(res); i++ {
+		svcNetworks[i] = &res[i]
 	}
-	return nets, nil
+	return svcNetworks, nil
 }

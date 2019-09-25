@@ -1,34 +1,16 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetDaemonSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE", "POST"}
-	schema.Parents = []string{NamespaceType}
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name: ActionGetHistory,
-	})
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionRollback,
-		Input: RollBackVersion{},
-	})
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionSetImage,
-		Input: SetImage{},
-	})
-}
-
 type DaemonSet struct {
-	resttypes.Resource `json:",inline"`
-	Name               string                     `json:"name,omitempty"`
-	Containers         []Container                `json:"containers,omitempty"`
-	AdvancedOptions    AdvancedOptions            `json:"advancedOptions,omitempty"`
-	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
-	Status             DaemonSetStatus            `json:"status,omitempty"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string                     `json:"name,omitempty"`
+	Containers            []Container                `json:"containers,omitempty"`
+	AdvancedOptions       AdvancedOptions            `json:"advancedOptions,omitempty"`
+	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status                DaemonSetStatus            `json:"status,omitempty"`
 }
 
 type DaemonSetStatus struct {
@@ -44,7 +26,30 @@ type DaemonSetStatus struct {
 	Conditions             []WorkloadCondition `json:"conditions,omitempty"`
 }
 
-var DaemonSetType = resttypes.GetResourceType(DaemonSet{})
+func (d DaemonSet) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}
+
+func (d DaemonSet) CreateAction(name string) *resource.Action {
+	switch name {
+	case ActionGetHistory:
+		return &resource.Action{
+			Name: ActionGetHistory,
+		}
+	case ActionRollback:
+		return &resource.Action{
+			Name:  ActionRollback,
+			Input: &RollBackVersion{},
+		}
+	case ActionSetImage:
+		return &resource.Action{
+			Name:  ActionSetImage,
+			Input: &SetImage{},
+		}
+	default:
+		return nil
+	}
+}
 
 type DaemonsetHistory struct {
 	ControllerRevisions ControllerRevisions `json:"controllerRevisions"`

@@ -14,8 +14,8 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -39,7 +39,6 @@ var AnnotationsToSkip = map[string]bool{
 }
 
 type DeploymentManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -47,19 +46,19 @@ func newDeploymentManager(clusters *ClusterManager) *DeploymentManager {
 	return &DeploymentManager{clusters: clusters}
 }
 
-func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DeploymentManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	deploy := ctx.Object.(*types.Deployment)
+	namespace := ctx.Resource.GetParent().GetID()
+	deploy := ctx.Resource.(*types.Deployment)
 	if err := createDeployment(cluster.KubeClient, namespace, deploy); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate deploy name %s", deploy.Name))
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate deploy name %s", deploy.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create deploy failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create deploy failed %s", err.Error()))
 		}
 	}
 
@@ -67,13 +66,13 @@ func (m *DeploymentManager) Create(ctx *resttypes.Context, yamlConf []byte) (int
 	return deploy, nil
 }
 
-func (m *DeploymentManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DeploymentManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sDeploys, err := getDeployments(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -94,14 +93,14 @@ func (m *DeploymentManager) List(ctx *resttypes.Context) interface{} {
 	return deploys
 }
 
-func (m *DeploymentManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DeploymentManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	deploy := ctx.Object.(*types.Deployment)
+	namespace := ctx.Resource.GetParent().GetID()
+	deploy := ctx.Resource.(*types.Deployment)
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -118,21 +117,21 @@ func (m *DeploymentManager) Get(ctx *resttypes.Context) interface{} {
 	}
 }
 
-func (m *DeploymentManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DeploymentManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	deploy := ctx.Object.(*types.Deployment)
+	namespace := ctx.Resource.GetParent().GetID()
+	deploy := ctx.Resource.(*types.Deployment)
 
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
 		}
 	}
 
@@ -143,37 +142,37 @@ func (m *DeploymentManager) Update(ctx *resttypes.Context) (interface{}, *restty
 		k8sDeploy.Spec.Replicas = &replicas
 		newDeploy, err := k8sDeployToSCDeploy(cluster.KubeClient, k8sDeploy)
 		if err != nil {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
 		}
 
 		if err := cluster.KubeClient.Update(context.TODO(), k8sDeploy); err != nil {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
 		} else {
 			return newDeploy, nil
 		}
 	}
 }
 
-func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DeploymentManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster s doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	deploy := ctx.Object.(*types.Deployment)
+	namespace := ctx.Resource.GetParent().GetID()
+	deploy := ctx.Resource.(*types.Deployment)
 
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
 		}
 	}
 
 	if err := deleteDeployment(cluster.KubeClient, namespace, deploy.GetID()); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete deployment failed %s", err.Error()))
 	}
 
 	if delete, ok := k8sDeploy.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
@@ -182,8 +181,8 @@ func (m *DeploymentManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
 	return nil
 }
 
-func (m *DeploymentManager) Action(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	switch ctx.Action.Name {
+func (m *DeploymentManager) Action(ctx *resource.Context) (interface{}, *resterror.APIError) {
+	switch ctx.Resource.GetAction().Name {
 	case types.ActionGetHistory:
 		return m.getDeploymentHistory(ctx)
 	case types.ActionRollback:
@@ -191,7 +190,7 @@ func (m *DeploymentManager) Action(ctx *resttypes.Context) (interface{}, *restty
 	case types.ActionSetImage:
 		return nil, m.setImage(ctx)
 	default:
-		return nil, resttypes.NewAPIError(resttypes.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Action.Name))
+		return nil, resterror.NewAPIError(resterror.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Resource.GetAction().Name))
 	}
 }
 
@@ -264,26 +263,25 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 		Status:            k8sWorkloadStatusToScWorkloadStatus(&k8sDeploy.Status),
 	}
 	deploy.SetID(k8sDeploy.Name)
-	deploy.SetType(types.DeploymentType)
 	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)
 	deploy.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDeploy.Spec.Template.Annotations)
 	return deploy, nil
 }
 
-func (m *DeploymentManager) getDeploymentHistory(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DeploymentManager) getDeploymentHistory(ctx *resource.Context) (interface{}, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	deploy := ctx.Object.(*types.Deployment)
+	namespace := ctx.Resource.GetParent().GetID()
+	deploy := ctx.Resource.(*types.Deployment)
 	_, replicasets, err := getDeploymentAndReplicaSets(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return nil, resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment history failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment history failed %s", err.Error()))
 		}
 	}
 
@@ -308,31 +306,31 @@ func (m *DeploymentManager) getDeploymentHistory(ctx *resttypes.Context) (interf
 	}, nil
 }
 
-func (m *DeploymentManager) rollback(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DeploymentManager) rollback(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	param, ok := ctx.Action.Input.(*types.RollBackVersion)
+	param, ok := ctx.Resource.GetAction().Input.(*types.RollBackVersion)
 	if ok == false || param.Version < 0 {
-		return resttypes.NewAPIError(resttypes.InvalidFormat,
-			fmt.Sprintf("rollback version param is not valid: %v", ctx.Action.Input))
+		return resterror.NewAPIError(resterror.InvalidFormat,
+			fmt.Sprintf("rollback version param is not valid: %v", ctx.Resource.GetAction().Input))
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	deploy := ctx.Object.(*types.Deployment)
+	namespace := ctx.Resource.GetParent().GetID()
+	deploy := ctx.Resource.(*types.Deployment)
 	k8sDeploy, replicasets, err := getDeploymentAndReplicaSets(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed %s", err.Error()))
 		}
 	}
 
 	if k8sDeploy.Spec.Paused {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("cannot rollback a paused deployment"))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("cannot rollback a paused deployment"))
 	}
 
 	var rsForVersion *appsv1.ReplicaSet
@@ -346,7 +344,7 @@ func (m *DeploymentManager) rollback(ctx *resttypes.Context) *resttypes.APIError
 	}
 
 	if rsForVersion == nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed no found version"))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed no found version"))
 	}
 
 	delete(rsForVersion.Spec.Template.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
@@ -365,47 +363,47 @@ func (m *DeploymentManager) rollback(ctx *resttypes.Context) *resttypes.APIError
 	annotations[ChangeCauseAnnotation] = param.Reason
 	patch, err := marshalPatch(rsForVersion.Spec.Template, annotations)
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("marshal deployment patch when rollback failed: %v", err.Error()))
 	}
 
 	if err := cluster.KubeClient.Patch(context.TODO(), k8sDeploy, k8stypes.JSONPatchType, patch); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed: %v", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback deployment failed: %v", err.Error()))
 	}
 
 	return nil
 }
 
-func (m *DeploymentManager) setImage(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *DeploymentManager) setImage(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	param, ok := ctx.Action.Input.(*types.SetImage)
+	param, ok := ctx.Resource.GetAction().Input.(*types.SetImage)
 	if ok == false || len(param.Images) == 0 {
-		return resttypes.NewAPIError(resttypes.InvalidFormat, "set image param is not valid")
+		return resterror.NewAPIError(resterror.InvalidFormat, "set image param is not valid")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	deploy := ctx.Object.(*types.Deployment)
+	namespace := ctx.Resource.GetParent().GetID()
+	deploy := ctx.Resource.(*types.Deployment)
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s desn't exist", namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
 		}
 	}
 
 	patch, err := getSetImagePatch(param, k8sDeploy.Spec.Template, k8sDeploy.Annotations)
 	if err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("get deployment patch when set image failed: %v", err.Error()))
 	}
 
 	if err := cluster.KubeClient.Patch(context.TODO(), k8sDeploy, k8stypes.JSONPatchType, patch); err != nil {
-		return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment image failed: %v", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment image failed: %v", err.Error()))
 	}
 
 	return nil

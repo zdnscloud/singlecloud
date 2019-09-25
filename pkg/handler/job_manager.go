@@ -12,13 +12,12 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	resterror "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type JobManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -26,20 +25,20 @@ func newJobManager(clusters *ClusterManager) *JobManager {
 	return &JobManager{clusters: clusters}
 }
 
-func (m *JobManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *JobManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	job := ctx.Object.(*types.Job)
+	namespace := ctx.Resource.GetParent().GetID()
+	job := ctx.Resource.(*types.Job)
 	err := createJob(cluster.KubeClient, namespace, job)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate job name %s", job.Name))
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate job name %s", job.Name))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create job failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create job failed %s", err.Error()))
 		}
 	}
 
@@ -47,13 +46,13 @@ func (m *JobManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{
 	return job, nil
 }
 
-func (m *JobManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *JobManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
+	namespace := ctx.Resource.GetParent().GetID()
 	k8sJobs, err := getJobs(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -71,14 +70,14 @@ func (m *JobManager) List(ctx *resttypes.Context) interface{} {
 	return jobs
 }
 
-func (m *JobManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *JobManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	job := ctx.Object.(*types.Job)
+	namespace := ctx.Resource.GetParent().GetID()
+	job := ctx.Resource.(*types.Job)
 	k8sJob, err := getJob(cluster.KubeClient, namespace, job.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -90,20 +89,20 @@ func (m *JobManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sJobToSCJob(k8sJob)
 }
 
-func (m *JobManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *JobManager) Delete(ctx *resource.Context) *resterror.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	namespace := ctx.Object.GetParent().GetID()
-	job := ctx.Object.(*types.Job)
+	namespace := ctx.Resource.GetParent().GetID()
+	job := ctx.Resource.(*types.Job)
 	if err := deleteJob(cluster.KubeClient, namespace, job.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resttypes.NewAPIError(resttypes.NotFound,
+			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("job %s with namespace %s desn't exist", job.GetID(), namespace))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete job failed %s", err.Error()))
+			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete job failed %s", err.Error()))
 		}
 	}
 
@@ -167,8 +166,8 @@ func k8sJobToSCJob(k8sJob *batchv1.Job) *types.Job {
 		conditions = append(conditions, types.JobCondition{
 			Type:               string(condition.Type),
 			Status:             string(condition.Status),
-			LastProbeTime:      resttypes.ISOTime(condition.LastProbeTime.Time),
-			LastTransitionTime: resttypes.ISOTime(condition.LastTransitionTime.Time),
+			LastProbeTime:      resource.ISOTime(condition.LastProbeTime.Time),
+			LastTransitionTime: resource.ISOTime(condition.LastTransitionTime.Time),
 			Reason:             condition.Reason,
 			Message:            condition.Message,
 		})
@@ -190,14 +189,13 @@ func k8sJobToSCJob(k8sJob *batchv1.Job) *types.Job {
 		Status:        jobStatus,
 	}
 	job.SetID(k8sJob.Name)
-	job.SetType(types.JobType)
 	job.SetCreationTimestamp(k8sJob.CreationTimestamp.Time)
 	return job
 }
 
-func k8sMetaV1TimePtrToISOTime(metav1Time *metav1.Time) (isoTime resttypes.ISOTime) {
+func k8sMetaV1TimePtrToISOTime(metav1Time *metav1.Time) (isoTime resource.ISOTime) {
 	if metav1Time != nil {
-		isoTime = resttypes.ISOTime(metav1Time.Time)
+		isoTime = resource.ISOTime(metav1Time.Time)
 	}
 
 	return isoTime

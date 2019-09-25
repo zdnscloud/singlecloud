@@ -3,13 +3,11 @@ package handler
 import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/zke/core/pki"
 )
 
 type KubeConfigManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -17,25 +15,35 @@ func newKubeConfigManager(clusters *ClusterManager) *KubeConfigManager {
 	return &KubeConfigManager{clusters: clusters}
 }
 
-func (m *KubeConfigManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *KubeConfigManager) Get(ctx *restresource.Context) restresource.Resource {
+	if !isAdmin(getCurrentUser(ctx)) {
+		return nil
+	}
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	inner := ctx.Object.(*types.KubeConfig)
+	id := ctx.Resource.GetID()
 
-	kubeConfig, err := cluster.GetKubeConfig(inner.User, m.clusters.GetDB())
+	kubeConfig, err := cluster.GetKubeConfig(id, m.clusters.GetDB())
 	if err != nil {
 		return nil
 	}
-	inner.KubeConfig = kubeConfig
-	inner.SetID(inner.User)
-	return inner
+	k := &types.KubeConfig{
+		User:       id,
+		KubeConfig: kubeConfig,
+	}
+	k.SetID(id)
+	k.SetCreationTimestamp(cluster.CreateTime)
+	return k
 }
 
-func (m *KubeConfigManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *KubeConfigManager) List(ctx *restresource.Context) interface{} {
+	if !isAdmin(getCurrentUser(ctx)) {
+		return nil
+	}
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -44,9 +52,11 @@ func (m *KubeConfigManager) List(ctx *resttypes.Context) interface{} {
 	if err != nil {
 		return nil
 	}
-	kubeConfigs := []*types.KubeConfig{&types.KubeConfig{
+	k := &types.KubeConfig{
 		User:       pki.KubeAdminCertName,
 		KubeConfig: kubeConfig,
-	}}
-	return kubeConfigs
+	}
+	k.SetID(k.User)
+	k.SetCreationTimestamp(cluster.CreateTime)
+	return []*types.KubeConfig{k}
 }

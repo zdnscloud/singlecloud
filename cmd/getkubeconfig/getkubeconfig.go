@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -29,14 +30,20 @@ func login(addr string, user, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		errInfo := struct {
+			Message string `json:"message"`
+		}{}
+		json.Unmarshal(body, &errInfo)
+		return "", errors.New(errInfo.Message)
+	}
+
 	token := struct {
 		Token string `json:"token"`
 	}{}
 	if err := json.Unmarshal(body, &token); err != nil {
 		return "", err
-	}
-	if token.Token == "" {
-		return "", fmt.Errorf("got empty token please check password")
 	}
 	return token.Token, nil
 }
@@ -46,37 +53,42 @@ func hashPassword(password string) string {
 	return hex.EncodeToString(pwHash[:])
 }
 
-func getClusterKubeConfig(addr, token, clusterName string) string {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s?action=getkubeconfig", addr, clusterName)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte{}))
+func getClusterKubeConfig(addr, token, clusterName string) (string, error) {
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/kubeconfigs/kube-admin", addr, clusterName)
+	req, err := http.NewRequest("GET", url, bytes.NewBuffer([]byte{}))
 	if err != nil {
-		log.Fatalf("struct getkubeconfig action http request failed %s", err.Error())
+		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+token)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("send request failed:%s", err.Error())
+		return "", err
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("read reposence body failed %s", err.Error())
+		return "", err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		errInfo := struct {
+			Message string `json:"message"`
+		}{}
+		json.Unmarshal(body, &errInfo)
+		return "", errors.New(errInfo.Message)
 	}
 
 	kubeConfig := struct {
-		Name   string `json:"name"`
-		Config string `json:"config"`
+		User   string `json:"user"`
+		Config string `json:"kubeConfig"`
 	}{}
 	if err := json.Unmarshal(body, &kubeConfig); err != nil {
-		log.Fatalf("unmarshal kubeConfig failed %s", err.Error())
+		return "", err
 	}
-	if kubeConfig.Config == "" {
-		log.Fatalf("got empty kubeConfig from singlecloud")
-	}
-	return kubeConfig.Config
+	return kubeConfig.Config, nil
 }
 
 func main() {
@@ -91,9 +103,12 @@ func main() {
 		log.Fatalf("get token failed %s", err.Error())
 	}
 
-	kubeConfig := getClusterKubeConfig(addr, token, clusterName)
-	fileName := "kube_config_" + clusterName + ".yml"
+	kubeConfig, err := getClusterKubeConfig(addr, token, clusterName)
+	if err != nil {
+		log.Fatalf("get kubeConfig from singlecloud failed %s", err.Error())
+	}
 
+	fileName := "kube_config_" + clusterName + ".yml"
 	if err := ioutil.WriteFile(fileName, []byte(kubeConfig), 0644); err != nil {
 		log.Fatalf("write kubeconfig file failed %s", err)
 	}

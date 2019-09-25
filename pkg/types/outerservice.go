@@ -1,19 +1,15 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetOuterServiceSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.Parents = []string{NamespaceType}
-}
-
 type OuterService struct {
-	resttypes.Resource `json:",inline"`
-	EntryPoint         string                  `json:"entryPoint"`
-	Services           map[string]InnerService `json:"services"`
+	resource.ResourceBase `json:",inline"`
+	EntryPoint            string                  `json:"entryPoint"`
+	Services              map[string]InnerService `json:"services"`
 }
 
-var OuterServiceType = resttypes.GetResourceType(OuterService{})
+func (o OuterService) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}

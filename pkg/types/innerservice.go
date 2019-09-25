@@ -1,19 +1,13 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetInnerServiceSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.Parents = []string{NamespaceType}
-}
-
 type InnerService struct {
-	resttypes.Resource `json:",inline"`
-	Name               string      `json:"name"`
-	Workloads          []*Workload `json:"workloads"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string      `json:"name"`
+	Workloads             []*Workload `json:"workloads"`
 }
 
 type Workload struct {
@@ -27,4 +21,6 @@ type WorkloadPod struct {
 	State string `json:"state"`
 }
 
-var InnerServiceType = resttypes.GetResourceType(InnerService{})
+func (i InnerService) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}

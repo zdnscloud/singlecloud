@@ -43,19 +43,26 @@ func login(addr string, user, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		errInfo := struct {
+			Message string `json:"message"`
+		}{}
+		json.Unmarshal(body, &errInfo)
+		return "", errors.New(errInfo.Message)
+	}
+
 	token := struct {
 		Token string `json:"token"`
 	}{}
 	if err := json.Unmarshal(body, &token); err != nil {
 		return "", err
-	}
-	if token.Token == "" {
-		return "", fmt.Errorf("got empty token please check password")
 	}
 	return token.Token, nil
 }
@@ -65,13 +72,9 @@ func hashPassword(password string) string {
 	return hex.EncodeToString(pwHash[:])
 }
 
-func createCluster(addr, token, clusterName string, data []byte) error {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters", addr)
-	requestBody, _ := json.Marshal(map[string]string{
-		"name":  clusterName,
-		"yaml_": string(data),
-	})
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+func importCluster(addr, token, clusterName string, data []byte) error {
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s?action=import", addr, clusterName)
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+token)
 	client := &http.Client{}
@@ -82,7 +85,8 @@ func createCluster(addr, token, clusterName string, data []byte) error {
 
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode == 201 {
+	if resp.StatusCode < 400 && resp.StatusCode >= 200 {
+		log.Println("import action response code", resp.StatusCode)
 		return nil
 	}
 
@@ -161,11 +165,9 @@ func createZcloudProxyDeployment(addr, token, clusterName string) error {
 
 func getClusterName(stateJson []byte) (string, error) {
 	state := &zkecore.FullState{}
-
 	if err := json.Unmarshal(stateJson, state); err != nil {
 		return "", err
 	}
-
 	return state.CurrentState.ZKEConfig.ClusterName, nil
 }
 
@@ -197,13 +199,12 @@ func main() {
 		log.Fatalf("get token failed:%s", err.Error())
 	}
 
-	err = createCluster(addr, token, clusterName, data)
+	err = importCluster(addr, token, clusterName, data)
 	if err != nil {
 		log.Fatalf("create cluster failed:%s", err.Error())
 	}
 
 	time.Sleep(time.Second * 5)
-
 	err = deleteZcloudProxyDeployment(addr, token, clusterName)
 	if err != nil {
 		log.Fatalf("delete zcloud-proxy deployment failed:%s", err.Error())

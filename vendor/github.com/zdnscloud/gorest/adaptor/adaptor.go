@@ -4,21 +4,28 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func RegisterHandler(router gin.IRoutes, handler http.Handler, urlMethods map[string][]string) {
+func RegisterHandler(router gin.IRoutes, handler http.Handler, route resource.ResourceRoute) {
 	handlerFunc := gin.WrapH(handler)
-	for url, methods := range urlMethods {
-		for _, method := range methods {
-			switch method {
-			case http.MethodPost:
-				router.POST(url, handlerFunc)
-			case http.MethodDelete:
-				router.DELETE(url, handlerFunc)
-			case http.MethodPut:
-				router.PUT(url, handlerFunc)
-			case http.MethodGet:
-				router.GET(url, handlerFunc)
+	for method, paths := range route {
+		switch method {
+		case http.MethodPost:
+			for _, path := range paths {
+				router.POST(path, handlerFunc)
+			}
+		case http.MethodDelete:
+			for _, path := range paths {
+				router.DELETE(path, handlerFunc)
+			}
+		case http.MethodPut:
+			for _, path := range paths {
+				router.PUT(path, handlerFunc)
+			}
+		case http.MethodGet:
+			for _, path := range paths {
+				router.GET(path, handlerFunc)
 			}
 		}
 	}

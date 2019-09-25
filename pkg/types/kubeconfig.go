@@ -1,20 +1,15 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetKubeConfigSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.ResourceMethods = []string{"GET"}
-	schema.Parents = []string{ClusterType}
-}
-
 type KubeConfig struct {
-	resttypes.Resource `json:",inline"`
-	User               string `json:"user" rest:"required=true"`
-	KubeConfig         string `json:"kubeConfig"`
+	resource.ResourceBase `json:",inline"`
+	User                  string `json:"user" rest:"required=true"`
+	KubeConfig            string `json:"kubeConfig"`
 }
 
-var KubeConfigType = resttypes.GetResourceType(KubeConfig{})
+func (k KubeConfig) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Cluster{}}
+}

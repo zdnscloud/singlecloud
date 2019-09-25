@@ -1,17 +1,13 @@
 package handler
 
 import (
-	"encoding/json"
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"reflect"
 )
 
 type PodNetworkManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -21,8 +17,8 @@ func newPodNetworkManager(clusters *ClusterManager) *PodNetworkManager {
 	}
 }
 
-func (m *PodNetworkManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *PodNetworkManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -35,20 +31,15 @@ func (m *PodNetworkManager) List(ctx *resttypes.Context) interface{} {
 	return resp
 }
 
-func getPodNetworks(cluster string, agent *clusteragent.AgentManager) ([]types.PodNetwork, error) {
-	nets := make([]types.PodNetwork, 0)
+func getPodNetworks(cluster string, agent *clusteragent.AgentManager) ([]*types.PodNetwork, error) {
 	url := "/apis/agent.zcloud.cn/v1/podnetworks"
-	res, err := agent.GetData(cluster, url)
-	if err != nil {
-		return nets, err
+	res := make([]types.PodNetwork, 0)
+	if err := agent.ListResource(cluster, url, &res); err != nil {
+		return []*types.PodNetwork{}, err
 	}
-	s := reflect.ValueOf(res)
-	for i := 0; i < s.Len(); i++ {
-		newp := new(types.PodNetwork)
-		p := s.Index(i).Interface()
-		tmp, _ := json.Marshal(&p)
-		json.Unmarshal(tmp, newp)
-		nets = append(nets, *newp)
+	podNetworks := make([]*types.PodNetwork, len(res))
+	for i := 0; i < len(res); i++ {
+		podNetworks[i] = &res[i]
 	}
-	return nets, nil
+	return podNetworks, nil
 }

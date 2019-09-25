@@ -1,40 +1,35 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetJobSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "DELETE"}
-	schema.Parents = []string{NamespaceType}
-}
-
 type Job struct {
-	resttypes.Resource `json:",inline"`
-	Name               string      `json:"name,omitempty"`
-	RestartPolicy      string      `json:"restartPolicy,omitempty"`
-	Containers         []Container `json:"containers"`
-	Status             JobStatus   `json:"status"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string      `json:"name,omitempty"`
+	RestartPolicy         string      `json:"restartPolicy,omitempty"`
+	Containers            []Container `json:"containers"`
+	Status                JobStatus   `json:"status"`
 }
 
 type JobStatus struct {
-	StartTime      resttypes.ISOTime `json:"startTime,omitempty"`
-	CompletionTime resttypes.ISOTime `json:"completionTime,omitempty"`
-	Active         int32             `json:"active,omitempty"`
-	Succeeded      int32             `json:"succeeded,omitempty"`
-	Failed         int32             `json:"failed,omitempty"`
-	JobConditions  []JobCondition    `json:"jobConditions,omitempty"`
+	StartTime      resource.ISOTime `json:"startTime,omitempty"`
+	CompletionTime resource.ISOTime `json:"completionTime,omitempty"`
+	Active         int32            `json:"active,omitempty"`
+	Succeeded      int32            `json:"succeeded,omitempty"`
+	Failed         int32            `json:"failed,omitempty"`
+	JobConditions  []JobCondition   `json:"jobConditions,omitempty"`
 }
 
 type JobCondition struct {
-	Type               string            `json:"type,omitempty"`
-	Status             string            `json:"status,omitempty"`
-	LastProbeTime      resttypes.ISOTime `json:"lastProbeTime,omitempty"`
-	LastTransitionTime resttypes.ISOTime `json:"lastTransitionTime,omitempty"`
-	Reason             string            `json:"reason,omitempty"`
-	Message            string            `json:"message,omitempty"`
+	Type               string           `json:"type,omitempty"`
+	Status             string           `json:"status,omitempty"`
+	LastProbeTime      resource.ISOTime `json:"lastProbeTime,omitempty"`
+	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty"`
+	Reason             string           `json:"reason,omitempty"`
+	Message            string           `json:"message,omitempty"`
 }
 
-var JobType = resttypes.GetResourceType(Job{})
+func (j Job) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}

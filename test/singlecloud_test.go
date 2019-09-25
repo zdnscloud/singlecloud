@@ -8,25 +8,30 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/user"
-	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
 	ut "github.com/zdnscloud/cement/unittest"
+	zkecore "github.com/zdnscloud/zke/core"
 
-	restTypes "github.com/zdnscloud/gorest/types"
-
-	"github.com/zdnscloud/singlecloud/pkg/globaldns"
+	"github.com/zdnscloud/singlecloud/pkg/authentication"
+	"github.com/zdnscloud/singlecloud/pkg/authorization"
+	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
+	//"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/server"
+	"github.com/zdnscloud/singlecloud/storage"
 )
 
-var gToken string
+var (
+	gToken       string
+	gClusterName string
+)
 
 type Token struct {
 	Token string `json:"token"`
@@ -35,12 +40,20 @@ type Token struct {
 type TestResource struct {
 	CollectionUrl string                 `json:"collectionUrl"`
 	ResourceUrl   string                 `json:"resourceUrl"`
+	ImportUrl     string                 `json:"importUrl"`
 	Params        map[string]interface{} `json:"params"`
 }
 
 type TestLogin struct {
 	LoginUrl    string                 `json:"loginUrl"`
 	LoginParams map[string]interface{} `json:"loginParams"`
+}
+
+type TestResourceCollection struct {
+	Type         string            `json:"type"`
+	ResourceType string            `json:"resourceType"`
+	Links        map[string]string `json:"links"`
+	Data         interface{}       `json:"data"`
 }
 
 func loadTestLogin(file string) (*TestLogin, error) {
@@ -77,16 +90,42 @@ func runTestServer() {
 	log.InitLogger(log.Debug)
 	eventBus := pubsub.New(1000)
 
-	if err := globaldns.New("0.0.0.0:8080", eventBus); err != nil {
-		panic("create globaldns failed: " + err.Error())
+	db, err := storage.New("")
+	if err != nil {
+		panic("init db failed: " + err.Error())
 	}
 
-	server, err := server.NewServer()
+	/*
+		if err := globaldns.New("0.0.0.0:8080", eventBus); err != nil {
+			panic("create globaldns failed: " + err.Error())
+		}
+	*/
+
+	authenticator, err := authentication.New("", db)
+	if err != nil {
+		panic("init authentication failed: " + err.Error())
+	}
+
+	authorizer, err := authorization.New(db)
+	if err != nil {
+		panic("init authorization failed: " + err.Error())
+	}
+
+	server, err := server.NewServer(authenticator.MiddlewareFunc())
 	if err != nil {
 		panic("create server failed:" + err.Error())
 	}
 
-	app := handler.NewApp(eventBus)
+	if err := server.RegisterHandler(authenticator); err != nil {
+		panic("register authorization handler failed:" + err.Error())
+	}
+
+	agent := clusteragent.New()
+	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, db, "", "")
+	if err != nil {
+		panic("init app failed:" + err.Error())
+	}
+
 	if err := server.RegisterHandler(app); err != nil {
 		panic("register resource handler failed:" + err.Error())
 	}
@@ -96,32 +135,21 @@ func runTestServer() {
 	}
 }
 
-func importTestCluster(loginResource *TestLogin, clusterResource *TestResource) error {
-	usr, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("get current user failed:%s", err.Error())
+func getClusterName(stateJson []byte) (string, error) {
+	state := &zkecore.FullState{}
+	if err := json.Unmarshal(stateJson, state); err != nil {
+		return "", err
 	}
+	return state.CurrentState.ZKEConfig.ClusterName, nil
+}
 
-	k8sconfig := filepath.Join(usr.HomeDir, ".kube", "config")
-	f, err := os.Open(k8sconfig)
-	if err != nil {
-		return fmt.Errorf("open %s failed:%s", k8sconfig, err.Error())
-	}
-	defer f.Close()
-
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		return fmt.Errorf("read %s failed:%s", k8sconfig, err.Error())
-	}
-
+func login(loginResource *TestLogin) error {
 	var token Token
 	if err := sendRequest("POST", loginResource.LoginUrl, parseBodyFromParams(loginResource.LoginParams), &token); err != nil {
 		return fmt.Errorf("login failed:%s", err.Error())
 	}
 	gToken = token.Token
-
-	clusterResource.Params["yaml_"] = string(data)
-	return sendRequest("POST", clusterResource.CollectionUrl, parseBodyFromParams(clusterResource.Params), nil)
+	return nil
 }
 
 func TestRunSingleCloud(t *testing.T) {
@@ -132,9 +160,24 @@ func TestRunSingleCloud(t *testing.T) {
 func TestCluster(t *testing.T) {
 	loginResource, err := loadTestLogin("adminlogin.json")
 	ut.Equal(t, err, nil)
+	err = login(loginResource)
+	ut.Equal(t, err, nil)
+
 	clusterResource, err := loadTestResource("cluster.json")
 	ut.Equal(t, err, nil)
-	err = importTestCluster(loginResource, clusterResource)
+
+	f, err := os.Open("cluster.zkestate")
+	ut.Equal(t, err, nil)
+	defer f.Close()
+
+	data, err := ioutil.ReadAll(f)
+	ut.Equal(t, err, nil)
+
+	clusterName, err := getClusterName(data)
+	ut.Equal(t, err, nil)
+	gClusterName = clusterName
+
+	err = sendRequest("POST", fmt.Sprintf(clusterResource.ImportUrl, gClusterName), bytes.NewBuffer(data), nil)
 	ut.Equal(t, err, nil)
 
 	existClusterNum, err := getCollectionNum(clusterResource.CollectionUrl)
@@ -142,9 +185,13 @@ func TestCluster(t *testing.T) {
 	ut.Equal(t, existClusterNum, 1)
 
 	var cluster types.Cluster
-	err = sendRequest("GET", clusterResource.ResourceUrl, nil, &cluster)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, cluster.Name, "sc-test-cluster1")
+	for cluster.Status != "Running" {
+		err = sendRequest("GET", fmt.Sprintf(clusterResource.ResourceUrl, gClusterName), nil, &cluster)
+		ut.Equal(t, err, nil)
+		ut.Equal(t, cluster.Name, clusterName)
+		time.Sleep(5 * time.Second)
+	}
+	ut.Equal(t, string(cluster.Status), "Running")
 }
 
 func TestNamespace(t *testing.T) {
@@ -174,7 +221,9 @@ func TestSecret(t *testing.T) {
 	err = testOperatorResource(secretResource, &secret)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, secret.Name, "sc-test-secret1")
-	ut.Equal(t, secret.Data["sc-test-secret-dataname1"], "emRucw==")
+	ut.Equal(t, len(secret.Data), 1)
+	ut.Equal(t, secret.Data[0].Key, "sc-test-secret-dataname1")
+	ut.Equal(t, secret.Data[0].Value, "emRucw==")
 }
 
 func TestDeployment(t *testing.T) {
@@ -188,7 +237,7 @@ func TestDeployment(t *testing.T) {
 	ut.Equal(t, deploy.Containers[0].Env[0].Name, "TESTENV1")
 	ut.Equal(t, deploy.Containers[0].Env[0].Value, "testenv1")
 
-	ut.Equal(t, len(deploy.Containers[0].Volumes), 4)
+	ut.Equal(t, len(deploy.Containers[0].Volumes), 3)
 	for _, volume := range deploy.Containers[0].Volumes {
 		switch volume.Type {
 		case "configmap":
@@ -207,36 +256,33 @@ func TestDeployment(t *testing.T) {
 		}
 
 	}
+}
 
-	pvcResource, err := loadTestResource("deployment_pvc.json")
-	ut.Equal(t, err, nil)
-	var pvc types.PersistentVolumeClaim
-	err = sendRequest("GET", pvcResource.ResourceUrl, nil, &pvc)
-	ut.Equal(t, err, nil)
-	ut.Equal(t, pvc.Name, "sc-test-lvm-pvc1")
-	ut.Equal(t, pvc.RequestStorageSize, "200Mi")
-	ut.Equal(t, pvc.StorageClassName, "lvm")
-
+func TestService(t *testing.T) {
 	serviceResource, err := loadTestResource("service.json")
 	ut.Equal(t, err, nil)
 	var service types.Service
-	err = sendRequest("GET", serviceResource.ResourceUrl, nil, &service)
+	err = testOperatorResource(serviceResource, &service)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, service.Name, "sc-test-deployment1")
 	ut.Equal(t, service.ServiceType, "clusterip")
 	ut.Equal(t, service.ExposedPorts[0].Name, "sc-test-port1")
-	ut.Equal(t, service.ExposedPorts[0].Port, 22222)
+	ut.Equal(t, service.ExposedPorts[0].Port, 44444)
+	ut.Equal(t, service.ExposedPorts[0].TargetPort, 22222)
 	ut.Equal(t, service.ExposedPorts[0].Protocol, "tcp")
+}
 
+func TestIngress(t *testing.T) {
 	ingressResource, err := loadTestResource("ingress.json")
 	ut.Equal(t, err, nil)
 	var ingress types.Ingress
-	err = sendRequest("GET", ingressResource.ResourceUrl, nil, &ingress)
+	err = testOperatorResource(ingressResource, &ingress)
 	ut.Equal(t, err, nil)
-	ut.Equal(t, ingress.Rules[0].Port, 33333)
-	ut.Equal(t, string(ingress.Rules[0].Protocol), "TCP")
-	ut.Equal(t, ingress.Rules[0].Paths[0].ServicePort, 22222)
-	ut.Equal(t, ingress.Rules[0].Paths[0].ServiceName, "sc-test-deployment1")
+	ut.Equal(t, ingress.Name, "sc-test-ing1")
+	ut.Equal(t, ingress.Rules[0].Host, "sc.test.ing")
+	ut.Equal(t, ingress.Rules[0].Path, "/")
+	ut.Equal(t, ingress.Rules[0].ServicePort, 44444)
+	ut.Equal(t, ingress.Rules[0].ServiceName, "sc-test-deployment1")
 }
 
 func TestStatefulSet(t *testing.T) {
@@ -249,8 +295,8 @@ func TestStatefulSet(t *testing.T) {
 	ut.Equal(t, statefulset.Containers[0].Name, "sc-test-containter1")
 	ut.Equal(t, statefulset.Containers[0].Env[0].Name, "TESTENV1")
 	ut.Equal(t, statefulset.Containers[0].Env[0].Value, "testenv1")
-	ut.Equal(t, len(statefulset.Containers[0].Volumes), 4)
-	ut.Equal(t, len(statefulset.PersistentVolumes), 2)
+	ut.Equal(t, len(statefulset.Containers[0].Volumes), 3)
+	ut.Equal(t, len(statefulset.PersistentVolumes), 1)
 
 	for _, volume := range statefulset.Containers[0].Volumes {
 		switch volume.Type {
@@ -278,7 +324,7 @@ func TestStatefulSet(t *testing.T) {
 		case types.StorageClassNameLVM:
 			ut.Equal(t, template.Name, "sc-test-lvm-pvc2")
 			ut.Equal(t, template.Size, "200Mi")
-		case types.StorageClassNameCeph:
+		case types.StorageClassNameCephfs:
 		}
 	}
 }
@@ -356,21 +402,21 @@ func TestUser(t *testing.T) {
 func TestGetPod(t *testing.T) {
 	deployPodResource, err := loadTestResource("deployment_pod.json")
 	ut.Equal(t, err, nil)
-	podNum, err := getCollectionNum(deployPodResource.CollectionUrl)
+	podNum, err := getCollectionNum(fmt.Sprintf(deployPodResource.CollectionUrl, gClusterName))
 	ut.Equal(t, err, nil)
 	ut.Equal(t, podNum, 2)
 	stsPodResource, err := loadTestResource("statefulset_pod.json")
 	ut.Equal(t, err, nil)
-	podNum, err = getCollectionNum(stsPodResource.CollectionUrl)
+	podNum, err = getCollectionNum(fmt.Sprintf(stsPodResource.CollectionUrl, gClusterName))
 	ut.Equal(t, err, nil)
 	ut.Equal(t, podNum != 0, true)
 }
 
-func TestGetStorageClass(t *testing.T) {
+func testGetStorageClass(t *testing.T) {
 	scResource, err := loadTestResource("storageclass.json")
 	ut.Equal(t, err, nil)
-	var collection restTypes.Collection
-	err = sendRequest("GET", scResource.CollectionUrl, nil, &collection)
+	var collection TestResourceCollection
+	err = sendRequest("GET", fmt.Sprintf(scResource.CollectionUrl, gClusterName), nil, &collection)
 	ut.Equal(t, err, nil)
 	sliceData := reflect.ValueOf(collection.Data)
 	ut.Equal(t, sliceData.Kind(), reflect.Slice)
@@ -384,7 +430,7 @@ func TestGetStorageClass(t *testing.T) {
 		switch object["name"] {
 		case types.StorageClassNameLVM:
 			existLVM = true
-		case types.StorageClassNameCeph:
+		case types.StorageClassNameCephfs:
 			existCephNFS = true
 		}
 	}
@@ -393,12 +439,18 @@ func TestGetStorageClass(t *testing.T) {
 }
 
 func TestDeleteResource(t *testing.T) {
+	defer os.Remove("singlecloud.db")
 	deleteResourceFiles := []string{"deployment.json", "statefulset.json", "configmap.json", "secret.json", "job.json", "cronjob.json", "limitrange.json", "resourcequota.json", "user.json", "namespace.json", "cluster.json"}
 
 	for _, resourceFile := range deleteResourceFiles {
 		testResource, err := loadTestResource(resourceFile)
 		ut.Equal(t, err, nil)
-		err = sendRequest("DELETE", testResource.ResourceUrl, nil, nil)
+		resourceUrl := testResource.ResourceUrl
+		if strings.Contains(testResource.ResourceUrl, "/clusters/%s") {
+			resourceUrl = fmt.Sprintf(testResource.ResourceUrl, gClusterName)
+		}
+
+		err = sendRequest("DELETE", resourceUrl, nil, nil)
 		ut.Equal(t, err, nil)
 	}
 }
@@ -419,13 +471,17 @@ func sendRequest(method, url string, reqBody io.Reader, result interface{}) erro
 	}
 
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 	switch resp.StatusCode {
 	case http.StatusOK:
-		fallthrough
-	case http.StatusAccepted:
-		err := json.Unmarshal(body, result)
-		return err
+		if result != nil {
+			return json.Unmarshal(body, result)
+		} else {
+			return nil
+		}
 	case http.StatusCreated:
 		fallthrough
 	case http.StatusNoContent:
@@ -440,11 +496,16 @@ func sendRequest(method, url string, reqBody io.Reader, result interface{}) erro
 }
 
 func getCollectionNum(url string) (int, error) {
-	var oldcollection restTypes.Collection
+	var oldcollection TestResourceCollection
 	err := sendRequest("GET", url, nil, &oldcollection)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("get old collection failed: %s", err.Error())
 	}
+
+	if oldcollection.Data == nil {
+		return 0, nil
+	}
+
 	sliceData := reflect.ValueOf(oldcollection.Data)
 	if sliceData.Kind() == reflect.Slice {
 		return sliceData.Len(), nil
@@ -454,16 +515,21 @@ func getCollectionNum(url string) (int, error) {
 }
 
 func testOperatorResource(resource *TestResource, result interface{}) error {
-	existResourcesNum, err := getCollectionNum(resource.CollectionUrl)
+	collectionUrl := resource.CollectionUrl
+	if strings.Contains(resource.CollectionUrl, "/clusters/%s") {
+		collectionUrl = fmt.Sprintf(resource.CollectionUrl, gClusterName)
+	}
+
+	existResourcesNum, err := getCollectionNum(collectionUrl)
 	if err != nil {
 		return err
 	}
 
-	if err := sendRequest("POST", resource.CollectionUrl, parseBodyFromParams(resource.Params), nil); err != nil {
+	if err := sendRequest("POST", collectionUrl, parseBodyFromParams(resource.Params), nil); err != nil {
 		return err
 	}
 
-	currentResourcesNum, err := getCollectionNum(resource.CollectionUrl)
+	currentResourcesNum, err := getCollectionNum(collectionUrl)
 	if err != nil {
 		return err
 	}
@@ -472,5 +538,9 @@ func testOperatorResource(resource *TestResource, result interface{}) error {
 		return fmt.Errorf("expect resource num %d not %d", existResourcesNum+1, currentResourcesNum)
 	}
 
-	return sendRequest("GET", resource.ResourceUrl, nil, result)
+	resourceUrl := resource.ResourceUrl
+	if strings.Contains(resource.ResourceUrl, "/clusters/%s") {
+		resourceUrl = fmt.Sprintf(resource.ResourceUrl, gClusterName)
+	}
+	return sendRequest("GET", resourceUrl, nil, result)
 }

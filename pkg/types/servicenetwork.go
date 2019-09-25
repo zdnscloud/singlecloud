@@ -1,20 +1,16 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
-func SetServiceNetworkSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET"}
-	schema.Parents = []string{ClusterType}
-}
-
 type ServiceNetwork struct {
-	resttypes.Resource `json:",inline"`
-	Namespace          string `json:"-"`
-	Name               string `json:"name"`
-	IP                 string `json:"ip"`
+	resource.ResourceBase `json:",inline"`
+	Namespace             string `json:"-"`
+	Name                  string `json:"name"`
+	IP                    string `json:"ip"`
 }
 
-var ServiceNetworkType = resttypes.GetResourceType(ServiceNetwork{})
+func (s ServiceNetwork) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Cluster{}}
+}

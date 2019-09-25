@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	resthandler "github.com/zdnscloud/gorest/api/handler"
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest"
+	resterr "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/session"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
@@ -57,7 +57,7 @@ func NewAuthenticator(db storage.DB) (*Authenticator, error) {
 	return auth, nil
 }
 
-func (a *Authenticator) Authenticate(_ http.ResponseWriter, req *http.Request) (string, *resttypes.APIError) {
+func (a *Authenticator) Authenticate(_ http.ResponseWriter, req *http.Request) (string, *resterr.APIError) {
 	token, _ := a.sessions.GetSession(req)
 	if token == "" {
 		token = getFromHeader(req)
@@ -68,7 +68,7 @@ func (a *Authenticator) Authenticate(_ http.ResponseWriter, req *http.Request) (
 
 	user, err := a.repo.ParseToken(token)
 	if err != nil {
-		return "", resttypes.NewAPIError(resttypes.ServerError, err.Error())
+		return "", resterr.NewAPIError(resterr.ServerError, err.Error())
 	} else {
 		return user, nil
 	}
@@ -129,6 +129,10 @@ func (a *Authenticator) ResetPassword(userName string, old, new string, force bo
 		return fmt.Errorf("password isn't correct")
 	}
 
+	if new == "" {
+		return fmt.Errorf("new password is empty")
+	}
+
 	if err := a.updateUser(userName, new); err != nil {
 		return err
 	}
@@ -157,29 +161,24 @@ func (a *Authenticator) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	ctx := &resttypes.Context{
-		Response:       w,
-		ResponseFormat: resttypes.ResponseJSON,
-	}
-
 	reqBody, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, err.Error())
-		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
+		apiErr := resterr.NewAPIError(resterr.InvalidFormat, err.Error())
+		gorest.WriteResponse(w, apiErr.Status, apiErr)
 		return
 	}
 
 	if err := json.Unmarshal(reqBody, &params); err != nil {
-		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, "login param not valid")
-		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
+		apiErr := resterr.NewAPIError(resterr.InvalidFormat, "login param not valid")
+		gorest.WriteResponse(w, apiErr.Status, apiErr)
 		return
 	}
 
 	token, err := a.CreateToken(params.Name, params.Password)
 	if err != nil {
-		apiErr := resttypes.NewAPIError(resttypes.InvalidFormat, err.Error())
-		resthandler.WriteResponse(ctx, apiErr.Status, apiErr)
+		apiErr := resterr.NewAPIError(resterr.InvalidFormat, err.Error())
+		gorest.WriteResponse(w, apiErr.Status, apiErr)
 		return
 	}
 

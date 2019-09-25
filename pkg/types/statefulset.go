@@ -1,7 +1,7 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 )
 
 const (
@@ -10,32 +10,14 @@ const (
 	StorageClassNameTemp   = "temporary"
 )
 
-func SetStatefulSetSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "PUT", "DELETE", "POST"}
-	schema.Parents = []string{NamespaceType}
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name: ActionGetHistory,
-	})
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionRollback,
-		Input: RollBackVersion{},
-	})
-	schema.ResourceActions = append(schema.ResourceActions, resttypes.Action{
-		Name:  ActionSetImage,
-		Input: SetImage{},
-	})
-}
-
 type StatefulSet struct {
-	resttypes.Resource `json:",inline"`
-	Name               string                     `json:"name,omitempty"`
-	Replicas           int                        `json:"replicas"`
-	Containers         []Container                `json:"containers"`
-	AdvancedOptions    AdvancedOptions            `json:"advancedOptions"`
-	PersistentVolumes  []PersistentVolumeTemplate `json:"persistentVolumes"`
-	Status             WorkloadStatus             `json:"status,omitempty"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string                     `json:"name,omitempty"`
+	Replicas              int                        `json:"replicas"`
+	Containers            []Container                `json:"containers"`
+	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
+	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Status                WorkloadStatus             `json:"status,omitempty"`
 }
 
 type PersistentVolumeTemplate struct {
@@ -44,4 +26,27 @@ type PersistentVolumeTemplate struct {
 	StorageClassName string `json:"storageClassName"`
 }
 
-var StatefulSetType = resttypes.GetResourceType(StatefulSet{})
+func (s StatefulSet) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Namespace{}}
+}
+
+func (s StatefulSet) CreateAction(name string) *resource.Action {
+	switch name {
+	case ActionGetHistory:
+		return &resource.Action{
+			Name: ActionGetHistory,
+		}
+	case ActionRollback:
+		return &resource.Action{
+			Name:  ActionRollback,
+			Input: &RollBackVersion{},
+		}
+	case ActionSetImage:
+		return &resource.Action{
+			Name:  ActionSetImage,
+			Input: &SetImage{},
+		}
+	default:
+		return nil
+	}
+}

@@ -21,8 +21,8 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
-	"github.com/zdnscloud/gorest/api"
-	resttypes "github.com/zdnscloud/gorest/types"
+	gorestError "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/gorest/resource"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -30,7 +30,6 @@ import (
 )
 
 type StorageClusterManager struct {
-	api.DefaultHandler
 	clusters *ClusterManager
 }
 
@@ -40,8 +39,8 @@ func newStorageClusterManager(clusters *ClusterManager) *StorageClusterManager {
 	}
 }
 
-func (m *StorageClusterManager) List(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m *StorageClusterManager) List(ctx *resource.Context) interface{} {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
@@ -61,13 +60,13 @@ func (m *StorageClusterManager) List(ctx *resttypes.Context) interface{} {
 	return storageclusters
 }
 
-func (m StorageClusterManager) Get(ctx *resttypes.Context) interface{} {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m StorageClusterManager) Get(ctx *resource.Context) resource.Resource {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
 	}
 
-	storagecluster := ctx.Object.(*types.StorageCluster)
+	storagecluster := ctx.Resource.(*types.StorageCluster)
 	k8sStorageCluster, err := getStorageCluster(cluster.KubeClient, storagecluster.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
@@ -79,57 +78,57 @@ func (m StorageClusterManager) Get(ctx *resttypes.Context) interface{} {
 	return k8sStorageToSCStorageDetail(cluster, m.clusters.Agent, k8sStorageCluster)
 }
 
-func (m StorageClusterManager) Delete(ctx *resttypes.Context) *resttypes.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resttypes.NewAPIError(resttypes.NotFound, "storagecluster doesn't exist")
+		return gorestError.NewAPIError(gorestError.NotFound, "storagecluster doesn't exist")
 	}
 
-	storagecluster := ctx.Object.(*types.StorageCluster)
+	storagecluster := ctx.Resource.(*types.StorageCluster)
 	if err := deleteStorageCluster(cluster.KubeClient, storagecluster.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
-			return resttypes.NewAPIError(resttypes.NotFound, fmt.Sprintf("storagecluster %s doesn't exist", storagecluster.GetID()))
+			return gorestError.NewAPIError(gorestError.NotFound, fmt.Sprintf("storagecluster %s doesn't exist", storagecluster.GetID()))
 		} else if strings.Contains(err.Error(), "is used by") {
-			return resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
+			return gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		} else {
-			return resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
+			return gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		}
 	}
 	return nil
 }
 
-func (m StorageClusterManager) Create(ctx *resttypes.Context, yamlConf []byte) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
 	}
 
-	storagecluster := ctx.Object.(*types.StorageCluster)
+	storagecluster := ctx.Resource.(*types.StorageCluster)
 	if err := createStorageCluster(cluster.KubeClient, storagecluster); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resttypes.NewAPIError(resttypes.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
+			return nil, gorestError.NewAPIError(gorestError.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
 		} else if strings.Contains(err.Error(), "storagecluster has already exists") {
-			return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed %s", err.Error()))
+			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed %s", err.Error()))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed %s", err.Error()))
+			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed %s", err.Error()))
 		}
 	}
-	storagecluster.SetID(storagecluster.Name)
+	storagecluster.SetID(types.StorageclusterMap[storagecluster.StorageType])
 	return storagecluster, nil
 }
 
-func (m StorageClusterManager) Update(ctx *resttypes.Context) (interface{}, *resttypes.APIError) {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Object)
+func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resttypes.NewAPIError(resttypes.NotFound, "cluster doesn't exist")
+		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
 	}
 
-	storagecluster := ctx.Object.(*types.StorageCluster)
+	storagecluster := ctx.Resource.(*types.StorageCluster)
 	if err := updateStorageCluster(cluster.KubeClient, storagecluster); err != nil {
 		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") {
-			return nil, resttypes.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
+			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
 		} else {
-			return nil, resttypes.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
+			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
 		}
 	}
 	return storagecluster, nil
@@ -238,9 +237,9 @@ func getStatusInfo(cluster string, agent *clusteragent.AgentManager, storagetype
 	if err != nil {
 		return info, err
 	}
-	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	json.Unmarshal(body, &info)
+	defer resp.Body.Close()
 	return info, nil
 }
 

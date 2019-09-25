@@ -1,7 +1,7 @@
 package types
 
 import (
-	resttypes "github.com/zdnscloud/gorest/types"
+	"github.com/zdnscloud/gorest/resource"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -14,27 +14,18 @@ var StorageAccessModeMap = map[string]corev1.PersistentVolumeAccessMode{
 	"cephfs": corev1.ReadWriteMany,
 }
 
-func SetStorageClusterSchema(schema *resttypes.Schema, handler resttypes.Handler) {
-	schema.Handler = handler
-	schema.CollectionMethods = []string{"GET", "POST"}
-	schema.ResourceMethods = []string{"GET", "PUT", "DELETE"}
-	schema.Parents = []string{ClusterType}
-}
-
 type StorageCluster struct {
-	resttypes.Resource `json:",inline"`
-	Name               string        `json:"-"`
-	StorageType        string        `json:"storageType" rest:"required=true,options=lvm|cephfs"`
-	Hosts              []string      `json:"hosts" rest:"required=true"`
-	Phase              string        `json:"phase"`
-	Size               string        `json:"size"`
-	UsedSize           string        `json:"usedSize"`
-	FreeSize           string        `json:"freeSize"`
-	Nodes              []StorageNode `json:"nodes"`
-	PVs                []PV          `json:"pvs"`
+	resource.ResourceBase `json:",inline"`
+	Name                  string        `json:"-"`
+	StorageType           string        `json:"storageType" rest:"required=true,options=lvm|cephfs"`
+	Hosts                 []string      `json:"hosts" rest:"required=true"`
+	Phase                 string        `json:"phase"`
+	Size                  string        `json:"size"`
+	UsedSize              string        `json:"usedSize"`
+	FreeSize              string        `json:"freeSize"`
+	Nodes                 []StorageNode `json:"nodes"`
+	PVs                   []PV          `json:"pvs"`
 }
-
-var StorageClusterType = resttypes.GetResourceType(StorageCluster{})
 
 type Storage struct {
 	Name string `json:"name"`
@@ -61,6 +52,10 @@ type StorageNode struct {
 
 type StoragePod struct {
 	Name string `json:"name"`
+}
+
+func (s StorageCluster) GetParents() []resource.ResourceKind {
+	return []resource.ResourceKind{Cluster{}}
 }
 
 type StorageNodes []StorageNode
