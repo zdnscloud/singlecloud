@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zdnscloud/cement/set"
+	"github.com/zdnscloud/cement/slice"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"math"
@@ -20,13 +21,13 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gok8s/helper"
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
+	k8sstorage "k8s.io/api/storage/v1"
 )
 
 type StorageClusterManager struct {
@@ -108,9 +109,9 @@ func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource,
 		if apierrors.IsAlreadyExists(err) {
 			return nil, gorestError.NewAPIError(gorestError.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
 		} else if strings.Contains(err.Error(), "storagecluster has already exists") {
-			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed %s", err.Error()))
+			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
 		} else {
-			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed %s", err.Error()))
+			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
 		}
 	}
 	storagecluster.SetID(types.StorageclusterMap[storagecluster.StorageType])
@@ -147,18 +148,13 @@ func getStorageClusters(cli client.Client) (*storagev1.ClusterList, error) {
 }
 
 func deleteStorageCluster(cli client.Client, name string) error {
+	if err := checkFinalizers(cli, name); err != nil {
+		return err
+	}
 	storagecluster := &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 	}
-	err1 := checkFinalizers(cli, name)
-	err2 := cli.Delete(context.TODO(), storagecluster)
-	if err2 != nil {
-		return err2
-	}
-	if err1 != nil {
-		return err1
-	}
-	return nil
+	return cli.Delete(context.TODO(), storagecluster)
 }
 
 func createStorageCluster(cli client.Client, storagecluster *types.StorageCluster) error {
@@ -173,14 +169,17 @@ func updateStorageCluster(cli client.Client, storagecluster *types.StorageCluste
 	if len(storagecluster.Hosts) == 0 {
 		return errors.New("update storagecluster failed, storagecluster must keep at least one node,suggest delete the storagecluster")
 	}
-	if err := checkFinalizerWithHost(cli, storagecluster); err != nil {
-		return err
-	}
-
 	k8sStorageCluster, err := getStorageCluster(cli, storagecluster.GetID())
 	if err != nil {
 		return err
 	}
+
+	if k8sStorageCluster.Spec.StorageType == "lvm" {
+		if err := checkStorageHostsUsed(cli, k8sStorageCluster, storagecluster); err != nil {
+			return err
+		}
+	}
+
 	k8sStorageCluster.Spec.Hosts = storagecluster.Hosts
 	return cli.Update(context.TODO(), k8sStorageCluster)
 }
@@ -265,43 +264,9 @@ func checkFinalizers(cli client.Client, name string) error {
 	}
 	metaObj := obj.(metav1.Object)
 	if len(metaObj.GetFinalizers()) > 0 {
-		return errors.New("The storagecluster is used by some pods, is will be delete until those pods stop")
+		return errors.New(fmt.Sprintf("The storagecluster %s is used by some pods, you should stop those pods first", name))
 	}
 	return nil
-}
-
-func checkFinalizerWithHost(cli client.Client, storagecluster *types.StorageCluster) error {
-	hosts := make([]string, 0)
-	k8sStoragecluster, err := getStorageCluster(cli, storagecluster.GetID())
-	if err != nil {
-		return err
-	}
-	if k8sStoragecluster.Spec.StorageType == "cephfs" {
-		return nil
-	}
-	var obj runtime.Object
-	obj = k8sStoragecluster
-	metaObj := obj.(metav1.Object)
-
-	ClusterFinalizer := "storage.zcloud.cn/finalizer"
-	delhosts := getDelHost(k8sStoragecluster.Spec.Hosts, storagecluster.Hosts)
-	for _, host := range delhosts {
-		fr := ClusterFinalizer + "-" + host
-		if !helper.HasFinalizer(metaObj, fr) {
-			continue
-		}
-		hosts = append(hosts, host)
-	}
-	if len(hosts) > 0 {
-		return errors.New(fmt.Sprintf("The storagehosts %s is used by some pods, you should stop those pods first", hosts))
-	}
-	return nil
-}
-
-func getDelHost(oldhosts, newhosts []string) []string {
-	s1 := set.StringSetFromSlice(oldhosts)
-	s2 := set.StringSetFromSlice(newhosts)
-	return s1.Difference(s2).ToSlice()
 }
 
 func sToi(size string) int64 {
@@ -349,4 +314,54 @@ func countSize(k8sStorageCluster *storagev1.Cluster) []types.StorageNode {
 	}
 	sort.Sort(nodes)
 	return nodes
+}
+
+func getStorageDriver(cli client.Client, storageType string) (string, error) {
+	storageClassse := k8sstorage.StorageClass{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", storageType}, &storageClassse)
+	if err != nil {
+		return "", err
+	}
+	return storageClassse.Provisioner, nil
+}
+
+func getAttachedHosts(cli client.Client, driverName string, nodes []string) ([]string, error) {
+	var hosts []string
+	volumeAttachments := k8sstorage.VolumeAttachmentList{}
+	err := cli.List(context.TODO(), nil, &volumeAttachments)
+	if err != nil {
+		return hosts, err
+	}
+	for _, volumeAttachment := range volumeAttachments.Items {
+		if driverName != volumeAttachment.Spec.Attacher {
+			continue
+		}
+		if slice.SliceIndex(nodes, volumeAttachment.Spec.NodeName) >= 0 {
+			if slice.SliceIndex(hosts, volumeAttachment.Spec.NodeName) >= 0 {
+				continue
+			}
+			hosts = append(hosts, volumeAttachment.Spec.NodeName)
+		}
+	}
+	return hosts, nil
+}
+
+func checkStorageHostsUsed(cli client.Client, k8sStorageCluster *storagev1.Cluster, storagecluster *types.StorageCluster) error {
+	driverName, err := getStorageDriver(cli, k8sStorageCluster.Spec.StorageType)
+	if err != nil {
+		return err
+	}
+
+	s1 := set.StringSetFromSlice(k8sStorageCluster.Spec.Hosts)
+	s2 := set.StringSetFromSlice(storagecluster.Hosts)
+	delHosts := s1.Difference(s2).ToSlice()
+
+	usedHosts, err := getAttachedHosts(cli, driverName, delHosts)
+	if err != nil {
+		return err
+	}
+	if len(usedHosts) > 0 {
+		return errors.New(fmt.Sprintf("The storagehosts %s is used by some pods, you should stop those pods first", usedHosts))
+	}
+	return nil
 }
