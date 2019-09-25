@@ -103,7 +103,7 @@ func TestValidateNoWorker(t *testing.T) {
 	ut.NotEqual(t, validateNodeCount(c), nil)
 }
 
-func TestValidateNodeRolesConflict(t *testing.T) {
+func TestValidateNodeRolesAndAddress(t *testing.T) {
 	n1 := types.Node{
 		Name:    "master",
 		Address: "192.168.1.1",
@@ -113,14 +113,30 @@ func TestValidateNodeRolesConflict(t *testing.T) {
 	n2 := types.Node{
 		Name:    "worker",
 		Address: "192.168.1.2",
+		Roles:   []types.NodeRole{types.RoleWorker, types.RoleWorker},
+	}
+
+	n3 := types.Node{
+		Name:    "worker",
+		Address: "xxxxx",
 		Roles:   []types.NodeRole{types.RoleWorker},
 	}
 
-	c := &types.Cluster{
-		Nodes: []types.Node{n1, n2},
+	c1 := &types.Cluster{
+		Nodes: []types.Node{n1},
 	}
-
-	ut.NotEqual(t, validateNodeRoleConflict(c), nil)
+	// test node role conflict case
+	ut.NotEqual(t, validateNodeRoleAndAddress(c1), nil)
+	// test node role duplicate case
+	c2 := &types.Cluster{
+		Nodes: []types.Node{n2},
+	}
+	ut.NotEqual(t, validateNodeRoleAndAddress(c2), nil)
+	// test node address wrong
+	c3 := &types.Cluster{
+		Nodes: []types.Node{n3},
+	}
+	ut.NotEqual(t, validateNodeRoleAndAddress(c3), nil)
 }
 
 func TestValidateScAddress(t *testing.T) {
@@ -202,4 +218,60 @@ func TestValidateNodesRoleChanage(t *testing.T) {
 	}
 
 	ut.NotEqual(t, validateNodesRoleChanage(c1, c2), nil)
+}
+
+func TestValidateClusterCIDRAndIPs(t *testing.T) {
+	// test clusterCidr wrong case
+	c1 := &types.Cluster{
+		ClusterCidr: "10.42.0.16",
+		ServiceCidr: "10.43.0.0/16",
+		ClusterUpstreamDNS: []string{
+			"114.114.114.114",
+			"223.5.5.5",
+		},
+		ClusterDNSServiceIP: "10.43.0.10",
+	}
+	ut.NotEqual(t, validateClusterCIDRAndIPs(c1), nil)
+	// test serviceCidr wrong case
+	c2 := &types.Cluster{
+		ClusterCidr: "10.42.0.0/16",
+		ServiceCidr: "10.43.0",
+		ClusterUpstreamDNS: []string{
+			"114.114.114.114",
+			"223.5.5.5",
+		},
+		ClusterDNSServiceIP: "10.43.0.10",
+	}
+	ut.NotEqual(t, validateClusterCIDRAndIPs(c2), nil)
+	// test clusterUpstreamDNS wrong case
+	c3 := &types.Cluster{
+		ClusterCidr: "10.42.0.0/16",
+		ServiceCidr: "10.43.0.0/16",
+		ClusterUpstreamDNS: []string{
+			"114.114.114.1140",
+			"223.5.5.5",
+		},
+		ClusterDNSServiceIP: "10.43.0.10",
+	}
+	ut.NotEqual(t, validateClusterCIDRAndIPs(c3), nil)
+	// test clusterDnsServiceIP case
+	c4 := &types.Cluster{
+		ClusterCidr: "10.42.0.0/16",
+		ServiceCidr: "10.43.0.0/16",
+		ClusterUpstreamDNS: []string{
+			"114.114.114.1140",
+			"223.5.5.5",
+		},
+		ClusterDNSServiceIP: "10.43.0.1000",
+	}
+	ut.NotEqual(t, validateClusterCIDRAndIPs(c4), nil)
+	c4.ClusterDNSServiceIP = "10.48.0.9"
+	ut.NotEqual(t, validateClusterCIDRAndIPs(c4), nil)
+}
+
+func TestValidateClusterSSHKeyNotEmpty(t *testing.T) {
+	c := &types.Cluster{
+		SSHKey: "",
+	}
+	ut.NotEqual(t, validateClusterSSHKeyNotEmpty(c), nil)
 }

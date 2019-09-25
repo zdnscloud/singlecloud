@@ -13,9 +13,10 @@ type createValidator func(c *types.Cluster) error
 type updateValidator func(oldCluster, newCluster *types.Cluster) error
 
 var createValidators = []createValidator{
+	validateClusterCIDRAndIPs,
 	validateDuplicateNodes,
 	validateNodeCount,
-	validateNodeRoleConflict,
+	validateNodeRoleAndAddress,
 	validateScAddress,
 }
 
@@ -25,18 +26,19 @@ var updateValidators = []updateValidator{
 }
 
 func validateConfigForCreate(c *types.Cluster) error {
-	fmt.Println(c)
 	for _, f := range createValidators {
 		if err := f(c); err != nil {
 			return err
 		}
 	}
-	return nil
+	return validateClusterSSHKeyNotEmpty(c)
 }
 
 func validateConfigForUpdate(oldCluster, newCluster *types.Cluster) error {
-	if err := validateConfigForCreate(newCluster); err != nil {
-		return err
+	for _, f := range createValidators {
+		if err := f(newCluster); err != nil {
+			return err
+		}
 	}
 
 	for _, f := range updateValidators {
@@ -85,13 +87,19 @@ func validateNodeCount(c *types.Cluster) error {
 	return nil
 }
 
-func validateNodeRoleConflict(c *types.Cluster) error {
+func validateNodeRoleAndAddress(c *types.Cluster) error {
 	for _, n := range c.Nodes {
 		if !n.HasRole(types.RoleControlPlane) && !n.HasRole(types.RoleWorker) {
 			return fmt.Errorf("%s must be controlplane or worker", n.Name)
 		}
 		if n.HasRole(types.RoleControlPlane) && n.HasRole(types.RoleWorker) {
 			return fmt.Errorf("%s controlplane node can't be worker", n.Name)
+		}
+		if isNodeRoleDuplicate(n) {
+			return fmt.Errorf("%s node has duplicate role", n.Name)
+		}
+		if !isIPv4(n.Address) {
+			return fmt.Errorf("%s node address isn't an ipv4 address", n.Address)
 		}
 	}
 	return nil
@@ -126,6 +134,9 @@ func validateCannotDeleteNode(oldCluster, newCluster *types.Cluster) error {
 }
 
 func validateScAddress(c *types.Cluster) error {
+	if !isIPv4Host(c.SingleCloudAddress) {
+		return fmt.Errorf("singlecloud address must be an ipv4 host such as 10.10.10.10:8000")
+	}
 	scIp := strings.Split(c.SingleCloudAddress, ":")[0]
 	for _, n := range c.Nodes {
 		if n.Address == scIp {
@@ -144,6 +155,34 @@ func validateNodesRoleChanage(oldCluster, newCluster *types.Cluster) error {
 				}
 			}
 		}
+	}
+	return nil
+}
+
+func validateClusterCIDRAndIPs(c *types.Cluster) error {
+	if !isIPv4(c.ClusterDNSServiceIP) {
+		return fmt.Errorf("clusterDnsServiceIP %s isn't an ipv4 address", c.ClusterDNSServiceIP)
+	}
+	for _, ns := range c.ClusterUpstreamDNS {
+		if !isIPv4(ns) {
+			return fmt.Errorf("clusterUpstreamDNS %s isn't an ipv4 address", ns)
+		}
+	}
+	if !isCIDRv4(c.ClusterCidr) {
+		return fmt.Errorf("clusterCidr isn't an ipv4 CIDR")
+	}
+	if !isCIDRv4(c.ServiceCidr) {
+		return fmt.Errorf("serviceCidr isn't an ipv4 CIDR")
+	}
+	if !isCIDRv4Contains(c.ServiceCidr, c.ClusterDNSServiceIP) {
+		return fmt.Errorf("clusterDnsServiceIP %s not in serviceCidr %s", c.ClusterDNSServiceIP, c.ServiceCidr)
+	}
+	return nil
+}
+
+func validateClusterSSHKeyNotEmpty(c *types.Cluster) error {
+	if len(c.SSHKey) == 0 {
+		return fmt.Errorf("cluster sshkey is empty")
 	}
 	return nil
 }

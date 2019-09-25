@@ -53,10 +53,6 @@ func isCIDRv4Contains(network, ip string) bool {
 	return err == nil && networkv4.Contains(ipv4)
 }
 
-func isCIDRv4Conflict(cidr1, cidr2 string) bool {
-	return false
-}
-
 func isIPv4Host(input string) bool {
 	contents := strings.Split(input, ":")
 	if len(contents) != 2 {
