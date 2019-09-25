@@ -66,7 +66,7 @@
               "currentRevision": {"type": "string"},
               "updateRevision": {"type": "string"},
               "collisionCount": {"type": "int"},
-              "conditions": {"type": "array": "elemType": "statefulsetCondition"}
+              "conditions": {"type": "array", "elemType": "statefulsetCondition"}
         },
          
         "statefulsetCondition": {

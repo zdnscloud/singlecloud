@@ -65,7 +65,7 @@
               "availableReplicas": {"type": "int"},
               "unavailableReplicas": {"type": "int"},
               "collisionCount": {"type": "int"},
-              "conditions": {"type": "array": "elemType": "deploymentCondition"}
+              "conditions": {"type": "array", "elemType": "deploymentCondition"}
         },
 
         "deploymentCondition":{

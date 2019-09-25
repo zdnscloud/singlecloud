@@ -49,12 +49,12 @@ func (uq UserQuota) CreateAction(name string) *resource.Action {
 	case ActionApproval:
 		return &resource.Action{
 			Name:  ActionApproval,
-			Input: ClusterInfo{},
+			Input: &ClusterInfo{},
 		}
 	case ActionRejection:
 		return &resource.Action{
 			Name:  ActionRejection,
-			Input: Rejection{},
+			Input: &Rejection{},
 		}
 	default:
 		return nil

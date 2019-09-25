@@ -39,12 +39,12 @@ func (d DaemonSet) CreateAction(name string) *resource.Action {
 	case ActionRollback:
 		return &resource.Action{
 			Name:  ActionRollback,
-			Input: RollBackVersion{},
+			Input: &RollBackVersion{},
 		}
 	case ActionSetImage:
 		return &resource.Action{
 			Name:  ActionSetImage,
-			Input: SetImage{},
+			Input: &SetImage{},
 		}
 	default:
 		return nil
