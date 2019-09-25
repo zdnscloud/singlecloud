@@ -79,12 +79,7 @@ data:
     {
       "Network": "{{.ClusterCIDR}}",
       "Backend": {
-	{{- if eq .FlannelBackend.Type "vxlan"}}
-        "Type": "{{.FlannelBackend.Type}}",
-        "Directrouting": {{.FlannelBackend.Directrouting}}
-	{{- else}}
         "Type": "{{.FlannelBackend.Type}}"
-	{{- end}}
       }
     }
 ---

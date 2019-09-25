@@ -98,8 +98,7 @@ func doFlannelDeploy(ctx context.Context, c *core.Cluster, cli client.Client) er
 		CNIImage:         c.Image.FlannelCNI,
 		FlannelInterface: c.Network.Iface,
 		FlannelBackend: map[string]interface{}{
-			"Type":          "vxlan",
-			"Directrouting": "true",
+			"Type": "vxlan",
 		},
 		RBACConfig:        c.Authorization.Mode,
 		ClusterVersion:    core.GetTagMajorVersion(c.Option.KubernetesVersion),
