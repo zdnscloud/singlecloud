@@ -650,7 +650,7 @@
   revision = "b01ceb172ce64e60ee1f42ca75724ddcf6e76ae7"
 
 [[projects]]
-  branch = "scremove"
+  branch = "master"
   digest = "1:4a21fa1bca2bc87395434e30f6de5a9011cffb6cbcc0c17017a58970ab01d698"
   name = "github.com/zdnscloud/zke"
   packages = [
