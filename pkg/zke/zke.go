@@ -17,16 +17,8 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func buildZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger) (*core.FullState, *rest.Config, client.Client, error) {
-	return upZKECluster(ctx, config, state, logger, true)
-}
-
-func updateZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger) (*core.FullState, *rest.Config, client.Client, error) {
-	return upZKECluster(ctx, config, state, logger, false)
-}
-
-func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger, isNewCluster bool) (*core.FullState, *rest.Config, client.Client, error) {
-	newState, err := zkecmd.ClusterUpFromSingleCloud(ctx, config, state, logger, isNewCluster)
+func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger) (*core.FullState, *rest.Config, client.Client, error) {
+	newState, err := zkecmd.ClusterUpFromSingleCloud(ctx, config, state, logger)
 	if err != nil {
 		return newState, nil, nil, err
 	}
@@ -50,6 +42,10 @@ func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.F
 	}
 
 	return newState, k8sConfig, kubeClient, nil
+}
+
+func removeZKECluster(ctx context.Context, config *zketypes.ZKEConfig, logger log.Logger) error {
+	return zkecmd.ClusterRemoveFromSingleCloud(ctx, config, logger)
 }
 
 func genZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {

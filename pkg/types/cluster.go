@@ -15,6 +15,7 @@ const (
 	CSConnecting  ClusterStatus = "Connecting"
 	CSUnavailable ClusterStatus = "Unavailable"
 	CSCanceling   ClusterStatus = "Canceling"
+	CSDeleting    ClusterStatus = "Deleting"
 	CSDeleted     ClusterStatus = "Deleted"
 
 	CSCancelAction        = "cancel"

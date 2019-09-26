@@ -255,28 +255,8 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 		return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
 
-	if !toDelete.CanDelete() {
-		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s can't delete on %s", toDelete.Name, toDelete.getStatus()))
-	}
-
-	if err := deleteClusterFromDB(id, m.db); err != nil {
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete cluster %s from database failed %s", id, err))
-	}
-
-	if toDelete.IsReady() {
-		for i, c := range m.readyClusters {
-			if c.Name == id {
-				m.readyClusters = append(m.readyClusters[:i], m.readyClusters[i+1:]...)
-				break
-			}
-		}
-	} else {
-		for i, c := range m.unreadyClusters {
-			if c.Name == id {
-				m.unreadyClusters = append(m.unreadyClusters[:i], m.unreadyClusters[i+1:]...)
-				break
-			}
-		}
+	if err := toDelete.fsm.Event(DeleteEvent); err != nil {
+		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s can't delete %s", toDelete.Name, err.Error()))
 	}
 
 	select {
@@ -288,6 +268,8 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 		close(toDelete.stopCh)
 		m.PubEventCh <- DeleteCluster{Cluster: toDelete}
 	}
+
+	go toDelete.Destroy(context.TODO(), m)
 	return nil
 }
 
@@ -369,4 +351,22 @@ func (m *ZKEManager) SendEvent(e interface{}) {
 
 func (m *ZKEManager) GetDB() storage.DB {
 	return m.db
+}
+
+func (m *ZKEManager) Remove(cluster *Cluster) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for i, c := range m.readyClusters {
+		if c.Name == cluster.Name {
+			m.readyClusters = append(m.readyClusters[:i], m.readyClusters[i+1:]...)
+			break
+		}
+	}
+	for i, c := range m.unreadyClusters {
+		if c.Name == cluster.Name {
+			m.unreadyClusters = append(m.unreadyClusters[:i], m.unreadyClusters[i+1:]...)
+			break
+		}
+	}
 }

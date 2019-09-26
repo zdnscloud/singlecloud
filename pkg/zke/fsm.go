@@ -19,6 +19,7 @@ const (
 	CancelEvent         = "cancel"
 	CancelSuccessEvent  = "cancelSuccess"
 	DeleteEvent         = "delete"
+	DeleteSuccessEvent  = "deleteSuccess"
 )
 
 func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM {
@@ -36,7 +37,8 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 			{Name: GetInfoSuccessEvent, Src: []string{string(types.CSUnreachable)}, Dst: string(types.CSRunning)},
 			{Name: CancelEvent, Src: []string{string(types.CSUpdateing), string(types.CSCreateing), string(types.CSConnecting)}, Dst: string(types.CSCanceling)},
 			{Name: CancelSuccessEvent, Src: []string{string(types.CSCanceling)}, Dst: string(types.CSUnavailable)},
-			{Name: DeleteEvent, Src: []string{string(types.CSRunning), string(types.CSUnreachable), string(types.CSUnavailable)}, Dst: string(types.CSDeleted)},
+			{Name: DeleteEvent, Src: []string{string(types.CSRunning), string(types.CSUnreachable), string(types.CSUnavailable)}, Dst: string(types.CSDeleting)},
+			{Name: DeleteSuccessEvent, Src: []string{string(types.CSDeleting)}, Dst: string(types.CSDeleted)},
 		},
 		fsm.Callbacks{
 			InitSuccessEvent: func(e *fsm.Event) {
@@ -69,6 +71,11 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				cluster.isCanceled = false
 				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
 				cluster.setUnavailable(mgr.GetDB())
+			},
+			DeleteSuccessEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ZKEManager)
+				mgr.Remove(cluster)
+				deleteClusterFromDB(cluster.Name, mgr.GetDB())
 			},
 		},
 	)

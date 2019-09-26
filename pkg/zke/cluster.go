@@ -62,7 +62,7 @@ func newCluster(name string, initialStatus types.ClusterStatus) *Cluster {
 
 func (c *Cluster) IsReady() bool {
 	status := c.getStatus()
-	if status == types.CSRunning || status == types.CSUnavailable {
+	if status == types.CSRunning || status == types.CSUnreachable {
 		return true
 	}
 	return false
@@ -105,10 +105,6 @@ func (c *Cluster) Cancel() error {
 	c.cancel()
 	c.isCanceled = true
 	return nil
-}
-
-func (c *Cluster) CanDelete() bool {
-	return c.fsm.Can(DeleteEvent)
 }
 
 func (c *Cluster) CanUpdate() bool {
@@ -201,7 +197,7 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
-	zkeState, k8sConfig, kubeClient, err := buildZKECluster(ctx, c.config, state.FullState, logger)
+	zkeState, k8sConfig, kubeClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
 		if err := c.fsm.Event(CancelSuccessEvent, mgr, state); err != nil {
@@ -250,7 +246,7 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
-	zkeState, k8sConfig, kubeClient, err := updateZKECluster(ctx, c.config, state.FullState, logger)
+	zkeState, k8sConfig, kubeClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
 		if err := c.fsm.Event(CancelSuccessEvent, mgr, state); err != nil {
@@ -277,6 +273,31 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 	if err := c.fsm.Event(UpdateSuccessEvent, mgr, state); err != nil {
 		log.Warnf("send cluster fsm %s event failed %s", UpdateSuccessEvent, err.Error())
 	}
+}
+
+func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("zke pannic info %s", r)
+			if err := c.fsm.Event(DeleteSuccessEvent, mgr); err != nil {
+				log.Warnf("send cluster fsm %s event failed %s", DeleteSuccessEvent, err.Error())
+			}
+		}
+	}()
+
+	logger, logCh := log.NewLog4jBufLogger(MaxZKELogLines, log.Info)
+	defer logger.Close()
+	c.logCh = logCh
+
+	if err := removeZKECluster(ctx, c.config, logger); err != nil {
+		log.Errorf("zke err info %s", err)
+		logger.Error(err.Error())
+	}
+
+	if err := c.fsm.Event(DeleteSuccessEvent, mgr); err != nil {
+		log.Warnf("send cluster fsm %s event failed %s", DeleteSuccessEvent, err.Error())
+	}
+	return
 }
 
 func (c *Cluster) toTypesCluster() *types.Cluster {
