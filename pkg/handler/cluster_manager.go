@@ -232,13 +232,9 @@ type StorageNodeListener struct {
 	clusters *ClusterManager
 }
 
-func (m StorageNodeListener) IsStorageNode(clusterName, node string) (bool, error) {
-	cluster := m.clusters.zkeManager.Get(clusterName)
-	if cluster == nil {
-		return false, fmt.Errorf("nil cluster %s", clusterName)
-	}
-	if !cluster.IsReady() && cluster.KubeClient == nil {
-		return false, fmt.Errorf("cluster %s kubeClient is nil", clusterName)
+func (m StorageNodeListener) IsStorageNode(cluster *zke.Cluster, node string) (bool, error) {
+	if cluster.KubeClient == nil {
+		return false, fmt.Errorf("cluster %s kubeClient is nil", cluster.Name)
 	}
 	storageClusters, err := getStorageClusters(cluster.KubeClient)
 	if err != nil {

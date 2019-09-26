@@ -30,7 +30,7 @@ type ZKEManager struct {
 }
 
 type NodeListener interface {
-	IsStorageNode(clusterName, node string) (bool, error)
+	IsStorageNode(cluster *Cluster, node string) (bool, error)
 }
 
 func New(db storage.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
@@ -141,11 +141,16 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", typesCluster.Name))
 	}
 
+	// doesn't support imported cluster update because no sshkey
+	if existCluster.scVersion == types.ScVersionImported {
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "doesn't support update imported cluster")
+	}
+
 	if !existCluster.CanUpdate() {
 		return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s can't update on %s status", existCluster.Name, existCluster.getStatus()))
 	}
 
-	if err := validateConfigForUpdate(existCluster.ToTypesCluster(), typesCluster, m.nodeListener); err != nil {
+	if err := validateConfigForUpdate(existCluster.ToTypesCluster(), typesCluster, m.nodeListener, existCluster); err != nil {
 		return nil, resterr.NewAPIError(resterr.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 	config := genZKEConfigForUpdateNodes(existCluster.config, typesCluster)

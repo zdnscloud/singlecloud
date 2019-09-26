@@ -112,10 +112,6 @@ func (c *Cluster) CanDelete() bool {
 }
 
 func (c *Cluster) CanUpdate() bool {
-	// doesn't support imported cluster update because no sshkey
-	if c.scVersion == types.ScVersionImported {
-		return false
-	}
 	return c.fsm.Can(UpdateEvent)
 }
 

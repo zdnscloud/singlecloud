@@ -34,7 +34,7 @@ func validateConfigForCreate(c *types.Cluster) error {
 	return validateClusterSSHKeyNotEmpty(c)
 }
 
-func validateConfigForUpdate(oldCluster, newCluster *types.Cluster, nl NodeListener) error {
+func validateConfigForUpdate(oldCluster, newCluster *types.Cluster, nl NodeListener, currentCluster *Cluster) error {
 	for _, f := range createValidators {
 		if err := f(newCluster); err != nil {
 			return err
@@ -46,13 +46,16 @@ func validateConfigForUpdate(oldCluster, newCluster *types.Cluster, nl NodeListe
 			return err
 		}
 	}
-	return validateToDeleteStorageNodes(oldCluster, newCluster, nl)
+	return validateToDeleteStorageNodes(oldCluster, newCluster, nl, currentCluster)
 }
 
-func validateToDeleteStorageNodes(oldCluster, newCluster *types.Cluster, nl NodeListener) error {
+func validateToDeleteStorageNodes(oldCluster, newCluster *types.Cluster, nl NodeListener, currentCluster *Cluster) error {
+	if currentCluster.KubeClient == nil {
+		return nil
+	}
 	toDeleteNodes := getToDeleteNodes(oldCluster, newCluster)
 	for _, n := range toDeleteNodes {
-		isStorage, err := nl.IsStorageNode(newCluster.Name, n)
+		isStorage, err := nl.IsStorageNode(currentCluster, n)
 		if err != nil {
 			return fmt.Errorf("validateToDeleteStorageNodes err %s", err.Error())
 		}
