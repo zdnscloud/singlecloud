@@ -105,10 +105,10 @@ func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource,
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
-	if err := createStorageCluster(cluster.KubeClient, storagecluster); err != nil {
+	if err := createStorageCluster(cluster, m.clusters.Agent, storagecluster); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, gorestError.NewAPIError(gorestError.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
-		} else if strings.Contains(err.Error(), "storagecluster has already exists") {
+		} else if strings.Contains(err.Error(), "storagecluster has already exists") || strings.Contains(err.Error(), "can not be used for") {
 			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
 		} else {
 			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
@@ -125,8 +125,8 @@ func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource,
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
-	if err := updateStorageCluster(cluster.KubeClient, storagecluster); err != nil {
-		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") {
+	if err := updateStorageCluster(cluster, m.clusters.Agent, storagecluster); err != nil {
+		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "can not be used for") {
 			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
 		} else {
 			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
@@ -157,31 +157,41 @@ func deleteStorageCluster(cli client.Client, name string) error {
 	return cli.Delete(context.TODO(), storagecluster)
 }
 
-func createStorageCluster(cli client.Client, storagecluster *types.StorageCluster) error {
-	if err := checkStorageClusterExist(cli, storagecluster.StorageType); err != nil {
+func createStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager, storagecluster *types.StorageCluster) error {
+	if err := checkStorageClusterExist(cluster.KubeClient, storagecluster.StorageType); err != nil {
 		return err
 	}
+	if err := isHostsValidate(cluster, agent, storagecluster.Hosts); err != nil {
+		return err
+	}
+
 	k8sStorageCluster := scStorageToK8sStorage(storagecluster)
-	return cli.Create(context.TODO(), k8sStorageCluster)
+	return cluster.KubeClient.Create(context.TODO(), k8sStorageCluster)
 }
 
-func updateStorageCluster(cli client.Client, storagecluster *types.StorageCluster) error {
+func updateStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager, storagecluster *types.StorageCluster) error {
 	if len(storagecluster.Hosts) == 0 {
-		return errors.New("update storagecluster failed, storagecluster must keep at least one node,suggest delete the storagecluster")
+		return errors.New("storagecluster must keep at least one node,suggest delete the storagecluster")
 	}
-	k8sStorageCluster, err := getStorageCluster(cli, storagecluster.GetID())
+	k8sStorageCluster, err := getStorageCluster(cluster.KubeClient, storagecluster.GetID())
 	if err != nil {
 		return err
 	}
+	if storagecluster.StorageType != k8sStorageCluster.Spec.StorageType {
+		return errors.New("storagecluster type can not be modify")
+	}
 
 	if k8sStorageCluster.Spec.StorageType == "lvm" {
-		if err := checkStorageHostsUsed(cli, k8sStorageCluster, storagecluster); err != nil {
+		if err := isDelHostsUsed(cluster.KubeClient, k8sStorageCluster, storagecluster); err != nil {
 			return err
 		}
 	}
+	if err := isAddHostsValid(cluster, agent, k8sStorageCluster, storagecluster); err != nil {
+		return err
+	}
 
 	k8sStorageCluster.Spec.Hosts = storagecluster.Hosts
-	return cli.Update(context.TODO(), k8sStorageCluster)
+	return cluster.KubeClient.Update(context.TODO(), k8sStorageCluster)
 }
 
 func scStorageToK8sStorage(storagecluster *types.StorageCluster) *storagev1.Cluster {
@@ -346,7 +356,14 @@ func getAttachedHosts(cli client.Client, driverName string, nodes []string) ([]s
 	return hosts, nil
 }
 
-func checkStorageHostsUsed(cli client.Client, k8sStorageCluster *storagev1.Cluster, storagecluster *types.StorageCluster) error {
+func isAddHostsValid(cluster *zke.Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster, storagecluster *types.StorageCluster) error {
+	s1 := set.StringSetFromSlice(k8sStorageCluster.Spec.Hosts)
+	s2 := set.StringSetFromSlice(storagecluster.Hosts)
+	addHosts := s2.Difference(s1).ToSlice()
+	return isHostsValidate(cluster, agent, addHosts)
+}
+
+func isDelHostsUsed(cli client.Client, k8sStorageCluster *storagev1.Cluster, storagecluster *types.StorageCluster) error {
 	driverName, err := getStorageDriver(cli, k8sStorageCluster.Spec.StorageType)
 	if err != nil {
 		return err
@@ -364,4 +381,31 @@ func checkStorageHostsUsed(cli client.Client, k8sStorageCluster *storagev1.Clust
 		return errors.New(fmt.Sprintf("The storagehosts %s is used by some pods, you should stop those pods first", usedHosts))
 	}
 	return nil
+}
+
+func isHostsValidate(cluster *zke.Cluster, agent *clusteragent.AgentManager, hosts []string) error {
+	resp, err := getBlockDevices(cluster.Name, cluster.KubeClient, agent)
+	if err != nil {
+		return err
+	}
+	var invalidHosts []string
+	for _, host := range hosts {
+		if !checkUsed(resp, host) {
+			continue
+		}
+		invalidHosts = append(invalidHosts, host)
+	}
+	if len(invalidHosts) > 0 {
+		return errors.New(fmt.Sprintf("hosts %s can not be used for storage", invalidHosts))
+	}
+	return nil
+}
+
+func checkUsed(blockinfo []*types.BlockDevice, node string) bool {
+	for _, info := range blockinfo {
+		if info.NodeName == node && info.UsedBy == "" {
+			return false
+		}
+	}
+	return true
 }
