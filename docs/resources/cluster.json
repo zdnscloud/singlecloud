@@ -8,7 +8,7 @@
         },
         "status": {
             "type": "enum",
-            "validValues": ["Running", "Unreachable", "Creating", "Updating", "Connecting", "Unavailable", "Canceling"]
+            "validValues": ["Running", "Unreachable", "Creating", "Updating", "Connecting", "Unavailable", "Canceling", "Deleting"]
         },
         "nodeCount": {
             "type": "uint32"
@@ -57,7 +57,7 @@
             "type": "array",
             "elemType": "privateRegistry"
         },
-        "singlecloudAddress": {
+        "singleCloudAddress": {
             "type": "string"
         },
         "sshUser": {
@@ -207,7 +207,7 @@
                 "type": "array",
                 "elemType": "privateRegistry"
             },
-            "singlecloudAddress": {
+            "singleCloudAddress": {
                 "type": "string",
                 "required": true
             },
