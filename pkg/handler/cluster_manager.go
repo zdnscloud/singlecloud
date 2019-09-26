@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 
+	"errors"
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest"
@@ -14,6 +15,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
@@ -222,4 +224,24 @@ func (m *ClusterManager) eventLoop() {
 		obj := <-m.zkeManager.PubEventCh
 		m.eventBus.Pub(obj, eventbus.ClusterEvent)
 	}
+}
+
+type StorageNodeListener struct {
+        clusters *ClusterManager
+}
+
+func (m StorageNodeListener) IsStorageNode(cluster *zke.Cluster, node string) (bool, error) {
+        if cluster.KubeClient == nil {
+                return true, errors.New(fmt.Sprintf("cluster %s client is null", cluster.Name))
+        }
+        storageClusters, err := getStorageClusters(cluster.KubeClient)
+        if err != nil {
+                return true, err
+        }
+        for _, storageCluster := range storageClusters.Items {
+                if slice.SliceIndex(storageCluster.Spec.Hosts, node) >= 0 {
+                        return true, nil
+                }
+        }
+        return false, nil
 }
