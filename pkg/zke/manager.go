@@ -26,15 +26,21 @@ type ZKEManager struct {
 	db              storage.DB
 	lock            sync.Mutex
 	scVersion       string // add cluster singlecloud version for easy to confirm zcloud component version
+	nodeListener    NodeListener
 }
 
-func New(db storage.DB, scVersion string) (*ZKEManager, error) {
+type NodeListener interface {
+	IsStorageNode(clusterName, node string) (bool, error)
+}
+
+func New(db storage.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 	mgr := &ZKEManager{
 		readyClusters:   make([]*Cluster, 0),
 		unreadyClusters: make([]*Cluster, 0),
 		PubEventCh:      make(chan interface{}, clusterEventBufferCount),
 		db:              db,
 		scVersion:       scVersion,
+		nodeListener:    nl,
 	}
 	if err := mgr.loadDB(); err != nil {
 		return mgr, err
@@ -139,7 +145,7 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 		return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s can't update on %s status", existCluster.Name, existCluster.getStatus()))
 	}
 
-	if err := validateConfigForUpdate(existCluster.ToTypesCluster(), typesCluster); err != nil {
+	if err := validateConfigForUpdate(existCluster.ToTypesCluster(), typesCluster, m.nodeListener); err != nil {
 		return nil, resterr.NewAPIError(resterr.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 	config := genZKEConfigForUpdateNodes(existCluster.config, typesCluster)

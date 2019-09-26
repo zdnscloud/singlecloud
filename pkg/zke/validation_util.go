@@ -66,3 +66,19 @@ func isIPv4Host(input string) bool {
 	}
 	return ip != nil && ip.To4() != nil && port > 0 && port <= 65535
 }
+
+func getToDeleteNodes(old, new *types.Cluster) []string {
+	newNodes := set.NewStringSet()
+	toDeleteNodes := []string{}
+
+	for _, n := range new.Nodes {
+		newNodes.Add(n.Name)
+	}
+
+	for _, n := range old.Nodes {
+		if !newNodes.Member(n.Name) {
+			toDeleteNodes = append(toDeleteNodes, n.Name)
+		}
+	}
+	return toDeleteNodes
+}

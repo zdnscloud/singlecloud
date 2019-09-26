@@ -68,3 +68,20 @@ func TestIsIPv4Host(t *testing.T) {
 	ut.Equal(t, isIPv4Host(h2), false)
 	ut.Equal(t, isIPv4Host(h3), false)
 }
+
+func TestGetToDeleteNodes(t *testing.T) {
+	n1 := types.Node{
+		Name: "master",
+	}
+	n2 := types.Node{
+		Name: "worker1",
+	}
+	c1 := &types.Cluster{
+		Nodes: []types.Node{n1, n2},
+	}
+	c2 := &types.Cluster{
+		Nodes: []types.Node{n1},
+	}
+
+	ut.Equal(t, len(getToDeleteNodes(c1, c2)), 1)
+}

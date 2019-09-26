@@ -34,7 +34,7 @@ func validateConfigForCreate(c *types.Cluster) error {
 	return validateClusterSSHKeyNotEmpty(c)
 }
 
-func validateConfigForUpdate(oldCluster, newCluster *types.Cluster) error {
+func validateConfigForUpdate(oldCluster, newCluster *types.Cluster, nl NodeListener) error {
 	for _, f := range createValidators {
 		if err := f(newCluster); err != nil {
 			return err
@@ -44,6 +44,20 @@ func validateConfigForUpdate(oldCluster, newCluster *types.Cluster) error {
 	for _, f := range updateValidators {
 		if err := f(oldCluster, newCluster); err != nil {
 			return err
+		}
+	}
+	return validateToDeleteStorageNodes(oldCluster, newCluster, nl)
+}
+
+func validateToDeleteStorageNodes(oldCluster, newCluster *types.Cluster, nl NodeListener) error {
+	toDeleteNodes := getToDeleteNodes(oldCluster, newCluster)
+	for _, n := range toDeleteNodes {
+		isStorage, err := nl.IsStorageNode(newCluster.Name, n)
+		if err != nil {
+			return fmt.Errorf("validateToDeleteStorageNodes err %s", err.Error())
+		}
+		if isStorage {
+			return fmt.Errorf("node %s used by storage,please delete it from storage first", n)
 		}
 	}
 	return nil

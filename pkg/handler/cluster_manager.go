@@ -3,8 +3,8 @@ package handler
 import (
 	"fmt"
 
-	"errors"
 	"github.com/zdnscloud/cement/pubsub"
+	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
@@ -15,7 +15,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
@@ -44,7 +43,10 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 		db:            db,
 		Agent:         agent,
 	}
-	zkeMgr, err := zke.New(db, scVersion)
+	storageNodeListener := &StorageNodeListener{
+		clusters: clusterMgr,
+	}
+	zkeMgr, err := zke.New(db, scVersion, storageNodeListener)
 	if err != nil {
 		log.Errorf("create zke-manager failed %s", err.Error())
 		return nil, err
@@ -227,22 +229,27 @@ func (m *ClusterManager) eventLoop() {
 }
 
 type StorageNodeListener struct {
-        clusters *ClusterManager
+	clusters *ClusterManager
 }
 
 func (m StorageNodeListener) IsStorageNode(clusterName, node string) (bool, error) {
-	cluster := m.clusters.GetClusterByName(clusterName)
-	if cluster == nil{
-		return true, errors.New(fmt.Sprintf("cluster %s is null", clusterName))
+	cluster := m.clusters.zkeManager.Get(clusterName)
+	if cluster == nil {
+		return false, fmt.Errorf("nil cluster %s", clusterName)
 	}
-        storageClusters, err := getStorageClusters(cluster.KubeClient)
-        if err != nil {
-                return true, err
-        }
-        for _, storageCluster := range storageClusters.Items {
-                if slice.SliceIndex(storageCluster.Spec.Hosts, node) >= 0 {
-                        return true, nil
-                }
-        }
-        return false, nil
+	if !cluster.IsReady() && cluster.KubeClient == nil {
+		return false, fmt.Errorf("cluster %s kubeClient is nil", clusterName)
+	}
+	storageClusters, err := getStorageClusters(cluster.KubeClient)
+	if err != nil {
+		return true, err
+	}
+	for _, storageCluster := range storageClusters.Items {
+		if slice.SliceIndex(storageCluster.Spec.Hosts, node) >= 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
+
+var _ zke.NodeListener = StorageNodeListener{}
