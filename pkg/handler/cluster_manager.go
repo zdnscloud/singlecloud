@@ -230,10 +230,11 @@ type StorageNodeListener struct {
         clusters *ClusterManager
 }
 
-func (m StorageNodeListener) IsStorageNode(cluster *zke.Cluster, node string) (bool, error) {
-        if cluster.KubeClient == nil {
-                return true, errors.New(fmt.Sprintf("cluster %s client is null", cluster.Name))
-        }
+func (m StorageNodeListener) IsStorageNode(clusterName, node string) (bool, error) {
+	cluster := m.clusters.GetClusterByName(clusterName)
+	if cluster == nil{
+		return true, errors.New(fmt.Sprintf("cluster %s is null", clusterName))
+	}
         storageClusters, err := getStorageClusters(cluster.KubeClient)
         if err != nil {
                 return true, err
