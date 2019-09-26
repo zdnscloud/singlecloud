@@ -220,6 +220,36 @@ func TestValidateNodesRoleChanage(t *testing.T) {
 	ut.NotEqual(t, validateNodesRoleChanage(c1, c2), nil)
 }
 
+func TestValidateNodesNameChanage(t *testing.T) {
+	n1 := types.Node{
+		Name:    "master",
+		Address: "192.168.1.1",
+		Roles:   []types.NodeRole{types.RoleControlPlane, types.RoleWorker, types.RoleEtcd},
+	}
+
+	n2 := types.Node{
+		Name:    "worker",
+		Address: "192.168.1.2",
+		Roles:   []types.NodeRole{types.RoleWorker},
+	}
+
+	n3 := types.Node{
+		Name:    "worker1",
+		Address: "192.168.1.2",
+		Roles:   []types.NodeRole{types.RoleWorker},
+	}
+
+	c1 := &types.Cluster{
+		Nodes: []types.Node{n1, n2},
+	}
+
+	c2 := &types.Cluster{
+		Nodes: []types.Node{n1, n3},
+	}
+
+	ut.NotEqual(t, validateNodesNameChanage(c1, c2), nil)
+}
+
 func TestValidateClusterCIDRAndIPs(t *testing.T) {
 	// test clusterCidr wrong case
 	c1 := &types.Cluster{

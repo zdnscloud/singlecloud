@@ -23,6 +23,7 @@ var createValidators = []createValidator{
 var updateValidators = []updateValidator{
 	validateCannotDeleteNode,
 	validateNodesRoleChanage,
+	validateNodesNameChanage,
 }
 
 func validateConfigForCreate(c *types.Cluster) error {
@@ -169,6 +170,19 @@ func validateNodesRoleChanage(oldCluster, newCluster *types.Cluster) error {
 			if old.Address == new.Address {
 				if isNodeRolesChanage(old, new) {
 					return fmt.Errorf("don't support chanage node roles [%s]", old.Address)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func validateNodesNameChanage(oldCluster, newCluster *types.Cluster) error {
+	for _, old := range oldCluster.Nodes {
+		for _, new := range newCluster.Nodes {
+			if old.Address == new.Address {
+				if old.Name != new.Name {
+					return fmt.Errorf("don't support chanage node name [%s]", old.Address)
 				}
 			}
 		}
