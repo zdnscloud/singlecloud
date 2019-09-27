@@ -19,6 +19,7 @@ var createValidators = []createValidator{
 	validateNodeCount,
 	validateNodeNameRoleAndAddress,
 	validateScAddress,
+	validateClusterDomain,
 }
 
 var updateValidators = []updateValidator{
@@ -218,6 +219,13 @@ func validateClusterCIDRAndIPs(c *types.Cluster) error {
 func validateClusterSSHKeyNotEmpty(c *types.Cluster) error {
 	if len(c.SSHKey) == 0 {
 		return fmt.Errorf("cluster sshkey is empty")
+	}
+	return nil
+}
+
+func validateClusterDomain(c *types.Cluster) error {
+	if !isDomainName(c.ClusterDomain) {
+		return fmt.Errorf("clusterDomain %s isn't a domain name", c.ClusterDomain)
 	}
 	return nil
 }

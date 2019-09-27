@@ -8,6 +8,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/cement/set"
+	"github.com/zdnscloud/g53"
 )
 
 func isNodeRolesChanage(oldNode, newNode types.Node) bool {
@@ -81,4 +82,11 @@ func getToDeleteNodes(old, new *types.Cluster) []string {
 		}
 	}
 	return toDeleteNodes
+}
+
+func isDomainName(input string) bool {
+	if _, err := g53.NameFromString(input); err != nil {
+		return false
+	}
+	return true
 }

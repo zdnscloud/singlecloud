@@ -85,3 +85,8 @@ func TestGetToDeleteNodes(t *testing.T) {
 
 	ut.Equal(t, len(getToDeleteNodes(c1, c2)), 1)
 }
+
+func TestIsDomainName(t *testing.T) {
+	ut.Equal(t, isDomainName("cluster.local"), true)
+	ut.Equal(t, isDomainName("cluster..l"), false)
+}
