@@ -103,7 +103,7 @@ func TestValidateNoWorker(t *testing.T) {
 	ut.NotEqual(t, validateNodeCount(c), nil)
 }
 
-func TestValidateNodeRolesAndAddress(t *testing.T) {
+func TestValidateNodeNameRolesAndAddress(t *testing.T) {
 	n1 := types.Node{
 		Name:    "master",
 		Address: "192.168.1.1",
@@ -122,21 +122,32 @@ func TestValidateNodeRolesAndAddress(t *testing.T) {
 		Roles:   []types.NodeRole{types.RoleWorker},
 	}
 
+	n4 := types.Node{
+		Name:    "Worker..1",
+		Address: "xxxxx",
+		Roles:   []types.NodeRole{types.RoleWorker},
+	}
+
 	c1 := &types.Cluster{
 		Nodes: []types.Node{n1},
 	}
 	// test node role conflict case
-	ut.NotEqual(t, validateNodeRoleAndAddress(c1), nil)
+	ut.NotEqual(t, validateNodeNameRoleAndAddress(c1), nil)
 	// test node role duplicate case
 	c2 := &types.Cluster{
 		Nodes: []types.Node{n2},
 	}
-	ut.NotEqual(t, validateNodeRoleAndAddress(c2), nil)
+	ut.NotEqual(t, validateNodeNameRoleAndAddress(c2), nil)
 	// test node address wrong
 	c3 := &types.Cluster{
 		Nodes: []types.Node{n3},
 	}
-	ut.NotEqual(t, validateNodeRoleAndAddress(c3), nil)
+	ut.NotEqual(t, validateNodeNameRoleAndAddress(c3), nil)
+	// test node name not rfc1123subdomain
+	c4 := &types.Cluster{
+		Nodes: []types.Node{n4},
+	}
+	ut.NotEqual(t, validateNodeNameRoleAndAddress(c4), nil)
 }
 
 func TestValidateScAddress(t *testing.T) {

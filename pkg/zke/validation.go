@@ -7,6 +7,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/cement/set"
+	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 type createValidator func(c *types.Cluster) error
@@ -16,7 +17,7 @@ var createValidators = []createValidator{
 	validateClusterCIDRAndIPs,
 	validateDuplicateNodes,
 	validateNodeCount,
-	validateNodeRoleAndAddress,
+	validateNodeNameRoleAndAddress,
 	validateScAddress,
 }
 
@@ -105,7 +106,7 @@ func validateNodeCount(c *types.Cluster) error {
 	return nil
 }
 
-func validateNodeRoleAndAddress(c *types.Cluster) error {
+func validateNodeNameRoleAndAddress(c *types.Cluster) error {
 	for _, n := range c.Nodes {
 		if !n.HasRole(types.RoleControlPlane) && !n.HasRole(types.RoleWorker) {
 			return fmt.Errorf("%s must be controlplane or worker", n.Name)
@@ -118,6 +119,9 @@ func validateNodeRoleAndAddress(c *types.Cluster) error {
 		}
 		if !isIPv4(n.Address) {
 			return fmt.Errorf("%s node address isn't an ipv4 address", n.Address)
+		}
+		if errs := k8svalidation.IsDNS1123Subdomain(n.Name); len(errs) > 0 {
+			return fmt.Errorf("node %s name %s is not valid: %v", n.Address, n.Name, errs)
 		}
 	}
 	return nil
