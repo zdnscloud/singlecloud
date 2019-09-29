@@ -1,0 +1,12 @@
+# namespace概览
+## 概要
+通过namespace概览快速获取某个namespace对整个集群的资源的占用情况
+
+## 详细设计
+通过k8s metric接口获取一个namespace下的所有pod，并且拿到pod下所有的container
+的信息，container的信息中包含改container使用的cpu和内存情况，把所有container
+的cpu和内存总和作为该namespace使用的总的cpu和内存。系统总的资源和cluster中展示
+的内容一致。
+同时把一个pod下所有的container使用的资源总和作为pod使用的资源，把使用最多cpu
+和最多内存的各前5的pod展示出来，类似linux系统中的top命令, 通过展示这些pod帮助
+用户快速定位占用大量资源的应用。
