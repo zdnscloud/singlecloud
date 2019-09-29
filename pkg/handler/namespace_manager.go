@@ -157,9 +157,18 @@ func deleteNamespace(cli client.Client, name string) error {
 	return cli.Delete(context.TODO(), ns)
 }
 
-func hasNamespace(cli client.Client, name string) bool {
+func getNamespace(cli client.Client, name string) (*corev1.Namespace, error) {
 	ns := corev1.Namespace{}
 	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &ns)
+	if err != nil {
+		return nil, err
+	} else {
+		return &ns, nil
+	}
+}
+
+func hasNamespace(cli client.Client, name string) bool {
+	_, err := getNamespace(cli, name)
 	return err == nil
 }
 
@@ -173,13 +182,20 @@ func k8sNamespaceToSCNamespace(k8sNamespace *corev1.Namespace) *types.Namespace 
 }
 
 func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
+	ns, err := getNamespace(cli, name)
+	if err != nil {
+		log.Warnf("get namespace failed:%s", err.Error())
+		return nil
+	}
+
+	namespace := k8sNamespaceToSCNamespace(ns)
+
 	nodes, err := getNodes(cli)
 	if err != nil {
 		log.Warnf("get node info failed:%s", err.Error())
 		return nil
 	}
 
-	namespace := &types.Namespace{}
 	for _, n := range nodes {
 		if n.HasRole(types.RoleControlPlane) {
 			continue
@@ -240,6 +256,5 @@ func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
 	if namespace.Pod > 0 {
 		namespace.PodUsedRatio = fmt.Sprintf("%.2f", float64(namespace.PodUsed)/float64(namespace.Pod))
 	}
-	namespace.SetID(name)
 	return namespace
 }
