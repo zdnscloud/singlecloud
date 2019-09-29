@@ -59,7 +59,7 @@ func (m *AgentManager) ListResource(cluster, url string, resources interface{}) 
 	body, _ := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 
-	var info OldCollection
+	var info Collection
 	info.Data = resources
 	json.Unmarshal(body, &info)
 	if info.Type != "collection" {
@@ -68,7 +68,7 @@ func (m *AgentManager) ListResource(cluster, url string, resources interface{}) 
 	return nil
 }
 
-type OldCollection struct {
+type Collection struct {
 	Type         string            `json:"type,omitempty"`
 	ResourceType string            `json:"resourceType,omitempty"`
 	Links        map[string]string `json:"links,omitempty"`

@@ -8,6 +8,7 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	gok8sconfig "github.com/zdnscloud/gok8s/client/config"
+	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	zkecmd "github.com/zdnscloud/zke/cmd"
 	"github.com/zdnscloud/zke/core"
@@ -16,8 +17,8 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func upCluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger, isNewCluster bool) (*core.FullState, *rest.Config, client.Client, error) {
-	newState, err := zkecmd.ClusterUpFromSingleCloud(ctx, config, state, logger, isNewCluster)
+func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger) (*core.FullState, *rest.Config, client.Client, error) {
+	newState, err := zkecmd.ClusterUpFromSingleCloud(ctx, config, state, logger)
 	if err != nil {
 		return newState, nil, nil, err
 	}
@@ -43,7 +44,11 @@ func upCluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.Full
 	return newState, k8sConfig, kubeClient, nil
 }
 
-func scClusterToZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
+func removeZKECluster(ctx context.Context, config *zketypes.ZKEConfig, logger log.Logger) error {
+	return zkecmd.ClusterRemoveFromSingleCloud(ctx, config, logger)
+}
+
+func genZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 	config := &zketypes.ZKEConfig{
 		ClusterName:        cluster.Name,
 		SingleCloudAddress: cluster.SingleCloudAddress,
@@ -86,55 +91,7 @@ func scClusterToZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 	return config
 }
 
-func zkeClusterToSCCluster(zc *Cluster) *types.Cluster {
-	sc := &types.Cluster{}
-	sc.Name = zc.Name
-	sc.SSHUser = zc.config.Option.SSHUser
-	sc.SSHPort = zc.config.Option.SSHPort
-	sc.ClusterCidr = zc.config.Option.ClusterCidr
-	sc.ServiceCidr = zc.config.Option.ServiceCidr
-	sc.ClusterDomain = zc.config.Option.ClusterDomain
-	sc.ClusterDNSServiceIP = zc.config.Option.ClusterDNSServiceIP
-	sc.ClusterUpstreamDNS = zc.config.Option.ClusterUpstreamDNS
-	sc.SingleCloudAddress = zc.config.SingleCloudAddress
-	sc.ScVersion = zc.scVersion
-
-	sc.Network = types.ClusterNetwork{
-		Plugin: zc.config.Network.Plugin,
-	}
-
-	for _, node := range zc.config.Nodes {
-		n := types.Node{
-			Name:    node.NodeName,
-			Address: node.Address,
-		}
-		for _, role := range node.Role {
-			n.Roles = append(n.Roles, types.NodeRole(role))
-		}
-		sc.Nodes = append(sc.Nodes, n)
-	}
-
-	if zc.config.PrivateRegistries != nil {
-		sc.PrivateRegistries = []types.PrivateRegistry{}
-		for _, pr := range zc.config.PrivateRegistries {
-			npr := types.PrivateRegistry{
-				User:     pr.User,
-				Password: pr.Password,
-				URL:      pr.URL,
-				CAcert:   pr.CAcert,
-			}
-			sc.PrivateRegistries = append(sc.PrivateRegistries, npr)
-		}
-	}
-
-	sc.SetID(zc.Name)
-	// sc.SetType(types.ClusterType)
-	sc.SetCreationTimestamp(zc.CreateTime)
-	sc.Status = zc.getStatus()
-	return sc
-}
-
-func updateConfigNodesFromScCluster(config *zketypes.ZKEConfig, sc *types.Cluster) *zketypes.ZKEConfig {
+func genZKEConfigForUpdateNodes(config *zketypes.ZKEConfig, sc *types.Cluster) *zketypes.ZKEConfig {
 	newConfig := config.DeepCopy()
 	newConfig.Nodes = []zketypes.ZKEConfigNode{}
 	for _, node := range sc.Nodes {
@@ -148,4 +105,42 @@ func updateConfigNodesFromScCluster(config *zketypes.ZKEConfig, sc *types.Cluste
 		newConfig.Nodes = append(newConfig.Nodes, n)
 	}
 	return newConfig
+}
+
+func genZcloudProxyDeployYaml(clusterName string, scAddress string) string {
+	return `
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: zcloud-proxy
+  namespace: zcloud
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zcloud-proxy
+  template:
+    metadata:
+      labels:
+        app: zcloud-proxy
+    spec:
+      containers:
+      - args:
+        - -server
+        - "` + scAddress + `"
+        - -cluster
+        - "` + clusterName + `"
+        command:
+        - agent
+        image: zdnscloud/zcloud-proxy:v1.0.1
+        imagePullPolicy: IfNotPresent
+        name: zcloud-proxy
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      securityContext: {}`
+}
+
+func deployZcloudProxy(cli client.Client, clusterName, scAddress string) error {
+	yaml := genZcloudProxyDeployYaml(clusterName, scAddress)
+	return helper.CreateResourceFromYaml(cli, yaml)
 }

@@ -54,8 +54,8 @@ func hashPassword(password string) string {
 }
 
 func getClusterKubeConfig(addr, token, clusterName string) (string, error) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s?action=getkubeconfig", addr, clusterName)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte{}))
+	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/kubeconfigs/kube-admin", addr, clusterName)
+	req, err := http.NewRequest("GET", url, bytes.NewBuffer([]byte{}))
 	if err != nil {
 		return "", err
 	}
@@ -82,8 +82,8 @@ func getClusterKubeConfig(addr, token, clusterName string) (string, error) {
 	}
 
 	kubeConfig := struct {
-		Name   string `json:"name"`
-		Config string `json:"config"`
+		User   string `json:"user"`
+		Config string `json:"kubeConfig"`
 	}{}
 	if err := json.Unmarshal(body, &kubeConfig); err != nil {
 		return "", err

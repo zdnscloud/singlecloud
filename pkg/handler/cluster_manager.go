@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/zdnscloud/cement/pubsub"
+	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
@@ -42,7 +43,10 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 		db:            db,
 		Agent:         agent,
 	}
-	zkeMgr, err := zke.New(db, scVersion)
+	storageNodeListener := &StorageNodeListener{
+		clusters: clusterMgr,
+	}
+	zkeMgr, err := zke.New(db, scVersion, storageNodeListener)
 	if err != nil {
 		log.Errorf("create zke-manager failed %s", err.Error())
 		return nil, err
@@ -134,35 +138,30 @@ func getClusterInfo(cli client.Client, sc *types.Cluster) *types.Cluster {
 func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
 	requestFlags := ctx.Request.URL.Query()
 	user := getCurrentUser(ctx)
-	var clusters []*types.Cluster
+	var readyClusters []*types.Cluster
+	var allClusters []*types.Cluster
+
+	for _, c := range m.zkeManager.List() {
+		if m.authorizer.Authorize(user, c.Name, "") {
+			sc := getClusterInfo(c.KubeClient, c.ToTypesCluster())
+			allClusters = append(allClusters, sc)
+			if c.IsReady() {
+				readyClusters = append(readyClusters, sc)
+			}
+		}
+	}
 
 	if onlyReady := requestFlags.Get("onlyready"); onlyReady == "true" {
-		for _, c := range m.zkeManager.ListReady() {
-			if m.authorizer.Authorize(user, c.Name, "") {
-				sc := getClusterInfo(c.KubeClient, c.ToTypesCluster())
-				clusters = append(clusters, sc)
-			}
-		}
-		return clusters
+		return readyClusters
 	}
-
-	for _, c := range m.zkeManager.ListAll() {
-		if m.authorizer.Authorize(user, c.Name, "") {
-			sc := c.ToTypesCluster()
-			if c.IsReady() {
-				sc = getClusterInfo(c.KubeClient, sc)
-			}
-			clusters = append(clusters, sc)
-		}
-	}
-	return clusters
+	return allClusters
 }
 
 func (m *ClusterManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return resterr.NewAPIError(resterr.PermissionDenied, "only admin can delete cluster")
 	}
-	id := ctx.Resource.(*types.Cluster).GetID()
+	id := ctx.Resource.GetID()
 	return m.zkeManager.Delete(id)
 }
 
@@ -176,9 +175,7 @@ func (m *ClusterManager) Action(ctx *restresource.Context) (interface{}, *rester
 
 	switch action.Name {
 	case types.CSCancelAction:
-		return m.zkeManager.Cancel(id)
-	case types.CSGetKubeConfigAction:
-		return m.zkeManager.GetKubeConfig(id)
+		return m.zkeManager.CancelCluster(id)
 	case types.CSImportAction:
 		return m.zkeManager.Import(ctx)
 	default:
@@ -230,3 +227,25 @@ func (m *ClusterManager) eventLoop() {
 		m.eventBus.Pub(obj, eventbus.ClusterEvent)
 	}
 }
+
+type StorageNodeListener struct {
+	clusters *ClusterManager
+}
+
+func (m StorageNodeListener) IsStorageNode(cluster *zke.Cluster, node string) (bool, error) {
+	if cluster.KubeClient == nil {
+		return false, fmt.Errorf("cluster %s kubeClient is nil", cluster.Name)
+	}
+	storageClusters, err := getStorageClusters(cluster.KubeClient)
+	if err != nil {
+		return true, err
+	}
+	for _, storageCluster := range storageClusters.Items {
+		if slice.SliceIndex(storageCluster.Spec.Hosts, node) >= 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+var _ zke.NodeListener = StorageNodeListener{}

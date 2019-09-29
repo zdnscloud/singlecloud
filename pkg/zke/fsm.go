@@ -1,25 +1,14 @@
 package zke
 
 import (
-	"context"
-	"sync"
-	"time"
-
-	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/cement/fsm"
-	"github.com/zdnscloud/gok8s/cache"
-	"github.com/zdnscloud/gok8s/client"
-	zketypes "github.com/zdnscloud/zke/types"
-	"k8s.io/client-go/rest"
 )
 
 const (
-	InitEvent           = "init"
 	InitSuccessEvent    = "initSuccess"
 	InitFailedEvent     = "initFailed"
-	CreateEvent         = "create"
 	CreateSuccessEvent  = "createSuccess"
 	CreateFailedEvent   = "createFailed"
 	UpdateEvent         = "update"
@@ -30,50 +19,15 @@ const (
 	CancelEvent         = "cancel"
 	CancelSuccessEvent  = "cancelSuccess"
 	DeleteEvent         = "delete"
+	DeleteSuccessEvent  = "deleteSuccess"
 )
 
-type Cluster struct {
-	Name       string
-	CreateTime time.Time
-	KubeClient client.Client
-	Cache      cache.Cache
-	K8sConfig  *rest.Config
-	stopCh     chan struct{}
-	config     *zketypes.ZKEConfig
-	logCh      chan string
-	logSession sockjs.Session
-	cancel     context.CancelFunc
-	isCanceled bool
-	lock       sync.Mutex
-	fsm        *fsm.FSM
-	scVersion  string
-}
-
-type AddCluster struct {
-	Cluster *Cluster
-}
-
-type DeleteCluster struct {
-	Cluster *Cluster
-}
-
-func newInitialCluster(name string) *Cluster {
-	return newClusterWithStatus(name, types.CSInit)
-}
-
-func newClusterWithStatus(name string, status types.ClusterStatus) *Cluster {
-	cluster := &Cluster{
-		Name:   name,
-		stopCh: make(chan struct{}),
-	}
-
-	fsm := fsm.NewFSM(
-		string(status),
+func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM {
+	return fsm.NewFSM(
+		string(initialStatus),
 		fsm.Events{
-			{Name: InitEvent, Src: []string{string(types.CSInit)}, Dst: string(types.CSConnecting)},
 			{Name: InitSuccessEvent, Src: []string{string(types.CSConnecting)}, Dst: string(types.CSRunning)},
 			{Name: InitFailedEvent, Src: []string{string(types.CSConnecting)}, Dst: string(types.CSUnavailable)},
-			{Name: CreateEvent, Src: []string{string(types.CSInit)}, Dst: string(types.CSCreateing)},
 			{Name: CreateSuccessEvent, Src: []string{string(types.CSCreateing)}, Dst: string(types.CSRunning)},
 			{Name: CreateFailedEvent, Src: []string{string(types.CSCreateing)}, Dst: string(types.CSUnavailable)},
 			{Name: UpdateEvent, Src: []string{string(types.CSRunning), string(types.CSUnavailable)}, Dst: string(types.CSUpdateing)},
@@ -83,44 +37,46 @@ func newClusterWithStatus(name string, status types.ClusterStatus) *Cluster {
 			{Name: GetInfoSuccessEvent, Src: []string{string(types.CSUnreachable)}, Dst: string(types.CSRunning)},
 			{Name: CancelEvent, Src: []string{string(types.CSUpdateing), string(types.CSCreateing), string(types.CSConnecting)}, Dst: string(types.CSCanceling)},
 			{Name: CancelSuccessEvent, Src: []string{string(types.CSCanceling)}, Dst: string(types.CSUnavailable)},
-			{Name: DeleteEvent, Src: []string{string(types.CSRunning), string(types.CSUnavailable), string(types.CSUnreachable)}, Dst: string(types.CSDestroy)},
+			{Name: DeleteEvent, Src: []string{string(types.CSRunning), string(types.CSUnreachable), string(types.CSUnavailable)}, Dst: string(types.CSDeleting)},
+			{Name: DeleteSuccessEvent, Src: []string{string(types.CSDeleting)}, Dst: string(types.CSDeleted)},
 		},
 		fsm.Callbacks{
 			InitSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
-				mgr.moveToreadyWithLock(cluster)
-				mgr.sendPubEvent(AddCluster{Cluster: cluster})
+				mgr.MoveToReady(cluster)
+				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
 			CreateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
-				mgr.moveToreadyWithLock(cluster)
-				mgr.updateClusterStateWithLock(cluster, state)
-				mgr.sendPubEvent(AddCluster{Cluster: cluster})
+				mgr.MoveToReady(cluster)
+				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
+				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
 			CreateFailedEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
-				mgr.updateClusterStateWithLock(cluster, state)
+				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
 			},
 			UpdateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
-				cluster.stopCh = make(chan struct{})
-				cluster.setCache(cluster.K8sConfig)
-				mgr.moveToreadyWithLock(cluster)
-				mgr.updateClusterStateWithLock(cluster, state)
-				mgr.sendPubEvent(AddCluster{Cluster: cluster})
+				mgr.MoveToReady(cluster)
+				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
+				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
 			CancelSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				cluster.isCanceled = false
-				mgr.updateClusterStateWithLock(cluster, state)
-				mgr.setClusterUnavailable(cluster)
+				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
+				cluster.setUnavailable(mgr.GetDB())
+			},
+			DeleteSuccessEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ZKEManager)
+				mgr.Remove(cluster)
+				deleteClusterFromDB(cluster.Name, mgr.GetDB())
 			},
 		},
 	)
-	cluster.fsm = fsm
-	return cluster
 }

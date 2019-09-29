@@ -49,6 +49,7 @@ type Discovery interface {
 
 type Metrics interface {
 	GetNodeMetrics(name string, selector labels.Selector) (*metricsapi.NodeMetricsList, error)
+	GetPodMetrics(namespace, name string, selector labels.Selector) (*metricsapi.PodMetricsList, error)
 }
 
 type Client interface {

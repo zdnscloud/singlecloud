@@ -15,8 +15,8 @@ const (
 	CSConnecting  ClusterStatus = "Connecting"
 	CSUnavailable ClusterStatus = "Unavailable"
 	CSCanceling   ClusterStatus = "Canceling"
-	CSInit        ClusterStatus = "Init"
-	CSDestroy     ClusterStatus = "Destroy"
+	CSDeleting    ClusterStatus = "Deleting"
+	CSDeleted     ClusterStatus = "Deleted"
 
 	CSCancelAction        = "cancel"
 	CSGetKubeConfigAction = "getkubeconfig"
@@ -27,6 +27,7 @@ const (
 	DefaultServiceCIDR         = "10.43.0.0/16"
 	DefaultClusterDNSServiceIP = "10.43.0.10"
 	DefaultClusterDomain       = "cluster.local"
+	DefaultSSHPort             = "22"
 
 	ScVersionImported = "imported"
 )
@@ -41,7 +42,7 @@ type Cluster struct {
 	Nodes                 []Node            `json:"nodes" rest:"required=true"`
 	Network               ClusterNetwork    `json:"network"`
 	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
-	SingleCloudAddress    string            `json:"singlecloudAddress" rest:"required=true,minLen=1,maxLen=128"`
+	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true,minLen=1,maxLen=128"`
 	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128"`
 	Status                ClusterStatus     `json:"status"`
 	NodesCount            int               `json:"nodeCount"`
@@ -67,7 +68,7 @@ type Cluster struct {
 	IgnoreDockerVersion bool     `json:"ignoreDockerVersion"`
 	ClusterCidr         string   `json:"clusterCidr"`
 	ServiceCidr         string   `json:"serviceCidr"`
-	ClusterDomain       string   `json:"clusterDomain"`
+	ClusterDomain       string   `json:"clusterDomain" rest:"required=true"`
 	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty"`
 	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS"`
 	DisablePortCheck    bool     `json:"disablePortCheck"`
@@ -95,6 +96,7 @@ func (c Cluster) CreateDefaultResource() resource.Resource {
 		ClusterDomain:       DefaultClusterDomain,
 		ClusterDNSServiceIP: DefaultClusterDNSServiceIP,
 		ClusterUpstreamDNS:  DefaultClusterUpstreamDNS,
+		SSHPort:             DefaultSSHPort,
 	}
 }
 

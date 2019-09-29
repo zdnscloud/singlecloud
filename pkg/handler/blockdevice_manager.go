@@ -84,6 +84,7 @@ func cutInvalid(cli client.Client, resp []types.ClusterAgentBlockDevice) []*type
 			BlockDevices: devs,
 			UsedBy:       usedby,
 		}
+		host.SetID(h.NodeName)
 		res = append(res, host)
 	}
 	return res

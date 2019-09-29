@@ -112,7 +112,11 @@ func clusterRemoveFromCli(cliCtx *cli.Context) error {
 	return ClusterRemove(ctx, zkeConfig, hosts.DialersOptions{})
 }
 
-func ClusterRemoveFromSingleCloud(ctx context.Context, zkeConfig *types.ZKEConfig, logger cementlog.Logger) error {
+func ClusterRemoveFromSingleCloud(scCtx context.Context, zkeConfig *types.ZKEConfig, logger cementlog.Logger) error {
+	ctx, err := log.SetLogger(scCtx, logger)
+	if err != nil {
+		return err
+	}
 	if err := ClusterRemoveWithoutCleanFiles(ctx, zkeConfig, hosts.DialersOptions{}); err != nil {
 		return err
 	}

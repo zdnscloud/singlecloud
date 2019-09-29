@@ -45,5 +45,5 @@ spec:
           containerPort: 8090
         env:
           - name: CACHE_TIME
-            value: "300"
+            value: "60"
 `

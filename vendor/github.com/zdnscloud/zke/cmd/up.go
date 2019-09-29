@@ -61,10 +61,6 @@ func ClusterUp(ctx context.Context, dialersOptions hosts.DialersOptions) error {
 
 	isNewCluster := true
 	if currentCluster != nil {
-		log.Infof(ctx, "Begin clean to add hosts")
-		if err := preCleanToAddHosts(ctx, kubeCluster, currentCluster); err != nil {
-			return err
-		}
 		isNewCluster = false
 	}
 
@@ -178,10 +174,6 @@ func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, 
 
 	isNewCluster := true
 	if currentCluster != nil {
-		log.Infof(ctx, "Begin clean to add hosts")
-		if err := preCleanToAddHosts(ctx, kubeCluster, currentCluster); err != nil {
-			return clusterState, err
-		}
 		isNewCluster = false
 	}
 
@@ -262,6 +254,13 @@ func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, 
 	if err != nil {
 		return clusterState, err
 	}
+
+	if !isNewCluster {
+		log.Infof(ctx, "Begin clean to delete hosts")
+		if err := postCleanToDeleteHosts(ctx, kubeCluster, currentCluster); err != nil {
+			return clusterState, err
+		}
+	}
 	log.Infof(ctx, "Finished building Kubernetes cluster successfully")
 	return clusterState, nil
 }
@@ -313,16 +312,11 @@ func clusterUpFromCli(cliCtx *cli.Context) error {
 	return err
 }
 
-func ClusterUpFromSingleCloud(scCtx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger, newCluster bool) (*core.FullState, error) {
+func ClusterUpFromSingleCloud(scCtx context.Context, zkeConfig *types.ZKEConfig, clusterState *core.FullState, logger cementlog.Logger) (*core.FullState, error) {
 	startUPtime := time.Now()
 	ctx, err := log.SetLogger(scCtx, logger)
 	if err != nil {
 		return clusterState, err
-	}
-	if newCluster {
-		if err := ClusterRemoveFromSingleCloud(ctx, zkeConfig, logger); err != nil {
-			return clusterState, err
-		}
 	}
 
 	newClusterState, err := ClusterInitForSingleCloud(ctx, zkeConfig, clusterState, hosts.DialersOptions{})
@@ -371,13 +365,12 @@ func ConfigureCluster(
 	return nil
 }
 
-func preCleanToAddHosts(ctx context.Context, kubeCluster, currentCluster *core.Cluster) error {
-	// if not new cluster, first clean toAddHosts then up
+func postCleanToDeleteHosts(ctx context.Context, kubeCluster, currentCluster *core.Cluster) error {
 	currentAllHosts := hosts.GetUniqueHostList(currentCluster.ControlPlaneHosts, currentCluster.EtcdHosts, currentCluster.WorkerHosts, currentCluster.EdgeHosts)
 	configAllHosts := hosts.GetUniqueHostList(kubeCluster.ControlPlaneHosts, kubeCluster.EtcdHosts, kubeCluster.WorkerHosts, kubeCluster.EdgeHosts)
-	toAddHosts := hosts.GetToAddHosts(currentAllHosts, configAllHosts)
+	toDeleteHosts := hosts.GetToDeleteHosts(currentAllHosts, configAllHosts, []*hosts.Host{})
 
-	_, err := errgroup.Batch(toAddHosts, func(h interface{}) (interface{}, error) {
+	_, err := errgroup.Batch(toDeleteHosts, func(h interface{}) (interface{}, error) {
 		runHost := h.(*hosts.Host)
 		return nil, runHost.CleanUpAll(ctx, kubeCluster.Image.Alpine, kubeCluster.PrivateRegistriesMap, false, currentCluster.Option.ClusterCidr)
 	})
