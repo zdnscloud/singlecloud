@@ -127,7 +127,6 @@ func (a *Authenticator) MiddlewareFunc() gin.HandlerFunc {
 			ctx := context.WithValue(c.Request.Context(), types.CurrentUserKey, userName)
 			c.Request = c.Request.WithContext(ctx)
 		} else {
-			log.Errorf("auth get empty user for request %s", c.Request.URL.String())
 			doRedirect := true
 			for _, p := range jumpExceptionalPaths {
 				if strings.HasPrefix(path, p) {

@@ -129,9 +129,15 @@ func getClusterInfo(cli client.Client, sc *types.Cluster) *types.Cluster {
 		sc.Pod += n.Pod
 		sc.PodUsed += n.PodUsed
 	}
-	sc.CpuUsedRatio = fmt.Sprintf("%.2f", float64(sc.CpuUsed)/float64(sc.Cpu))
-	sc.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(sc.MemoryUsed)/float64(sc.Memory))
-	sc.PodUsedRatio = fmt.Sprintf("%.2f", float64(sc.PodUsed)/float64(sc.Pod))
+	if sc.Cpu > 0 {
+		sc.CpuUsedRatio = fmt.Sprintf("%.2f", float64(sc.CpuUsed)/float64(sc.Cpu))
+	}
+	if sc.Memory > 0 {
+		sc.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(sc.MemoryUsed)/float64(sc.Memory))
+	}
+	if sc.Pod > 0 {
+		sc.PodUsedRatio = fmt.Sprintf("%.2f", float64(sc.PodUsed)/float64(sc.Pod))
+	}
 	return sc
 }
 
@@ -143,7 +149,7 @@ func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
 
 	for _, c := range m.zkeManager.List() {
 		if m.authorizer.Authorize(user, c.Name, "") {
-			sc := getClusterInfo(c.KubeClient, c.ToTypesCluster())
+			sc := c.ToTypesCluster()
 			allClusters = append(allClusters, sc)
 			if c.IsReady() {
 				readyClusters = append(readyClusters, sc)

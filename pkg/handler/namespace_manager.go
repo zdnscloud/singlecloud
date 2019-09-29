@@ -3,10 +3,12 @@ package handler
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
@@ -15,6 +17,10 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
+)
+
+const (
+	TopPodCount = 5
 )
 
 type NamespaceManager struct {
@@ -65,7 +71,8 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 	var namespaces []*types.Namespace
 	for _, ns := range k8sNamespaces.Items {
 		if m.clusters.authorizer.Authorize(user, cluster.Name, ns.Name) {
-			namespaces = append(namespaces, k8sNamespaceToSCNamespace(&ns))
+			namespace := k8sNamespaceToSCNamespace(&ns)
+			namespaces = append(namespaces, namespace)
 		}
 	}
 	return namespaces
@@ -82,15 +89,7 @@ func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 
-	k8sNamespace, err := getNamespace(cluster.KubeClient, namespace.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get namespace info failed:%s", err.Error())
-		}
-		return nil
-	}
-
-	return k8sNamespaceToSCNamespace(k8sNamespace)
+	return getNamespaceInfo(cluster.KubeClient, namespace.GetID())
 }
 
 func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -158,21 +157,10 @@ func deleteNamespace(cli client.Client, name string) error {
 	return cli.Delete(context.TODO(), ns)
 }
 
-func getNamespace(cli client.Client, name string) (*corev1.Namespace, error) {
+func hasNamespace(cli client.Client, name string) bool {
 	ns := corev1.Namespace{}
 	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &ns)
-	return &ns, err
-}
-
-func hasNamespace(cli client.Client, name string) (bool, error) {
-	_, err := getNamespace(cli, name)
-	if err == nil {
-		return true, nil
-	} else if apierrors.IsNotFound(err) {
-		return false, nil
-	} else {
-		return false, err
-	}
+	return err == nil
 }
 
 func k8sNamespaceToSCNamespace(k8sNamespace *corev1.Namespace) *types.Namespace {
@@ -182,4 +170,76 @@ func k8sNamespaceToSCNamespace(k8sNamespace *corev1.Namespace) *types.Namespace 
 	ns.SetID(k8sNamespace.Name)
 	ns.SetCreationTimestamp(k8sNamespace.CreationTimestamp.Time)
 	return ns
+}
+
+func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
+	nodes, err := getNodes(cli)
+	if err != nil {
+		log.Warnf("get node info failed:%s", err.Error())
+		return nil
+	}
+
+	namespace := &types.Namespace{}
+	for _, n := range nodes {
+		if n.HasRole(types.RoleControlPlane) {
+			continue
+		}
+		namespace.Cpu += n.Cpu
+		namespace.Memory += n.Memory
+		namespace.Pod += n.Pod
+	}
+
+	podMetricsList, err := cli.GetPodMetrics(name, "", labels.Everything())
+	if err != nil {
+		log.Warnf("get pod metrcis failed:%s", err.Error())
+		return nil
+	}
+
+	var podsWithCpuInfo []*types.PodCpuInfo
+	var podsWithMemoryInfo []*types.PodMemoryInfo
+	for _, pod := range podMetricsList.Items {
+		cpuUsed := int64(0)
+		memoryUsed := int64(0)
+		for _, container := range pod.Containers {
+			cpuUsed += container.Usage.Cpu().MilliValue()
+			memoryUsed += container.Usage.Memory().Value()
+		}
+		podsWithCpuInfo = append(podsWithCpuInfo, &types.PodCpuInfo{
+			Name:    pod.Name,
+			CpuUsed: cpuUsed,
+		})
+
+		podsWithMemoryInfo = append(podsWithMemoryInfo, &types.PodMemoryInfo{
+			Name:       pod.Name,
+			MemoryUsed: memoryUsed,
+		})
+		namespace.CpuUsed += cpuUsed
+		namespace.MemoryUsed += memoryUsed
+	}
+
+	sort.Sort(types.PodByCpuUsage(podsWithCpuInfo))
+	sort.Sort(types.PodByMemoryUsage(podsWithMemoryInfo))
+	if len(podsWithCpuInfo) > 5 {
+		podsWithCpuInfo = podsWithCpuInfo[:5]
+	}
+	if len(podsWithMemoryInfo) > 5 {
+		podsWithMemoryInfo = podsWithMemoryInfo[:5]
+	}
+	namespace.PodsUseMostCPU = podsWithCpuInfo
+	namespace.PodsUseMostMemory = podsWithMemoryInfo
+
+	namespace.PodUsed = int64(len(podMetricsList.Items))
+	if namespace.Cpu > 0 {
+		namespace.CpuUsedRatio = fmt.Sprintf("%.2f", float64(namespace.CpuUsed)/float64(namespace.Cpu))
+	}
+
+	if namespace.Memory > 0 {
+		namespace.MemoryUsedRatio = fmt.Sprintf("%.2f", float64(namespace.MemoryUsed)/float64(namespace.Memory))
+	}
+
+	if namespace.Pod > 0 {
+		namespace.PodUsedRatio = fmt.Sprintf("%.2f", float64(namespace.PodUsed)/float64(namespace.Pod))
+	}
+	namespace.SetID(name)
+	return namespace
 }
