@@ -4,7 +4,7 @@
     "parentResources": [ "cluster" ],
 
     "resourceFields": {
-        "name": {"type": "string"}
+        "name": {"type": "string"},
         "cpu": { "type": "int" },
         "cpuUsed": { "type": "int" },
         "cpuUsedRatio": { "type": "string" },
@@ -16,7 +16,7 @@
         "podUsedRatio": { "type": "string" },
 
         "podsUseMostCPU": { "type": "array", "elemType": "podCpuInfo" },
-        "podsUseMostMemory": { "type": "array", "elemType": "podMemoryInfo" },
+        "podsUseMostMemory": { "type": "array", "elemType": "podMemoryInfo" }
     },
 
     "subResources": {
