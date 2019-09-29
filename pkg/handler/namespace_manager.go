@@ -128,11 +128,9 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
 		}
 	} else {
-		/*
-			if err := clearTransportLayerIngress(cluster.KubeClient, namespace.GetID(), types.IngressProtocolUDP); err != nil {
-				log.Warnf("clean udp ingress for namespace %s failed:%s", namespace.GetID(), err.Error())
-			}
-		*/
+		if err := clearTransportLayerIngress(cluster.KubeClient, namespace.GetID()); err != nil {
+			log.Warnf("clean udp ingress for namespace %s failed:%s", namespace.GetID(), err.Error())
+		}
 	}
 	return nil
 }
