@@ -38,5 +38,18 @@
         "fields": {
             "name": {"type": "string", "required": true}
         }
-    }
+    },
+
+    "resourceActions":[ 
+        {
+            "name": "searchPod",
+            "input": {
+                "name": {"type": "string"}
+            },
+            "output": {
+                "kind": {"type":"enum", "validValues": ["Deployment", "DaemonSet", "StatefulSet"]},
+                "name": {"type": "string"}
+            }
+        } 
+    ]
 }

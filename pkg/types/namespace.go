@@ -4,6 +4,10 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
+const (
+	ActionSearchPod = "searchPod"
+)
+
 type Namespace struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string `json:"name,omitempty"`
@@ -34,6 +38,22 @@ type PodMemoryInfo struct {
 
 func (n Namespace) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
+}
+
+type PodToSearch struct {
+	Name string `json:"name"`
+}
+
+func (n Namespace) CreateAction(name string) *resource.Action {
+	switch name {
+	case ActionSearchPod:
+		return &resource.Action{
+			Name:  ActionSearchPod,
+			Input: &PodToSearch{},
+		}
+	default:
+		return nil
+	}
 }
 
 type PodByCpuUsage []*PodCpuInfo

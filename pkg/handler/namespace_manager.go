@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -255,4 +256,73 @@ func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
 		namespace.PodUsedRatio = fmt.Sprintf("%.2f", float64(namespace.PodUsed)/float64(namespace.Pod))
 	}
 	return namespace
+}
+
+func (m *NamespaceManager) Action(ctx *resource.Context) (interface{}, *resterror.APIError) {
+	action := ctx.Resource.GetAction()
+	switch action.Name {
+	case types.ActionSearchPod:
+		return m.searchPod(ctx)
+	default:
+		return nil, nil
+	}
+}
+
+func (m *NamespaceManager) searchPod(ctx *resource.Context) (interface{}, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+	}
+
+	namespace := ctx.Resource.GetID()
+	if m.clusters.authorizer.Authorize(getCurrentUser(ctx), cluster.Name, namespace) == false {
+		return nil, resterror.NewAPIError(resterror.Unauthorized, "user has no permission to access the namespace")
+	}
+
+	action := ctx.Resource.GetAction()
+	target, ok := action.Input.(*types.PodToSearch)
+	if ok == false {
+		return nil, resterror.NewAPIError(resterror.InvalidFormat, "search pod param not valid")
+	}
+
+	if target.Name == "" {
+		return nil, resterror.NewAPIError(resterror.NotNullable, "empty pod name")
+	}
+
+	pod := corev1.Pod{}
+	err := cluster.KubeClient.Get(context.TODO(), k8stypes.NamespacedName{namespace, target.Name}, &pod)
+	if err != nil {
+		return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("search pod get err:%s", err.Error()))
+	}
+
+	if len(pod.OwnerReferences) != 1 {
+		return map[string]string{
+			"kind": "pod",
+			"name": pod.Name,
+		}, nil
+	}
+
+	owner := pod.OwnerReferences[0]
+	if owner.Kind != "ReplicaSet" {
+		return map[string]string{
+			"kind": owner.Kind,
+			"name": owner.Name,
+		}, nil
+	}
+
+	var rs appsv1.ReplicaSet
+	err = cluster.KubeClient.Get(context.TODO(), k8stypes.NamespacedName{namespace, owner.Name}, &rs)
+	if err != nil {
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get replicaset failed:%s", err.Error()))
+	}
+
+	if len(rs.OwnerReferences) != 1 {
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("replicaset has %d owners", len(rs.OwnerReferences)))
+	}
+
+	owner = rs.OwnerReferences[0]
+	return map[string]string{
+		"kind": owner.Kind,
+		"name": owner.Name,
+	}, nil
 }
