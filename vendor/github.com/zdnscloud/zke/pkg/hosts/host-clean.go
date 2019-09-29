@@ -49,6 +49,12 @@ func CleanHeritageStorge(ctx context.Context, h *Host, removeImage, clusterCIDR 
 			Target:      "/var/lib",
 			BindOptions: &mount.BindOptions{Propagation: "rshared"},
 		},
+		{
+			Type:        "bind",
+			Source:      "/dev",
+			Target:      "/dev",
+			BindOptions: &mount.BindOptions{Propagation: "rprivate"},
+		},
 	}
 	hostCfg := &container.HostConfig{
 		Mounts:      hostcfgMounts,
