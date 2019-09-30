@@ -651,7 +651,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4a21fa1bca2bc87395434e30f6de5a9011cffb6cbcc0c17017a58970ab01d698"
+  digest = "1:991160c4e488e85d727de4813b2054f02e3cd210a1ca3de2d87d9a591fe909d0"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -681,7 +681,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "62cb4f9a32bf14136107a83a58662db6d6195e58"
+  revision = "00a81800b7e51e7b8bfb8e7e8d62f36d4e1f088f"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -1126,6 +1126,7 @@
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/validation",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/remotecommand",
