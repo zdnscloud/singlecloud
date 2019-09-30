@@ -76,16 +76,9 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
+	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
 	// check duplicate application resource, if exist, gen a new name for registry app
-	for {
-		duplicateApp, _ := getSysApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
-		if duplicateApp != nil {
-			app.Name = registryAppNamePrefix + "-" + genRandomStr(12)
-		} else {
-			break
-		}
-	}
-
+	app.Name = genAppNameIfDuplicate(m.clusters.GetDB(), tableName, app.Name, registryAppNamePrefix)
 	app.SetID(app.Name)
 
 	if err := m.apps.create(ctx, cluster, ZCloudNamespace, app); err != nil {
@@ -93,7 +86,7 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 	}
 
 	// make sure the registry application is succeed, if it failed will delete this registry application
-	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
+	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, tableName, app.Name)
 
 	r.Status = types.AppStatusCreate
 	r.SetID(registryAppNamePrefix)
@@ -147,9 +140,10 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	if err != nil || len(apps) == 0 {
 		return resterr.NewAPIError(resterr.NotFound, "registry doesn't exist")
 	}
-	appName := apps[0].Name
 
-	app, err := updateSysApplicationStatusFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
+	appName := apps[0].Name
+	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
+	app, err := updateAppStatusToDeleteFromDB(m.clusters.GetDB(), tableName, appName, true)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterr.NewAPIError(resterr.NotFound,
@@ -160,7 +154,7 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 		}
 	}
 
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), ZCloudNamespace, app)
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, ZCloudNamespace, app)
 	return nil
 }
 

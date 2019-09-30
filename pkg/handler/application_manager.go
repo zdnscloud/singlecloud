@@ -121,10 +121,7 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 		}
 	}
 
-	retApp := *app
-	retApp.Configs = nil
-	retApp.Manifests = nil
-	return &retApp, nil
+	return genReturnApplication(app), nil
 }
 
 func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
@@ -134,31 +131,19 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	appValues, err := getApplicationsFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
+	allApps, err := getApplicationsFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
 	if err != nil {
 		log.Warnf("list applications failed %s", err.Error())
 		return nil
 	}
 
 	var apps types.Applications
-	for _, value := range appValues {
-		if len(value) == 0 {
-			continue
-		}
-
-		var app types.Application
-		if err := json.Unmarshal(value, &app); err != nil {
-			log.Warnf("list applications failed %s", err.Error())
-			return nil
-		}
-
+	for _, app := range allApps {
 		if app.SystemChart {
 			continue
 		}
 
-		app.Configs = nil
-		app.Manifests = nil
-		apps = append(apps, &app)
+		apps = append(apps, genReturnApplication(app))
 	}
 
 	sort.Sort(apps)
@@ -172,22 +157,14 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
+	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
+	app, err := getApplicationFromDB(m.clusters.GetDB(), tableName, ctx.Resource.GetID(), false)
 	if err != nil {
 		log.Warnf("get applications failed %s", err.Error())
 		return nil
 	}
 
-	app, err := getApplicationFromDB(tx, ctx.Resource.GetID())
-	tx.Commit()
-	if err != nil {
-		log.Warnf("get applications failed %s", err.Error())
-		return nil
-	}
-
-	app.Configs = nil
-	app.Manifests = nil
-	return app
+	return genReturnApplication(app)
 }
 
 func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -199,7 +176,7 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
 	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
-	app, err := updateApplicationStatusFromDB(m.clusters.GetDB(), getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
+	app, err := updateAppStatusToDeleteFromDB(m.clusters.GetDB(), tableName, appName, false)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterror.NewAPIError(resterror.NotFound,
@@ -234,23 +211,23 @@ func deleteApplication(db storage.DB, cli client.Client, tableName, namespace st
 	}
 }
 
-func updateApplicationStatusFromDB(db storage.DB, userName, tableName, name, status string) (*types.Application, error) {
+func updateAppStatusToDeleteFromDB(db storage.DB, tableName, name string, isSystemChart bool) (*types.Application, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
 	}
 
 	defer tx.Rollback()
-	app, err := getApplicationFromDB(tx, name)
+	app, err := getApplicationFromDBTx(tx, name, isSystemChart)
 	if err != nil {
 		return nil, err
 	}
 
-	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
+	if app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete {
 		return nil, fmt.Errorf("application %s can`t delete when its status is %s", name, app.Status)
 	}
 
-	app.Status = status
+	app.Status = types.AppStatusDelete
 	value, err := json.Marshal(app)
 	if err != nil {
 		return nil, err
@@ -389,7 +366,7 @@ func addOrUpdateAppToDB(db storage.DB, tableName string, app *types.Application,
 	return tx.Commit()
 }
 
-func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, error) {
+func getApplicationsFromDB(db storage.DB, tableName string) (types.Applications, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
@@ -405,10 +382,34 @@ func getApplicationsFromDB(db storage.DB, tableName string) (map[string][]byte, 
 		return nil, err
 	}
 
-	return appValues, nil
+	var apps types.Applications
+	for _, value := range appValues {
+		if len(value) == 0 {
+			continue
+		}
+
+		var app types.Application
+		if err := json.Unmarshal(value, &app); err != nil {
+			return nil, err
+		}
+
+		apps = append(apps, &app)
+	}
+
+	return apps, nil
 }
 
-func getApplicationFromDB(tx storage.Transaction, appName string) (*types.Application, error) {
+func getApplicationFromDB(db storage.DB, tableName, appName string, isSystemChart bool) (*types.Application, error) {
+	tx, err := BeginTableTransaction(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Commit()
+	return getApplicationFromDBTx(tx, appName, isSystemChart)
+}
+
+func getApplicationFromDBTx(tx storage.Transaction, appName string, isSystemChart bool) (*types.Application, error) {
 	value, err := tx.Get(appName)
 	if err != nil {
 		return nil, err
@@ -419,8 +420,9 @@ func getApplicationFromDB(tx storage.Transaction, appName string) (*types.Applic
 		return nil, err
 	}
 
-	if app.SystemChart {
-		return nil, fmt.Errorf("user no authority to delete application %s", appName)
+	//all user can`t access system chart, system chart operate is another logic and in alone page
+	if app.SystemChart != isSystemChart {
+		return nil, fmt.Errorf("user no authority to access application %s", appName)
 	}
 
 	return &app, nil
@@ -593,23 +595,14 @@ func genUrlPrefix(ctx *resource.Context, clusterName string) string {
 
 func clearApplications(db storage.DB, cli client.Client, clusterName, namespace string) error {
 	tableName := storage.GenTableName(ApplicationTable, clusterName, namespace)
-	appValues, err := getApplicationsFromDB(db, tableName)
+	apps, err := getApplicationsFromDB(db, tableName)
 	if err != nil {
 		return fmt.Errorf("get applications from db failed: %s", err.Error())
 	}
 
-	for name, value := range appValues {
-		if len(value) == 0 {
-			continue
-		}
-
-		var app types.Application
-		if err := json.Unmarshal(value, &app); err != nil {
-			return fmt.Errorf("unmarshal application %s failed: %s", name, err.Error())
-		}
-
+	for _, app := range apps {
 		app.Status = types.AppStatusDelete
-		if err := addOrUpdateAppToDB(db, tableName, &app, false); err != nil {
+		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
 			return fmt.Errorf("update application %s status to delete failed: %s", app.Name, err.Error())
 		}
 
@@ -623,4 +616,11 @@ func clearApplications(db storage.DB, cli client.Client, clusterName, namespace 
 	}
 
 	return nil
+}
+
+func genReturnApplication(app *types.Application) *types.Application {
+	retApp := *app
+	retApp.Configs = nil
+	retApp.Manifests = nil
+	return &retApp
 }

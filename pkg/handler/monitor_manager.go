@@ -76,15 +76,9 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
+	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
 	// check duplicate application resource, if exist, gen a new name for monitor app
-	for {
-		duplicateApp, _ := getSysApplicationFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
-		if duplicateApp != nil {
-			app.Name = monitorAppNamePrefix + "-" + genRandomStr(12)
-		} else {
-			break
-		}
-	}
+	app.Name = genAppNameIfDuplicate(m.clusters.GetDB(), tableName, app.Name, monitorAppNamePrefix)
 
 	app.SetID(app.Name)
 	if err := m.apps.create(ctx, cluster, ZCloudNamespace, app); err != nil {
@@ -92,7 +86,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 	}
 
 	// make sure the monitor application is succeed, if it failed will delete this monitor application
-	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name)
+	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, tableName, app.Name)
 
 	monitor.Status = types.AppStatusCreate
 	monitor.SetID(monitorAppNamePrefix)
@@ -146,9 +140,10 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	if err != nil || len(apps) == 0 {
 		return resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
 	}
-	appName := apps[0].Name
 
-	app, err := updateSysApplicationStatusFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), appName, types.AppStatusDelete)
+	appName := apps[0].Name
+	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
+	app, err := updateAppStatusToDeleteFromDB(m.clusters.GetDB(), tableName, appName, true)
 	if err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterr.NewAPIError(resterr.NotFound,
@@ -159,7 +154,7 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 		}
 	}
 
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), ZCloudNamespace, app)
+	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, ZCloudNamespace, app)
 	return nil
 }
 
@@ -296,7 +291,7 @@ func genRandomStr(length int) string {
 
 func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, cluster *zke.Cluster, tableName, appName string) {
 	for i := 0; i < sysApplicationCheckTimes; i++ {
-		sysApp, err := getSysApplicationFromDB(db, tableName, appName)
+		sysApp, err := getApplicationFromDB(db, tableName, appName, true)
 		if err != nil {
 			if err == storage.ErrNotFoundResource {
 				log.Infof("delete system application %s succeed", appName)
@@ -307,7 +302,7 @@ func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, clu
 		}
 		switch sysApp.Status {
 		case types.AppStatusFailed:
-			app, err := updateApplicationStatusFromDB(db, getCurrentUser(ctx), tableName, appName, types.AppStatusDelete)
+			app, err := updateAppStatusToDeleteFromDB(db, tableName, appName, true)
 			if err != nil {
 				log.Warnf("delete system application %s failed %s", appName, err.Error())
 				return
@@ -322,18 +317,13 @@ func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, clu
 }
 
 func getApplicationsFromDBByChartName(db storage.DB, tableName, chartName string) ([]*types.Application, error) {
-	apps := []*types.Application{}
-
-	appValues, err := getApplicationsFromDB(db, tableName)
+	allApps, err := getApplicationsFromDB(db, tableName)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, appValue := range appValues {
-		app := &types.Application{}
-		if err := json.Unmarshal(appValue, app); err != nil {
-			continue
-		}
+	var apps types.Applications
+	for _, app := range allApps {
 		if app.ChartName == chartName {
 			apps = append(apps, app)
 		}
@@ -342,54 +332,15 @@ func getApplicationsFromDBByChartName(db storage.DB, tableName, chartName string
 	return apps, nil
 }
 
-func getSysApplicationFromDB(db storage.DB, tableName, appName string) (*types.Application, error) {
-	tx, err := BeginTableTransaction(db, tableName)
-	if err != nil {
-		return nil, err
+func genAppNameIfDuplicate(db storage.DB, tableName, appName, appNamePrefex string) string {
+	for {
+		duplicateApp, _ := getApplicationFromDB(db, tableName, appName, true)
+		if duplicateApp != nil {
+			appName = appNamePrefex + "-" + genRandomStr(12)
+		} else {
+			break
+		}
 	}
 
-	defer tx.Rollback()
-	appValue, err := tx.Get(appName)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	app := types.Application{}
-	if err := json.Unmarshal(appValue, &app); err != nil {
-		return nil, fmt.Errorf("Unmarshal application %s failed %s", appName, err.Error())
-	}
-
-	return &app, nil
-}
-
-func updateSysApplicationStatusFromDB(db storage.DB, tableName, name, status string) (*types.Application, error) {
-	app, err := getSysApplicationFromDB(db, tableName, name)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err := BeginTableTransaction(db, tableName)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	if status == types.AppStatusDelete && (app.Status == types.AppStatusCreate || app.Status == types.AppStatusDelete) {
-		return nil, fmt.Errorf("application %s can`t delete when its status is %s", name, app.Status)
-	}
-
-	app.Status = status
-	value, err := json.Marshal(app)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tx.Update(name, value); err != nil {
-		return nil, err
-	}
-
-	return app, tx.Commit()
+	return appName
 }
