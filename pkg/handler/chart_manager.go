@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"path"
 	"sort"
+	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -44,6 +45,10 @@ func (m *ChartManager) List(ctx *resource.Context) interface{} {
 	var charts types.Charts
 	for _, cht := range chts {
 		if cht.IsDir() {
+			if strings.HasPrefix(cht.Name(), ".") {
+				continue
+			}
+
 			versions, description, isSystemChart, err := listVersions(path.Join(m.chartDir, cht.Name()))
 			if err != nil {
 				log.Warnf("list charts info when get chart %s failed:%s", cht.Name(), err.Error())
@@ -104,6 +109,10 @@ func listVersions(chartPath string) ([]types.ChartVersion, string, bool, error) 
 	var chartInfo ChartInfo
 	for _, versionDir := range versionDirs {
 		if versionDir.IsDir() {
+			if strings.HasPrefix(versionDir.Name(), ".") {
+				continue
+			}
+
 			var config []map[string]interface{}
 			content, err := ioutil.ReadFile(path.Join(chartPath, versionDir.Name(), configPath))
 			if err == nil {
