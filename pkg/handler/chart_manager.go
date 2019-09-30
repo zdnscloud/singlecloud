@@ -52,7 +52,7 @@ func (m *ChartManager) List(ctx *resource.Context) interface{} {
 			versions, description, isSystemChart, err := listVersions(path.Join(m.chartDir, cht.Name()))
 			if err != nil {
 				log.Warnf("list charts info when get chart %s failed:%s", cht.Name(), err.Error())
-				return nil
+				continue
 			} else {
 				if isSystemChart {
 					continue
