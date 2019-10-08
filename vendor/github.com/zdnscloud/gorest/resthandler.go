@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"reflect"
 
 	goresterr "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -112,7 +113,7 @@ func handleList(ctx *resource.Context) *goresterr.APIError {
 			return goresterr.NewAPIError(goresterr.NotFound, "no found for list")
 		}
 		r := handler(ctx)
-		if r == nil {
+		if r == nil || (reflect.ValueOf(r).Kind() == reflect.Ptr && reflect.ValueOf(r).IsNil()) {
 			return goresterr.NewAPIError(goresterr.NotFound,
 				fmt.Sprintf("%s resource with id %s doesn't exist", ctx.Resource.GetType(), ctx.Resource.GetID()))
 		} else {
