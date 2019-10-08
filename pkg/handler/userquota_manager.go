@@ -305,13 +305,7 @@ func (m *UserQuotaManager) approval(ctx *resource.Context) *resterror.APIError {
 		},
 	}
 
-	exists, err := hasNamespace(cluster.KubeClient, quota.Namespace)
-	if err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("check user %s namespace %s whether exists failed %s",
-				quota.UserName, quota.Namespace, err.Error()))
-	}
-
+	exists := hasNamespace(cluster.KubeClient, quota.Namespace)
 	if exists == false {
 		if err := createNamespace(cluster.KubeClient, quota.Namespace); err != nil {
 			return resterror.NewAPIError(types.ConnectClusterFailed,

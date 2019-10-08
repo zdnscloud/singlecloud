@@ -286,9 +286,7 @@ func deleteApplicationFromDB(db storage.DB, tableName, name string) error {
 }
 
 func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
-	if exists, err := hasNamespace(cluster.KubeClient, namespace); err != nil {
-		return fmt.Errorf("check namespace %s if exists failed: %s", namespace, err.Error())
-	} else if exists == false {
+	if hasNamespace(cluster.KubeClient, namespace) == false {
 		return fmt.Errorf("namespace %s is not found", namespace)
 	}
 

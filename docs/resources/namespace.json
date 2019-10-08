@@ -4,7 +4,31 @@
     "parentResources": [ "cluster" ],
 
     "resourceFields": {
-        "name": {"type": "string"}
+        "name": {"type": "string"},
+        "cpu": { "type": "int" },
+        "cpuUsed": { "type": "int" },
+        "cpuUsedRatio": { "type": "string" },
+        "memory": { "type": "int" },
+        "memoryUsed": { "type": "int" },
+        "memoryUsedRatio": { "type": "string" },
+        "pod": { "type": "int" },
+        "podUsed": { "type": "int" },
+        "podUsedRatio": { "type": "string" },
+
+        "podsUseMostCPU": { "type": "array", "elemType": "podCpuInfo" },
+        "podsUseMostMemory": { "type": "array", "elemType": "podMemoryInfo" }
+    },
+
+    "subResources": {
+        "podCpuInfo": { 
+            "name": {"type": "string"},
+            "cpuUsed": {"type": "int"}
+        },
+
+        "podMemoryInfo": { 
+            "name": {"type": "string"},
+            "memoryUsed": {"type": "int"}
+        }
     },
 
     "resourceMethods": [ "GET", "DELETE" ],
@@ -14,5 +38,18 @@
         "fields": {
             "name": {"type": "string", "required": true}
         }
-    }
+    },
+
+    "resourceActions":[ 
+        {
+            "name": "searchPod",
+            "input": {
+                "name": {"type": "string"}
+            },
+            "output": {
+                "kind": {"type":"enum", "validValues": ["Deployment", "DaemonSet", "StatefulSet"]},
+                "name": {"type": "string"}
+            }
+        } 
+    ]
 }
