@@ -142,6 +142,9 @@
             "name": "setPodCount",
             "input": {
                 "replicas": {"type": "int"}
+            },
+            "output": {
+                "replicas": {"type": "int"}
             }
         },
         {
