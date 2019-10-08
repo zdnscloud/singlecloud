@@ -389,7 +389,7 @@ func (m *StatefulSetManager) setPodCount(ctx *resource.Context) (interface{}, *r
 	}
 
 	if int(*k8sStatefulSet.Spec.Replicas) == param.Replicas {
-		return nil, nil
+		return param, nil
 	} else {
 		replicas := int32(param.Replicas)
 		k8sStatefulSet.Spec.Replicas = &replicas
@@ -397,7 +397,7 @@ func (m *StatefulSetManager) setPodCount(ctx *resource.Context) (interface{}, *r
 		if err != nil {
 			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset pod count failed %s", err.Error()))
 		} else {
-			return param.Replicas, nil
+			return param, nil
 		}
 	}
 }

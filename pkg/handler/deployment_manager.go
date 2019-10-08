@@ -398,14 +398,14 @@ func (m *DeploymentManager) setPodCount(ctx *resource.Context) (interface{}, *re
 	}
 
 	if int(*k8sDeploy.Spec.Replicas) == param.Replicas {
-		return nil, nil
+		return param, nil
 	} else {
 		replicas := int32(param.Replicas)
 		k8sDeploy.Spec.Replicas = &replicas
 		if err := cluster.KubeClient.Update(context.TODO(), k8sDeploy); err != nil {
 			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment pod count failed %s", err.Error()))
 		} else {
-			return param.Replicas, nil
+			return param, nil
 		}
 	}
 }
