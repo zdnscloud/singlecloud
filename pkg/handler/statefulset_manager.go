@@ -130,7 +130,7 @@ func (m *StatefulSetManager) Action(ctx *resource.Context) (interface{}, *rester
 	case types.ActionSetImage:
 		return nil, m.setImage(ctx)
 	case types.ActionSetPodCount:
-		return nil, m.setPodCount(ctx)
+		return m.setPodCount(ctx)
 	default:
 		return nil, resterror.NewAPIError(resterror.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Resource.GetAction().Name))
 	}
@@ -366,15 +366,15 @@ func (m *StatefulSetManager) setImage(ctx *resource.Context) *resterror.APIError
 	return nil
 }
 
-func (m *StatefulSetManager) setPodCount(ctx *resource.Context) *resterror.APIError {
+func (m *StatefulSetManager) setPodCount(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	param, ok := ctx.Resource.GetAction().Input.(*types.SetPodCount)
 	if ok == false {
-		return resterror.NewAPIError(resterror.InvalidFormat, "action set pod count param is not valid")
+		return nil, resterror.NewAPIError(resterror.InvalidFormat, "action set pod count param is not valid")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -382,22 +382,22 @@ func (m *StatefulSetManager) setPodCount(ctx *resource.Context) *resterror.APIEr
 	k8sStatefulSet, err := getStatefulSet(cluster.KubeClient, namespace, statefulset.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("statefulset %s is non-exist", statefulset.GetID()))
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("statefulset %s is non-exist", statefulset.GetID()))
 		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
 		}
 	}
 
 	if int(*k8sStatefulSet.Spec.Replicas) == param.Replicas {
-		return nil
+		return nil, nil
 	} else {
 		replicas := int32(param.Replicas)
 		k8sStatefulSet.Spec.Replicas = &replicas
 		err := cluster.KubeClient.Update(context.TODO(), k8sStatefulSet)
 		if err != nil {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset pod count failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset pod count failed %s", err.Error()))
 		} else {
-			return nil
+			return param.Replicas, nil
 		}
 	}
 }

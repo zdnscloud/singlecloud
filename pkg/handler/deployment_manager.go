@@ -154,7 +154,7 @@ func (m *DeploymentManager) Action(ctx *resource.Context) (interface{}, *resterr
 	case types.ActionSetImage:
 		return nil, m.setImage(ctx)
 	case types.ActionSetPodCount:
-		return nil, m.setPodCount(ctx)
+		return m.setPodCount(ctx)
 	default:
 		return nil, resterror.NewAPIError(resterror.InvalidAction, fmt.Sprintf("action %s is unknown", ctx.Resource.GetAction().Name))
 	}
@@ -375,15 +375,15 @@ func (m *DeploymentManager) setImage(ctx *resource.Context) *resterror.APIError 
 	return nil
 }
 
-func (m *DeploymentManager) setPodCount(ctx *resource.Context) *resterror.APIError {
+func (m *DeploymentManager) setPodCount(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
 
 	param, ok := ctx.Resource.GetAction().Input.(*types.SetPodCount)
 	if ok == false {
-		return resterror.NewAPIError(resterror.InvalidFormat, "action set pod count param is not valid")
+		return nil, resterror.NewAPIError(resterror.InvalidFormat, "action set pod count param is not valid")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -391,21 +391,21 @@ func (m *DeploymentManager) setPodCount(ctx *resource.Context) *resterror.APIErr
 	k8sDeploy, err := getDeployment(cluster.KubeClient, namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s doesn't exist", deploy.GetID()))
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("deployment %s doesn't exist", deploy.GetID()))
 		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get deployment failed %s", err.Error()))
 		}
 	}
 
 	if int(*k8sDeploy.Spec.Replicas) == param.Replicas {
-		return nil
+		return nil, nil
 	} else {
 		replicas := int32(param.Replicas)
 		k8sDeploy.Spec.Replicas = &replicas
 		if err := cluster.KubeClient.Update(context.TODO(), k8sDeploy); err != nil {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment pod count failed %s", err.Error()))
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment pod count failed %s", err.Error()))
 		} else {
-			return nil
+			return param.Replicas, nil
 		}
 	}
 }
