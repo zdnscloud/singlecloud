@@ -86,7 +86,7 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 	}
 
 	// make sure the registry application is succeed, if it failed will delete this registry application
-	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, tableName, app.Name)
+	go ensureApplicationSucceedOrDie(m.clusters.GetDB(), cluster, tableName, app.Name)
 
 	r.Status = types.AppStatusCreate
 	r.SetID(registryAppNamePrefix)
@@ -142,9 +142,7 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	}
 
 	appName := apps[0].Name
-	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
-	app, err := updateAppStatusToDeleteFromDB(m.clusters.GetDB(), tableName, appName, true)
-	if err != nil {
+	if err := deleteApplication(m.clusters.GetDB(), cluster.KubeClient, cluster.Name, ZCloudNamespace, appName, true); err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterr.NewAPIError(resterr.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, ZCloudNamespace))
@@ -154,7 +152,6 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 		}
 	}
 
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, ZCloudNamespace, app)
 	return nil
 }
 

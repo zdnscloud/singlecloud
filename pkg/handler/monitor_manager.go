@@ -86,7 +86,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 	}
 
 	// make sure the monitor application is succeed, if it failed will delete this monitor application
-	go ensureApplicationSucceedOrDie(ctx, m.clusters.GetDB(), cluster, tableName, app.Name)
+	go ensureApplicationSucceedOrDie(m.clusters.GetDB(), cluster, tableName, app.Name)
 
 	monitor.Status = types.AppStatusCreate
 	monitor.SetID(monitorAppNamePrefix)
@@ -142,9 +142,7 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	}
 
 	appName := apps[0].Name
-	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
-	app, err := updateAppStatusToDeleteFromDB(m.clusters.GetDB(), tableName, appName, true)
-	if err != nil {
+	if err := deleteApplication(m.clusters.GetDB(), cluster.KubeClient, cluster.Name, ZCloudNamespace, appName, true); err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterr.NewAPIError(resterr.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, ZCloudNamespace))
@@ -153,8 +151,6 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 				fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
 		}
 	}
-
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, ZCloudNamespace, app)
 	return nil
 }
 
@@ -289,7 +285,7 @@ func genRandomStr(length int) string {
 	return string(result)
 }
 
-func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, cluster *zke.Cluster, tableName, appName string) {
+func ensureApplicationSucceedOrDie(db storage.DB, cluster *zke.Cluster, tableName, appName string) {
 	for i := 0; i < sysApplicationCheckTimes; i++ {
 		sysApp, err := getApplicationFromDB(db, tableName, appName, true)
 		if err != nil {
@@ -302,12 +298,10 @@ func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, clu
 		}
 		switch sysApp.Status {
 		case types.AppStatusFailed:
-			app, err := updateAppStatusToDeleteFromDB(db, tableName, appName, true)
-			if err != nil {
+			if err := deleteApplication(db, cluster.KubeClient, cluster.Name, ZCloudNamespace, appName, true); err != nil {
 				log.Warnf("delete system application %s failed %s", appName, err.Error())
 				return
 			}
-			go deleteApplication(db, cluster.KubeClient, tableName, ZCloudNamespace, app)
 		case types.AppStatusSucceed:
 			log.Infof("create system application %s succeed", appName)
 			return

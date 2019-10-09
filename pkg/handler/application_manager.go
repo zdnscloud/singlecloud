@@ -175,9 +175,7 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
-	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
-	app, err := updateAppStatusToDeleteFromDB(m.clusters.GetDB(), tableName, appName, false)
-	if err != nil {
+	if err := deleteApplication(m.clusters.GetDB(), cluster.KubeClient, cluster.Name, namespace, appName, false); err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
@@ -187,28 +185,37 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 		}
 	}
 
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, namespace, app)
 	return nil
 }
 
-func deleteApplication(db storage.DB, cli client.Client, tableName, namespace string, app *types.Application) {
-	if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
-		app.Status = types.AppStatusFailed
-		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
-			log.Warnf("delete application %s resources failed, update status get error: %s", app.Name, err.Error())
-		}
-		log.Warnf("delete application %s resources failed: %s", app.Name, err.Error())
-		return
+func deleteApplication(db storage.DB, cli client.Client, clusterName, namespace, appName string, isSystemChart bool) error {
+	tableName := storage.GenTableName(ApplicationTable, clusterName, namespace)
+	app, err := updateAppStatusToDeleteFromDB(db, tableName, appName, isSystemChart)
+	if err != nil {
+		return err
 	}
 
-	if err := deleteApplicationFromDB(db, tableName, app.GetID()); err != nil {
-		app.Status = types.AppStatusFailed
-		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
-			log.Warnf("delete application %s failed, update status get error: %s", app.Name, err.Error())
+	go func() {
+		if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
+			app.Status = types.AppStatusFailed
+			if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
+				log.Warnf("delete application %s resources failed, update status get error: %s", app.Name, err.Error())
+			}
+			log.Warnf("delete application %s resources failed: %s", app.Name, err.Error())
+			return
 		}
 
-		log.Warnf("delete application %s from db failed: %s", app.Name, err.Error())
-	}
+		if err := deleteApplicationFromDB(db, tableName, app.GetID()); err != nil {
+			app.Status = types.AppStatusFailed
+			if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
+				log.Warnf("delete application %s failed, update status get error: %s", app.Name, err.Error())
+			}
+
+			log.Warnf("delete application %s from db failed: %s", app.Name, err.Error())
+		}
+	}()
+
+	return nil
 }
 
 func updateAppStatusToDeleteFromDB(db storage.DB, tableName, name string, isSystemChart bool) (*types.Application, error) {
