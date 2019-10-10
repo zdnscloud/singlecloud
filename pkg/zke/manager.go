@@ -53,6 +53,7 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 	defer m.lock.Unlock()
 
 	typesCluster := ctx.Resource.(*types.Cluster)
+	typesCluster.TrimFieldSpace()
 
 	existCluster := m.get(typesCluster.Name)
 	if existCluster != nil {
@@ -135,6 +136,7 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 	defer m.lock.Unlock()
 
 	typesCluster := ctx.Resource.(*types.Cluster)
+	typesCluster.TrimFieldSpace()
 
 	existCluster := m.get(typesCluster.Name)
 	if existCluster == nil {
