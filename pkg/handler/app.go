@@ -29,9 +29,10 @@ var (
 type App struct {
 	clusterManager *ClusterManager
 	chartDir       string
+	repoUrl        string
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB, chartDir, scVersion string) (*App, error) {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB, chartDir, scVersion, repoUrl string) (*App, error) {
 	clusterMgr, err := newClusterManager(authenticator, authorizer, eventBus, agent, db, scVersion)
 	if err != nil {
 		return nil, err
@@ -39,6 +40,7 @@ func NewApp(authenticator *authentication.Authenticator, authorizer *authorizati
 	return &App{
 		clusterManager: clusterMgr,
 		chartDir:       chartDir,
+		repoUrl:        repoUrl,
 	}, nil
 }
 
@@ -60,7 +62,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager))
 	schemas.MustImport(&Version, types.Namespace{}, newNamespaceManager(a.clusterManager))
-	schemas.MustImport(&Version, types.Chart{}, newChartManager(a.chartDir))
+	schemas.MustImport(&Version, types.Chart{}, newChartManager(a.chartDir, a.repoUrl))
 	schemas.MustImport(&Version, types.ConfigMap{}, newConfigMapManager(a.clusterManager))
 	schemas.MustImport(&Version, types.CronJob{}, newCronJobManager(a.clusterManager))
 	schemas.MustImport(&Version, types.DaemonSet{}, newDaemonSetManager(a.clusterManager))
