@@ -1,0 +1,33 @@
+[{
+        "label": "elasticsearchReplicas",
+        "jsonKey": "elasticsearch.replicas",
+        "type": "int",
+        "required": "false",
+        "description": "elasticsearch statefulSet replicas",
+        "default": "3"
+    },
+    {
+        "label": "elasticsearchStorageSize",
+        "jsonKey": "elasticsearch.volumeClaimTemplate.resources.requests.elasticsearch",
+        "type": "string",
+        "required": "false",
+        "description": "elasticsearch storage size",
+        "default": "10Gi"
+    },
+    {
+        "label": "kibanaServiceType",
+        "jsonKey": "kibana.service.type",
+        "type": "string",
+        "required": "false",
+        "description": "kibana service type",
+        "default": "NodePort"
+    },
+    {
+        "label": "ingressDomain",
+        "jsonKey": "kibana.ingress.hosts",
+        "type": "string",
+        "required": "false",
+        "description": "the ingress domain of cluster efk service",
+        "default": "efk.cluster.local"
+    }
+]

@@ -1,0 +1,13 @@
+dependencies:
+- name: elasticsearch
+  version: "7.4.0"
+  repository: file://.charts/elasticsearch
+  condition: elasticsearch.enabled
+- name: fluent-bit
+  version: "0.2.11"
+  repository: file://.charts/fluent-bit
+  condition: fluent-bit.enabled
+- name: kibana
+  version: "7.4.0"
+  repository: file://.charts/kibana
+  condition: kibana.enabled
