@@ -30,14 +30,11 @@ const (
 	DefaultClusterDNSServiceIP = "10.43.0.10"
 	DefaultClusterDomain       = "cluster.local"
 	DefaultSSHPort             = "22"
+	DefaultClusterUpstreamDNS1 = "223.5.5.5"
+	DefaultClusterUpstreamDNS2 = "114.114.114.114"
 
 	ScVersionImported = "imported"
 )
-
-var DefaultClusterUpstreamDNS = []string{
-	"223.5.5.5",
-	"114.114.114.114",
-}
 
 type Cluster struct {
 	resource.ResourceBase `json:",inline"`
@@ -97,7 +94,7 @@ func (c Cluster) CreateDefaultResource() resource.Resource {
 		ServiceCidr:         DefaultServiceCIDR,
 		ClusterDomain:       DefaultClusterDomain,
 		ClusterDNSServiceIP: DefaultClusterDNSServiceIP,
-		ClusterUpstreamDNS:  DefaultClusterUpstreamDNS,
+		ClusterUpstreamDNS:  []string{DefaultClusterUpstreamDNS1, DefaultClusterUpstreamDNS2},
 		SSHPort:             DefaultSSHPort,
 	}
 }
