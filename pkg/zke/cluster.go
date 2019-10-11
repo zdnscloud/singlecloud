@@ -119,7 +119,9 @@ func (c *Cluster) InitLoop(ctx context.Context, kubeConfig string, mgr *ZKEManag
 	k8sConfig, err := config.BuildConfig([]byte(kubeConfig))
 	if err != nil {
 		log.Errorf("build cluster %s k8sconfig failed %s", c.Name, err)
-		c.fsm.Event(InitFailedEvent)
+		if err := c.fsm.Event(InitFailedEvent); err != nil {
+			log.Warnf("send cluster fsm %s event failed %s", InitFailedEvent, err.Error())
+		}
 		return
 	}
 
@@ -263,10 +265,15 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 		return
 	}
 
-	c.stopCh = make(chan struct{})
-	c.setCache(k8sConfig)
-	c.KubeClient = kubeClient
+	if err := c.setCache(k8sConfig); err != nil {
+		if err := c.fsm.Event(UpdateFailedEvent, mgr, state); err != nil {
+			log.Warnf("send cluster fsm %s event failed %s", UpdateFailedEvent, err.Error())
+		}
+		return
+	}
 
+	c.stopCh = make(chan struct{})
+	c.KubeClient = kubeClient
 	state.FullState = zkeState
 	state.IsUnvailable = false
 
