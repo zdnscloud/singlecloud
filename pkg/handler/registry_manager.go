@@ -100,7 +100,7 @@ func (m *RegistryManager) get(ctx *restresource.Context) restresource.Resource {
 
 func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	if ctx.Resource.GetID() != registryAppNamePrefix {
-		return resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
+		return resterr.NewAPIError(resterr.NotFound, "registry doesn't exist")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	return deleteApplicationByChartName(m.clusters.GetDB(), cluster, registryChartName)
