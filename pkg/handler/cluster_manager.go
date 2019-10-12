@@ -5,7 +5,6 @@ import (
 
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/cement/slice"
-	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
@@ -101,19 +100,31 @@ func (m *ClusterManager) Get(ctx *restresource.Context) restresource.Resource {
 	if cluster != nil {
 		sc := cluster.ToTypesCluster()
 		if cluster.IsReady() {
-			return getClusterInfo(cluster.KubeClient, sc)
+			return getClusterInfo(cluster, sc)
 		}
 		return sc
 	}
 	return nil
 }
 
-func getClusterInfo(cli client.Client, sc *types.Cluster) *types.Cluster {
-	if cli == nil {
+func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
+	if !zkeCluster.IsReady() {
 		return sc
 	}
 
-	nodes, err := getNodes(cli)
+	version, err := zkeCluster.KubeClient.ServerVersion()
+	if err != nil {
+		if err := zkeCluster.Event(zke.GetInfoFailedEvent); err != nil {
+			log.Warnf("send cluster %s %s fsm event failed %s", zkeCluster.Name, zke.GetInfoFailedEvent, err.Error())
+		}
+		return sc
+	}
+	if err := zkeCluster.Event(zke.GetInfoSuccessEvent); err != nil {
+		log.Warnf("send cluster %s %s fsm event failed %s", zkeCluster.Name, zke.GetInfoSuccessEvent, err.Error())
+	}
+	sc.Version = version.GitVersion
+
+	nodes, err := getNodes(zkeCluster.KubeClient)
 	if err != nil {
 		return sc
 	}
