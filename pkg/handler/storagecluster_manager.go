@@ -89,7 +89,7 @@ func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIErr
 	if err := deleteStorageCluster(cluster.KubeClient, storagecluster.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return gorestError.NewAPIError(gorestError.NotFound, fmt.Sprintf("storagecluster %s doesn't exist", storagecluster.GetID()))
-		} else if strings.Contains(err.Error(), "is used by") {
+		} else if strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "Creating") {
 			return gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		} else {
 			return gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
@@ -126,7 +126,7 @@ func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource,
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
 	if err := updateStorageCluster(cluster, m.clusters.Agent, storagecluster); err != nil {
-		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "can not be used for") {
+		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "can not be used for") || strings.Contains(err.Error(), "Creating") {
 			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
 		} else {
 			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
@@ -148,6 +148,14 @@ func getStorageClusters(cli client.Client) (*storagev1.ClusterList, error) {
 }
 
 func deleteStorageCluster(cli client.Client, name string) error {
+	k8sStorageCluster, err := getStorageCluster(cli, name)
+        if err != nil {
+                return err
+        }
+	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
+		return errors.New("storagecluster in Creating or Updating, not allowed delete")
+	}
+
 	if err := checkFinalizers(cli, name); err != nil {
 		return err
 	}
@@ -176,6 +184,9 @@ func updateStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager
 	k8sStorageCluster, err := getStorageCluster(cluster.KubeClient, storagecluster.GetID())
 	if err != nil {
 		return err
+	}
+	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
+		return errors.New("storagecluster in Creating or Updating, not allowed update")
 	}
 	if storagecluster.StorageType != k8sStorageCluster.Spec.StorageType {
 		return errors.New("storagecluster type can not be modify")
