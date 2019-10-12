@@ -11,6 +11,8 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/storage"
 
+	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/randomdata"
 	"github.com/zdnscloud/cement/x509"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
@@ -86,7 +88,11 @@ func (m *RegistryManager) get(ctx *restresource.Context) restresource.Resource {
 	}
 
 	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), registryChartName)
-	if err != nil || app == nil {
+	if err != nil {
+		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, registryChartName, err.Error())
+		return nil
+	}
+	if app == nil {
 		return nil
 	}
 
@@ -112,7 +118,7 @@ func genRegistryApplication(cluster *zke.Cluster, registry *types.Registry, clus
 		return nil, err
 	}
 	return &types.Application{
-		Name:         registryAppNamePrefix + "-" + genRandomStr(12),
+		Name:         registryAppNamePrefix + "-" + randomdata.RandString(12),
 		ChartName:    registryChartName,
 		ChartVersion: registryChartVersion,
 		Configs:      config,

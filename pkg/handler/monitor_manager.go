@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"math/rand"
 	"strconv"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/randomdata"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 )
@@ -66,11 +66,12 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 func createSysApplication(ctx *restresource.Context, db storage.DB, appManager *ApplicationManager, cluster *zke.Cluster, chartName string, app *types.Application, requiredStorageClass string, appNamePrefix string) *resterr.APIError {
 	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
 
-	hasExist, err := checkSysApplicationExist(db, tableName, chartName)
+	existApp, err := getApplicationFromDBByChartName(db, tableName, chartName)
 	if err != nil {
+		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, chartName, err.Error())
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get %s application from db failed %s", chartName, err.Error()))
 	}
-	if hasExist {
+	if existApp != nil {
 		return resterr.NewAPIError(resterr.DuplicateResource, fmt.Sprintf("cluster %s %s has exist", cluster.Name, chartName))
 	}
 
@@ -87,11 +88,6 @@ func createSysApplication(ctx *restresource.Context, db storage.DB, appManager *
 
 	go ensureApplicationSucceedOrDie(db, cluster, tableName, app.Name)
 	return nil
-}
-
-func checkSysApplicationExist(db storage.DB, tableName, chartName string) (bool, error) {
-	app, err := getApplicationFromDBByChartName(db, tableName, chartName)
-	return app != nil, err
 }
 
 func (m *MonitorManager) List(ctx *restresource.Context) interface{} {
@@ -118,7 +114,11 @@ func (m *MonitorManager) get(ctx *restresource.Context) restresource.Resource {
 	}
 
 	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
-	if err != nil || app == nil {
+	if err != nil {
+		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
+		return nil
+	}
+	if app == nil {
 		return nil
 	}
 
@@ -142,7 +142,11 @@ func deleteApplicationByChartName(db storage.DB, cluster *zke.Cluster, chartName
 		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 	app, err := getApplicationFromDBByChartName(db, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), chartName)
-	if err != nil || app == nil {
+	if err != nil {
+		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get cluster %s application %s from db failed %s", cluster.Name, chartName, err.Error()))
+	}
+	if app == nil {
 		return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("%s doesn't exist", chartName))
 	}
 
@@ -165,7 +169,7 @@ func genMonitorApplication(cluster *zke.Cluster, m *types.Monitor, clusterName s
 		return nil, err
 	}
 	return &types.Application{
-		Name:         monitorAppNamePrefix + "-" + genRandomStr(12),
+		Name:         monitorAppNamePrefix + "-" + randomdata.RandString(12),
 		ChartName:    monitorChartName,
 		ChartVersion: monitorChartVersion,
 		Configs:      config,
@@ -228,17 +232,6 @@ func genRetrunMonitorFromApplication(cluster string, app *types.Application) (*t
 	return &m, nil
 }
 
-func genRandomStr(length int) string {
-	str := "0123456789abcdefghijklmnopqrstuvwxyz"
-	bytes := []byte(str)
-	result := []byte{}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := 0; i < length; i++ {
-		result = append(result, bytes[r.Intn(len(bytes))])
-	}
-	return string(result)
-}
-
 func ensureApplicationSucceedOrDie(db storage.DB, cluster *zke.Cluster, tableName, appName string) {
 	for i := 0; i < sysApplicationCheckTimes; i++ {
 		sysApp, err := getApplicationFromDB(db, tableName, appName, true)
@@ -282,7 +275,7 @@ func genAppNameIfDuplicate(db storage.DB, tableName, appName, appNamePrefex stri
 	for {
 		duplicateApp, _ := getApplicationFromDB(db, tableName, appName, true)
 		if duplicateApp != nil {
-			appName = appNamePrefex + "-" + genRandomStr(12)
+			appName = appNamePrefex + "-" + randomdata.RandString(12)
 		} else {
 			break
 		}

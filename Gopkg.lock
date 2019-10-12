@@ -535,7 +535,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fc14e4757e3280fc1be5f15cad43b919ce6ae2410ff61c00a21c6661dabc29a3"
+  digest = "1:d2c4cd63276243bee688bce6abd3c7dce77b5715e39ff87e7c7fd842ce27ed45"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -547,6 +547,7 @@
     "log/log4go",
     "netradix",
     "pubsub",
+    "randomdata",
     "reflector",
     "rest",
     "serializer",
@@ -558,7 +559,7 @@
     "x509",
   ]
   pruneopts = "UT"
-  revision = "7eb205536ab847a023df949a9d333c0f41bfd9f3"
+  revision = "4bb5a50107cf59e30f8bbc7a658fa59b09239682"
 
 [[projects]]
   branch = "master"
@@ -1073,6 +1074,7 @@
     "github.com/zdnscloud/cement/fsm",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",
+    "github.com/zdnscloud/cement/randomdata",
     "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/slice",
     "github.com/zdnscloud/cement/unittest",
@@ -1121,23 +1123,15 @@
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
-    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
-    "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/validation",
-    "k8s.io/apimachinery/pkg/util/wait",
-    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
-    "k8s.io/client-go/tools/cache",
-    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/remotecommand",
-    "k8s.io/client-go/util/workqueue",
-    "k8s.io/klog",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"
