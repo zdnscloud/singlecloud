@@ -91,6 +91,35 @@ func (m *IngressManager) Get(ctx *resource.Context) resource.Resource {
 	return ingress
 }
 
+func (m *IngressManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+	}
+
+	namespace := ctx.Resource.GetParent().GetID()
+	ingress := ctx.Resource.(*types.Ingress)
+	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("ingress %s doesn't exist", ingress.GetID()))
+		}
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update ingress failed %s", err.Error()))
+	}
+
+	newK8sIngress, err := scIngressTok8sIngress(namespace, ingress)
+	if err != nil {
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update ingress failed %s", err.Error()))
+	}
+
+	k8sIngress.Spec.Rules = newK8sIngress.Spec.Rules
+	if err := cluster.KubeClient.Update(context.TODO(), k8sIngress); err != nil {
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
+	}
+
+	return ingress, nil
+}
+
 func (m *IngressManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {

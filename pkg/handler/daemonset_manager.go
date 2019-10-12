@@ -97,6 +97,36 @@ func (m *DaemonSetManager) Get(ctx *resource.Context) resource.Resource {
 	}
 }
 
+func (m *DaemonSetManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+	}
+
+	namespace := ctx.Resource.GetParent().GetID()
+	daemonSet := ctx.Resource.(*types.DaemonSet)
+	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("daemonset %s desn't exist", namespace))
+		} else {
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
+		}
+	}
+
+	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(daemonSet.Containers, daemonSet.PersistentVolumes)
+	if err != nil {
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update daemonset failed %s", err.Error()))
+	}
+
+	k8sDaemonSet.Spec.Template.Spec = k8sPodSpec
+	if err := cluster.KubeClient.Update(context.TODO(), k8sDaemonSet); err != nil {
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update daemonset failed %s", err.Error()))
+	}
+
+	return daemonSet, nil
+}
+
 func (m *DaemonSetManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
@@ -254,7 +284,8 @@ func (m *DaemonSetManager) getDaemonsetHistory(ctx *resource.Context) (interface
 				fmt.Sprintf("unmarshal controllerrevision data failed: %v", err.Error()))
 		}
 
-		containers, _ := k8sPodSpecToScContainersAndVCTemplates(oldK8sDaemonSet.Spec.Template.Spec.Containers, nil)
+		containers, _ := k8sPodSpecToScContainersAndVCTemplates(oldK8sDaemonSet.Spec.Template.Spec.Containers,
+			oldK8sDaemonSet.Spec.Template.Spec.Volumes)
 		versionInfos = append(versionInfos, types.VersionInfo{
 			Name:         daemonset.GetID(),
 			Namespace:    namespace,
