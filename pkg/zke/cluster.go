@@ -334,6 +334,7 @@ func (c *Cluster) toTypesCluster() *types.Cluster {
 		}
 		sc.Nodes = append(sc.Nodes, n)
 	}
+	sc.NodesCount = len(sc.Nodes)
 
 	if c.config.PrivateRegistries != nil {
 		sc.PrivateRegistries = []types.PrivateRegistry{}

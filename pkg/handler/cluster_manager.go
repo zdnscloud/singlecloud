@@ -152,7 +152,7 @@ func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
 			sc := c.ToTypesCluster()
 			allClusters = append(allClusters, sc)
 			if c.IsReady() {
-				readyClusters = append(readyClusters, getClusterInfo(c.KubeClient, sc))
+				readyClusters = append(readyClusters, sc)
 			}
 		}
 	}
