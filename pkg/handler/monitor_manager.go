@@ -54,10 +54,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
-	app.Name = genAppNameIfDuplicate(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name, monitorAppNamePrefix)
-	app.SetID(app.Name)
-
-	if err := createSysApplication(ctx, m.clusters.GetDB(), m.apps, cluster, monitorChartName, app, monitor.StorageClass); err != nil {
+	if err := createSysApplication(ctx, m.clusters.GetDB(), m.apps, cluster, monitorChartName, app, monitor.StorageClass, monitorAppNamePrefix); err != nil {
 		return nil, err
 	}
 
@@ -66,7 +63,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 	return monitor, nil
 }
 
-func createSysApplication(ctx *restresource.Context, db storage.DB, appManager *ApplicationManager, cluster *zke.Cluster, chartName string, app *types.Application, requiredStorageClass string) *resterr.APIError {
+func createSysApplication(ctx *restresource.Context, db storage.DB, appManager *ApplicationManager, cluster *zke.Cluster, chartName string, app *types.Application, requiredStorageClass string, appNamePrefix string) *resterr.APIError {
 	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
 
 	hasExist, err := checkSysApplicationExist(db, tableName, chartName)
@@ -80,6 +77,9 @@ func createSysApplication(ctx *restresource.Context, db storage.DB, appManager *
 	if !isStorageClassExist(cluster.KubeClient, requiredStorageClass) {
 		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
 	}
+
+	app.Name = genAppNameIfDuplicate(db, tableName, app.Name, appNamePrefix)
+	app.SetID(app.Name)
 
 	if err := appManager.create(ctx, cluster, ZCloudNamespace, app); err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))

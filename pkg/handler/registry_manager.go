@@ -53,10 +53,7 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
-	app.Name = genAppNameIfDuplicate(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), app.Name, registryAppNamePrefix)
-	app.SetID(app.Name)
-
-	if err := createSysApplication(ctx, m.clusters.GetDB(), m.apps, cluster, registryChartName, app, registry.StorageClass); err != nil {
+	if err := createSysApplication(ctx, m.clusters.GetDB(), m.apps, cluster, registryChartName, app, registry.StorageClass, registryAppNamePrefix); err != nil {
 		return nil, err
 	}
 
