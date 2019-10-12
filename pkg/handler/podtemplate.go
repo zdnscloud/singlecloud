@@ -67,8 +67,13 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 	structVal := reflect.ValueOf(podOwner).Elem()
 	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
 	opts, _ := json.Marshal(advancedOpts)
+	memo := structVal.FieldByName("Memo").String()
+	if memo == "" {
+		memo = AnnotationForCreateWorkload
+	}
 	annotations := map[string]string{
 		AnnkeyForWordloadAdvancedoption: string(opts),
+		ChangeCauseAnnotation:           memo,
 	}
 	if advancedOpts.ReloadWhenConfigChange {
 		annotations[AnnKeyForReloadWhenConfigChange] = "true"
@@ -76,7 +81,6 @@ func generatePodOwnerObjectMeta(namespace string, podOwner interface{}) metav1.O
 	if advancedOpts.DeletePVsWhenDeleteWorkload {
 		annotations[AnnkeyForDeletePVsWhenDeleteWorkload] = "true"
 	}
-	annotations[ChangeCauseAnnotation] = AnnotationForCreateWorkload
 	return metav1.ObjectMeta{
 		Name:        structVal.FieldByName("Name").String(),
 		Namespace:   namespace,

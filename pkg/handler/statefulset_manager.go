@@ -111,6 +111,7 @@ func (m *StatefulSetManager) Update(ctx *resource.Context) (resource.Resource, *
 	}
 
 	k8sStatefulSet.Spec.Template.Spec = k8sPodSpec
+	k8sStatefulSet.Annotations[ChangeCauseAnnotation] = statefulSet.Memo
 	if err := cluster.KubeClient.Update(context.TODO(), k8sStatefulSet); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update statefulset failed %s", err.Error()))
 	}
@@ -157,8 +158,6 @@ func (m *StatefulSetManager) Action(ctx *resource.Context) (interface{}, *rester
 		return m.getStatefulSetHistory(ctx)
 	case types.ActionRollback:
 		return nil, m.rollback(ctx)
-	case types.ActionSetImage:
-		return nil, m.setImage(ctx)
 	case types.ActionSetPodCount:
 		return m.setPodCount(ctx)
 	default:
@@ -356,42 +355,6 @@ func (m *StatefulSetManager) rollback(ctx *resource.Context) *resterror.APIError
 
 	if err := cluster.KubeClient.Patch(context.TODO(), k8sStatefulSet, k8stypes.StrategicMergePatchType, patch); err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("rollback statefulset failed: %v", err.Error()))
-	}
-
-	return nil
-}
-
-func (m *StatefulSetManager) setImage(ctx *resource.Context) *resterror.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	if cluster == nil {
-		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
-	}
-
-	param, ok := ctx.Resource.GetAction().Input.(*types.SetImage)
-	if ok == false {
-		return resterror.NewAPIError(resterror.InvalidFormat, "action set image param is not valid")
-	}
-
-	namespace := ctx.Resource.GetParent().GetID()
-	statefulset := ctx.Resource.(*types.StatefulSet)
-	k8sStatefulSet, err := getStatefulSet(cluster.KubeClient, namespace, statefulset.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return resterror.NewAPIError(resterror.NotFound,
-				fmt.Sprintf("statefulset %s with namespace %s doesn't exist", statefulset.GetID(), namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
-		}
-	}
-
-	patch, err := getSetImagePatch(param, k8sStatefulSet.Spec.Template, k8sStatefulSet.Annotations)
-	if err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("get statefulset patch when set image failed: %v", err.Error()))
-	}
-
-	if err := cluster.KubeClient.Patch(context.TODO(), k8sStatefulSet, k8stypes.JSONPatchType, patch); err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset image failed: %v", err.Error()))
 	}
 
 	return nil

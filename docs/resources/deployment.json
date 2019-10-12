@@ -78,7 +78,7 @@
         }
     },
 
-    "resourceMethods": [ "GET", "DELETE" ],
+    "resourceMethods": [ "GET", "PUT", "DELETE" ],
     "collectionMethods": [ "POST", "GET" ],
 
     "postParameters": {
@@ -87,7 +87,65 @@
             "replicas": {"type": "int", "required": true},
             "containers":  {"type": "array", "elemType": "container", "required": true},
             "advancedOptions": {"type": "advancedOptions"},
-            "persistentVolumes": {"type": "array", "elemType": "persistentVolume"}
+            "persistentVolumes": {"type": "array", "elemType": "persistentVolume"},
+            "memo": {"type": "string"}
+        },
+
+        "subResources": {
+            "container": {
+                "name": {"type": "string", "required": true},
+                "image": {"type": "string", "required": true},
+                "command": {"type": "array", "elemType": "string"},
+                "args": {"type": "array", "elemType": "string"},
+                "exposedPorts":{"type": "array", "elemType": "containerPort"},
+                "env": {"type": "array", "elemType": "envVar"},
+                "volumes": {"type": "array", "elemType": "volume"}
+            },
+
+            "volume": {
+                "type": {"type": "enum", "validValues": ["configmap", "secret", "persistentVolume"]},
+                "name": {"type": "string"},
+                "mountPath": {"type": "string"}
+            },
+
+            "envVar": {
+                "name": {"type": "string"},
+                "value": {"type": "string"}
+            },
+
+            "containerPort": {
+                "name" : {"type": "string"},
+                "port" : {"type": "int", "required": true},
+                "protocol": {"type": "enum", "validValues": ["TCP", "UDP"], "required": true}
+            },
+
+            "advancedOptions": {
+                "deletePVsWhenDeleteWorkload": {"type": "bool"},
+                "reloadWhenConfigChange": {"type": "bool"},
+                "exposedMetric": {"type": "exposedMetric"}
+            },
+
+            "exposedMetric": {
+                "path" : {"type": "string"},
+                "port" : {"type": "int"}
+            },
+
+            "persistentVolume": {
+                "name": {"type": "string"},
+                "size": {"type": "string"},
+                "storageClassName": {"type": "enum", "validValues": ["lvm", "temporary", "cephfs"]}
+            }
+        }
+    },
+
+    "putParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "replicas": {"type": "int", "required": true},
+            "containers":  {"type": "array", "elemType": "container", "required": true},
+            "advancedOptions": {"type": "advancedOptions"},
+            "persistentVolumes": {"type": "array", "elemType": "persistentVolume"},
+            "memo": {"type": "string"}
         },
 
         "subResources": {
@@ -185,21 +243,6 @@
                 }
             }
         },
-
-        {
-            "name": "setImage",
-            "input": {
-                "reason": {"type": "string"},
-                "images": {"type": "array", "elemType": "containerImage"}
-            },
-            "subResources": {
-                "containerImage": {
-                    "name": {"type": "string"},
-                    "image": {"type": "string"}
-                }
-            }
-        },
-
         {
             "name": "rollback",
             "input": {

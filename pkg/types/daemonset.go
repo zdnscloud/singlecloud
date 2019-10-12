@@ -11,6 +11,7 @@ type DaemonSet struct {
 	AdvancedOptions       AdvancedOptions            `json:"advancedOptions,omitempty"`
 	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
 	Status                DaemonSetStatus            `json:"status,omitempty"`
+	Memo                  string                     `json:"memo,omitempty"`
 }
 
 type DaemonSetStatus struct {
@@ -41,20 +42,7 @@ func (d DaemonSet) CreateAction(name string) *resource.Action {
 			Name:  ActionRollback,
 			Input: &RollBackVersion{},
 		}
-	case ActionSetImage:
-		return &resource.Action{
-			Name:  ActionSetImage,
-			Input: &SetImage{},
-		}
 	default:
 		return nil
 	}
 }
-
-type DaemonsetHistory struct {
-	ControllerRevisions ControllerRevisions `json:"controllerRevisions"`
-}
-
-type ControllerRevision struct{}
-
-type ControllerRevisions []ControllerRevision
