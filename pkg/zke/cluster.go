@@ -68,28 +68,13 @@ func (c *Cluster) IsReady() bool {
 	return false
 }
 
-func (c *Cluster) ToTypesCluster() *types.Cluster {
-	cluster := c.toTypesCluster()
-	// unready cluster do not get cluster version info
-	if !c.IsReady() {
-		return cluster
-	}
-	if c.KubeClient == nil {
-		return cluster
-	}
-	version, err := c.KubeClient.ServerVersion()
-	if err != nil {
-		c.fsm.Event(GetInfoFailedEvent)
-		return cluster
-	}
-	c.fsm.Event(GetInfoSuccessEvent)
-	cluster.Version = version.GitVersion
-	return cluster
+func (c *Cluster) Event(e string) error {
+	return c.fsm.Event(e)
 }
 
 func (c *Cluster) GetNodeIpsByRole(role types.NodeRole) []string {
 	ips := []string{}
-	cluster := c.toTypesCluster()
+	cluster := c.ToTypesCluster()
 	for _, n := range cluster.Nodes {
 		if n.HasRole(role) {
 			ips = append(ips, n.Address)
@@ -307,7 +292,7 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 	return
 }
 
-func (c *Cluster) toTypesCluster() *types.Cluster {
+func (c *Cluster) ToTypesCluster() *types.Cluster {
 	sc := &types.Cluster{}
 	sc.Name = c.Name
 	sc.SSHUser = c.config.Option.SSHUser
@@ -334,6 +319,7 @@ func (c *Cluster) toTypesCluster() *types.Cluster {
 		}
 		sc.Nodes = append(sc.Nodes, n)
 	}
+	sc.NodesCount = len(sc.Nodes)
 
 	if c.config.PrivateRegistries != nil {
 		sc.PrivateRegistries = []types.PrivateRegistry{}
