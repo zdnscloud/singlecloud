@@ -1,19 +1,21 @@
 package handler
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	yaml "gopkg.in/yaml.v2"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
-
-	"helm.sh/helm/pkg/chartutil"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gorest/resource"
@@ -29,8 +31,8 @@ const (
 )
 
 var (
-	timeout            = 60 * time.Second
-	syncChartsInterval = 60 * time.Second
+	responseHeaderTimeout = 60 * time.Second
+	syncChartsInterval    = 60 * time.Second
 )
 
 type ChartsIndex struct {
@@ -137,7 +139,7 @@ func syncCloudChartsToLocal(repoUrl, chartDir string) {
 	}
 
 	http.DefaultClient.Transport = &http.Transport{
-		ResponseHeaderTimeout: timeout,
+		ResponseHeaderTimeout: responseHeaderTimeout,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
@@ -163,28 +165,9 @@ func loadCloudCharts(repoUrl, chartDir string) error {
 	}
 
 	for chartName, chartEntries := range chartsIndex.Entries {
-		chartFound := false
-		for _, chart := range localCharts {
-			if chart.Name == chartName {
-				chartFound = true
-				for _, chartEntry := range chartEntries {
-					versionFound := false
-					for _, chartVersion := range chart.Versions {
-						if chartVersion.Version == chartEntry.Version {
-							versionFound = true
-							break
-						}
-					}
-					if !versionFound {
-						log.Infof("found chart %s new version %s in registry, will load it", chartName, chartEntry.Version)
-						err := loadCloudChartByVersion(chartEntry.Urls, repoUrl, chartDir, chartName, chartEntry.Version)
-						if err != nil {
-							return err
-						}
-					}
-				}
-				break
-			}
+		chartFound, err := checkChartExistAndLoadVersionsIfNeed(repoUrl, chartDir, chartName, localCharts, chartEntries)
+		if err != nil {
+			return err
 		}
 
 		if !chartFound {
@@ -224,9 +207,37 @@ func getCloudChartsIndex(repoUrl string) (*ChartsIndex, error) {
 	return &index, nil
 }
 
+func checkChartExistAndLoadVersionsIfNeed(repoUrl, chartDir, chartName string, localCharts types.Charts, chartEntries []ChartEntry) (bool, error) {
+	chartFound := false
+	for _, chart := range localCharts {
+		if chart.Name == chartName {
+			chartFound = true
+			for _, chartEntry := range chartEntries {
+				versionFound := false
+				for _, chartVersion := range chart.Versions {
+					if chartVersion.Version == chartEntry.Version {
+						versionFound = true
+						break
+					}
+				}
+				if !versionFound {
+					log.Infof("found chart %s new version %s in registry, will load it", chartName, chartEntry.Version)
+					err := loadCloudChartByVersion(chartEntry.Urls, repoUrl, chartDir, chartName, chartEntry.Version)
+					if err != nil {
+						return chartFound, err
+					}
+				}
+			}
+			break
+		}
+	}
+
+	return chartFound, nil
+}
+
 func loadCloudChartByVersion(versionUrls []string, repoUrl, chartDir, chartName, chartVersion string) error {
 	if len(versionUrls) == 0 {
-		return fmt.Errorf("invalid version urls, it should not be empty")
+		return fmt.Errorf("invalid version urls in index.yaml of registry, it should not be empty")
 	}
 
 	chartUrl := repoUrl + "/" + versionUrls[0]
@@ -234,23 +245,16 @@ func loadCloudChartByVersion(versionUrls []string, repoUrl, chartDir, chartName,
 	if err != nil {
 		return fmt.Errorf("load chart %s with url %s failed: %s", chartName, chartUrl, err.Error())
 	}
+
 	defer resp.Body.Close()
-
-	tmpdir, err := ioutil.TempDir("", "helm-")
+	unzipFileDir, err := expandFile(path.Join(chartDir, chartName), resp.Body)
 	if err != nil {
-		return fmt.Errorf("gen temp dir failed: %s", err.Error())
-	}
-	defer os.RemoveAll(tmpdir)
-
-	err = chartutil.Expand(tmpdir, resp.Body)
-	if err != nil {
-		panic("expand redis failed: " + err.Error())
+		return err
 	}
 
-	versionDir := path.Join(chartDir, chartName, chartVersion)
-	err = os.Rename(path.Join(tmpdir, chartName), versionDir)
+	err = os.Rename(path.Join(chartDir, chartName, unzipFileDir), path.Join(chartDir, chartName, chartVersion))
 	if err != nil {
-		return fmt.Errorf("move chart %s from temp dir to %s failed: %s", chartName, versionDir, err.Error())
+		return fmt.Errorf("rename chart %s from %s to %s failed: %s", chartName, unzipFileDir, chartVersion, err.Error())
 	}
 
 	log.Infof("load chart %s with version %s succeed", chartName, chartVersion)
@@ -315,4 +319,59 @@ func getChartInfo(chartYamlPath string) (*ChartInfo, error) {
 
 func genChartIcon(chartName string) string {
 	return iconPrefix + chartName + iconFormat
+}
+
+func expandFile(chartFileDir string, r io.Reader) (string, error) {
+	var unzipFileDir string
+	gzipReader, err := gzip.NewReader(r)
+	if err != nil {
+		return unzipFileDir, err
+	}
+	defer gzipReader.Close()
+	tarReader := tar.NewReader(gzipReader)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return unzipFileDir, err
+		}
+
+		headerName := "." + header.Name
+		headerDir := filepath.Dir(headerName)
+		if unzipFileDir == "" {
+			unzipFileDir = headerDir
+			os.RemoveAll(path.Join(chartFileDir, headerDir))
+		}
+
+		fullDir := filepath.Join(chartFileDir, headerDir)
+		_, err = os.Stat(fullDir)
+		if err != nil && headerDir != "" {
+			if err := os.MkdirAll(fullDir, 0700); err != nil {
+				return unzipFileDir, err
+			}
+		}
+
+		chartFilePath := filepath.Clean(filepath.Join(chartFileDir, headerName))
+		info := header.FileInfo()
+		if info.IsDir() {
+			if err = os.MkdirAll(chartFilePath, info.Mode()); err != nil {
+				return unzipFileDir, err
+			}
+			continue
+		}
+
+		chartFile, err := os.OpenFile(chartFilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
+		if err != nil {
+			return unzipFileDir, err
+		}
+
+		if _, err = io.Copy(chartFile, tarReader); err != nil {
+			chartFile.Close()
+			return unzipFileDir, err
+		}
+		chartFile.Close()
+	}
+
+	return unzipFileDir, nil
 }
