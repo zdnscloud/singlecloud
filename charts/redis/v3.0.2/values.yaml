@@ -66,7 +66,7 @@ networkPolicy:
 ## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
 ##
 usePassword: true
-password:
+password: zcloud
 ## Use existing secret (ignores previous password)
 # existingSecret:
 
@@ -157,7 +157,7 @@ master:
     fsGroup: 1001
     runAsUser: 1001
   persistence:
-    enabled: true
+    enabled: false
 
     ## The path the volume will be mounted at, useful when using different
     ## Redis images.
