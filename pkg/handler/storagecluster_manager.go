@@ -81,7 +81,7 @@ func (m StorageClusterManager) Get(ctx *resource.Context) resource.Resource {
 
 func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return resterror.NewAPIError(resterror.PermissionDenied, "only admin can delete storagecluster")
+		return gorestError.NewAPIError(gorestError.PermissionDenied, "only admin can delete storagecluster")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
@@ -103,7 +103,7 @@ func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIErr
 
 func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resterror.NewAPIError(resterror.PermissionDenied, "only admin can create storagecluster")
+		return nil, gorestError.NewAPIError(gorestError.PermissionDenied, "only admin can create storagecluster")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
@@ -126,7 +126,7 @@ func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource,
 
 func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resterror.NewAPIError(resterror.PermissionDenied, "only admin can update storagecluster")
+		return nil, gorestError.NewAPIError(gorestError.PermissionDenied, "only admin can update storagecluster")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
