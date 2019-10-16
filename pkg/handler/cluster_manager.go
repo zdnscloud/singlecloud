@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/cement/slice"
@@ -213,6 +214,7 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 		if m.authorizer.GetUser(user) == nil {
 			newUser := &types.User{Name: user}
 			newUser.SetID(user)
+			newUser.SetCreationTimestamp(time.Now())
 			m.authorizer.AddUser(newUser)
 		}
 
