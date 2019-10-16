@@ -80,6 +80,9 @@ func (m StorageClusterManager) Get(ctx *resource.Context) resource.Resource {
 }
 
 func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIError {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return resterror.NewAPIError(resterror.PermissionDenied, "only admin can delete storagecluster")
+	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return gorestError.NewAPIError(gorestError.NotFound, "storagecluster doesn't exist")
@@ -99,6 +102,9 @@ func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIErr
 }
 
 func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resterror.NewAPIError(resterror.PermissionDenied, "only admin can create storagecluster")
+	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
@@ -119,6 +125,9 @@ func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource,
 }
 
 func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resterror.NewAPIError(resterror.PermissionDenied, "only admin can update storagecluster")
+	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
@@ -149,9 +158,9 @@ func getStorageClusters(cli client.Client) (*storagev1.ClusterList, error) {
 
 func deleteStorageCluster(cli client.Client, name string) error {
 	k8sStorageCluster, err := getStorageCluster(cli, name)
-        if err != nil {
-                return err
-        }
+	if err != nil {
+		return err
+	}
 	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
 		return errors.New("storagecluster in Creating or Updating, not allowed delete")
 	}
