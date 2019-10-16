@@ -1,0 +1,90 @@
+[{
+        "label": "rootUser",
+        "jsonKey": "rootUser.password",
+        "type": "string",
+        "required": "false",
+        "description": "MariaDB admin password",
+        "default": "mariadb"
+    },
+    {
+        "label": "dbUser",
+        "jsonKey": "db.user",
+        "type": "string",
+        "required": "false",
+        "description": "MariaDB username",
+        "default": "mariadb"
+    },
+    {
+        "label": "dbPassword",
+        "jsonKey": "db.password",
+        "type": "string",
+        "required": "false",
+        "description": "MariaDB password, default mariadb",
+        "default": "mariadb"
+    },
+    {
+        "label": "dbName",
+        "jsonKey": "db.name",
+        "type": "string",
+        "required": "false",
+        "description": "MariaDB database to create",
+        "default": "my_database"
+    },
+    {
+        "label": "replicationPassword",
+        "jsonKey": "replication.password",
+        "type": "string",
+        "required": "false",
+        "description": "MariaDB replication user(replicator) password, default mariadb",
+        "default": "mariadb"
+    },
+    {
+        "label": "masterStorageClass",
+        "jsonKey": "master.persistence.storageClass",
+        "type": "enum",
+        "required": "false",
+        "description": "master storageClass",
+        "validValues": ["cephfs", "lvm"]
+    },
+    {
+        "label": "masterStorageSize",
+        "jsonKey": "master.persistence.size",
+        "type": "string",
+        "required": "false",
+        "description": "master storage size, example 8Gi",
+        "default": "8Gi"
+    },
+    {
+        "label": "slaveReplicas",
+        "jsonKey": "slave.replicas",
+        "type": "int",
+        "required": "false",
+        "description": "slave replicas count",
+        "default": 2
+    },
+    {
+        "label": "slaveStorageClass",
+        "jsonKey": "slave.persistence.storageClass",
+        "type": "enum",
+        "required": "false",
+        "description": "slave storageClass",
+        "validValues": ["cephfs", "lvm"]
+    },
+    {
+        "label": "slaveStorageSize",
+        "jsonKey": "slave.persistence.size",
+        "type": "string",
+        "required": "false",
+        "description": "slave storage size, example 8Gi",
+        "default": "8Gi"
+    },
+    {
+        "label": "serviceType",
+        "jsonKey": "service.type",
+        "type": "enum",
+        "required": "false",
+        "description": "MariaDB service type[ClusterIP|NodePort]",
+        "validValues": ["ClusterIP", "NodePort"],
+        "default": "ClusterIP"
+    }
+]
