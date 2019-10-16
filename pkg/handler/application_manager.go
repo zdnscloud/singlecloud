@@ -671,24 +671,26 @@ func isCRDReady(crd apiextv1beta1.CustomResourceDefinition) bool {
 	return false
 }
 
-func waitCRDsReady(client client.Client, requiredCRDs []*apiextv1beta1.CustomResourceDefinition, checkTimes int, checkInterval time.Duration) bool {
-	var readyCount int
-	var allCRDs apiextv1beta1.CustomResourceDefinitionList
-	for i := 0; i < checkTimes; i++ {
-		if err := client.List(context.TODO(), nil, &allCRDs); err == nil {
-			for _, crd := range allCRDs.Items {
-				for _, required := range requiredCRDs {
-					if crd.Name == required.Name && isCRDReady(crd) {
-						readyCount += 1
-					}
-				}
+func isCRDsReady(requiredCRDs []*apiextv1beta1.CustomResourceDefinition, allCRDs apiextv1beta1.CustomResourceDefinitionList) bool {
+	for _, required := range requiredCRDs {
+		for _, crd := range allCRDs.Items {
+			if crd.Name == required.Name && !isCRDReady(crd) {
+				return false
 			}
-			if readyCount == len(requiredCRDs) {
+		}
+	}
+	return true
+}
+
+func waitCRDsReady(client client.Client, requiredCRDs []*apiextv1beta1.CustomResourceDefinition) bool {
+	var allCRDs apiextv1beta1.CustomResourceDefinitionList
+	for i := 0; i < crdCheckTimes; i++ {
+		if err := client.List(context.TODO(), nil, &allCRDs); err == nil {
+			if isCRDsReady(requiredCRDs, allCRDs) {
 				return true
 			}
 		}
-		readyCount = 0
-		time.Sleep(checkInterval)
+		time.Sleep(crdCheckInterval)
 	}
 	return false
 }
@@ -709,6 +711,7 @@ func preInstallChartCRDs(cli client.Client, manifests []types.Manifest) error {
 
 			if err := cli.Create(ctx, obj); err != nil {
 				if apierrors.IsAlreadyExists(err) {
+					log.Infof("ignore already exist crd %s", crd.Name)
 					return nil
 				}
 				return fmt.Errorf("create crd with file %s failed: %s", manifest.File, err.Error())
@@ -719,7 +722,7 @@ func preInstallChartCRDs(cli client.Client, manifests []types.Manifest) error {
 		}
 	}
 
-	if !waitCRDsReady(cli, crds, crdCheckTimes, crdCheckInterval) {
+	if !waitCRDsReady(cli, crds) {
 		return fmt.Errorf("preinstall chart crds timeout")
 	}
 	return nil
