@@ -672,21 +672,21 @@ func isCRDReady(crd apiextv1beta1.CustomResourceDefinition) bool {
 }
 
 func isCRDsReady(requiredCRDs []*apiextv1beta1.CustomResourceDefinition, allCRDs apiextv1beta1.CustomResourceDefinitionList) bool {
-	foundCount := 0
 	for _, required := range requiredCRDs {
+		ready := false
 		for _, crd := range allCRDs.Items {
 			if crd.Name == required.Name {
-				foundCount += 1
-				if !isCRDReady(crd) {
-					return false
+				if isCRDReady(crd) {
+					ready = true
 				}
+				break
 			}
 		}
+		if !ready {
+			return false
+		}
 	}
-	if foundCount == len(requiredCRDs) {
-		return true
-	}
-	return false
+	return true
 }
 
 func waitCRDsReady(client client.Client, requiredCRDs []*apiextv1beta1.CustomResourceDefinition) bool {
