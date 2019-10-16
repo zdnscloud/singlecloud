@@ -453,7 +453,7 @@ func loadChartFiles(namespace, chartPath, appName string, configs map[string]int
 		return nil, nil, err
 	}
 	if rel, ok := valuesToRender["Release"].(map[string]interface{}); ok {
-		rel["Service"] = "singlecloud"
+		rel["Service"] = "zcloud"
 	}
 
 	files, err := engine.Render(chartRequested, valuesToRender)
