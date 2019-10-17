@@ -12,7 +12,7 @@ type External struct {
 }
 
 type Zookeeper struct {
-	Replicas      int                    `json:"replicas"`
+	Replicas      int                    `json:"replicaCount"`
 	ClusterDomain string                 `json:"clusterDomain" rest:"required=true"`
 	Persistence   PersistentVolumeConfig `json:"persistence"`
 }

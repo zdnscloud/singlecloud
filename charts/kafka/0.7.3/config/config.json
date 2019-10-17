@@ -3,7 +3,7 @@
     {"label": "kafkaClusterDomain", "jsonKey": "external.clusterDomain", "type": "string", "required": "true", "description": "cluster domain name"},
     { "label": "kafkaStorageClass", "jsonKey": "persistence.storageClass", "type": "enum", "required": "true", "description": "postgres data persistent volume storage class", "validValues": ["lvm", "cephfs"]},
     { "label": "kafkaPersistentVolumeSize", "jsonKey": "persistence.size", "type": "string", "required": "false", "description": "postgres data persistent volume size", "default": "8Gi"},
-    {"label": "zookeeperReplicas", "jsonKey": "zookeeper.replicas", "type": "int", "required": "false", "description": "the num of zookeeper pod replicas", "default": 3},
+    {"label": "zookeeperReplicas", "jsonKey": "zookeeper.replicaCount", "type": "int", "required": "false", "description": "the num of zookeeper pod replicas", "default": 3},
     {"label": "zookeeperClusterDomain", "jsonKey": "zookeeper.clusterDomain", "type": "string", "required": "true", "description": "cluster domain name"},
     { "label": "zookeeperStorageClass", "jsonKey": "zookeeper.persistence.storageClass", "type": "enum", "required": "true", "description": "postgres data persistent volume storage class", "validValues": ["lvm", "cephfs"]},
     { "label": "zookeeperPersistentVolumeSize", "jsonKey": "zookeeper.persistence.size", "type": "string", "required": "false", "description": "postgres data persistent volume size", "default": "8Gi"}
