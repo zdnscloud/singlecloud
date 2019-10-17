@@ -1,5 +1,6 @@
 {{- $root := . -}}
 {{- $ns := .Release.Namespace -}}
+{{- $domain := .Values.clusterDomain -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,4 +14,4 @@ data:
   tick: "{{ .Values.env.ZK_TICK_TIME }}"
   client_port: "{{ .Values.env.ZK_CLIENT_PORT }}"
   purge_interval:  "{{ .Values.env.PURGE_INTERVAL }}"
-  servers: "{{ range $i, $e := until (.Values.replicaCount | int) }}{{ if ne $i 0 }};{{ end }}{{ template "zookeeper.fullname" $ }}-{{ $i }}.{{ template "zookeeper.fullname" $ }}-headless.{{ $ns }}.svc.{{ .Values.clusterDomain }}:2888:3888{{ end }}"
+  servers: "{{ range $i, $e := until (.Values.replicaCount | int) }}{{ if ne $i 0 }};{{ end }}{{ template "zookeeper.fullname" $ }}-{{ $i }}.{{ template "zookeeper.fullname" $ }}-headless.{{ $ns }}.svc.{{ $domain }}:2888:3888{{ end }}"
