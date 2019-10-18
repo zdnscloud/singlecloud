@@ -129,9 +129,7 @@ spec:
           heritage: {{ .Release.Service | quote }}
       spec:
         accessModes:
-        {{- range .Values.master.persistence.accessModes }}
-          - {{ . | quote }}
-        {{- end }}
+          - {{ .Values.master.persistence.accessMode | quote }}
         resources:
           requests:
             storage: {{ .Values.master.persistence.size | quote }}

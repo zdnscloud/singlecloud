@@ -175,8 +175,7 @@ master:
     ##
     # storageClass: "-"
     storageClass: "lvm"
-    accessModes:
-    - ReadWriteOnce
+    accessMode: ReadWriteOnce
     size: 8Gi
 
 
