@@ -63,6 +63,7 @@ var (
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.7",
 			StorageOperator:           "zdnscloud/storage-operator:v2.8",
+			ZcloudShell:               "zdnscloud/kubectl:v1.13.1",
 		},
 		"v1.13.9": {
 			Etcd:                      "zdnscloud/coreos-etcd:v3.3.10",
@@ -86,6 +87,7 @@ var (
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.7",
 			StorageOperator:           "zdnscloud/storage-operator:v2.8",
+			ZcloudShell:               "zdnscloud/kubectl:v1.13.10",
 		},
 		"v1.13.10": {
 			Etcd:                      "zdnscloud/coreos-etcd:v3.3.10",
@@ -109,7 +111,7 @@ var (
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.7",
 			StorageOperator:           "zdnscloud/storage-operator:v2.8",
-			ZcloudShell:               "zdnscloud/kubectl:v1.13.1",
+			ZcloudShell:               "zdnscloud/kubectl:v1.13.10",
 		},
 	}
 )
