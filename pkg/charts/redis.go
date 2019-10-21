@@ -1,8 +1,9 @@
 package charts
 
 type Redis struct {
-	Cluster RedisCluster `json:"cluster"`
-	Master  RedisMaster  `json:"master"`
+	Cluster  RedisCluster `json:"cluster"`
+	Master   RedisMaster  `json:"master"`
+	Password string       `json:"password" rest:"required=true"`
 }
 
 type RedisCluster struct {
@@ -10,10 +11,10 @@ type RedisCluster struct {
 }
 
 type RedisMaster struct {
-	Port             int                   `json:"port"`
-	PersistentVolume RedisPersistentVolume `json:"persistence"`
+	Persistence PersistentVolumeConfig `json:"persistence"`
 }
 
-type RedisPersistentVolume struct {
-	Enabled bool `json:"enabled" rest:"required=true"`
+type PersistentVolumeConfig struct {
+	StorageClass string `json:"storageClass" rest:"required=true,options=lvm|cephfs"`
+	Size         string `json:"size"`
 }

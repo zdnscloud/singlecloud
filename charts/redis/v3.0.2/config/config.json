@@ -1,5 +1,6 @@
 [
+    {"label": "password", "jsonKey": "password", "type": "string", "required": "true", "description": "redis database password"},
     { "label": "slaveCount", "jsonKey": "cluster.slaveCount", "type": "int", "required": "false", "description": "the number of redis slave", "default": 1},
-    { "label": "masterPort", "jsonKey": "master.port", "type": "int", "required": "false", "description": "redis master port", "default": 6379},
-    { "label": "masterPersistentVolume", "jsonKey": "master.persistence.enabled", "type": "bool", "required": "true", "description": "redis if use persistent volume"}
+    { "label": "storageClass", "jsonKey": "master.persistence.storageClass", "type": "enum", "required": "true", "description": "redis data persistent volume storage class", "validValues": ["lvm", "cephfs"]},
+    { "label": "persistentVolumeSize", "jsonKey": "master.persistence.size", "type": "string", "required": "false", "description": "redis data persistent volume size", "default": "8Gi"}
 ]
