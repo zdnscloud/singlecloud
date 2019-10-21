@@ -62,7 +62,7 @@ var (
 			NodeAgent:                 "zdnscloud/node-agent:v1.2",
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.7",
-			StorageOperator:           "zdnscloud/storage-operator:v3.2",
+			StorageOperator:           "zdnscloud/storage-operator:v3.3",
 			ZcloudShell:               "zdnscloud/kubectl:v1.13.1",
 		},
 		"v1.13.9": {
@@ -86,7 +86,7 @@ var (
 			NodeAgent:                 "zdnscloud/node-agent:v1.2",
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.7",
-			StorageOperator:           "zdnscloud/storage-operator:v3.2",
+			StorageOperator:           "zdnscloud/storage-operator:v3.3",
 			ZcloudShell:               "zdnscloud/kubectl:v1.13.10",
 		},
 		"v1.13.10": {
@@ -110,7 +110,7 @@ var (
 			NodeAgent:                 "zdnscloud/node-agent:v1.2",
 			MetricsServer:             "zdnscloud/metrics-server-amd64:v0.3.3",
 			ZKERemover:                "zdnscloud/zke-remove:v0.7",
-			StorageOperator:           "zdnscloud/storage-operator:v3.2",
+			StorageOperator:           "zdnscloud/storage-operator:v3.3",
 			ZcloudShell:               "zdnscloud/kubectl:v1.13.10",
 		},
 	}
