@@ -90,7 +90,7 @@ spec:
       {{- if .Values.master.extraInitContainers }}
 {{ tpl .Values.master.extraInitContainers . | indent 6}}
       {{- end }}
-      {{- if and .Values.volumePermissions.enabled .Values.slave.persistence.enabled }}
+      {{- if and .Values.volumePermissions.enabled .Values.persistence.enabled }}
       - name: volume-permissions
         image: {{ template "mariadb.volumePermissions.image" . }}
         imagePullPolicy: {{ .Values.volumePermissions.image.pullPolicy | quote }}
@@ -233,7 +233,7 @@ spec:
           configMap:
             name: {{ template "slave.fullname" . }}
       {{- end }}
-{{- if .Values.slave.persistence.enabled }}
+{{- if .Values.persistence.enabled }}
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -244,12 +244,12 @@ spec:
           heritage: {{ .Release.Service | quote }}
       spec:
         accessModes:
-        {{- range .Values.slave.persistence.accessModes }}
+        {{- range .Values.persistence.accessModes }}
           - {{ . | quote }}
         {{- end }}
         resources:
           requests:
-            storage: {{ .Values.slave.persistence.size | quote }}
+            storage: {{ .Values.persistence.size | quote }}
         {{ include "mariadb.slave.storageClass" . }}
 {{- else }}
         - name: "data"

@@ -2,29 +2,13 @@ package charts
 
 type Mariadb struct {
 	RootUser    MariadbRootUser    `json:"rootUser"`
-	DB          MaridbDataBase     `json:"db"`
-	Replication MariadbReplication `json:"replication"`
-	Master      MariadbMaster      `json:"master"`
 	Slave       MariadbSlave       `json:"slave"`
+	Persistence MariadbPersistence `json:"persistence"`
 	Service     MariadbService     `json:"service"`
 }
 
 type MariadbRootUser struct {
-	Password string `json:"password"`
-}
-
-type MaridbDataBase struct {
-	Name     string `json:"name"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-}
-
-type MariadbReplication struct {
-	Password string `json:"password"`
-}
-
-type MariadbMaster struct {
-	Persistence MariadbPersistence `json:"persistence"`
+	Password string `json:"password" rest:"required=true"`
 }
 
 type MariadbPersistence struct {
@@ -33,8 +17,7 @@ type MariadbPersistence struct {
 }
 
 type MariadbSlave struct {
-	Replicas    int                `json:"replicas"`
-	Persistence MariadbPersistence `json:"persistence"`
+	Replicas int `json:"replicas" rest:"min=1,max=9"`
 }
 
 type MariadbService struct {

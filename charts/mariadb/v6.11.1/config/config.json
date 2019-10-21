@@ -1,58 +1,10 @@
 [{
-        "label": "rootUser",
+        "label": "rootUserPassword",
         "jsonKey": "rootUser.password",
         "type": "string",
         "required": "false",
         "description": "MariaDB admin password",
         "default": "mariadb"
-    },
-    {
-        "label": "dbUser",
-        "jsonKey": "db.user",
-        "type": "string",
-        "required": "false",
-        "description": "MariaDB username",
-        "default": "mariadb"
-    },
-    {
-        "label": "dbPassword",
-        "jsonKey": "db.password",
-        "type": "string",
-        "required": "false",
-        "description": "MariaDB password, default mariadb",
-        "default": "mariadb"
-    },
-    {
-        "label": "dbName",
-        "jsonKey": "db.name",
-        "type": "string",
-        "required": "false",
-        "description": "MariaDB database to create",
-        "default": "my_database"
-    },
-    {
-        "label": "replicationPassword",
-        "jsonKey": "replication.password",
-        "type": "string",
-        "required": "false",
-        "description": "MariaDB replication user(replicator) password, default mariadb",
-        "default": "mariadb"
-    },
-    {
-        "label": "masterStorageClass",
-        "jsonKey": "master.persistence.storageClass",
-        "type": "enum",
-        "required": "false",
-        "description": "master storageClass",
-        "validValues": ["cephfs", "lvm"]
-    },
-    {
-        "label": "masterStorageSize",
-        "jsonKey": "master.persistence.size",
-        "type": "string",
-        "required": "false",
-        "description": "master storage size, example 8Gi",
-        "default": "8Gi"
     },
     {
         "label": "slaveReplicas",
@@ -63,19 +15,19 @@
         "default": 2
     },
     {
-        "label": "slaveStorageClass",
-        "jsonKey": "slave.persistence.storageClass",
+        "label": "storageClass",
+        "jsonKey": "persistence.storageClass",
         "type": "enum",
         "required": "false",
-        "description": "slave storageClass",
+        "description": "mariadb persistence storageClass",
         "validValues": ["cephfs", "lvm"]
     },
     {
-        "label": "slaveStorageSize",
-        "jsonKey": "slave.persistence.size",
+        "label": "storageSize",
+        "jsonKey": "persistence.size",
         "type": "string",
         "required": "false",
-        "description": "slave storage size, example 8Gi",
+        "description": "mariadb persistence storage size, example 8Gi",
         "default": "8Gi"
     },
     {
