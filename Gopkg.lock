@@ -535,7 +535,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fc14e4757e3280fc1be5f15cad43b919ce6ae2410ff61c00a21c6661dabc29a3"
+  digest = "1:b93a1759a64929c2060ee60111fb2e78ea3fa85bc507a9c6f6ca67685970807f"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -558,11 +558,11 @@
     "x509",
   ]
   pruneopts = "UT"
-  revision = "7eb205536ab847a023df949a9d333c0f41bfd9f3"
+  revision = "f8084a52d153308113d41aa679271f65e155f062"
 
 [[projects]]
   branch = "master"
-  digest = "1:690cd103a39184f2f7f74240941bcee1eecd45d87528a38fc1f2e4fad67c1762"
+  digest = "1:659e624a0330168779a1fcb1e17aa2705bb08aad63366858f6600bd592414565"
   name = "github.com/zdnscloud/g53"
   packages = [
     ".",
@@ -570,7 +570,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "bf6c958cc80e5b1c9672b455660471ce8899809b"
+  revision = "e59e91c2d63e28bfba62e3cede2e06b4418ff494"
 
 [[projects]]
   branch = "master"
@@ -605,7 +605,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:240e53292415ae67325787214715b498c6b5a57bd092fd5d98ba9844375a50bb"
+  digest = "1:ed8ac81b5d8ba8a0b58e4c3bb80ca4cc1e5a9c03912f745a59a3a7f9a6828163"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -617,7 +617,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "a78cfe6d51deb5e26e085adb03842f8f9d2ca1a0"
+  revision = "2fe817f895ecb06a10b7ea56931ed0e87815dedc"
 
 [[projects]]
   branch = "master"
@@ -651,7 +651,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:16ac4b7cb68dfd89d0573fc845ad010dc77f3230b584cd77aaa95dfc70ae01a3"
+  digest = "1:291955ad4d225f48cce44240c26045e53934f3003bebb548ae80cdcb588bd9ae"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -681,7 +681,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "852eff1ddb80fd880a430bd5cfa44103f72f2266"
+  revision = "cb85bef5d6aa3332dcfc0c2a41ccde7b0113e0d6"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -1121,15 +1121,23 @@
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/validation",
+    "k8s.io/apimachinery/pkg/util/wait",
+    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/cache",
+    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/remotecommand",
+    "k8s.io/client-go/util/workqueue",
+    "k8s.io/klog",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"
