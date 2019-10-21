@@ -1,7 +1,7 @@
 package charts
 
 type Mariadb struct {
-	RootUser    MariadbRootUser    `json:"rootUser"`
+	RootUser    MariadbRootUser    `json:"rootUser" rest:"required=true"`
 	Slave       MariadbSlave       `json:"slave"`
 	Persistence MariadbPersistence `json:"persistence"`
 	Service     MariadbService     `json:"service"`
