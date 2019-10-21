@@ -157,7 +157,7 @@ master:
     fsGroup: 1001
     runAsUser: 1001
   persistence:
-    enabled: false
+    enabled: true
 
     ## The path the volume will be mounted at, useful when using different
     ## Redis images.
