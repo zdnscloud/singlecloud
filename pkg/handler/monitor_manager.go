@@ -238,11 +238,12 @@ func ensureApplicationSucceedOrDie(db storage.DB, cluster *zke.Cluster, tableNam
 		if err != nil {
 			if err == storage.ErrNotFoundResource {
 				log.Infof("delete system application %s succeed", appName)
-				return
 			} else {
 				log.Warnf("get system application %s failed %s", appName, err.Error())
 			}
+			return
 		}
+
 		switch sysApp.Status {
 		case types.AppStatusFailed:
 			if err := deleteApplication(db, cluster.KubeClient, cluster.Name, ZCloudNamespace, appName, true); err != nil {
