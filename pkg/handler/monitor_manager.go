@@ -236,11 +236,7 @@ func ensureApplicationSucceedOrDie(db storage.DB, cluster *zke.Cluster, tableNam
 	for i := 0; i < sysApplicationCheckTimes; i++ {
 		sysApp, err := getApplicationFromDB(db, tableName, appName, true)
 		if err != nil {
-			if err == storage.ErrNotFoundResource {
-				log.Infof("delete system application %s succeed", appName)
-			} else {
-				log.Warnf("get system application %s failed %s", appName, err.Error())
-			}
+			log.Warnf("get system application %s failed %s", appName, err.Error())
 			return
 		}
 
