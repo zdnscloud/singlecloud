@@ -69,9 +69,9 @@ questions:
   group: "Redis Master Settings"
   subquestions:
   - variable: master.persistence.size
-    default: "8Gi"
+    default: 8
     description: "Persistent volume size"
-    type: string
+    type: int
     label: Persistent Volume Size
   - variable: master.persistence.storageClass
     default: ""
