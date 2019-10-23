@@ -43,13 +43,13 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 		fsm.Callbacks{
 			InitSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
-				mgr.MoveToReady(cluster)
+				cluster.logCh = nil
 				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
 			CreateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
-				mgr.MoveToReady(cluster)
+				cluster.logCh = nil
 				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
 				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
@@ -61,7 +61,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 			UpdateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
-				mgr.MoveToReady(cluster)
+				cluster.logCh = nil
 				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
 				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},

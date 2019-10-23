@@ -47,9 +47,6 @@ deployment:
     repository: zdnscloud/vanguard
     tag: v0.1
     pullPolicy: IfNotPresent
-  livenessProbe:
-    httpGet:
-      port: 9000
 
 service:
   port: 53

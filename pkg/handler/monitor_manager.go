@@ -300,6 +300,7 @@ func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, clu
 			}
 			return
 		}
+
 		switch sysApp.Status {
 		case types.AppStatusFailed:
 			app, err := updateAppStatusToDeleteFromDB(db, tableName, appName, true)

@@ -1,6 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
+  name: zcloud:{{ .Release.Namespace }}-{{ template "vanguard.fullname" . }}
   annotations:
     rbac.authorization.kubernetes.io/autoupdate: "true"
   labels:
@@ -9,7 +10,6 @@ metadata:
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
     kubernetes.io/bootstrapping: rbac-defaults
-  name: {{ template "vanguard.fullname" . }}
 subjects:
   - kind: ServiceAccount
     name: {{ template "vanguard.serviceAccount.name" . }}
@@ -17,4 +17,4 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ template "vanguard.fullname" . }}
+  name: zcloud:{{ .Release.Namespace }}-{{ template "vanguard.fullname" . }}

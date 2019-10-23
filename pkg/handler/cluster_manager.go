@@ -2,10 +2,10 @@ package handler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/cement/slice"
-	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
@@ -101,19 +101,27 @@ func (m *ClusterManager) Get(ctx *restresource.Context) restresource.Resource {
 	if cluster != nil {
 		sc := cluster.ToTypesCluster()
 		if cluster.IsReady() {
-			return getClusterInfo(cluster.KubeClient, sc)
+			return getClusterInfo(cluster, sc)
 		}
 		return sc
 	}
 	return nil
 }
 
-func getClusterInfo(cli client.Client, sc *types.Cluster) *types.Cluster {
-	if cli == nil {
+func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
+	if !zkeCluster.IsReady() {
 		return sc
 	}
 
-	nodes, err := getNodes(cli)
+	version, err := zkeCluster.KubeClient.ServerVersion()
+	if err != nil {
+		zkeCluster.Event(zke.GetInfoFailedEvent)
+		return sc
+	}
+	zkeCluster.Event(zke.GetInfoSuccessEvent)
+	sc.Version = version.GitVersion
+
+	nodes, err := getNodes(zkeCluster.KubeClient)
 	if err != nil {
 		return sc
 	}
@@ -152,7 +160,7 @@ func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
 			sc := c.ToTypesCluster()
 			allClusters = append(allClusters, sc)
 			if c.IsReady() {
-				readyClusters = append(readyClusters, getClusterInfo(c.KubeClient, sc))
+				readyClusters = append(readyClusters, sc)
 			}
 		}
 	}
@@ -206,6 +214,7 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 		if m.authorizer.GetUser(user) == nil {
 			newUser := &types.User{Name: user}
 			newUser.SetID(user)
+			newUser.SetCreationTimestamp(time.Now())
 			m.authorizer.AddUser(newUser)
 		}
 

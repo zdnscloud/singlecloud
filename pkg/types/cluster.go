@@ -1,6 +1,8 @@
 package types
 
 import (
+	"strings"
+
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/zke/core"
 )
@@ -28,14 +30,11 @@ const (
 	DefaultClusterDNSServiceIP = "10.43.0.10"
 	DefaultClusterDomain       = "cluster.local"
 	DefaultSSHPort             = "22"
+	DefaultClusterUpstreamDNS1 = "223.5.5.5"
+	DefaultClusterUpstreamDNS2 = "114.114.114.114"
 
 	ScVersionImported = "imported"
 )
-
-var DefaultClusterUpstreamDNS = []string{
-	"223.5.5.5",
-	"114.114.114.114",
-}
 
 type Cluster struct {
 	resource.ResourceBase `json:",inline"`
@@ -95,7 +94,7 @@ func (c Cluster) CreateDefaultResource() resource.Resource {
 		ServiceCidr:         DefaultServiceCIDR,
 		ClusterDomain:       DefaultClusterDomain,
 		ClusterDNSServiceIP: DefaultClusterDNSServiceIP,
-		ClusterUpstreamDNS:  DefaultClusterUpstreamDNS,
+		ClusterUpstreamDNS:  []string{DefaultClusterUpstreamDNS1, DefaultClusterUpstreamDNS2},
 		SSHPort:             DefaultSSHPort,
 	}
 }
@@ -117,5 +116,25 @@ func (c Cluster) CreateAction(name string) *resource.Action {
 		}
 	default:
 		return nil
+	}
+}
+
+func (c *Cluster) TrimFieldSpace() {
+	c.Name = strings.TrimSpace(c.Name)
+	c.SSHUser = strings.TrimSpace(c.SSHUser)
+	c.SSHPort = strings.TrimSpace(c.SSHPort)
+	c.SingleCloudAddress = strings.TrimSpace(c.SingleCloudAddress)
+	c.ClusterDomain = strings.TrimSpace(c.ClusterDomain)
+	c.ClusterCidr = strings.TrimSpace(c.ClusterCidr)
+	c.ServiceCidr = strings.TrimSpace(c.ServiceCidr)
+	c.ClusterDNSServiceIP = strings.TrimSpace(c.ClusterDNSServiceIP)
+
+	for i, n := range c.Nodes {
+		c.Nodes[i].Name = strings.TrimSpace(n.Name)
+		c.Nodes[i].Address = strings.TrimSpace(n.Address)
+	}
+
+	for i, ns := range c.ClusterUpstreamDNS {
+		c.ClusterUpstreamDNS[i] = strings.TrimSpace(ns)
 	}
 }
