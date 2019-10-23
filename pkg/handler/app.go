@@ -91,6 +91,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.Application{}, appManager)
 	schemas.MustImport(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appManager))
 	schemas.MustImport(&Version, types.Registry{}, newRegistryManager(a.clusterManager, appManager))
+	schemas.MustImport(&Version, types.EFK{}, newEFKManager(a.clusterManager, appManager))
 
 	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.MustImport(&Version, types.User{}, userManager)

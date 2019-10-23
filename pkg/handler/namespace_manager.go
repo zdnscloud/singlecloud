@@ -192,7 +192,7 @@ func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
 	nodes, err := getNodes(cli)
 	if err != nil {
 		log.Warnf("get node info failed:%s", err.Error())
-		return nil
+		return namespace
 	}
 
 	for _, n := range nodes {
@@ -207,7 +207,7 @@ func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
 	podMetricsList, err := cli.GetPodMetrics(name, "", labels.Everything())
 	if err != nil {
 		log.Warnf("get pod metrcis failed:%s", err.Error())
-		return nil
+		return namespace
 	}
 
 	var podsWithCpuInfo []*types.PodCpuInfo

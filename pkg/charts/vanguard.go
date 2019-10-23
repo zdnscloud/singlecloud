@@ -6,22 +6,7 @@ type Vanguard struct {
 }
 
 type VanguardDeploy struct {
-	Replicas int           `json:"replicas"`
-	Image    VanguardImage `json:"image"`
-	Probe    LivenessProbe `json:"livenessProbe"`
-}
-
-type VanguardImage struct {
-	Repository string `json:"repository"`
-	Tag        string `json:"tag"`
-}
-
-type LivenessProbe struct {
-	HttpGet ProbeHttpGet `json:"httpGet"`
-}
-
-type ProbeHttpGet struct {
-	Port int `json:"port"`
+	Replicas int `json:"replicas"`
 }
 
 type VanguardConfigmap struct {

@@ -29,6 +29,10 @@ func (m *UserManager) Create(ctx *restresource.Context) (restresource.Resource, 
 	}
 
 	user := ctx.Resource.(*types.User)
+	if user.Password == "" {
+		return nil, resterr.NewAPIError(resterr.NotNullable, "empty password")
+	}
+
 	user.SetID(user.Name)
 	user.SetCreationTimestamp(time.Now())
 	if err := m.authenticator.AddUser(user); err != nil {

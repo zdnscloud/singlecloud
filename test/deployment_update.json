@@ -1,0 +1,56 @@
+{
+    "resourceUrl": "http://127.0.0.1:1234/apis/zcloud.cn/v1/clusters/%s/namespaces/sc-test-namespace1/deployments/sc-test-deployment1",
+
+    "params": {
+		"name":            "sc-test-deployment1",
+		"replicas":        2,
+        "memo": "update command, env, mount path",
+		"containers":      [
+            {
+                "name": "sc-test-containter1",
+                "image": "busybox",
+                "command": ["ls -h"],
+                "args": ["-l", "/tmp"],
+                "env": [
+                    {
+                        "name": "TESTENV1",
+                        "value": "testenv1-1"
+                    }
+                ],
+                "exposedPorts": [
+                    {
+                        "name": "sc-test-port1",
+                        "port": 22222,
+                        "protocol": "TCP"
+                    }
+                ],
+
+                "volumes": [
+                    {
+                        "type": "configmap",
+                        "name": "sc-test-configmap1",
+                        "mountPath": "/etc/scconfig-1"
+                    }, 
+                    {
+                        "type": "secret",
+                        "name": "sc-test-secret1",
+                        "mountPath": "/etc/scsecret-1"
+                    },
+                    {
+                        "type": "persistentVolume",
+                        "name": "sc-test-emptydir1",
+                        "mountPath": "/etc/scdmtestpvc11-1"
+                    }
+                ]
+            }
+        ],
+
+        "persistentVolumes": [
+            {
+                "name": "sc-test-emptydir1",
+                "size": "100Mi",
+                "storageClassName": "temporary"
+            }
+        ]
+    }
+}
