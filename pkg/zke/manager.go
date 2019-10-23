@@ -166,7 +166,7 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	if err := existCluster.fsm.Event(UpdateEvent); err != nil {
+	if err := existCluster.Event(UpdateEvent); err != nil {
 		return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s can not update", typesCluster.Name))
 	}
 
@@ -239,7 +239,7 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 		return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
 
-	if err := toDelete.fsm.Event(DeleteEvent); err != nil {
+	if err := toDelete.Event(DeleteEvent); err != nil {
 		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s can't delete %s", toDelete.Name, err.Error()))
 	}
 

@@ -1,0 +1,47 @@
+{
+    "resourceType": "efk",
+    "collectionName": "efks",
+    "parentResources": ["cluster"],
+
+    "resourceFields": {
+        "ingressDomain": {
+            "type": "string"
+        },
+        "storageClass": {
+            "type": "enum",
+            "validValues": ["cephfs", "lvm"]
+        },
+        "storageSize": {
+            "type": "int"
+        },
+        "esReplicas": {
+            "type": "int"
+        },
+        "redirectUrl": {
+            "type": "string"
+        },
+        "status": {
+            "type": "enum",
+            "validValues": ["create", "succeed"]
+        }
+    },
+    "resourceMethods": ["GET"],
+    "collectionMethods": ["GET", "POST"],
+    "postParameters": {
+        "fields": {
+            "ingressDomain": {
+                "type": "string"
+            },
+            "storageClass": {
+                "type": "enum",
+                "validValues": ["cephfs", "lvm"]
+            },
+            "storageSize": {
+                "type": "int"
+            },
+            "esReplicas": {
+                "type": "int"
+            }
+        }
+    }
+}

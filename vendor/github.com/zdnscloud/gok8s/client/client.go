@@ -61,6 +61,8 @@ func New(config *rest.Config, options Options) (Client, error) {
 		return nil, err
 	}
 
+	originalTimeout := config.Timeout
+	config.Timeout = 10 * time.Second
 	metricsClient, err := metricsclientset.NewForConfig(config)
 	if err != nil {
 		metricsClient = nil
@@ -71,6 +73,7 @@ func New(config *rest.Config, options Options) (Client, error) {
 		discoveryClient = nil
 	}
 
+	config.Timeout = originalTimeout
 	return &client{
 		discoveryClient: discoveryClient,
 		metricsClient:   metricsClient,

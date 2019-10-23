@@ -4,10 +4,14 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"testing"
 )
 
-func Assert(t *testing.T, condition bool, msg string, v ...interface{}) {
+type TestingT interface {
+	Logf(format string, args ...interface{})
+	FailNow()
+}
+
+func Assert(t TestingT, condition bool, msg string, v ...interface{}) {
 	if !condition {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d: "+msg+"\033[39m\n\n",
@@ -16,7 +20,7 @@ func Assert(t *testing.T, condition bool, msg string, v ...interface{}) {
 	}
 }
 
-func Equal(t *testing.T, act, exp interface{}) {
+func Equal(t TestingT, act, exp interface{}) {
 	if !reflect.DeepEqual(exp, act) {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n",
@@ -25,7 +29,7 @@ func Equal(t *testing.T, act, exp interface{}) {
 	}
 }
 
-func NotEqual(t *testing.T, act, exp interface{}) {
+func NotEqual(t TestingT, act, exp interface{}) {
 	if reflect.DeepEqual(exp, act) {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n",
@@ -34,7 +38,7 @@ func NotEqual(t *testing.T, act, exp interface{}) {
 	}
 }
 
-func InDelta(t *testing.T, expected, actual, delta float64) {
+func InDelta(t TestingT, expected, actual, delta float64) {
 	dt := expected - actual
 	if dt < -delta || dt > delta {
 		_, file, line, _ := runtime.Caller(1)

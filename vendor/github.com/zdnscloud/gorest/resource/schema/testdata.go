@@ -2,9 +2,6 @@ package schema
 
 import (
 	"github.com/zdnscloud/gorest/resource"
-	"testing"
-
-	ut "github.com/zdnscloud/cement/unittest"
 )
 
 var version = resource.APIVersion{
@@ -121,16 +118,6 @@ func (c Pod) CreateDefaultResource() resource.Resource {
 			},
 		},
 	}
-}
-
-func PodEqual(t *testing.T, c, p *Pod) {
-	ut.Equal(t, c.Name, p.Name)
-	ut.Equal(t, c.Count, p.Count)
-	ut.Equal(t, c.Annotations, p.Annotations)
-	ut.Equal(t, c.OtherInfo, p.OtherInfo)
-	ut.Equal(t, c.OtherInfoSlice, p.OtherInfoSlice)
-	ut.Equal(t, c.OtherInfoPointer, p.OtherInfoPointer)
-	ut.Equal(t, c.OtherInfoPointerSlice, p.OtherInfoPointerSlice)
 }
 
 func createSchemaManager() *SchemaManager {
