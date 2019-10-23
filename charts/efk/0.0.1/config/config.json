@@ -3,24 +3,24 @@
         "jsonKey": "elasticsearch.replicas",
         "type": "int",
         "required": "false",
-        "description": "elasticsearch statefulSet replicas",
+        "description": "elasticsearch cluster node number",
         "default": "3"
     },
     {
+        "label": "elasticsearchStorageClass",
+        "jsonKey": "elasticsearch.volumeClaimTemplate.storageClassName",
+        "type": "enum",
+        "required": "false",
+        "description": "elasticsearch storageClass type",
+        "validValues": ["cephfs", "lvm"]
+    },
+    {
         "label": "elasticsearchStorageSize",
-        "jsonKey": "elasticsearch.volumeClaimTemplate.resources.requests.elasticsearch",
+        "jsonKey": "elasticsearch.volumeClaimTemplate.resources.requests.storage",
         "type": "string",
         "required": "false",
         "description": "elasticsearch storage size",
         "default": "10Gi"
-    },
-    {
-        "label": "kibanaServiceType",
-        "jsonKey": "kibana.service.type",
-        "type": "string",
-        "required": "false",
-        "description": "kibana service type",
-        "default": "NodePort"
     },
     {
         "label": "ingressDomain",

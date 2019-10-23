@@ -110,6 +110,7 @@ elasticsearch:
   transportPort: 9300
   updateStrategy: RollingUpdate
   volumeClaimTemplate:
+    storageClassName: "lvm"
     accessModes:
     - ReadWriteOnce
     resources:
@@ -212,7 +213,7 @@ kibana:
     annotations: {}
     nodePort: null
     port: 5601
-    type: NodePort
+    type: ClusterIP
   serviceAccount: ""
   tolerations: []
   updateStrategy:

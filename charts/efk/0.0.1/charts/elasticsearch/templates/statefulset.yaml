@@ -2,7 +2,7 @@
 apiVersion: {{ template "elasticsearch.statefulset.apiVersion" . }}
 kind: StatefulSet
 metadata:
-  name: {{ template "uname" . }}
+  name: {{ template "fullname" . }}
   labels:
     heritage: {{ .Release.Service | quote }}
     release: {{ .Release.Name | quote }}
@@ -25,7 +25,7 @@ spec:
   {{- if .Values.persistence.enabled }}
   volumeClaimTemplates:
   - metadata:
-      name: {{ template "uname" . }}
+      name: pvc
     {{- with .Values.persistence.annotations  }}
       annotations:
 {{ toYaml . | indent 8 }}
@@ -261,7 +261,7 @@ spec:
 {{- end }}
         volumeMounts:
           {{- if .Values.persistence.enabled }}
-          - name: "{{ template "uname" . }}"
+          - name: pvc
             mountPath: /usr/share/elasticsearch/data
           {{- end }}
 {{ if .Values.keystore }}

@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: fluent-bit
+  name: {{ template "fullname" . }}
   labels:
     app: {{ template "fluent-bit.fullname" . }}
 spec:

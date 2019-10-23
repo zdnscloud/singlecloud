@@ -17,3 +17,4 @@ keywords:
 - kibana
 - fluent-bit
 description: EFK stack
+systemChart: true

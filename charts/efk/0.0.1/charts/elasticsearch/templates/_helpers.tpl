@@ -29,7 +29,9 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 
 {{- define "endpoints" -}}
 {{- $replicas := .Values.replicas | int }}
-{{- $uname := printf "%s-%s" .Values.clusterName .Values.nodeGroup }}
+{{- $name := default .Chart.Name .Values.nameOverride -}}
+{{- $fullname := printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- $uname := printf "%s" $fullname }}
   {{- range $i, $e := untilStep 0 $replicas 1 -}}
 {{ $uname }}-{{ $i }},
   {{- end -}}

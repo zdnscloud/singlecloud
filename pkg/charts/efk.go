@@ -11,7 +11,8 @@ type ES struct {
 }
 
 type Pvc struct {
-	Resources PvcResources `json:"resources"`
+	StorageClass string       `json:"storageClassName"`
+	Resources    PvcResources `json:"resources"`
 }
 
 type PvcResources struct {
@@ -23,14 +24,9 @@ type PvcRequests struct {
 }
 
 type KA struct {
-	Service Svc           `json:"service"`
 	Ingress KibanaIngress `json:"ingress"`
 }
 
-type Svc struct {
-	Type string `json:"type"`
-}
-
 type KibanaIngress struct {
-	Ingress string `json:"hosts"`
+	Hosts string `json:"hosts"`
 }
