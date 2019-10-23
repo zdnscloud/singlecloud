@@ -16,5 +16,5 @@ type RedisMaster struct {
 
 type PersistentVolumeConfig struct {
 	StorageClass string `json:"storageClass" rest:"required=true,options=lvm|cephfs"`
-	Size         string `json:"size"`
+	Size         int    `json:"size"`
 }

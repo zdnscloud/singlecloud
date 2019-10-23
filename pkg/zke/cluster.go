@@ -307,6 +307,7 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 
 	sc.Network = types.ClusterNetwork{
 		Plugin: c.config.Network.Plugin,
+		Iface:  c.config.Network.Iface,
 	}
 
 	for _, node := range c.config.Nodes {

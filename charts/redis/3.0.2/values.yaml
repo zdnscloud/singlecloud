@@ -176,8 +176,7 @@ master:
     # storageClass: "-"
     storageClass: "lvm"
     accessMode: ReadWriteOnce
-    size: 8Gi
-
+    size: 8
 
 ##
 ## Redis Slave properties

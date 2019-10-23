@@ -63,6 +63,7 @@ func genZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 	config.Option.ClusterDNSServiceIP = cluster.ClusterDNSServiceIP
 	config.Option.ClusterUpstreamDNS = cluster.ClusterUpstreamDNS
 	config.Network.Plugin = cluster.Network.Plugin
+	config.Network.Iface = cluster.Network.Iface
 
 	config.Nodes = []zketypes.ZKEConfigNode{}
 	for _, node := range cluster.Nodes {

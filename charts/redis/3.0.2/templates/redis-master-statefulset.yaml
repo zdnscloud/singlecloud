@@ -132,7 +132,7 @@ spec:
           - {{ .Values.master.persistence.accessMode | quote }}
         resources:
           requests:
-            storage: {{ .Values.master.persistence.size | quote }}
+            storage: {{ .Values.master.persistence.size | quote }}Gi
       {{- if .Values.master.persistence.storageClass }}
       {{- if (eq "-" .Values.master.persistence.storageClass) }}
         storageClassName: ""
