@@ -33,6 +33,13 @@ var (
 	gClusterName string
 )
 
+const (
+	methodPost   = "POST"
+	methodPut    = "PUT"
+	methodGet    = "GET"
+	methodDelete = "DELETE"
+)
+
 type Token struct {
 	Token string `json:"token"`
 }
@@ -145,7 +152,7 @@ func getClusterName(stateJson []byte) (string, error) {
 
 func login(loginResource *TestLogin) error {
 	var token Token
-	if err := sendRequest("POST", loginResource.LoginUrl, parseBodyFromParams(loginResource.LoginParams), &token); err != nil {
+	if err := sendRequest(methodPost, loginResource.LoginUrl, parseBodyFromParams(loginResource.LoginParams), &token); err != nil {
 		return fmt.Errorf("login failed:%s", err.Error())
 	}
 	gToken = token.Token
@@ -177,7 +184,7 @@ func TestCluster(t *testing.T) {
 	ut.Equal(t, err, nil)
 	gClusterName = clusterName
 
-	err = sendRequest("POST", fmt.Sprintf(clusterResource.ImportUrl, gClusterName), bytes.NewBuffer(data), nil)
+	err = sendRequest(methodPost, fmt.Sprintf(clusterResource.ImportUrl, gClusterName), bytes.NewBuffer(data), nil)
 	ut.Equal(t, err, nil)
 
 	existClusterNum, err := getCollectionNum(clusterResource.CollectionUrl)
@@ -186,7 +193,7 @@ func TestCluster(t *testing.T) {
 
 	var cluster types.Cluster
 	for cluster.Status != "Running" {
-		err = sendRequest("GET", fmt.Sprintf(clusterResource.ResourceUrl, gClusterName), nil, &cluster)
+		err = sendRequest(methodGet, fmt.Sprintf(clusterResource.ResourceUrl, gClusterName), nil, &cluster)
 		ut.Equal(t, err, nil)
 		ut.Equal(t, cluster.Name, clusterName)
 		time.Sleep(5 * time.Second)
@@ -198,7 +205,7 @@ func TestNamespace(t *testing.T) {
 	namespaceResource, err := loadTestResource("namespace.json")
 	ut.Equal(t, err, nil)
 	var namespace types.Namespace
-	err = testOperatorResource(namespaceResource, &namespace)
+	err = testOperatorResource(methodPost, namespaceResource, &namespace)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, namespace.Name, "sc-test-namespace1")
 }
@@ -207,7 +214,7 @@ func TestConfigMap(t *testing.T) {
 	configmapResource, err := loadTestResource("configmap.json")
 	ut.Equal(t, err, nil)
 	var configMap types.ConfigMap
-	err = testOperatorResource(configmapResource, &configMap)
+	err = testOperatorResource(methodPost, configmapResource, &configMap)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, configMap.Name, "sc-test-configmap1")
 	ut.Equal(t, configMap.Configs[0].Name, "sc-test-cm-dataname1")
@@ -218,7 +225,7 @@ func TestSecret(t *testing.T) {
 	secretResource, err := loadTestResource("secret.json")
 	ut.Equal(t, err, nil)
 	var secret types.Secret
-	err = testOperatorResource(secretResource, &secret)
+	err = testOperatorResource(methodPost, secretResource, &secret)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, secret.Name, "sc-test-secret1")
 	ut.Equal(t, len(secret.Data), 1)
@@ -230,7 +237,7 @@ func TestDeployment(t *testing.T) {
 	deployResource, err := loadTestResource("deployment.json")
 	ut.Equal(t, err, nil)
 	var deploy types.Deployment
-	err = testOperatorResource(deployResource, &deploy)
+	err = testOperatorResource(methodPost, deployResource, &deploy)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, deploy.Name, "sc-test-deployment1")
 	ut.Equal(t, deploy.Containers[0].Name, "sc-test-containter1")
@@ -254,7 +261,38 @@ func TestDeployment(t *testing.T) {
 				ut.Equal(t, volume.MountPath, "/etc/scdmtestpvc12")
 			}
 		}
+	}
 
+	time.Sleep(1 * time.Second)
+	updateDeployResource, err := loadTestResource("deployment_update.json")
+	ut.Equal(t, err, nil)
+	var deployUpdate types.Deployment
+	err = testOperatorResource(methodPut, updateDeployResource, &deployUpdate)
+	ut.Equal(t, err, nil)
+	ut.Equal(t, deployUpdate.Name, "sc-test-deployment1")
+	ut.Equal(t, deployUpdate.Containers[0].Name, "sc-test-containter1")
+	ut.Equal(t, deployUpdate.Containers[0].Image, "busybox")
+	ut.Equal(t, deployUpdate.Containers[0].Env[0].Name, "TESTENV1")
+	ut.Equal(t, deployUpdate.Containers[0].Env[0].Value, "testenv1-1")
+	ut.Equal(t, deployUpdate.Containers[0].Command, []string{"ls -h"})
+	ut.Equal(t, deployUpdate.Containers[0].Args, []string{"-l", "/tmp"})
+	ut.Equal(t, len(deployUpdate.Containers[0].Volumes), 3)
+	for _, volume := range deployUpdate.Containers[0].Volumes {
+		switch volume.Type {
+		case "configmap":
+			ut.Equal(t, volume.Name, "sc-test-configmap1")
+			ut.Equal(t, volume.MountPath, "/etc/scconfig-1")
+		case "secret":
+			ut.Equal(t, volume.Name, "sc-test-secret1")
+			ut.Equal(t, volume.MountPath, "/etc/scsecret-1")
+		case "persistentVolume":
+			if volume.Name == "sc-test-emptydir1" {
+				ut.Equal(t, volume.MountPath, "/etc/scdmtestpvc11-1")
+			} else {
+				ut.Equal(t, volume.Name, "sc-test-lvm-pvc1")
+				ut.Equal(t, volume.MountPath, "/etc/scdmtestpvc12")
+			}
+		}
 	}
 }
 
@@ -262,7 +300,7 @@ func TestService(t *testing.T) {
 	serviceResource, err := loadTestResource("service.json")
 	ut.Equal(t, err, nil)
 	var service types.Service
-	err = testOperatorResource(serviceResource, &service)
+	err = testOperatorResource(methodPost, serviceResource, &service)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, service.Name, "sc-test-deployment1")
 	ut.Equal(t, service.ServiceType, "clusterip")
@@ -276,7 +314,7 @@ func TestIngress(t *testing.T) {
 	ingressResource, err := loadTestResource("ingress.json")
 	ut.Equal(t, err, nil)
 	var ingress types.Ingress
-	err = testOperatorResource(ingressResource, &ingress)
+	err = testOperatorResource(methodPost, ingressResource, &ingress)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, ingress.Name, "sc-test-ing1")
 	ut.Equal(t, ingress.Rules[0].Host, "sc.test.ing")
@@ -289,7 +327,7 @@ func TestStatefulSet(t *testing.T) {
 	statefulsetResource, err := loadTestResource("statefulset.json")
 	ut.Equal(t, err, nil)
 	var statefulset types.StatefulSet
-	err = testOperatorResource(statefulsetResource, &statefulset)
+	err = testOperatorResource(methodPost, statefulsetResource, &statefulset)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, statefulset.Name, "sc-test-statefulset1")
 	ut.Equal(t, statefulset.Containers[0].Name, "sc-test-containter1")
@@ -333,7 +371,7 @@ func TestCronJob(t *testing.T) {
 	cronjobResource, err := loadTestResource("cronjob.json")
 	ut.Equal(t, err, nil)
 	var cronjob types.CronJob
-	err = testOperatorResource(cronjobResource, &cronjob)
+	err = testOperatorResource(methodPost, cronjobResource, &cronjob)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, cronjob.Name, "sc-test-cronjob1")
 	ut.Equal(t, cronjob.Schedule, "*/1 * * * *")
@@ -344,7 +382,7 @@ func TestJob(t *testing.T) {
 	jobResource, err := loadTestResource("job.json")
 	ut.Equal(t, err, nil)
 	var job types.Job
-	err = testOperatorResource(jobResource, &job)
+	err = testOperatorResource(methodPost, jobResource, &job)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, job.Name, "sc-test-job1")
 	ut.Equal(t, job.Containers[0].Name, "sc-test-job-containter1")
@@ -354,7 +392,7 @@ func TestLimitRange(t *testing.T) {
 	limitsResource, err := loadTestResource("limitrange.json")
 	ut.Equal(t, err, nil)
 	var limit types.LimitRange
-	err = testOperatorResource(limitsResource, &limit)
+	err = testOperatorResource(methodPost, limitsResource, &limit)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, limit.Name, "sc-test-limitrange1")
 	ut.Equal(t, limit.Max["cpu"], "200m")
@@ -367,7 +405,7 @@ func TestResourceQuota(t *testing.T) {
 	quotaResource, err := loadTestResource("resourcequota.json")
 	ut.Equal(t, err, nil)
 	var quota types.ResourceQuota
-	err = testOperatorResource(quotaResource, &quota)
+	err = testOperatorResource(methodPost, quotaResource, &quota)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, quota.Name, "sc-test-resourcequota1")
 	ut.Equal(t, quota.Limits["limits.cpu"], "200m")
@@ -380,20 +418,20 @@ func TestUser(t *testing.T) {
 	userResource, err := loadTestResource("user.json")
 	ut.Equal(t, err, nil)
 	var user types.User
-	err = testOperatorResource(userResource, &user)
+	err = testOperatorResource(methodPost, userResource, &user)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, user.Name, "sc-test-user1")
 
 	userLogin, err := loadTestLogin("userlogin.json")
 	ut.Equal(t, err, nil)
 	var token Token
-	err = sendRequest("POST", userLogin.LoginUrl, parseBodyFromParams(userLogin.LoginParams), &token)
+	err = sendRequest(methodPost, userLogin.LoginUrl, parseBodyFromParams(userLogin.LoginParams), &token)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, token.Token != "", true)
 	adminToken := gToken
 	gToken = token.Token
 	var testUser types.User
-	err = sendRequest("GET", userResource.ResourceUrl, nil, &testUser)
+	err = sendRequest(methodGet, userResource.ResourceUrl, nil, &testUser)
 	ut.Equal(t, err, nil)
 	ut.Equal(t, testUser.Name, "sc-test-user1")
 	gToken = adminToken
@@ -404,7 +442,7 @@ func TestGetPod(t *testing.T) {
 	ut.Equal(t, err, nil)
 	podNum, err := getCollectionNum(fmt.Sprintf(deployPodResource.CollectionUrl, gClusterName))
 	ut.Equal(t, err, nil)
-	ut.Equal(t, podNum, 2)
+	ut.Equal(t, podNum != 0, true)
 	stsPodResource, err := loadTestResource("statefulset_pod.json")
 	ut.Equal(t, err, nil)
 	podNum, err = getCollectionNum(fmt.Sprintf(stsPodResource.CollectionUrl, gClusterName))
@@ -416,7 +454,7 @@ func testGetStorageClass(t *testing.T) {
 	scResource, err := loadTestResource("storageclass.json")
 	ut.Equal(t, err, nil)
 	var collection TestResourceCollection
-	err = sendRequest("GET", fmt.Sprintf(scResource.CollectionUrl, gClusterName), nil, &collection)
+	err = sendRequest(methodGet, fmt.Sprintf(scResource.CollectionUrl, gClusterName), nil, &collection)
 	ut.Equal(t, err, nil)
 	sliceData := reflect.ValueOf(collection.Data)
 	ut.Equal(t, sliceData.Kind(), reflect.Slice)
@@ -450,7 +488,7 @@ func TestDeleteResource(t *testing.T) {
 			resourceUrl = fmt.Sprintf(testResource.ResourceUrl, gClusterName)
 		}
 
-		err = sendRequest("DELETE", resourceUrl, nil, nil)
+		err = sendRequest(methodDelete, resourceUrl, nil, nil)
 		ut.Equal(t, err, nil)
 	}
 }
@@ -461,7 +499,11 @@ func parseBodyFromParams(params map[string]interface{}) io.Reader {
 }
 
 func sendRequest(method, url string, reqBody io.Reader, result interface{}) error {
-	req, _ := http.NewRequest(method, url, reqBody)
+	req, err := http.NewRequest(method, url, reqBody)
+	if err != nil {
+		return err
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+gToken)
 	client := &http.Client{}
@@ -497,7 +539,7 @@ func sendRequest(method, url string, reqBody io.Reader, result interface{}) erro
 
 func getCollectionNum(url string) (int, error) {
 	var oldcollection TestResourceCollection
-	err := sendRequest("GET", url, nil, &oldcollection)
+	err := sendRequest(methodGet, url, nil, &oldcollection)
 	if err != nil {
 		return 0, fmt.Errorf("get old collection failed: %s", err.Error())
 	}
@@ -514,33 +556,40 @@ func getCollectionNum(url string) (int, error) {
 	return 0, fmt.Errorf("get collection must return slice")
 }
 
-func testOperatorResource(resource *TestResource, result interface{}) error {
-	collectionUrl := resource.CollectionUrl
-	if strings.Contains(resource.CollectionUrl, "/clusters/%s") {
-		collectionUrl = fmt.Sprintf(resource.CollectionUrl, gClusterName)
-	}
-
-	existResourcesNum, err := getCollectionNum(collectionUrl)
-	if err != nil {
-		return err
-	}
-
-	if err := sendRequest("POST", collectionUrl, parseBodyFromParams(resource.Params), nil); err != nil {
-		return err
-	}
-
-	currentResourcesNum, err := getCollectionNum(collectionUrl)
-	if err != nil {
-		return err
-	}
-
-	if currentResourcesNum != existResourcesNum+1 {
-		return fmt.Errorf("expect resource num %d not %d", existResourcesNum+1, currentResourcesNum)
-	}
-
+func testOperatorResource(method string, resource *TestResource, result interface{}) error {
 	resourceUrl := resource.ResourceUrl
 	if strings.Contains(resource.ResourceUrl, "/clusters/%s") {
 		resourceUrl = fmt.Sprintf(resource.ResourceUrl, gClusterName)
 	}
-	return sendRequest("GET", resourceUrl, nil, result)
+
+	if method == methodPost {
+		collectionUrl := resource.CollectionUrl
+		if strings.Contains(resource.CollectionUrl, "/clusters/%s") {
+			collectionUrl = fmt.Sprintf(resource.CollectionUrl, gClusterName)
+		}
+
+		existResourcesNum, err := getCollectionNum(collectionUrl)
+		if err != nil {
+			return err
+		}
+
+		if err := sendRequest(method, collectionUrl, parseBodyFromParams(resource.Params), nil); err != nil {
+			return err
+		}
+
+		currentResourcesNum, err := getCollectionNum(collectionUrl)
+		if err != nil {
+			return err
+		}
+
+		if currentResourcesNum != existResourcesNum+1 {
+			return fmt.Errorf("expect resource num %d not %d", existResourcesNum+1, currentResourcesNum)
+		}
+	} else if method == methodPut {
+		if err := sendRequest(method, resourceUrl, parseBodyFromParams(resource.Params), nil); err != nil {
+			return err
+		}
+	}
+
+	return sendRequest(methodGet, resourceUrl, nil, result)
 }

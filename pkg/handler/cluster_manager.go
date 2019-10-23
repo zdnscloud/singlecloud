@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/cement/slice"
@@ -114,14 +115,10 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 
 	version, err := zkeCluster.KubeClient.ServerVersion()
 	if err != nil {
-		if err := zkeCluster.Event(zke.GetInfoFailedEvent); err != nil {
-			log.Warnf("send cluster %s %s fsm event failed %s", zkeCluster.Name, zke.GetInfoFailedEvent, err.Error())
-		}
+		zkeCluster.Event(zke.GetInfoFailedEvent)
 		return sc
 	}
-	if err := zkeCluster.Event(zke.GetInfoSuccessEvent); err != nil {
-		log.Warnf("send cluster %s %s fsm event failed %s", zkeCluster.Name, zke.GetInfoSuccessEvent, err.Error())
-	}
+	zkeCluster.Event(zke.GetInfoSuccessEvent)
 	sc.Version = version.GitVersion
 
 	nodes, err := getNodes(zkeCluster.KubeClient)
@@ -217,6 +214,7 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 		if m.authorizer.GetUser(user) == nil {
 			newUser := &types.User{Name: user}
 			newUser.SetID(user)
+			newUser.SetCreationTimestamp(time.Now())
 			m.authorizer.AddUser(newUser)
 		}
 

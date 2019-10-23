@@ -17,10 +17,25 @@
         }
     },
 
-    "resourceMethods": [ "GET", "DELETE" ],
+    "resourceMethods": [ "GET", "PUT", "DELETE" ],
     "collectionMethods": [ "POST", "GET" ],
 
     "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true },
+            "rules": {"type": "array", "elemType": "ingressRule", "required": true }
+        },
+        "subResources": {
+            "ingressRule": {
+                "host": {"type": "string", "required": true},
+                "path": {"type": "string", "required": true},
+                "serviceName": {"type": "string", "required": true},
+                "servicePort": {"type": "int", "required": true}
+            }
+        }
+    },
+    
+    "putParameters": {
         "fields": {
             "name": {"type": "string", "required": true },
             "rules": {"type": "array", "elemType": "ingressRule", "required": true }

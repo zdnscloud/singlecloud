@@ -26,7 +26,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /health 
-              port: {{ .Values.deployment.livenessProbe.httpGet.port }} 
+              port: 9000 
             initialDelaySeconds: 5
             timeoutSeconds: 2
             periodSeconds: 15

@@ -295,11 +295,12 @@ func ensureApplicationSucceedOrDie(ctx *restresource.Context, db storage.DB, clu
 		if err != nil {
 			if err == storage.ErrNotFoundResource {
 				log.Infof("delete system application %s succeed", appName)
-				return
 			} else {
 				log.Warnf("get system application %s failed %s", appName, err.Error())
 			}
+			return
 		}
+
 		switch sysApp.Status {
 		case types.AppStatusFailed:
 			app, err := updateAppStatusToDeleteFromDB(db, tableName, appName, true)
