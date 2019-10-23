@@ -50,7 +50,7 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 	}
 
 	registry := ctx.Resource.(*types.Registry)
-	app, err := genRegistryApplication(cluster, registry, cluster.Name)
+	app, err := genRegistryApplication(cluster, registry)
 	if err != nil {
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
@@ -112,8 +112,8 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	return deleteApplicationByChartName(m.clusters.GetDB(), cluster, registryChartName)
 }
 
-func genRegistryApplication(cluster *zke.Cluster, registry *types.Registry, clusterName string) (*types.Application, error) {
-	config, err := genRegistryApplicationConfig(cluster, registry, clusterName)
+func genRegistryApplication(cluster *zke.Cluster, registry *types.Registry) (*types.Application, error) {
+	config, err := genRegistryApplicationConfig(cluster, registry)
 	if err != nil {
 		return nil, err
 	}
@@ -126,13 +126,13 @@ func genRegistryApplication(cluster *zke.Cluster, registry *types.Registry, clus
 	}, nil
 }
 
-func genRegistryApplicationConfig(cluster *zke.Cluster, registry *types.Registry, clusterName string) ([]byte, error) {
+func genRegistryApplicationConfig(cluster *zke.Cluster, registry *types.Registry) ([]byte, error) {
 	if len(registry.IngressDomain) == 0 {
 		edgeIPs := cluster.GetNodeIpsByRole(types.RoleEdge)
 		if len(edgeIPs) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		registry.IngressDomain = registryAppNamePrefix + "-" + ZCloudNamespace + "-" + clusterName + "." + edgeIPs[0] + "." + ZcloudDynamicaDomainPrefix
+		registry.IngressDomain = registryAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIPs[0] + "." + ZcloudDynamicaDomainPrefix
 	}
 	registry.RedirectUrl = "https://" + registry.IngressDomain
 

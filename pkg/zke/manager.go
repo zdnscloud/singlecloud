@@ -20,13 +20,12 @@ const (
 )
 
 type ZKEManager struct {
-	PubEventCh      chan interface{}
-	readyClusters   []*Cluster
-	unreadyClusters []*Cluster
-	db              storage.DB
-	lock            sync.Mutex
-	scVersion       string // add cluster singlecloud version for easy to confirm zcloud component version
-	nodeListener    NodeListener
+	PubEventCh   chan interface{}
+	clusters     []*Cluster
+	db           storage.DB
+	lock         sync.Mutex
+	scVersion    string // add cluster singlecloud version for easy to confirm zcloud component version
+	nodeListener NodeListener
 }
 
 type NodeListener interface {
@@ -35,12 +34,11 @@ type NodeListener interface {
 
 func New(db storage.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 	mgr := &ZKEManager{
-		readyClusters:   make([]*Cluster, 0),
-		unreadyClusters: make([]*Cluster, 0),
-		PubEventCh:      make(chan interface{}, clusterEventBufferCount),
-		db:              db,
-		scVersion:       scVersion,
-		nodeListener:    nl,
+		clusters:     make([]*Cluster, 0),
+		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
+		db:           db,
+		scVersion:    scVersion,
+		nodeListener: nl,
 	}
 	if err := mgr.loadDB(); err != nil {
 		return mgr, err
@@ -53,6 +51,7 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 	defer m.lock.Unlock()
 
 	typesCluster := ctx.Resource.(*types.Cluster)
+	typesCluster.TrimFieldSpace()
 
 	existCluster := m.get(typesCluster.Name)
 	if existCluster != nil {
@@ -79,7 +78,7 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 	cluster.CreateTime = state.CreateTime
 	cluster.config = config
 	cluster.scVersion = m.scVersion
-	m.addUnready(cluster)
+	m.add(cluster)
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	cluster.cancel = cancel
@@ -121,7 +120,7 @@ func (m *ZKEManager) Import(ctx *restsource.Context) (interface{}, *resterr.APIE
 	cluster.CreateTime = state.CreateTime
 	cluster.config = state.ZKEConfig
 	cluster.scVersion = types.ScVersionImported
-	m.addUnready(cluster)
+	m.add(cluster)
 
 	kubeConfig := state.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
 	cancelCtx, cancel := context.WithCancel(context.Background())
@@ -135,6 +134,7 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 	defer m.lock.Unlock()
 
 	typesCluster := ctx.Resource.(*types.Cluster)
+	typesCluster.TrimFieldSpace()
 
 	existCluster := m.get(typesCluster.Name)
 	if existCluster == nil {
@@ -166,11 +166,7 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
-	if existCluster.IsReady() {
-		m.moveToUnready(existCluster)
-	}
-
-	if err := existCluster.fsm.Event(UpdateEvent); err != nil {
+	if err := existCluster.Event(UpdateEvent); err != nil {
 		return nil, resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s can not update", typesCluster.Name))
 	}
 
@@ -207,22 +203,14 @@ func (m *ZKEManager) GetReady(id string) *Cluster {
 	defer m.lock.Unlock()
 
 	cluster := m.get(id)
-	if cluster != nil {
-		if cluster.IsReady() {
-			return cluster
-		}
+	if cluster != nil && cluster.IsReady() {
+		return cluster
 	}
 	return nil
 }
 
 func (m *ZKEManager) get(id string) *Cluster {
-	for _, c := range m.readyClusters {
-		if c.Name == id {
-			return c
-		}
-	}
-
-	for _, c := range m.unreadyClusters {
+	for _, c := range m.clusters {
 		if c.Name == id {
 			return c
 		}
@@ -235,11 +223,7 @@ func (m *ZKEManager) List() []*Cluster {
 	defer m.lock.Unlock()
 
 	var clusters []*Cluster
-	for _, c := range m.readyClusters {
-		clusters = append(clusters, c)
-	}
-
-	for _, c := range m.unreadyClusters {
+	for _, c := range m.clusters {
 		clusters = append(clusters, c)
 	}
 
@@ -255,7 +239,7 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 		return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
 
-	if err := toDelete.fsm.Event(DeleteEvent); err != nil {
+	if err := toDelete.Event(DeleteEvent); err != nil {
 		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("cluster %s can't delete %s", toDelete.Name, err.Error()))
 	}
 
@@ -287,30 +271,6 @@ func (m *ZKEManager) CancelCluster(id string) (interface{}, *resterr.APIError) {
 	return nil, nil
 }
 
-func (m *ZKEManager) MoveToReady(c *Cluster) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	c.logCh = nil
-	m.readyClusters = append(m.readyClusters, c)
-	for i, cluster := range m.unreadyClusters {
-		if cluster.Name == c.Name {
-			m.unreadyClusters = append(m.unreadyClusters[:i], m.unreadyClusters[i+1:]...)
-			break
-		}
-	}
-}
-
-func (m *ZKEManager) moveToUnready(c *Cluster) {
-	m.unreadyClusters = append(m.unreadyClusters, c)
-	for i, cluster := range m.readyClusters {
-		if cluster.Name == c.Name {
-			m.readyClusters = append(m.readyClusters[:i], m.readyClusters[i+1:]...)
-			break
-		}
-	}
-}
-
 func (m *ZKEManager) loadDB() error {
 	states, err := getClustersFromDB(m.db)
 	if err != nil {
@@ -324,14 +284,14 @@ func (m *ZKEManager) loadDB() error {
 			cluster.stopCh = make(chan struct{})
 			cluster.CreateTime = v.CreateTime
 			cluster.scVersion = v.ScVersion
-			m.addUnready(cluster)
+			m.add(cluster)
 		} else {
 			cluster := newCluster(k, types.CSConnecting)
 			cluster.config = v.ZKEConfig
 			cluster.stopCh = make(chan struct{})
 			cluster.CreateTime = v.CreateTime
 			cluster.scVersion = v.ScVersion
-			m.addUnready(cluster)
+			m.add(cluster)
 			ctx, cancel := context.WithCancel(context.Background())
 			cluster.cancel = cancel
 			kubeConfig := v.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config
@@ -341,8 +301,8 @@ func (m *ZKEManager) loadDB() error {
 	return nil
 }
 
-func (m *ZKEManager) addUnready(c *Cluster) {
-	m.unreadyClusters = append(m.unreadyClusters, c)
+func (m *ZKEManager) add(c *Cluster) {
+	m.clusters = append(m.clusters, c)
 }
 
 func (m *ZKEManager) SendEvent(e interface{}) {
@@ -357,15 +317,9 @@ func (m *ZKEManager) Remove(cluster *Cluster) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	for i, c := range m.readyClusters {
+	for i, c := range m.clusters {
 		if c.Name == cluster.Name {
-			m.readyClusters = append(m.readyClusters[:i], m.readyClusters[i+1:]...)
-			break
-		}
-	}
-	for i, c := range m.unreadyClusters {
-		if c.Name == cluster.Name {
-			m.unreadyClusters = append(m.unreadyClusters[:i], m.unreadyClusters[i+1:]...)
+			m.clusters = append(m.clusters[:i], m.clusters[i+1:]...)
 			break
 		}
 	}

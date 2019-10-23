@@ -35,7 +35,6 @@
 
     "putParameters": {
         "fields": {
-            "password": {"type": "string", "required": true},
             "projects":  {"type": "array", "elemType": "project"}
         },
 

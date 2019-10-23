@@ -49,7 +49,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 	}
 
 	monitor := ctx.Resource.(*types.Monitor)
-	app, err := genMonitorApplication(cluster, monitor, cluster.Name)
+	app, err := genMonitorApplication(cluster, monitor)
 	if err != nil {
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
@@ -163,8 +163,8 @@ func deleteApplicationByChartName(db storage.DB, cluster *zke.Cluster, chartName
 	return nil
 }
 
-func genMonitorApplication(cluster *zke.Cluster, m *types.Monitor, clusterName string) (*types.Application, error) {
-	config, err := genMonitorApplicationConfig(cluster, m, clusterName)
+func genMonitorApplication(cluster *zke.Cluster, m *types.Monitor) (*types.Application, error) {
+	config, err := genMonitorApplicationConfig(cluster, m)
 	if err != nil {
 		return nil, err
 	}
@@ -177,13 +177,13 @@ func genMonitorApplication(cluster *zke.Cluster, m *types.Monitor, clusterName s
 	}, nil
 }
 
-func genMonitorApplicationConfig(cluster *zke.Cluster, m *types.Monitor, clusterName string) ([]byte, error) {
+func genMonitorApplicationConfig(cluster *zke.Cluster, m *types.Monitor) ([]byte, error) {
 	if len(m.IngressDomain) == 0 {
 		edgeIPs := cluster.GetNodeIpsByRole(types.RoleEdge)
 		if len(edgeIPs) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		m.IngressDomain = monitorAppNamePrefix + "-" + ZCloudNamespace + "-" + clusterName + "." + edgeIPs[0] + "." + ZcloudDynamicaDomainPrefix
+		m.IngressDomain = monitorAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIPs[0] + "." + ZcloudDynamicaDomainPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
 

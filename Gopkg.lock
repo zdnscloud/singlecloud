@@ -535,7 +535,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d2c4cd63276243bee688bce6abd3c7dce77b5715e39ff87e7c7fd842ce27ed45"
+  digest = "1:23746723af20386808f57e50c94b41e06ef4c88e4d7167dc7f24e0af1dcc281b"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -559,11 +559,11 @@
     "x509",
   ]
   pruneopts = "UT"
-  revision = "4bb5a50107cf59e30f8bbc7a658fa59b09239682"
+  revision = "f8084a52d153308113d41aa679271f65e155f062"
 
 [[projects]]
   branch = "master"
-  digest = "1:690cd103a39184f2f7f74240941bcee1eecd45d87528a38fc1f2e4fad67c1762"
+  digest = "1:659e624a0330168779a1fcb1e17aa2705bb08aad63366858f6600bd592414565"
   name = "github.com/zdnscloud/g53"
   packages = [
     ".",
@@ -571,11 +571,11 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "bf6c958cc80e5b1c9672b455660471ce8899809b"
+  revision = "e59e91c2d63e28bfba62e3cede2e06b4418ff494"
 
 [[projects]]
   branch = "master"
-  digest = "1:177b76de18fe2b642eedb098c972c1fc4b28e61b65a4909a19515c7e592aa770"
+  digest = "1:7a2ccd12c9aa659e18c96b2a48d5e4bff7f02be2350fc6448d79ad363473cec9"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -594,7 +594,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "129bd48fe0c9be145a816bc094acebb153d00025"
+  revision = "bdb742d065f7a01f043fcbb5af5b8af6198e1b52"
 
 [[projects]]
   branch = "master"
@@ -606,7 +606,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:240e53292415ae67325787214715b498c6b5a57bd092fd5d98ba9844375a50bb"
+  digest = "1:ed8ac81b5d8ba8a0b58e4c3bb80ca4cc1e5a9c03912f745a59a3a7f9a6828163"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -618,7 +618,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "a78cfe6d51deb5e26e085adb03842f8f9d2ca1a0"
+  revision = "2fe817f895ecb06a10b7ea56931ed0e87815dedc"
 
 [[projects]]
   branch = "master"
@@ -652,7 +652,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:991160c4e488e85d727de4813b2054f02e3cd210a1ca3de2d87d9a591fe909d0"
+  digest = "1:c0eba67dabde425d6e463e7301fb5a303bd29edf64c09b1d51cb407e1f502402"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -661,7 +661,6 @@
     "core/pki",
     "core/services",
     "monitor",
-    "monitor/prometheus",
     "network",
     "network/calico",
     "network/coredns",
@@ -682,7 +681,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "00a81800b7e51e7b8bfb8e7e8d62f36d4e1f088f"
+  revision = "f61454bbbc277e02233209afdee2aa14b900e91b"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -1119,6 +1118,7 @@
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
     "k8s.io/api/storage/v1",
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
