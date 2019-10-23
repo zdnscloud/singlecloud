@@ -17,13 +17,10 @@ import (
 )
 
 const (
-	efkChartName           = "efk"
-	efkChartVersion        = "0.0.1"
-	efkAppNamePrefix       = "efk"
-	efkStorageSizeUint     = "Gi"
-	defaultEFKESReplicas   = 3
-	defaultEFKStorageClass = "lvm"
-	defaultEFKStorageSize  = 10
+	efkChartName       = "efk"
+	efkChartVersion    = "0.0.1"
+	efkAppNamePrefix   = "efk"
+	efkStorageSizeUint = "Gi"
 )
 
 type EFKManager struct {
