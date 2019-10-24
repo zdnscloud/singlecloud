@@ -10,11 +10,9 @@ zcloud的后台服务进程singlecloud是有状态的，主要是导入的集群
 
 ## 详细设计
 web页面通过访问singlecloud来控制多个集群，singlecloud进程本身不存在
-负载的问题，在任何时候zcloud系统应该只有一个正在被访问的singlecloud
-进程，singlecloud使用的是一个内嵌的实时备份的kv数据库kvzoo，kvzoo在
-singlecloud中是一个单独的线程，多个kvzoo的实例之间通过grpc通信，因此
-要实现高可用需要在多个节点上启动两个singlecloud进程，但任何时候只有
-一个singlecloud进程作为活跃进程被页面访问。
+负载的问题，zcloud在部署的时候，使用主备的机制，浏览器一般情况下只能
+访问主节点，singlecloud使用的是一个内嵌的实时备份的kv数据库kvzoo，
+kvzoo在singlecloud中是一个单独的线程以减少部署的复杂度。
 ```text
                 +---------------------+    +---------------------+
 +------+        |singlecloud（active) |    |singlecloud（backup) |
@@ -23,6 +21,14 @@ singlecloud中是一个单独的线程，多个kvzoo的实例之间通过grpc通
                 | +----------------+  |    | +----------------+  |
                 +---------------------+    +---------------------+
 ```
+
+### 数据一致性
+1. kvzoo在启动的时候，会检查主备节点的数据一致性，如果主备节点数据不一致
+kvzoo会报错，singlecloud无法启动
+1. singlecloud本身的数据格式的版本也会写入数据库中，每个singlecloud数据格式
+版本的升级，都会提供数据迁移的工具，同时singcloud在启动过程中，也会检查当前
+数据库的版本和singlecloud当前数据版本的一致性，如果不一致singlecloud同样无法
+启动
 
 ### 数据备份和恢复流程
 活跃singlecloud进程启动之后需要制定备份singlecloud进程所在机器的地址以及
