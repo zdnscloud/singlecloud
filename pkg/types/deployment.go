@@ -56,6 +56,7 @@ type Deployment struct {
 	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
 	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
 	Status                WorkloadStatus             `json:"status,omitempty"`
+	Memo                  string                     `json:"memo,omitempty"`
 }
 
 type ExposedMetric struct {
@@ -77,11 +78,6 @@ func (d Deployment) CreateAction(name string) *resource.Action {
 		return &resource.Action{
 			Name:  ActionRollback,
 			Input: &RollBackVersion{},
-		}
-	case ActionSetImage:
-		return &resource.Action{
-			Name:  ActionSetImage,
-			Input: &SetImage{},
 		}
 	case ActionSetPodCount:
 		return &resource.Action{
@@ -142,17 +138,7 @@ func (vs VersionInfos) Less(i, j int) bool {
 
 type RollBackVersion struct {
 	Version int    `json:"version" rest:"required=true"`
-	Reason  string `json:"reason"`
-}
-
-type SetImage struct {
-	Reason string           `json:"reason"`
-	Images []ContainerImage `json:"images"`
-}
-
-type ContainerImage struct {
-	Name  string `json:"name" rest:"required=true,minLen=1,maxLen=128"`
-	Image string `json:"image" rest:"required=true,minLen=1,maxLen=1000"`
+	Memo    string `json:"memo"`
 }
 
 type SetPodCount struct {
