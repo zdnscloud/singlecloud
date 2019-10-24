@@ -8,8 +8,8 @@
 
 | **序号** | **文档名称** | **作者** | **来源**                                                     |
 | -------- | ------------ | -------- | ------------------------------------------------------------ |
-| 1        | 产品原型     | 王少帅   | https://lanhuapp.com/web/#/item/project/product?pid=ae53d49b-3634-4b45-86c5-602306d459b9&docId=39f5c399-104a-4781-983a-0f34a7e0d50f&docType=axure&pageId=6190da3959c241c5ba311eea7a3bd897&image_id=39f5c399-104a-4781-983a-0f34a7e0d50f |
-| 2        | 产品设计     | 关倩     | https://lanhuapp.com/web/#/item/project/board?pid=ae53d49b-3634-4b45-86c5-602306d459b9&docId=39f5c399-104a-4781-983a-0f34a7e0d50f&docType=axure&pageId=6190da3959c241c5ba311eea7a3bd897&image_id=39f5c399-104a-4781-983a-0f34a7e0d50f |
+| 1        | 产品原型     | 王少帅   | https://lanhuapp.com/web/#/item/project/product?pid=5e0d5b50-c5e0-411a-82c7-13e7d3dd59d6&docId=99c0f495-78d3-44c2-8edc-fd54fc41ea91&docType=axure&pageId=574cfae64117412e9cde02e86880c747&image_id=99c0f495-78d3-44c2-8edc-fd54fc41ea91&parentId=6190da3959c241c5ba311eea7a3bd897 |
+| 2        | 产品设计     | 关倩     | https://lanhuapp.com/web/#/item/project/board?pid=5e0d5b50-c5e0-411a-82c7-13e7d3dd59d6&docId=99c0f495-78d3-44c2-8edc-fd54fc41ea91&docType=axure&pageId=574cfae64117412e9cde02e86880c747&image_id=99c0f495-78d3-44c2-8edc-fd54fc41ea91&parentId=6190da3959c241c5ba311eea7a3bd897 |
 
 ## 1.3         产品命名规范
 
