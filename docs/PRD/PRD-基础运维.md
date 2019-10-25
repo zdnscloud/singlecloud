@@ -355,11 +355,13 @@ ssh用户名、ssh端口、ssh私钥
 **操作**
 
 cordon：停止调度
-uncordon：恢复调度
+uncordon：恢复
 
 drain：驱逐所有POD
 
-集群内worker节点需要支持以上三种操作，master节点不支持。用来排查问题，或对节点进行维护。节点维护CPU、MEM时使用。
+集群内worker节点需要支持以上三种操作，master节点不支持。用来排查问题，或对节点进行维护。节点维护CPU、MEM时使用。操作逻辑如下：
+
+cordon后，可以使用uncordon或drain，drain后只能使用uncordon。正常情况下，只有cordon、drain可使用。
 
 #### **4.3.4.4**      存储
 
