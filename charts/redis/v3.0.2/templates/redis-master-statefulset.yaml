@@ -134,7 +134,7 @@ spec:
         {{- end }}
         resources:
           requests:
-            storage: {{ .Values.master.persistence.size | quote }}
+            storage: "{{ .Values.master.persistence.size }}Gi"
       {{- if .Values.master.persistence.storageClass }}
       {{- if (eq "-" .Values.master.persistence.storageClass) }}
         storageClassName: ""

@@ -5,10 +5,15 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"testing"
 )
 
-func WireMatch(t *testing.T, expectData []uint8, actualData []uint8) {
+type TestingT interface {
+	Logf(format string, args ...interface{})
+	Errorf(format string, args ...interface{})
+	FailNow()
+}
+
+func WireMatch(t TestingT, expectData []uint8, actualData []uint8) {
 	if len(expectData) != len(actualData) {
 		t.Errorf("want len [%v] but get [%v]", len(expectData), len(actualData))
 	}
@@ -25,7 +30,7 @@ func WireMatch(t *testing.T, expectData []uint8, actualData []uint8) {
 	}
 }
 
-func NameEqToStr(t *testing.T, n *Name, str string) {
+func NameEqToStr(t TestingT, n *Name, str string) {
 	s, _ := NewName(str, true)
 	if n.Equals(s) == false {
 		_, file, line, _ := runtime.Caller(1)
@@ -35,7 +40,7 @@ func NameEqToStr(t *testing.T, n *Name, str string) {
 	}
 }
 
-func Assert(t *testing.T, condition bool, msg string, v ...interface{}) {
+func Assert(t TestingT, condition bool, msg string, v ...interface{}) {
 	if !condition {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d: "+msg+"\033[39m\n\n",
@@ -44,7 +49,7 @@ func Assert(t *testing.T, condition bool, msg string, v ...interface{}) {
 	}
 }
 
-func Equal(t *testing.T, act, exp interface{}) {
+func Equal(t TestingT, act, exp interface{}) {
 	if !reflect.DeepEqual(exp, act) {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n",
@@ -53,7 +58,7 @@ func Equal(t *testing.T, act, exp interface{}) {
 	}
 }
 
-func Nequal(t *testing.T, act, exp interface{}) {
+func Nequal(t TestingT, act, exp interface{}) {
 	if reflect.DeepEqual(exp, act) {
 		_, file, line, _ := runtime.Caller(1)
 		t.Logf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n",

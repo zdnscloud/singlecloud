@@ -76,6 +76,6 @@
         }
     },
 
-    "resourceMethods": [ "GET"],
+    "resourceMethods": [ "GET", "DELETE" ],
     "collectionMethods": [ "GET" ]
 }
