@@ -527,4 +527,4 @@ persistence:
       - ReadWriteOnce
     ## Persistent Volume size
     ##
-    size: 8Gi
+    size: 8

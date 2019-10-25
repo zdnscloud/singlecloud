@@ -25,10 +25,10 @@
     {
         "label": "storageSize",
         "jsonKey": "persistence.size",
-        "type": "string",
+        "type": "int",
         "required": "false",
-        "description": "mariadb persistence storage size, example 8Gi",
-        "default": "8Gi"
+        "description": "mariadb persistence storage size, unit Gi",
+        "default": 8
     },
     {
         "label": "serviceType",

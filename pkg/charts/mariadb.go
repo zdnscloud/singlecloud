@@ -13,7 +13,7 @@ type MariadbRootUser struct {
 
 type MariadbPersistence struct {
 	StorageClass string `json:"storageclass" rest:"options=cephfs|lvm"`
-	Size         string `json:"size"`
+	Size         int    `json:"size" rest:"min=1,max=300"`
 }
 
 type MariadbSlave struct {

@@ -278,6 +278,6 @@ spec:
         {{- end }}
         resources:
           requests:
-            storage: {{ .Values.persistence.size | quote }}
-        {{ include "mariadb.master.storageClass" . }}
+            storage: {{ .Values.persistence.size }}Gi
+        storageClassName: {{ .Values.persistence.storageClass | quote }}
 {{- end }}
