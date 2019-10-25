@@ -115,7 +115,7 @@ elasticsearch:
     - ReadWriteOnce
     resources:
       requests:
-        storage: 10Gi
+        storage: 10
 fluent-bit:
   backend:
     es:

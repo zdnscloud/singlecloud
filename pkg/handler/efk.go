@@ -3,9 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"strconv"
-	"strings"
+	"math/rand"
+	"time"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/randomdata"
@@ -111,13 +112,11 @@ func genEFKFromApp(ctx *restresource.Context, cluster string, app *types.Applica
 	if err := json.Unmarshal(app.Configs, &e); err != nil {
 		return nil, err
 	}
-	sizeString := strings.Split(e.Elasticsearch.VolumeClaimTemplate.Resources.Requests.Storage, efkStorageSizeUint)[0]
-	size, _ := strconv.Atoi(sizeString)
 	efk := types.EFK{
 		IngressDomain: e.Kibana.Ingress.Hosts,
 		ESReplicas:    e.Elasticsearch.Replicas,
 		StorageClass:  e.Elasticsearch.VolumeClaimTemplate.StorageClass,
-		StorageSize:   size,
+		StorageSize:   e.Elasticsearch.VolumeClaimTemplate.Resources.Requests.Storage,
 		RedirectUrl:   "http://" + e.Kibana.Ingress.Hosts,
 		Status:        app.Status,
 	}
@@ -142,13 +141,12 @@ func genEFKApplication(cluster *zke.Cluster, efk *types.EFK) (*types.Application
 
 func genEFKConfigs(cluster *zke.Cluster, efk *types.EFK) ([]byte, error) {
 	if len(efk.IngressDomain) == 0 {
-		edgeIPs := cluster.GetNodeIpsByRole(types.RoleEdge)
-		if len(edgeIPs) == 0 {
+		edgeNodeIP := randomEdgeNodeAddress(cluster.KubeClient)
+		if len(edgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		efk.IngressDomain = efkAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIPs[0] + "." + ZcloudDynamicaDomainPrefix
+		efk.IngressDomain = efkAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeNodeIP + "." + ZcloudDynamicaDomainPrefix
 	}
-	size := strconv.Itoa(efk.StorageSize) + efkStorageSizeUint
 	efk.RedirectUrl = "http://" + efk.IngressDomain
 	e := charts.EFK{
 		Elasticsearch: charts.ES{
@@ -157,7 +155,7 @@ func genEFKConfigs(cluster *zke.Cluster, efk *types.EFK) ([]byte, error) {
 				StorageClass: efk.StorageClass,
 				Resources: charts.PvcResources{
 					Requests: charts.PvcRequests{
-						Storage: size,
+						Storage: efk.StorageSize,
 					},
 				},
 			},
@@ -169,4 +167,24 @@ func genEFKConfigs(cluster *zke.Cluster, efk *types.EFK) ([]byte, error) {
 		},
 	}
 	return json.Marshal(&e)
+}
+
+func randomEdgeNodeAddress(cli client.Client) string {
+	nodes, err := getNodes(cli)
+	if err != nil {
+		return ""
+	}
+	var ips []string
+	for _, n := range nodes {
+		if !n.HasRole(types.RoleEdge) {
+			continue
+		}
+		ips = append(ips, n.Address)
+	}
+	if len(ips) > 0 {
+		rand.Seed(time.Now().UnixNano())
+		return ips[rand.Intn(len(ips))]
+	} else {
+		return ""
+	}
 }

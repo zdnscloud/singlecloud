@@ -31,8 +31,21 @@ spec:
 {{ toYaml . | indent 8 }}
     {{- end }}
     spec:
-{{ toYaml .Values.volumeClaimTemplate | indent 6 }}
-  {{- end }}
+      accessModes:
+      {{- range .Values.volumeClaimTemplate.accessModes }}
+        - {{ . | quote }}
+      {{- end }}
+      {{- if .Values.volumeClaimTemplate.storageClassName }}
+      {{- if (eq "-" .Values.volumeClaimTemplate.storageClassName) }}
+      storageClassName: ""
+      {{- else }}
+      storageClassName: {{ .Values.volumeClaimTemplate.storageClassName | quote }}
+      {{- end }}
+      {{- end }}
+      resources:
+        requests:
+          storage: "{{ .Values.volumeClaimTemplate.resources.requests.storage }}Gi"
+      {{- end }}
   template:
     metadata:
       name: "{{ template "uname" . }}"
