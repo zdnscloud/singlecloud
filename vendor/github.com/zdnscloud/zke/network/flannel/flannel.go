@@ -79,7 +79,12 @@ data:
     {
       "Network": "{{.ClusterCIDR}}",
       "Backend": {
+        {{- if eq .FlannelBackend.Type "vxlan"}}
+        "Type": "{{.FlannelBackend.Type}}",
+        "Directrouting": {{.FlannelBackend.Directrouting}}
+	{{- else}}
         "Type": "{{.FlannelBackend.Type}}"
+	{{- end}}
       }
     }
 ---
@@ -159,6 +164,43 @@ spec:
           mountPath: /host/etc/cni/net.d
         - name: host-cni-bin
           mountPath: /host/opt/cni/bin/
+        {{- if eq .FlannelBackend.Type "vxlan" }}
+        {{- if eq .FlannelBackend.Directrouting "true"}}
+      - name: kube-flannel-directrouting
+        image: {{.FlannelSidecarImage}}
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 300m
+            memory: 500M
+          requests:
+            cpu: 150m
+            memory: 64M
+        {{- if .FlannelInterface}}
+        command: ["/bin/sh","-c","/flanneld --ip-masq --kube-subnet-mgr --iface={{.FlannelInterface}}"]
+        {{- else}}
+        command: ["/bin/sh","-c","/flanneld --ip-masq --kube-subnet-mgr"]
+        {{- end}}
+        securityContext:
+          privileged: true
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: run
+          mountPath: /run
+        - name: cni
+          mountPath: /etc/cni/net.d
+        - name: flannel-cfg
+          mountPath: /etc/kube-flannel/
+        {{- end}}
+        {{- end}}
       hostNetwork: true
       tolerations:
       - operator: Exists
