@@ -66,5 +66,16 @@
     },
 
     "resourceMethods": ["GET"],
-    "collectionMethods": ["GET"]
+    "collectionMethods": ["GET"],
+
+    "resourceActions": [{
+            "name": "cordon"
+        },
+        {
+            "name": "drain"
+        },
+        {
+            "name": "uncordon"
+        }
+    ]
 }
