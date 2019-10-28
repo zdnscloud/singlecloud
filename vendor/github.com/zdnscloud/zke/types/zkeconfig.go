@@ -79,8 +79,9 @@ type ZKEConfigImages struct {
 	// Kubernetes image
 	Kubernetes string `yaml:"kubernetes" json:"kubernetes"`
 	// Flannel image
-	Flannel    string `yaml:"flannel" json:"flannel"`
-	FlannelCNI string `yaml:"flannel_cni" json:"flannelCni"`
+	Flannel        string `yaml:"flannel" json:"flannel"`
+	FlannelCNI     string `yaml:"flannel_cni" json:"flannelCni"`
+	FlannelSidecar string `yaml:"flannel_sidecar" json:"flannelSidecar"`
 	// Calico image
 	CalicoNode        string `yaml:"calico_node" json:"calicoNode"`
 	CalicoCNI         string `yaml:"calico_cni" json:"calicoCni"`
