@@ -3,8 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"math/rand"
 	"time"
 
@@ -14,14 +12,14 @@ import (
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
-	efkChartName       = "efk"
-	efkChartVersion    = "0.0.1"
-	efkAppNamePrefix   = "efk"
-	efkStorageSizeUint = "Gi"
+	efkChartName     = "efk"
+	efkChartVersion  = "0.0.1"
+	efkAppNamePrefix = "efk"
 )
 
 type EFKManager struct {
@@ -141,7 +139,7 @@ func genEFKApplication(cluster *zke.Cluster, efk *types.EFK) (*types.Application
 
 func genEFKConfigs(cluster *zke.Cluster, efk *types.EFK) ([]byte, error) {
 	if len(efk.IngressDomain) == 0 {
-		edgeNodeIP := randomEdgeNodeAddress(cluster.KubeClient)
+		edgeNodeIP := getRandomEdgeNodeAddress(cluster)
 		if len(edgeNodeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
@@ -169,22 +167,11 @@ func genEFKConfigs(cluster *zke.Cluster, efk *types.EFK) ([]byte, error) {
 	return json.Marshal(&e)
 }
 
-func randomEdgeNodeAddress(cli client.Client) string {
-	nodes, err := getNodes(cli)
-	if err != nil {
-		return ""
-	}
-	var ips []string
-	for _, n := range nodes {
-		if !n.HasRole(types.RoleEdge) {
-			continue
-		}
-		ips = append(ips, n.Address)
-	}
+func getRandomEdgeNodeAddress(cluster *zke.Cluster) string {
+	ips := cluster.GetNodeIpsByRole(types.RoleEdge)
 	if len(ips) > 0 {
 		rand.Seed(time.Now().UnixNano())
 		return ips[rand.Intn(len(ips))]
-	} else {
-		return ""
 	}
+	return ""
 }

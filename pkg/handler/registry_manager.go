@@ -4,11 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"strconv"
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
@@ -128,11 +127,11 @@ func genRegistryApplication(cluster *zke.Cluster, registry *types.Registry) (*ty
 
 func genRegistryApplicationConfig(cluster *zke.Cluster, registry *types.Registry) ([]byte, error) {
 	if len(registry.IngressDomain) == 0 {
-		edgeIPs := cluster.GetNodeIpsByRole(types.RoleEdge)
-		if len(edgeIPs) == 0 {
+		edgeIP := getRandomEdgeNodeAddress(cluster)
+		if len(edgeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		registry.IngressDomain = registryAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIPs[0] + "." + ZcloudDynamicaDomainPrefix
+		registry.IngressDomain = registryAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIP + "." + ZcloudDynamicaDomainPrefix
 	}
 	registry.RedirectUrl = "https://" + registry.IngressDomain
 
@@ -157,7 +156,7 @@ func genRegistryApplicationConfig(cluster *zke.Cluster, registry *types.Registry
 		},
 		Persistence: charts.HarborPersistence{
 			StorageClass: registry.StorageClass,
-			StorageSize:  strconv.Itoa(registry.StorageSize) + "Gi",
+			StorageSize:  registry.StorageSize,
 		},
 		AdminPassword: registry.AdminPassword,
 		ExternalURL:   "https://" + registry.IngressDomain,
@@ -174,6 +173,7 @@ func genRetrunRegistryFromApplication(cluster string, app *types.Application) (*
 	r := types.Registry{
 		IngressDomain: h.Ingress.Core,
 		StorageClass:  h.Persistence.StorageClass,
+		StorageSize:   h.Persistence.StorageSize,
 		RedirectUrl:   "https://" + h.Ingress.Core,
 		Status:        app.Status,
 	}

@@ -57,7 +57,7 @@ spec:
   listenLocal: {{ .Values.prometheus.prometheusSpec.listenLocal }}
   enableAdminAPI: {{ .Values.prometheus.prometheusSpec.enableAdminAPI }}
 {{- if .Values.prometheus.prometheusSpec.scrapeInterval }}
-  scrapeInterval: {{ .Values.prometheus.prometheusSpec.scrapeInterval }}
+  scrapeInterval: {{ .Values.prometheus.prometheusSpec.scrapeInterval}}s
 {{- end }}
 {{- if .Values.prometheus.prometheusSpec.evaluationInterval }}
   evaluationInterval: {{ .Values.prometheus.prometheusSpec.evaluationInterval }}
@@ -66,7 +66,7 @@ spec:
   resources:
 {{ toYaml .Values.prometheus.prometheusSpec.resources | indent 4 }}
 {{- end }}
-  retention: {{ .Values.prometheus.prometheusSpec.retention | quote  }}
+  retention: {{ .Values.prometheus.prometheusSpec.retention}}d
 {{- if .Values.prometheus.prometheusSpec.routePrefix }}
   routePrefix: {{ .Values.prometheus.prometheusSpec.routePrefix | quote  }}
 {{- end }}
@@ -133,7 +133,7 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ .Values.prometheus.prometheusSpec.storageSize }}
+            storage: {{ .Values.prometheus.prometheusSpec.storageSize }}Gi
       selector: {}
 {{- end }}
 {{- if .Values.prometheus.prometheusSpec.podMetadata }}

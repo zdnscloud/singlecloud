@@ -3,12 +3,11 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"strconv"
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
 	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
@@ -179,11 +178,11 @@ func genMonitorApplication(cluster *zke.Cluster, m *types.Monitor) (*types.Appli
 
 func genMonitorApplicationConfig(cluster *zke.Cluster, m *types.Monitor) ([]byte, error) {
 	if len(m.IngressDomain) == 0 {
-		edgeIPs := cluster.GetNodeIpsByRole(types.RoleEdge)
-		if len(edgeIPs) == 0 {
+		edgeIP := getRandomEdgeNodeAddress(cluster)
+		if len(edgeIP) == 0 {
 			return nil, fmt.Errorf("can not find edge node for this cluster")
 		}
-		m.IngressDomain = monitorAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIPs[0] + "." + ZcloudDynamicaDomainPrefix
+		m.IngressDomain = monitorAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIP + "." + ZcloudDynamicaDomainPrefix
 	}
 	m.RedirectUrl = "http://" + m.IngressDomain
 
@@ -197,9 +196,9 @@ func genMonitorApplicationConfig(cluster *zke.Cluster, m *types.Monitor) ([]byte
 		Prometheus: charts.PrometheusPrometheus{
 			PrometheusSpec: charts.PrometheusSpec{
 				StorageClass:   m.StorageClass,
-				StorageSize:    strconv.Itoa(m.StorageSize) + "Gi",
-				Retention:      strconv.Itoa(m.PrometheusRetention) + "d",
-				ScrapeInterval: strconv.Itoa(m.ScrapeInterval) + "s",
+				StorageSize:    m.StorageSize,
+				Retention:      m.PrometheusRetention,
+				ScrapeInterval: m.ScrapeInterval,
 			},
 		},
 		AlertManager: charts.PrometheusAlertManager{
@@ -222,10 +221,13 @@ func genRetrunMonitorFromApplication(cluster string, app *types.Application) (*t
 		return nil, err
 	}
 	m := types.Monitor{
-		IngressDomain: p.Grafana.Ingress.Hosts,
-		StorageClass:  p.Prometheus.PrometheusSpec.StorageClass,
-		RedirectUrl:   "http://" + p.Grafana.Ingress.Hosts,
-		Status:        app.Status,
+		IngressDomain:       p.Grafana.Ingress.Hosts,
+		StorageClass:        p.Prometheus.PrometheusSpec.StorageClass,
+		StorageSize:         p.Prometheus.PrometheusSpec.StorageSize,
+		PrometheusRetention: p.Prometheus.PrometheusSpec.Retention,
+		ScrapeInterval:      p.Prometheus.PrometheusSpec.ScrapeInterval,
+		RedirectUrl:         "http://" + p.Grafana.Ingress.Hosts,
+		Status:              app.Status,
 	}
 	m.SetID(monitorAppNamePrefix)
 	m.CreationTimestamp = app.CreationTimestamp

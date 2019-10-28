@@ -57,7 +57,7 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ .Values.alertmanager.alertmanagerSpec.storageSize}}
+            storage: {{ .Values.alertmanager.alertmanagerSpec.storageSize}}Gi
       selector: {}
 {{- end }}
 {{- if .Values.alertmanager.alertmanagerSpec.podMetadata }}

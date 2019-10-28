@@ -96,7 +96,7 @@ alertmanager:
     replicas: 1
     retention: 120h
     storageClass: lvm
-    storageSize: 2Gi
+    storageSize: 2
     externalUrl:
     routePrefix: /
     paused: false
@@ -389,7 +389,7 @@ prometheus:
     metricRelabelings: []
     relabelings: []
   prometheusSpec:
-    scrapeInterval: ""
+    scrapeInterval: 10
     evaluationInterval: ""
     listenLocal: false
     enableAdminAPI: false
@@ -414,7 +414,7 @@ prometheus:
     serviceMonitorSelectorNilUsesHelmValues: true
     serviceMonitorSelector: {}
     serviceMonitorNamespaceSelector: {}
-    retention: 10d
+    retention: 10
     paused: false
     replicas: 1
     logLevel: info
@@ -428,7 +428,7 @@ prometheus:
     remoteWrite: []
     resources: {}
     storageClass: lvm
-    storageSize: 20Gi
+    storageSize: 10
     additionalScrapeConfigs: 
     - job_name: kubernetes-service-endpoints
       kubernetes_sd_configs:
