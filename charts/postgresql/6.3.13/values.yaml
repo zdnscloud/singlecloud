@@ -244,7 +244,7 @@ persistence:
   storageClass: "lvm"
   accessModes:
     - ReadWriteOnce
-  size: 8Gi
+  size: 8
   annotations: {}
 
 ## updateStrategy for PostgreSQL StatefulSet and its slaves StatefulSets

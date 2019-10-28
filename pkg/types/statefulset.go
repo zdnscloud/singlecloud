@@ -18,6 +18,7 @@ type StatefulSet struct {
 	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
 	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
 	Status                WorkloadStatus             `json:"status,omitempty"`
+	Memo                  string                     `json:"memo,omitempty"`
 }
 
 type PersistentVolumeTemplate struct {
@@ -40,11 +41,6 @@ func (s StatefulSet) CreateAction(name string) *resource.Action {
 		return &resource.Action{
 			Name:  ActionRollback,
 			Input: &RollBackVersion{},
-		}
-	case ActionSetImage:
-		return &resource.Action{
-			Name:  ActionSetImage,
-			Input: &SetImage{},
 		}
 	case ActionSetPodCount:
 		return &resource.Action{

@@ -31,12 +31,14 @@ func main() {
 	var showVersion bool
 	var chartDir string
 	var dbFilePath string
+	var repoUrl string
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
 	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
 	flag.StringVar(&chartDir, "chart", "", "chart path")
 	flag.StringVar(&dbFilePath, "db", "", "db file path")
+	flag.StringVar(&repoUrl, "repo", "", "chart repo url")
 	flag.Parse()
 
 	if showVersion {
@@ -75,7 +77,7 @@ func main() {
 	}
 
 	agent := clusteragent.New()
-	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, db, chartDir, version)
+	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, db, chartDir, version, repoUrl)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}

@@ -1,0 +1,61 @@
+affinity: {}
+antiAffinity: hard
+antiAffinityTopologyKey: kubernetes.io/hostname
+elasticsearchHosts: http://elasticsearch-master:9200
+elasticsearchURL: ""
+extraEnvs: []
+fullnameOverride: ""
+healthCheckPath: /app/kibana
+httpPort: 5601
+image: docker.elastic.co/kibana/kibana
+imagePullPolicy: IfNotPresent
+imagePullSecrets: []
+imageTag: 7.4.0
+ingress:
+  annotations: {}
+  enabled: enable
+  hosts: efk.cluster.local
+  path: /
+  tls: []
+kibanaConfig: {}
+labels: {}
+lifecycle: {}
+maxUnavailable: 1
+nameOverride: ""
+nodeSelector: {}
+podAnnotations: {}
+podSecurityContext:
+  fsGroup: 1000
+priorityClassName: ""
+protocol: http
+readinessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  successThreshold: 3
+  timeoutSeconds: 5
+replicas: 1
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 500Mi
+secretMounts: []
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  runAsNonRoot: true
+  runAsUser: 1000
+serverHost: 0.0.0.0
+service:
+  annotations: {}
+  nodePort: null
+  port: 5601
+  type: ClusterIP
+serviceAccount: ""
+tolerations: []
+updateStrategy:
+  type: Recreate

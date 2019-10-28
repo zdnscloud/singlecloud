@@ -155,7 +155,7 @@ persistence:
   ## The size of the PersistentVolume to allocate to each Kafka Pod in the StatefulSet. For
   ## production servers this number should likely be much larger.
   ##
-  size: "8Gi"
+  size: 8
 
   ## The location within the Kafka container where the PV will mount its storage and Kafka will
   ## store its logs.
@@ -333,7 +333,7 @@ zookeeper:
     ##
     storageClass: "lvm"
     accessMode: ReadWriteOnce
-    size: 5Gi
+    size: 5
 
   env:
     ## The port on which the server will accept client requests.

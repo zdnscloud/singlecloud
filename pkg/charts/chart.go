@@ -1,3 +1,3 @@
 package charts
 
-var SupportChartsConfig = []interface{}{Redis{}, Vanguard{}, Prometheus{}, Harbor{}, Postgresql{}, Kafka{}}
+var SupportChartsConfig = []interface{}{Redis{}, Vanguard{}, Prometheus{}, Harbor{}, EFK{}, Mariadb{}, Postgresql{}, Kafka{}, Hadoop{}, Spark{}}

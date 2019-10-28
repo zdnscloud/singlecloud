@@ -651,7 +651,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8e0bc5d24705de3f3da2be66f49dad327cdf8d76e0fc2ac9eafa95a8695ccdff"
+  digest = "1:955b24591105b326e0d18b79946ecdd330eb00c4b540d074331f04c4c5c894c3"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -660,7 +660,6 @@
     "core/pki",
     "core/services",
     "monitor",
-    "monitor/prometheus",
     "network",
     "network/calico",
     "network/coredns",
@@ -681,7 +680,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "5178bb55499491329810e7f3180823f137cf97be"
+  revision = "68d3da0504bc6652eb9b1864a948b39bcbed51e3"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"

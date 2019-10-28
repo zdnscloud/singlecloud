@@ -46,7 +46,7 @@ persistence:
   # storageClass: "-"
   storageClass: "lvm"
   accessMode: ReadWriteOnce
-  size: 5Gi
+  size: 5
 
 env:
   ## The port on which the server will accept client requests.
