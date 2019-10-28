@@ -7,8 +7,8 @@
 利用k8s scheduler原理，分别对node添加不同的taint实现对node停止调度以及驱逐的效果。
 cordon、drain、uncordon均为node的`action`操作。
 * cordon
-停止向node调度pod
-实现方式：将node的unschedulable属性置为true（k8s会自行为node添加NoSchedule的taint）,此时singlecloud get node的状态为`cordoned`
+    * 含义：停止向node调度pod
+    * 实现方式：将node的unschedulable属性置为true（k8s会自行为node添加NoSchedule的taint）,此时singlecloud get node的状态为`cordoned`
 ```yaml
 spec:
   podCIDR: 10.42.1.0/24
@@ -19,8 +19,8 @@ spec:
   unschedulable: true
 ```
 * drain
-停止向node调度pod同时驱逐node上已运行的pod
-实现方式：将node的unschedulable属性置为true同时为node添加effect为NoExecute的taint，此时singlecloud get node的状态为`drained`
+    * 含义：停止向node调度pod同时驱逐node上已运行的pod
+    * 实现方式：将node的unschedulable属性置为true同时为node添加effect为NoExecute的taint，此时singlecloud get node的状态为`drained`
 ```yaml
 spec:
   podCIDR: 10.42.1.0/24
@@ -34,7 +34,8 @@ spec:
   unschedulable: true
 ```
 * uncordon
-恢复node调度并取消node drained状态（若node没有执行驱逐操作则只恢复调度）
+    * 含义：恢复node调度并取消node drained状态（若node没有执行驱逐操作则只恢复调度）
+    * 实现方式：将node的unschedulable属性置为true同时移除node上effect为NoExecute的taint（若存在）
 * 为什么drain没有对应的undrain，而是和cordon共用uncordon操作恢复？
     1. 无场景需要：node保留驱逐状态的情况即使移除NoSchedule的taint也不会有pod调度到该node上，除非为pod添加相应的toleration
     2. 针对node的cordon、drain、uncordon操作由kubectl命令而来，沿用k8s生态已有的命名和操作习惯，避免新增学习成本。
@@ -45,6 +46,6 @@ cordon以及uncordon完全相同，差异主要在于drain，kubectl的drain提�
 3. 是否忽略daemonsets，daemonsets的pod无法被驱逐，默认不忽略，kubectl会有报错提示信息
 4. 可通过pod-selector指定驱逐特定的pod
 5. 超时时间，到达设定的超时时间若kubectl还未完成对所有pod的驱逐，则结束本次drain，默认一直等待
-kubectl drain对pod的驱逐实现是通过client先get node上所有的pod，然后根据条件筛选出需要驱逐的pod，再通过client逐一对所需pod进行驱逐，优点是可以实现node驱逐的同步，即kubectl命令执行完后，node上的pod已经驱逐完成，可以直接将此node下线而不会影响业务。
+* kubectl drain对pod的驱逐实现是通过client先get node上所有的pod，然后根据条件筛选出需要驱逐的pod，再通过client逐一对所需pod进行驱逐，优点是可以实现node驱逐的同步，即kubectl命令执行完后，node上的pod已经驱逐完成，可以直接将此node下线而不会影响业务。
 ## Todo
 * node drain的完成进度反馈
