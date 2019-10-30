@@ -143,6 +143,10 @@ spec:
         - name: KAFKA_LOG_DIRS
           value: {{ printf "%s/%s" .Values.persistence.mountPath .Values.logSubPath | quote }}
         {{- end }}
+        {{- if not (hasKey .Values.configurationOverrides "offsets.topic.replication.factor") }}
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: {{ .Values.replicas | quote }}
+        {{- end }}
         {{- range $key, $value := .Values.configurationOverrides }}
         - name: {{ printf "KAFKA_%s" $key | replace "." "_" | upper | quote }}
           value: {{ $value | quote }}

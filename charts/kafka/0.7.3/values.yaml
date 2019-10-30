@@ -124,9 +124,8 @@ external:
 ## Configuration Overrides. Specify any Kafka settings you would like set on the StatefulSet
 ## here in map format, as defined in the official docs.
 ## ref: https://kafka.apache.org/documentation/#brokerconfigs
-##
+## "offsets.topic.replication.factor": 3 //set value with replicas
 configurationOverrides:
-  "offsets.topic.replication.factor": 3
   "auto.leader.rebalance.enable": true
   "auto.create.topics.enable": true
   "controlled.shutdown.enable": true
