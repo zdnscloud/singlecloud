@@ -9,7 +9,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
@@ -140,7 +139,7 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 			Name:       p.Name,
 			Protocol:   protocol,
 			Port:       int32(p.Port),
-			TargetPort: intstr.FromInt(p.TargetPort),
+			TargetPort: p.TargetPort,
 		})
 	}
 
@@ -173,7 +172,7 @@ func k8sServiceToSCService(k8sService *corev1.Service) *types.Service {
 			Name:       p.Name,
 			Protocol:   strings.ToLower(string(p.Protocol)),
 			Port:       int(p.Port),
-			TargetPort: p.TargetPort.IntValue(),
+			TargetPort: p.TargetPort,
 			NodePort:   int(p.NodePort),
 		})
 	}
