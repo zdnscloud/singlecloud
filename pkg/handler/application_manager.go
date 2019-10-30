@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +51,9 @@ var (
 const (
 	notesFileSuffix  = "NOTES.txt"
 	ApplicationTable = "application"
+
+	crdCheckTimes    = 20
+	crdCheckInterval = 5 * time.Second
 )
 
 type ApplicationManager struct {
@@ -175,9 +179,7 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
-	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
-	app, err := updateAppStatusToDeleteFromDB(m.clusters.GetDB(), tableName, appName, false)
-	if err != nil {
+	if err := deleteApplication(m.clusters.GetDB(), cluster.KubeClient, cluster.Name, namespace, appName, false); err != nil {
 		if err == storage.ErrNotFoundResource {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
@@ -187,28 +189,37 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 		}
 	}
 
-	go deleteApplication(m.clusters.GetDB(), cluster.KubeClient, tableName, namespace, app)
 	return nil
 }
 
-func deleteApplication(db storage.DB, cli client.Client, tableName, namespace string, app *types.Application) {
-	if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
-		app.Status = types.AppStatusFailed
-		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
-			log.Warnf("delete application %s resources failed, update status get error: %s", app.Name, err.Error())
-		}
-		log.Warnf("delete application %s resources failed: %s", app.Name, err.Error())
-		return
+func deleteApplication(db storage.DB, cli client.Client, clusterName, namespace, appName string, isSystemChart bool) error {
+	tableName := storage.GenTableName(ApplicationTable, clusterName, namespace)
+	app, err := updateAppStatusToDeleteFromDB(db, tableName, appName, isSystemChart)
+	if err != nil {
+		return err
 	}
 
-	if err := deleteApplicationFromDB(db, tableName, app.GetID()); err != nil {
-		app.Status = types.AppStatusFailed
-		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
-			log.Warnf("delete application %s failed, update status get error: %s", app.Name, err.Error())
+	go func() {
+		if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
+			app.Status = types.AppStatusFailed
+			if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
+				log.Warnf("delete application %s resources failed, update status get error: %s", app.Name, err.Error())
+			}
+			log.Warnf("delete application %s resources failed: %s", app.Name, err.Error())
+			return
 		}
 
-		log.Warnf("delete application %s from db failed: %s", app.Name, err.Error())
-	}
+		if err := deleteApplicationFromDB(db, tableName, app.GetID()); err != nil {
+			app.Status = types.AppStatusFailed
+			if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
+				log.Warnf("delete application %s failed, update status get error: %s", app.Name, err.Error())
+			}
+
+			log.Warnf("delete application %s from db failed: %s", app.Name, err.Error())
+		}
+	}()
+
+	return nil
 }
 
 func updateAppStatusToDeleteFromDB(db storage.DB, tableName, name string, isSystemChart bool) (*types.Application, error) {
@@ -320,7 +331,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		return fmt.Errorf("parse chart %s with version %s configs failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	manifests, err := loadChartFiles(namespace, chartPath, app.Name, configs, DefaultCapabilities)
+	manifests, crdManifests, err := loadChartFiles(namespace, chartPath, app.Name, configs, DefaultCapabilities)
 	if err != nil {
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
@@ -335,7 +346,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	}
 
 	go createApplication(m.clusters.GetDB(), cluster.KubeClient, isAdminUser, tableName, namespace,
-		genUrlPrefix(ctx, cluster.Name), app)
+		genUrlPrefix(ctx, cluster.Name), app, crdManifests)
 	return nil
 }
 
@@ -426,10 +437,10 @@ func getApplicationFromDBTx(tx storage.Transaction, appName string, isSystemChar
 	return &app, nil
 }
 
-func loadChartFiles(namespace, chartPath, appName string, configs map[string]interface{}, caps *chartutil.Capabilities) ([]types.Manifest, error) {
+func loadChartFiles(namespace, chartPath, appName string, configs map[string]interface{}, caps *chartutil.Capabilities) ([]types.Manifest, []types.Manifest, error) {
 	chartRequested, err := loader.Load(chartPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	options := chartutil.ReleaseOptions{
@@ -439,15 +450,15 @@ func loadChartFiles(namespace, chartPath, appName string, configs map[string]int
 	}
 	valuesToRender, err := chartutil.ToRenderValues(chartRequested, configs, options, caps)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if rel, ok := valuesToRender["Release"].(map[string]interface{}); ok {
-		rel["Service"] = "singlecloud"
+		rel["Service"] = "zcloud"
 	}
 
 	files, err := engine.Render(chartRequested, valuesToRender)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var manifests []types.Manifest
@@ -462,10 +473,27 @@ func loadChartFiles(namespace, chartPath, appName string, configs map[string]int
 		}
 	}
 
-	return manifests, nil
+	var crdManifests []types.Manifest
+	for _, crdFile := range chartRequested.CRDs() {
+		crdManifests = append(crdManifests, types.Manifest{
+			File:    crdFile.Name,
+			Content: string(crdFile.Data),
+		})
+	}
+
+	return manifests, crdManifests, nil
 }
 
-func createApplication(db storage.DB, cli client.Client, isAdmin bool, tableName, namespace, urlPrefix string, app *types.Application) {
+func createApplication(db storage.DB, cli client.Client, isAdmin bool, tableName, namespace, urlPrefix string, app *types.Application, crdManifests []types.Manifest) {
+	if err := preInstallChartCRDs(cli, crdManifests); err != nil {
+		app.Status = types.AppStatusFailed
+		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
+			log.Warnf("create application %s crds failed, update status get error: %s", app.Name, err.Error())
+		}
+		log.Warnf("create application %s crds failed: %s", app.Name, err.Error())
+		return
+	}
+
 	appResources, err := createAppResources(cli, isAdmin, namespace, urlPrefix, app.Manifests)
 	if err != nil {
 		app.Status = types.AppStatusFailed
@@ -621,4 +649,88 @@ func genReturnApplication(app *types.Application) *types.Application {
 	retApp.Configs = nil
 	retApp.Manifests = nil
 	return &retApp
+}
+
+func isCRDReady(crd apiextv1beta1.CustomResourceDefinition) bool {
+	for _, cond := range crd.Status.Conditions {
+		switch cond.Type {
+		case apiextv1beta1.Established:
+			if cond.Status == apiextv1beta1.ConditionTrue {
+				return true
+			}
+		case apiextv1beta1.NamesAccepted:
+			if cond.Status == apiextv1beta1.ConditionFalse {
+				// This indicates a naming conflict, but it's probably not the
+				// job of this function to fail because of that. Instead,
+				// we treat it as a success, since the process should be able to
+				// continue.
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isCRDsReady(requiredCRDs []*apiextv1beta1.CustomResourceDefinition, allCRDs apiextv1beta1.CustomResourceDefinitionList) bool {
+	for _, required := range requiredCRDs {
+		ready := false
+		for _, crd := range allCRDs.Items {
+			if crd.Name == required.Name {
+				if isCRDReady(crd) {
+					ready = true
+				}
+				break
+			}
+		}
+		if !ready {
+			return false
+		}
+	}
+	return true
+}
+
+func waitCRDsReady(client client.Client, requiredCRDs []*apiextv1beta1.CustomResourceDefinition) bool {
+	var allCRDs apiextv1beta1.CustomResourceDefinitionList
+	for i := 0; i < crdCheckTimes; i++ {
+		if err := client.List(context.TODO(), nil, &allCRDs); err == nil {
+			if isCRDsReady(requiredCRDs, allCRDs) {
+				return true
+			}
+		}
+		time.Sleep(crdCheckInterval)
+	}
+	return false
+}
+
+func preInstallChartCRDs(cli client.Client, manifests []types.Manifest) error {
+	if len(manifests) == 0 {
+		return nil
+	}
+
+	var crds []*apiextv1beta1.CustomResourceDefinition
+	for _, manifest := range manifests {
+		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
+			crd, ok := obj.(*apiextv1beta1.CustomResourceDefinition)
+			if !ok {
+				return fmt.Errorf("runtime object isn't k8s crd object")
+			}
+			crds = append(crds, crd)
+
+			if err := cli.Create(ctx, obj); err != nil {
+				if apierrors.IsAlreadyExists(err) {
+					log.Infof("ignore already exist crd %s", crd.Name)
+					return nil
+				}
+				return fmt.Errorf("create crd with file %s failed: %s", manifest.File, err.Error())
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	if !waitCRDsReady(cli, crds) {
+		return fmt.Errorf("preinstall chart crds timeout")
+	}
+	return nil
 }

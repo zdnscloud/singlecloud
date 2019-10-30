@@ -9,7 +9,7 @@ type Harbor struct {
 
 type HarborPersistence struct {
 	StorageClass string `json:"storageClass"`
-	StorageSize  string `json:"registryStorageSize"`
+	StorageSize  int    `json:"registryStorageSize"`
 }
 
 type HarborIngress struct {
