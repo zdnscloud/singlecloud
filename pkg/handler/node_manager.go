@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	nodeNoExecuteTaintKey = "node.zcloud.cn/unexecutable"
+	nodeDrainedNoExecuteTaintKey = "node.zcloud.cn/unexecutable"
 )
 
 type NodeManager struct {
@@ -129,10 +129,8 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 		nodeStatus = types.NSDrained
 	} else if isNodeCordoned(k8sNode) {
 		nodeStatus = types.NSCordoned
-	} else {
-		if helper.IsNodeReady(k8sNode) == false {
-			nodeStatus = types.NSNotReady
-		}
+	} else if !helper.IsNodeReady(k8sNode) {
+		nodeStatus = types.NSNotReady
 	}
 
 	node := &types.Node{
@@ -239,7 +237,7 @@ func (m *NodeManager) Action(ctx *restresource.Context) (interface{}, *resterr.A
 }
 
 func cordonNode(cli client.Client, name string) *resterr.APIError {
-	node, err := getK8sNodeIfCanCordonOrDrain(cli, name)
+	node, err := getK8sNodeIfNotControlplane(cli, name)
 	if err != nil {
 		return err
 	}
@@ -250,13 +248,13 @@ func cordonNode(cli client.Client, name string) *resterr.APIError {
 
 	node.Spec.Unschedulable = true
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
 
 func drainNode(cli client.Client, name string) *resterr.APIError {
-	node, err := getK8sNodeIfCanCordonOrDrain(cli, name)
+	node, err := getK8sNodeIfNotControlplane(cli, name)
 	if err != nil {
 		return err
 	}
@@ -266,29 +264,29 @@ func drainNode(cli client.Client, name string) *resterr.APIError {
 	}
 
 	node.Spec.Taints = append(node.Spec.Taints, corev1.Taint{
-		Key:    nodeNoExecuteTaintKey,
+		Key:    nodeDrainedNoExecuteTaintKey,
 		Effect: corev1.TaintEffectNoExecute,
 		TimeAdded: &metav1.Time{
 			Time: time.Now(),
 		},
 	})
-	node.Spec.Unschedulable = true
 
+	node.Spec.Unschedulable = true
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
 
 func uncordonNode(cli client.Client, name string) *resterr.APIError {
-	node, err := getK8sNodeIfCanCordonOrDrain(cli, name)
+	node, err := getK8sNodeIfNotControlplane(cli, name)
 	if err != nil {
 		return err
 	}
 
 	if isNodeDrained(node) {
 		for i, t := range node.Spec.Taints {
-			if t.Key == nodeNoExecuteTaintKey {
+			if t.Key == nodeDrainedNoExecuteTaintKey {
 				node.Spec.Taints = append(node.Spec.Taints[:i], node.Spec.Taints[i+1:]...)
 				break
 			}
@@ -302,32 +300,31 @@ func uncordonNode(cli client.Client, name string) *resterr.APIError {
 	}
 
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
 
 func isNodeCordoned(node *corev1.Node) bool {
-	return node.Spec.Unschedulable == true
+	return node.Spec.Unschedulable
 }
 
 func isNodeDrained(node *corev1.Node) bool {
 	for _, t := range node.Spec.Taints {
-		if t.Key == nodeNoExecuteTaintKey {
+		if t.Key == nodeDrainedNoExecuteTaintKey {
 			return true
 		}
 	}
 	return false
 }
 
-func getK8sNodeIfCanCordonOrDrain(cli client.Client, name string) (*corev1.Node, *resterr.APIError) {
+func getK8sNodeIfNotControlplane(cli client.Client, name string) (*corev1.Node, *resterr.APIError) {
 	node, err := getK8SNode(cli, name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("node %s desn't exist", name))
-		} else {
-			return nil, resterr.NewAPIError(resterr.ClusterUnavailable, err.Error())
 		}
+		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, err.Error())
 	}
 
 	if isControlplaneNode(node) {
