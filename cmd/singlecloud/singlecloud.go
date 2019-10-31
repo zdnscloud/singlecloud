@@ -32,15 +32,15 @@ var (
 
 func main() {
 	var (
-		addr            string
-		casServer       string
-		globaldnsAddr   string
-		showVersion     bool
-		chartDir        string
-		dbFilePath      string
-		dbPort          int
-		secondDBAddress string
-		repoUrl         string
+		addr               string
+		casServer          string
+		globaldnsAddr      string
+		showVersion        bool
+		chartDir           string
+		dbFilePath         string
+		dbPort             int
+		secondaryDBAddress string
+		repoUrl            string
 	)
 
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
@@ -50,7 +50,7 @@ func main() {
 	flag.StringVar(&chartDir, "chart", "", "chart path")
 	flag.StringVar(&dbFilePath, "db", "", "db file path")
 	flag.IntVar(&dbPort, "dbport", 6666, "db server port")
-	flag.StringVar(&secondDBAddress, "second-addr", "", "second db address")
+	flag.StringVar(&secondaryDBAddress, "secondary-addr", "", "secondary db address")
 	flag.StringVar(&repoUrl, "repo", "", "chart repo url")
 	flag.Parse()
 
@@ -63,7 +63,7 @@ func main() {
 	eventBus := pubsub.New(EventBufLen)
 
 	stopCh := make(chan struct{})
-	dbClient, err := initDB(dbPort, dbFilePath, secondDBAddress, stopCh)
+	dbClient, err := initDB(dbPort, dbFilePath, secondaryDBAddress, stopCh)
 	if err != nil {
 		log.Fatalf("create database failed: %s", err.Error())
 	}
@@ -121,7 +121,7 @@ func main() {
 	}
 }
 
-func initDB(localDBPort int, dbFilePath, secondDBAddress string, stopCh chan struct{}) (kvzoo.DB, error) {
+func initDB(localDBPort int, dbFilePath, secondaryDBAddress string, stopCh chan struct{}) (kvzoo.DB, error) {
 	dbServerAddr := fmt.Sprintf(":%d", localDBPort)
 	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(dbFilePath, DBFileName))
 	if err != nil {
@@ -135,8 +135,8 @@ func initDB(localDBPort int, dbFilePath, secondDBAddress string, stopCh chan str
 	<-dbStarted
 
 	var slaves []string
-	if secondDBAddress != "" {
-		slaves = append(slaves, secondDBAddress)
+	if secondaryDBAddress != "" {
+		slaves = append(slaves, secondaryDBAddress)
 	}
 	dbClient, err := client.New(dbServerAddr, nil)
 	if err != nil {
