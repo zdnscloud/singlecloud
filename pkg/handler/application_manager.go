@@ -29,6 +29,7 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/gorest/resource/schema/resourcefield"
 	restutil "github.com/zdnscloud/gorest/util"
+	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -60,7 +61,6 @@ type ApplicationManager struct {
 	clusters       *ClusterManager
 	chartDir       string
 	clusterEventCh <-chan interface{}
-	chartConfigs   map[string]chartConfig
 }
 
 type chartConfig struct {
@@ -73,7 +73,6 @@ func newApplicationManager(clusters *ClusterManager, chartDir string) *Applicati
 		clusters:       clusters,
 		chartDir:       chartDir,
 		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
-		chartConfigs:   make(map[string]chartConfig),
 	}
 	go m.eventLoop()
 	return m
@@ -89,22 +88,6 @@ func (m *ApplicationManager) eventLoop() {
 			}
 		}
 	}
-}
-
-func (m *ApplicationManager) addChartsConfig(chartsConfig []interface{}) error {
-	for _, config := range chartsConfig {
-		typ := reflect.TypeOf(config)
-		fields, err := resourcefield.New(typ)
-		if err != nil {
-			return err
-		}
-
-		m.chartConfigs[strings.ToLower(typ.Name())] = chartConfig{
-			structVal: reflect.ValueOf(config),
-			fields:    fields,
-		}
-	}
-	return nil
 }
 
 func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
@@ -326,7 +309,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		DefaultCapabilities.KubeVersion.Minor = clusterVersion.Minor
 	}
 
-	configs, err := m.parseChartConfigs(app.ChartName, app.Configs)
+	configs, err := m.parseChartConfigs(path.Join(m.chartDir, app.ChartName, app.ChartVersion), app.Configs)
 	if err != nil {
 		return fmt.Errorf("parse chart %s with version %s configs failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
@@ -564,42 +547,21 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 	return appResources, nil
 }
 
-func (m *ApplicationManager) parseChartConfigs(chartName string, appConfigs json.RawMessage) (map[string]interface{}, error) {
-	objMap := make(map[string]interface{})
-	if appConfigs == nil {
-		return objMap, nil
+func (m *ApplicationManager) parseChartConfigs(chartVersionDir string, configRaw json.RawMessage) (map[string]interface{}, error) {
+	configs := make(map[string]interface{})
+	if configRaw == nil {
+		return configs, nil
 	}
 
-	if err := json.Unmarshal(appConfigs, &objMap); err != nil {
-		return nil, fmt.Errorf("unmarshal chart %s configs failed: %v", chartName, err.Error())
+	if err := json.Unmarshal(configRaw, &configs); err != nil {
+		return nil, fmt.Errorf("unmarshal chart configs failed: %v", err.Error())
 	}
 
-	chartConfig, ok := m.chartConfigs[strings.ToLower(chartName)]
-	if ok == false {
-		return nil, fmt.Errorf("no found chart %s resource info", chartName)
+	if err := charts.CheckConfigs(chartVersionDir, configs); err != nil {
+		return nil, err
 	}
 
-	if chartConfig.fields != nil {
-		if err := chartConfig.fields.CheckRequired(objMap); err != nil {
-			return nil, err
-		}
-	}
-
-	val := chartConfig.structVal
-	valPtr := reflect.New(val.Type())
-	valPtr.Elem().Set(val)
-	obj := valPtr.Interface()
-	if err := json.Unmarshal(appConfigs, obj); err != nil {
-		return nil, fmt.Errorf("unmarshal chart %s configs failed: %v", chartName, err.Error())
-	}
-
-	if chartConfig.fields != nil {
-		if err := chartConfig.fields.Validate(obj); err != nil {
-			return nil, err
-		}
-	}
-
-	return objMap, nil
+	return configs, nil
 }
 
 func genUrlPrefix(ctx *resource.Context, clusterName string) string {

@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	yaml "gopkg.in/yaml.v2"
 	"io"
@@ -19,11 +18,11 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
-	configPath    = "config/config.json"
 	chartYamlFile = "Chart.yaml"
 	iconPrefix    = "/assets/helm/icons/"
 	iconFormat    = ".png"
@@ -78,14 +77,9 @@ func (m *ChartManager) List(ctx *resource.Context) interface{} {
 
 func (m *ChartManager) Get(ctx *resource.Context) resource.Resource {
 	chart := ctx.Resource.(*types.Chart)
-	versions, description, isSystemChart, err := listVersions(path.Join(m.chartDir, chart.GetID()))
+	versions, description, err := listVersions(path.Join(m.chartDir, chart.GetID()))
 	if err != nil {
 		log.Warnf("get chart %s failed:%s", chart.Name, err.Error())
-		return nil
-	}
-
-	if isSystemChart {
-		log.Warnf("no found chart %s for user %s", chart.Name, getCurrentUser(ctx))
 		return nil
 	}
 
@@ -109,24 +103,20 @@ func getLocalCharts(chartDir string) (types.Charts, error) {
 				continue
 			}
 
-			versions, description, isSystemChart, err := listVersions(path.Join(chartDir, cht.Name()))
+			versions, description, err := listVersions(path.Join(chartDir, cht.Name()))
 			if err != nil {
 				log.Warnf("list charts info when get chart %s failed:%s", cht.Name(), err.Error())
 				continue
-			} else {
-				if isSystemChart {
-					continue
-				}
-
-				chart := &types.Chart{
-					Name:        cht.Name(),
-					Description: description,
-					Icon:        genChartIcon(cht.Name()),
-					Versions:    versions,
-				}
-				chart.SetID(chart.Name)
-				charts = append(charts, chart)
 			}
+
+			chart := &types.Chart{
+				Name:        cht.Name(),
+				Description: description,
+				Icon:        genChartIcon(cht.Name()),
+				Versions:    versions,
+			}
+			chart.SetID(chart.Name)
+			charts = append(charts, chart)
 		}
 	}
 
@@ -247,13 +237,12 @@ func loadCloudChartByVersion(versionUrls []string, repoUrl, chartDir, chartName,
 	}
 
 	defer resp.Body.Close()
-	unzipFileDir, err := expandFile(path.Join(chartDir, chartName), resp.Body)
+	unzipFileDir, err := expandFile(chartDir, chartName, resp.Body)
 	if err != nil {
 		return err
 	}
 
-	err = os.Rename(path.Join(chartDir, chartName, unzipFileDir), path.Join(chartDir, chartName, chartVersion))
-	if err != nil {
+	if err := os.Rename(path.Join(chartDir, chartName, unzipFileDir), path.Join(chartDir, chartName, chartVersion)); err != nil {
 		return fmt.Errorf("rename chart %s from %s to %s failed: %s", chartName, unzipFileDir, chartVersion, err.Error())
 	}
 
@@ -261,34 +250,35 @@ func loadCloudChartByVersion(versionUrls []string, repoUrl, chartDir, chartName,
 	return nil
 }
 
-func listVersions(chartPath string) ([]types.ChartVersion, string, bool, error) {
+func listVersions(chartPath string) ([]types.ChartVersion, string, error) {
+	var description string
 	versionDirs, err := ioutil.ReadDir(chartPath)
 	if err != nil {
-		return nil, "", false, err
+		return nil, description, err
 	}
 
 	var versions []types.ChartVersion
-	var chartInfo ChartInfo
 	for _, versionDir := range versionDirs {
 		if versionDir.IsDir() {
 			if strings.HasPrefix(versionDir.Name(), ".") {
 				continue
 			}
 
-			var config []map[string]interface{}
-			content, err := ioutil.ReadFile(path.Join(chartPath, versionDir.Name(), configPath))
-			if err == nil {
-				if err := json.Unmarshal(content, &config); err != nil {
-					return nil, "", false, fmt.Errorf("unmarshal config file failed: %s", err.Error())
+			if description == "" {
+				if info, err := getChartInfo(path.Join(chartPath, versionDir.Name())); err != nil {
+					log.Warnf("load chart with version %s info failed: %s", versionDir.Name(), err.Error())
+					continue
+				} else if info.SystemChart {
+					break
+				} else {
+					description = info.Description
 				}
 			}
 
-			if chartInfo.Description == "" {
-				if info, err := getChartInfo(path.Join(chartPath, versionDir.Name())); err != nil {
-					return nil, "", false, err
-				} else {
-					chartInfo = *info
-				}
+			config, err := charts.LoadChartConfigs(path.Join(chartPath, versionDir.Name()))
+			if err != nil {
+				log.Warnf("load chart with version %s config failed: %s", versionDir.Name(), err.Error())
+				continue
 			}
 
 			versions = append(versions, types.ChartVersion{
@@ -296,11 +286,15 @@ func listVersions(chartPath string) ([]types.ChartVersion, string, bool, error) 
 				Config:  config,
 			})
 		} else if versionDir.Name() == chartYamlFile {
-			return nil, "", false, fmt.Errorf("chart all files must be in a version dir")
+			return nil, description, fmt.Errorf("chart all files must be in a version dir")
 		}
 	}
 
-	return versions, chartInfo.Description, chartInfo.SystemChart, nil
+	if len(versions) == 0 {
+		return nil, description, fmt.Errorf("no found valid version")
+	}
+
+	return versions, description, nil
 }
 
 func getChartInfo(chartYamlPath string) (*ChartInfo, error) {
@@ -321,7 +315,8 @@ func genChartIcon(chartName string) string {
 	return iconPrefix + chartName + iconFormat
 }
 
-func expandFile(chartFileDir string, r io.Reader) (string, error) {
+func expandFile(chartDir, chartName string, r io.Reader) (string, error) {
+	chartFileDir := path.Join(chartDir, chartName)
 	var unzipFileDir string
 	gzipReader, err := gzip.NewReader(r)
 	if err != nil {
@@ -347,12 +342,16 @@ func expandFile(chartFileDir string, r io.Reader) (string, error) {
 		fullDir := filepath.Join(chartFileDir, headerDir)
 		_, err = os.Stat(fullDir)
 		if err != nil && headerDir != "" {
-			if err := os.MkdirAll(fullDir, 0700); err != nil {
+			if err := os.MkdirAll(fullDir, 0755); err != nil {
 				return unzipFileDir, err
 			}
 		}
 
 		chartFilePath := filepath.Clean(filepath.Join(chartFileDir, headerName))
+		if filepath.Base(headerName) == chartName+iconFormat {
+			chartFilePath = genChartIcon(chartName)
+		}
+
 		info := header.FileInfo()
 		if info.IsDir() {
 			if err = os.MkdirAll(chartFilePath, info.Mode()); err != nil {
