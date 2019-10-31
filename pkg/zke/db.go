@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zdnscloud/singlecloud/storage"
+	"github.com/zdnscloud/kvzoo"
 
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
@@ -24,8 +24,9 @@ type clusterState struct {
 	ScVersion        string    `json:"zcloudVersion"`
 }
 
-func getClusterFromDB(clusterID string, db storage.DB) (clusterState, error) {
-	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
+func getClusterFromDB(clusterID string, db kvzoo.DB) (clusterState, error) {
+	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
 		return clusterState{}, fmt.Errorf("get table failed: %s", err.Error())
 	}
@@ -49,8 +50,9 @@ func getClusterFromDB(clusterID string, db storage.DB) (clusterState, error) {
 	return state, nil
 }
 
-func createOrUpdateClusterFromDB(clsuterID string, s clusterState, db storage.DB) error {
-	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
+func createOrUpdateClusterFromDB(clsuterID string, s clusterState, db kvzoo.DB) error {
+	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
 		return fmt.Errorf("get table failed %s", err.Error())
 	}
@@ -83,8 +85,9 @@ func createOrUpdateClusterFromDB(clsuterID string, s clusterState, db storage.DB
 	return nil
 }
 
-func deleteClusterFromDB(clusterID string, db storage.DB) error {
-	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
+func deleteClusterFromDB(clusterID string, db kvzoo.DB) error {
+	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
 		return fmt.Errorf("get table failed %s", err.Error())
 	}
@@ -105,10 +108,11 @@ func deleteClusterFromDB(clusterID string, db storage.DB) error {
 	return nil
 }
 
-func getClustersFromDB(db storage.DB) (map[string]clusterState, error) {
+func getClustersFromDB(db kvzoo.DB) (map[string]clusterState, error) {
 	stateMap := make(map[string]clusterState)
 
-	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
+	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
 		return stateMap, fmt.Errorf("get table failed %s", err.Error())
 	}

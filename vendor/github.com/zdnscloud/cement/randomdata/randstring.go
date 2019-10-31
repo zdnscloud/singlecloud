@@ -15,6 +15,14 @@ const (
 var errExceedMaxUniqueCount = errors.New("couldn't generate so many unique strings")
 
 func RandString(n int) string {
+	return randString(n, letterBytes)
+}
+
+func RandStringWithLetter(n int, letter string) string {
+	return randString(n, letter)
+}
+
+func randString(n int, letterBytes string) string {
 	b := make([]byte, n)
 	// A rand.Int63() generates 63 random bits, enough for letterIdxMax letters!
 	for i, cache, remain := n-1, rand.Int63(), letterIdxMax; i >= 0; {

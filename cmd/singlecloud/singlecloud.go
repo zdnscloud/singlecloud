@@ -3,9 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"path"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
+	"github.com/zdnscloud/kvzoo"
+	"github.com/zdnscloud/kvzoo/client"
+	dbserver "github.com/zdnscloud/kvzoo/server"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
@@ -14,10 +18,12 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
 	"github.com/zdnscloud/singlecloud/pkg/k8sshell"
 	"github.com/zdnscloud/singlecloud/server"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
-const EventBufLen = 1000
+const (
+	EventBufLen = 1000
+	DBFileName  = "singlecloud.db"
+)
 
 var (
 	version string
@@ -25,19 +31,26 @@ var (
 )
 
 func main() {
-	var addr string
-	var casServer string
-	var globaldnsAddr string
-	var showVersion bool
-	var chartDir string
-	var dbFilePath string
-	var repoUrl string
+	var (
+		addr            string
+		casServer       string
+		globaldnsAddr   string
+		showVersion     bool
+		chartDir        string
+		dbFilePath      string
+		dbPort          int
+		secondDBAddress string
+		repoUrl         string
+	)
+
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
 	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
 	flag.StringVar(&chartDir, "chart", "", "chart path")
 	flag.StringVar(&dbFilePath, "db", "", "db file path")
+	flag.IntVar(&dbPort, "dbport", 6666, "db server port")
+	flag.StringVar(&secondDBAddress, "second-addr", "", "second db address")
 	flag.StringVar(&repoUrl, "repo", "", "chart repo url")
 	flag.Parse()
 
@@ -49,11 +62,12 @@ func main() {
 	log.InitLogger(log.Debug)
 	eventBus := pubsub.New(EventBufLen)
 
-	db, err := storage.New(dbFilePath)
+	stopCh := make(chan struct{})
+	dbClient, err := initDB(dbPort, dbFilePath, secondDBAddress, stopCh)
 	if err != nil {
-		log.Fatalf("init database failed: %s", err.Error())
+		log.Fatalf("create database failed: %s", err.Error())
 	}
-	defer db.Close()
+	defer close(stopCh)
 
 	if globaldnsAddr != "" {
 		if err := globaldns.New(globaldnsAddr, eventBus); err != nil {
@@ -61,12 +75,12 @@ func main() {
 		}
 	}
 
-	authenticator, err := authentication.New(casServer, db)
+	authenticator, err := authentication.New(casServer, dbClient)
 	if err != nil {
 		log.Fatalf("create authenticator failed:%s", err.Error())
 	}
 
-	authorizer, err := authorization.New(db)
+	authorizer, err := authorization.New(dbClient)
 	if err != nil {
 		log.Fatalf("create authorizer failed:%s", err.Error())
 	}
@@ -77,7 +91,7 @@ func main() {
 	}
 
 	agent := clusteragent.New()
-	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, db, chartDir, version, repoUrl)
+	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, chartDir, version, repoUrl)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}
@@ -105,4 +119,34 @@ func main() {
 	if err := server.Run(addr); err != nil {
 		log.Fatalf("server run failed:%s", err.Error())
 	}
+}
+
+func initDB(localDBPort int, dbFilePath, secondDBAddress string, stopCh chan struct{}) (kvzoo.DB, error) {
+	dbServerAddr := fmt.Sprintf(":%d", localDBPort)
+	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(dbFilePath, DBFileName))
+	if err != nil {
+		return nil, err
+	}
+	dbStarted := make(chan struct{})
+	go func() {
+		close(dbStarted)
+		db.Start()
+	}()
+	<-dbStarted
+
+	var slaves []string
+	if secondDBAddress != "" {
+		slaves = append(slaves, secondDBAddress)
+	}
+	dbClient, err := client.New(dbServerAddr, nil)
+	if err != nil {
+		db.Stop()
+		return nil, err
+	}
+
+	go func() {
+		<-stopCh
+		db.Stop()
+	}()
+	return dbClient, nil
 }

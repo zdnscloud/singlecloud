@@ -29,10 +29,10 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/gorest/resource/schema/resourcefield"
 	restutil "github.com/zdnscloud/gorest/util"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 var (
@@ -84,7 +84,8 @@ func (m *ApplicationManager) eventLoop() {
 		event := <-m.clusterEventCh
 		switch e := event.(type) {
 		case zke.DeleteCluster:
-			if err := m.clusters.GetDB().DeleteTable(storage.GenTableName(ApplicationTable, e.Cluster.Name)); err != nil {
+			tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, e.Cluster.Name)
+			if err := m.clusters.GetDB().DeleteTable(tn); err != nil {
 				log.Warnf("delete /application/cluster %s table failed: %s", e.Cluster.Name, err.Error())
 			}
 		}
@@ -135,7 +136,8 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	allApps, err := getApplicationsFromDB(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, namespace))
+	tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, cluster.Name, namespace)
+	allApps, err := getApplicationsFromDB(m.clusters.GetDB(), tn)
 	if err != nil {
 		log.Warnf("list applications failed %s", err.Error())
 		return nil
@@ -161,7 +163,7 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
+	tableName, _ := kvzoo.TableNameFromSegments(ApplicationTable, cluster.Name, namespace)
 	app, err := getApplicationFromDB(m.clusters.GetDB(), tableName, ctx.Resource.GetID(), false)
 	if err != nil {
 		log.Warnf("get applications failed %s", err.Error())
@@ -180,7 +182,7 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
 	if err := deleteApplication(m.clusters.GetDB(), cluster.KubeClient, cluster.Name, namespace, appName, false); err != nil {
-		if err == storage.ErrNotFoundResource {
+		if err == kvzoo.ErrNotFound {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
 		} else {
@@ -192,8 +194,8 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 	return nil
 }
 
-func deleteApplication(db storage.DB, cli client.Client, clusterName, namespace, appName string, isSystemChart bool) error {
-	tableName := storage.GenTableName(ApplicationTable, clusterName, namespace)
+func deleteApplication(db kvzoo.DB, cli client.Client, clusterName, namespace, appName string, isSystemChart bool) error {
+	tableName, _ := kvzoo.TableNameFromSegments(ApplicationTable, clusterName, namespace)
 	app, err := updateAppStatusToDeleteFromDB(db, tableName, appName, isSystemChart)
 	if err != nil {
 		return err
@@ -222,7 +224,7 @@ func deleteApplication(db storage.DB, cli client.Client, clusterName, namespace,
 	return nil
 }
 
-func updateAppStatusToDeleteFromDB(db storage.DB, tableName, name string, isSystemChart bool) (*types.Application, error) {
+func updateAppStatusToDeleteFromDB(db kvzoo.DB, tableName kvzoo.TableName, name string, isSystemChart bool) (*types.Application, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
@@ -282,7 +284,7 @@ func deleteAppResources(cli client.Client, namespace string, manifests []types.M
 	return nil
 }
 
-func deleteApplicationFromDB(db storage.DB, tableName, name string) error {
+func deleteApplicationFromDB(db kvzoo.DB, tableName kvzoo.TableName, name string) error {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return err
@@ -340,7 +342,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
 	app.ChartIcon = genChartIcon(app.ChartName)
-	tableName := storage.GenTableName(ApplicationTable, cluster.Name, namespace)
+	tableName, _ := kvzoo.TableNameFromSegments(ApplicationTable, cluster.Name, namespace)
 	if err := addOrUpdateAppToDB(m.clusters.GetDB(), tableName, app, true); err != nil {
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
@@ -350,7 +352,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	return nil
 }
 
-func addOrUpdateAppToDB(db storage.DB, tableName string, app *types.Application, isCreate bool) error {
+func addOrUpdateAppToDB(db kvzoo.DB, tableName kvzoo.TableName, app *types.Application, isCreate bool) error {
 	value, err := json.Marshal(app)
 	if err != nil {
 		return fmt.Errorf("marshal application %s failed: %s", app.Name, err.Error())
@@ -375,7 +377,7 @@ func addOrUpdateAppToDB(db storage.DB, tableName string, app *types.Application,
 	return tx.Commit()
 }
 
-func getApplicationsFromDB(db storage.DB, tableName string) (types.Applications, error) {
+func getApplicationsFromDB(db kvzoo.DB, tableName kvzoo.TableName) (types.Applications, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
@@ -408,7 +410,7 @@ func getApplicationsFromDB(db storage.DB, tableName string) (types.Applications,
 	return apps, nil
 }
 
-func getApplicationFromDB(db storage.DB, tableName, appName string, isSystemChart bool) (*types.Application, error) {
+func getApplicationFromDB(db kvzoo.DB, tableName kvzoo.TableName, appName string, isSystemChart bool) (*types.Application, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
@@ -418,7 +420,7 @@ func getApplicationFromDB(db storage.DB, tableName, appName string, isSystemChar
 	return getApplicationFromDBTx(tx, appName, isSystemChart)
 }
 
-func getApplicationFromDBTx(tx storage.Transaction, appName string, isSystemChart bool) (*types.Application, error) {
+func getApplicationFromDBTx(tx kvzoo.Transaction, appName string, isSystemChart bool) (*types.Application, error) {
 	value, err := tx.Get(appName)
 	if err != nil {
 		return nil, err
@@ -484,7 +486,7 @@ func loadChartFiles(namespace, chartPath, appName string, configs map[string]int
 	return manifests, crdManifests, nil
 }
 
-func createApplication(db storage.DB, cli client.Client, isAdmin bool, tableName, namespace, urlPrefix string, app *types.Application, crdManifests []types.Manifest) {
+func createApplication(db kvzoo.DB, cli client.Client, isAdmin bool, tableName kvzoo.TableName, namespace, urlPrefix string, app *types.Application, crdManifests []types.Manifest) {
 	if err := preInstallChartCRDs(cli, crdManifests); err != nil {
 		app.Status = types.AppStatusFailed
 		if err := addOrUpdateAppToDB(db, tableName, app, false); err != nil {
@@ -619,8 +621,8 @@ func genUrlPrefix(ctx *resource.Context, clusterName string) string {
 	}
 }
 
-func clearApplications(db storage.DB, cli client.Client, clusterName, namespace string) error {
-	tableName := storage.GenTableName(ApplicationTable, clusterName, namespace)
+func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace string) error {
+	tableName, _ := kvzoo.TableNameFromSegments(ApplicationTable, clusterName, namespace)
 	apps, err := getApplicationsFromDB(db, tableName)
 	if err != nil {
 		return fmt.Errorf("get applications from db failed: %s", err.Error())

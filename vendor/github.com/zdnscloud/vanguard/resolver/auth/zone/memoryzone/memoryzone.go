@@ -388,8 +388,8 @@ func (z *MemoryZone) getNode(name *g53.Name) (*domaintree.Node, error) {
 	return node, nil
 }
 
-func (z *MemoryZone) clearNode(node *domaintree.Node, name *g53.Name) {
-	node.SetData(nil)
+func (z *MemoryZone) deleteNode(name *g53.Name) {
+	z.domains.Remove(name)
 	if name.IsWildCard() {
 		z.unmarkWildcardParent(name)
 	}
@@ -413,7 +413,7 @@ func (z *MemoryZone) deleteRRset(rrset *g53.RRset) (*domaintree.Node, error) {
 
 	delete(nodeData, rrset.Type)
 	if len(nodeData) == 0 {
-		z.clearNode(node, rrset.Name)
+		z.deleteNode(rrset.Name)
 	}
 
 	return node, nil
@@ -436,7 +436,7 @@ func (z *MemoryZone) deleteDomain(name *g53.Name) (*domaintree.Node, error) {
 		newData[g53.RR_NS] = oldData[g53.RR_NS]
 		node.SetData(newData)
 	} else {
-		z.clearNode(node, name)
+		z.deleteNode(name)
 	}
 
 	return node, nil
@@ -462,7 +462,7 @@ func (z *MemoryZone) deleteRr(rrset *g53.RRset) (*domaintree.Node, error) {
 	if len(leftRdatas) == 0 {
 		delete(nodeData, rrset.Type)
 		if len(nodeData) == 0 {
-			z.clearNode(node, rrset.Name)
+			z.deleteNode(rrset.Name)
 		}
 	} else {
 		nodeData[rrset.Type] = &g53.RRset{
@@ -511,17 +511,6 @@ func (z *MemoryZone) increaseSerialNumber() {
 	}
 
 	soa.Rdatas[0].(*g53.SOA).Serial += 1
-}
-
-func (z *MemoryZone) emptyNodeRatio() int {
-	return z.domains.EmptyLeafNodeRatio()
-}
-
-func (z *MemoryZone) removeEmptyNode() {
-	newDomains := z.domains.RemoveEmptyLeafNode()
-	originNode, _ := newDomains.Insert(z.origin)
-	z.domains = newDomains
-	z.originNode = originNode
 }
 
 func cloneNode(v interface{}) interface{} {

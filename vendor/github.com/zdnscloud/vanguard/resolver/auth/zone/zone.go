@@ -87,7 +87,6 @@ type ZoneUpdator interface {
 	DeleteDomain(Transaction, *g53.Name) error
 	DeleteRr(Transaction, *g53.RRset) error
 	IncreaseSerialNumber(Transaction)
-	Clean() error
 }
 
 type ZoneLoader interface {

@@ -16,8 +16,8 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const UserQuotaTable = "userquota"
@@ -48,7 +48,8 @@ func (m *UserQuotaManager) Create(ctx *resource.Context) (resource.Resource, *re
 			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), tn)
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("create user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -70,7 +71,8 @@ func (m *UserQuotaManager) Create(ctx *resource.Context) (resource.Resource, *re
 
 func (m *UserQuotaManager) List(ctx *resource.Context) interface{} {
 	userName := getCurrentUser(ctx)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), tn)
 	if err != nil {
 		log.Warnf("list user quota info failed: %s", err.Error())
 		return nil
@@ -105,7 +107,8 @@ func (m *UserQuotaManager) List(ctx *resource.Context) interface{} {
 func (m *UserQuotaManager) Get(ctx *resource.Context) resource.Resource {
 	userName := getCurrentUser(ctx)
 	userQuota := ctx.Resource.(*types.UserQuota)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), tn)
 	if err != nil {
 		log.Warnf("get user quota info failed: %s", err.Error())
 		return nil
@@ -137,7 +140,8 @@ func (m *UserQuotaManager) Update(ctx *resource.Context) (resource.Resource, *re
 		return nil, resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), tn)
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("update user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -192,7 +196,8 @@ func (m *UserQuotaManager) Delete(ctx *resource.Context) *resterror.APIError {
 	}
 
 	userQuota := ctx.Resource.(*types.UserQuota)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), tn)
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -279,7 +284,8 @@ func (m *UserQuotaManager) approval(ctx *resource.Context) *resterror.APIError {
 	}
 
 	userQuotaID := ctx.Resource.(*types.UserQuota).GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), tn)
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user quota %s failed %s", userQuotaID, err.Error()))
@@ -379,7 +385,9 @@ func (m *UserQuotaManager) reject(ctx *resource.Context) *resterror.APIError {
 	}
 
 	userQuotaID := ctx.Resource.(*types.UserQuota).GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	tx, err := BeginTableTransaction(m.clusters.GetDB(), tn)
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user quota %s failed %s", userQuotaID, err.Error()))
@@ -469,7 +477,7 @@ func storageResourceValueToSCUserQuota(value []byte) (*types.UserQuota, error) {
 	return &userQuota, nil
 }
 
-func BeginTableTransaction(db storage.DB, tableName string) (storage.Transaction, error) {
+func BeginTableTransaction(db kvzoo.DB, tableName kvzoo.TableName) (kvzoo.Transaction, error) {
 	table, err := db.CreateOrGetTable(tableName)
 	if err != nil {
 		return nil, fmt.Errorf("get table failed: %s", err.Error())
@@ -483,7 +491,7 @@ func BeginTableTransaction(db storage.DB, tableName string) (storage.Transaction
 	return tx, nil
 }
 
-func getUserQuotaFromDB(tx storage.Transaction, id string) (*types.UserQuota, error) {
+func getUserQuotaFromDB(tx kvzoo.Transaction, id string) (*types.UserQuota, error) {
 	value, err := tx.Get(id)
 	if err != nil {
 		return nil, err
@@ -492,7 +500,7 @@ func getUserQuotaFromDB(tx storage.Transaction, id string) (*types.UserQuota, er
 	return storageResourceValueToSCUserQuota(value)
 }
 
-func IsExistsNamespaceInDB(db storage.DB, tableName, namespace string) (bool, error) {
+func IsExistsNamespaceInDB(db kvzoo.DB, tableName kvzoo.TableName, namespace string) (bool, error) {
 	tx, err := BeginTableTransaction(db, tableName)
 	if err != nil {
 		return false, err

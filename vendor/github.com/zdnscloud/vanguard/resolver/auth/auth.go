@@ -69,7 +69,6 @@ func (ds *AuthDataSource) ReloadConfig(conf *config.VanguardConf) {
 		}
 	}
 
-	ds.clearZones()
 	ds.viewZones = viewZones
 }
 
@@ -106,20 +105,5 @@ func (ds *AuthDataSource) GetZone(viewName string, name *g53.Name) (zone.Zone, d
 		return z.(zone.Zone), result
 	} else {
 		return nil, result
-	}
-}
-
-func (ds *AuthDataSource) clearZones() {
-	for _, zones := range ds.viewZones {
-		zones.ForEach(func(d interface{}) {
-			if d == nil {
-				return
-			}
-
-			z := d.(zone.Zone)
-			if updator, ok := z.GetUpdator(nil, true); ok {
-				updator.Clean()
-			}
-		})
 	}
 }

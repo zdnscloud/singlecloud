@@ -43,7 +43,7 @@ const (
 	ToCleanEtcdDir          = "/var/lib/etcd/"
 	ToCleanKubeletDir       = "/var/lib/kubelet"
 	ToCleanRookDir          = "/var/lib/rook"
-	ToCleanZcloudDir        = "/var/lib/zdnscloud"
+	ToCleanZcloudDir        = "/var/lib/zcloud"
 	ToCleanFlannelDir       = "/var/run/flannel/"
 	ToCleanSSLDir           = "/etc/kubernetes/"
 	ToCleanCNIConf          = "/etc/cni/"
@@ -55,7 +55,7 @@ const (
 	ToCleanTempCertPath     = "/etc/kubernetes/.tmp/"
 	CleanerContainerName    = "kube-cleaner"
 	LogCleanerContainerName = "zke-log-cleaner"
-	ZKELogsPath             = "/var/lib/zdnscloud/zke/log"
+	ZKELogsPath             = "/var/lib/zcloud/zke/log"
 )
 
 func (h *Host) CleanUpAll(ctx context.Context, cleanerImage string, prsMap map[string]types.PrivateRegistry, externalEtcd bool, clusterCIDR string) error {

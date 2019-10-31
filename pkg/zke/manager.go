@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 
 	resterr "github.com/zdnscloud/gorest/error"
 	restsource "github.com/zdnscloud/gorest/resource"
@@ -22,7 +22,7 @@ const (
 type ZKEManager struct {
 	PubEventCh   chan interface{}
 	clusters     []*Cluster
-	db           storage.DB
+	db           kvzoo.DB
 	lock         sync.Mutex
 	scVersion    string // add cluster singlecloud version for easy to confirm zcloud component version
 	nodeListener NodeListener
@@ -32,7 +32,7 @@ type NodeListener interface {
 	IsStorageNode(cluster *Cluster, node string) (bool, error)
 }
 
-func New(db storage.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
+func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 	mgr := &ZKEManager{
 		clusters:     make([]*Cluster, 0),
 		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
@@ -309,7 +309,7 @@ func (m *ZKEManager) SendEvent(e interface{}) {
 	m.PubEventCh <- e
 }
 
-func (m *ZKEManager) GetDB() storage.DB {
+func (m *ZKEManager) GetDB() kvzoo.DB {
 	return m.db
 }
 

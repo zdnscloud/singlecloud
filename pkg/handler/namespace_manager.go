@@ -16,8 +16,8 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -104,7 +104,8 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 	}
 
 	namespace := ctx.Resource.(*types.Namespace)
-	exits, err := IsExistsNamespaceInDB(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable), namespace.GetID())
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	exits, err := IsExistsNamespaceInDB(m.clusters.GetDB(), tn, namespace.GetID())
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))

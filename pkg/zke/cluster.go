@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
@@ -157,7 +157,7 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	return nil
 }
 
-func (c *Cluster) setUnavailable(db storage.DB) error {
+func (c *Cluster) setUnavailable(db kvzoo.DB) error {
 	state, err := getClusterFromDB(c.Name, db)
 	if err != nil {
 		return err
@@ -341,7 +341,7 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	return sc
 }
 
-func (c *Cluster) GetKubeConfig(user string, db storage.DB) (string, error) {
+func (c *Cluster) GetKubeConfig(user string, db kvzoo.DB) (string, error) {
 	state, err := getClusterFromDB(c.Name, db)
 	if err != nil {
 		return "", err

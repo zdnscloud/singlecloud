@@ -8,13 +8,13 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/randomdata"
 	"github.com/zdnscloud/cement/x509"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 )
 
 const (
@@ -86,7 +86,8 @@ func (m *RegistryManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), registryChartName)
+	tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, cluster.Name, ZCloudNamespace)
+	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), tn, registryChartName)
 	if err != nil {
 		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, registryChartName, err.Error())
 		return nil

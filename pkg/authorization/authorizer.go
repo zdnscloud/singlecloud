@@ -6,8 +6,8 @@ import (
 	"time"
 
 	resttypes "github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -34,10 +34,10 @@ type User struct {
 type Authorizer struct {
 	users map[string]*User
 	lock  sync.RWMutex
-	db    storage.Table
+	db    kvzoo.Table
 }
 
-func New(db storage.DB) (*Authorizer, error) {
+func New(db kvzoo.DB) (*Authorizer, error) {
 	auth := &Authorizer{
 		users: make(map[string]*User),
 	}
