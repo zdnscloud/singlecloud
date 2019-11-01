@@ -69,8 +69,6 @@ func (cs ChartConfigs) validate() (err error) {
 			err = c.validateStr()
 		case TypeEnum:
 			err = c.validateEnum()
-		default:
-			err = fmt.Errorf("unsupport type %s for chart config.json", c.Type)
 		}
 
 		if err != nil {
