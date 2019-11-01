@@ -1,8 +1,0 @@
-[
-    {"label": "slaveReplicas", "jsonKey": "replication.slaveReplicas", "type": "int", "required": "false", "description": "the num of postgres database slave pod replicas", "default": 1},
-    {"label": "postgresqlUsername", "jsonKey": "postgresqlUsername", "type": "string", "required": "true", "description": "postgres admin user name"},
-    {"label": "postgresqlPassword", "jsonKey": "postgresqlPassword", "type": "string", "required": "true", "description": "postgres admin user password"},
-    {"label": "postgresqlDatabase", "jsonKey": "postgresqlDatabase", "type": "string", "required": "true", "description": "postgres database name"},
-    { "label": "storageClass", "jsonKey": "persistence.storageClass", "type": "enum", "required": "true", "description": "postgres data persistent volume storage class", "validValues": ["lvm", "cephfs"]},
-    { "label": "persistentVolumeSize", "jsonKey": "persistence.size", "type": "int", "required": "false", "description": "postgres data persistent volume size", "default": 8}
-]

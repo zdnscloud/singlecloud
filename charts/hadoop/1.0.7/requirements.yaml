@@ -1,4 +1,0 @@
-dependencies:
-  - name: zeppelin
-    version: "1.0.1"
-    condition: zeppelin.enabled
