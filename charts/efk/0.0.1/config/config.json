@@ -17,10 +17,10 @@
     {
         "label": "elasticsearchStorageSize",
         "jsonKey": "elasticsearch.volumeClaimTemplate.resources.requests.storage",
-        "type": "string",
+        "type": "int",
         "required": "false",
         "description": "elasticsearch storage size",
-        "default": "10Gi"
+        "default": "10"
     },
     {
         "label": "ingressDomain",

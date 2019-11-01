@@ -1,15 +1,17 @@
 package types
 
 import (
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/zdnscloud/gorest/resource"
 )
 
 type ServicePort struct {
-	Name       string `json:"name"`
-	Port       int    `json:"port"`
-	TargetPort int    `json:"targetPort"`
-	Protocol   string `json:"protocol"`
-	NodePort   int    `json:"nodePort,omitempty"`
+	Name       string             `json:"name"`
+	Port       int                `json:"port"`
+	TargetPort intstr.IntOrString `json:"targetPort"`
+	Protocol   string             `json:"protocol"`
+	NodePort   int                `json:"nodePort,omitempty"`
 }
 
 type Service struct {

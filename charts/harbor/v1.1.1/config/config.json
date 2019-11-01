@@ -3,8 +3,7 @@
         "jsonKey": "ingress.core",
         "type": "string",
         "required": "true",
-        "description": "the ingress domain of harbor core registry service",
-        "default": "registry.cluster.local"
+        "description": "the ingress domain of harbor core registry service"
     },
     {
         "label": "caCert",
@@ -41,10 +40,10 @@
     {
         "label": "storageSize",
         "jsonKey": "persistence.registryStorageSize",
-        "type": "string",
+        "type": "int",
         "required": "false",
         "description": "registry component storage size(Gi)",
-        "default": "50Gi"
+        "default": 50
     },
     {
         "label": "externalURL",
@@ -60,6 +59,6 @@
         "type": "string",
         "required": "false",
         "description": "harbor admin password",
-        "default": "admin"
+        "default": "zcloud"
     }
 ]

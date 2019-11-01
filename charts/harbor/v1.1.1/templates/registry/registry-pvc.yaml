@@ -18,7 +18,7 @@ spec:
     - {{ $registry.accessMode }}
   resources:
     requests:
-      storage: {{ $persistence.registryStorageSize }}
+      storage: {{ $persistence.registryStorageSize}}Gi
   {{- if $persistence.storageClass }}
     {{- if eq "-" $persistence.storageClass }}
   storageClassName: ""

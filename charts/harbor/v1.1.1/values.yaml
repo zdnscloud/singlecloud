@@ -109,7 +109,7 @@ persistence:
   # operation. Leaving it empty will delete PVCs after the chart deleted
   resourcePolicy: "keep"
   storageClass: lvm
-  registryStorageSize: 30Gi
+  registryStorageSize: 50
   persistentVolumeClaim:
     registry:
       # Use the existing PVC which must be created manually before bound, 

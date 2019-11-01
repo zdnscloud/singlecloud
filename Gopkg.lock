@@ -535,7 +535,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b93a1759a64929c2060ee60111fb2e78ea3fa85bc507a9c6f6ca67685970807f"
+  digest = "1:23746723af20386808f57e50c94b41e06ef4c88e4d7167dc7f24e0af1dcc281b"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -547,6 +547,7 @@
     "log/log4go",
     "netradix",
     "pubsub",
+    "randomdata",
     "reflector",
     "rest",
     "serializer",
@@ -651,7 +652,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:955b24591105b326e0d18b79946ecdd330eb00c4b540d074331f04c4c5c894c3"
+  digest = "1:b4298a1dc833b585f93e9df187783b0840f2fc82370a2c30d298b01f78ba9446"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -680,7 +681,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "68d3da0504bc6652eb9b1864a948b39bcbed51e3"
+  revision = "a26bdb6505d01060761d7fffd8b84b0744fc533a"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -1072,6 +1073,7 @@
     "github.com/zdnscloud/cement/fsm",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",
+    "github.com/zdnscloud/cement/randomdata",
     "github.com/zdnscloud/cement/set",
     "github.com/zdnscloud/cement/slice",
     "github.com/zdnscloud/cement/unittest",
@@ -1116,6 +1118,7 @@
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
     "k8s.io/api/storage/v1",
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
