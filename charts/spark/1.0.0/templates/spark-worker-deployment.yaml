@@ -1,0 +1,41 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "worker-fullname" . }}
+  labels:
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    component: "{{ .Release.Name }}-{{ .Values.worker.component }}"
+spec:
+  replicas: {{ default 1 .Values.worker.replicas }}
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      component: "{{ .Release.Name }}-{{ .Values.worker.component }}"
+  template:
+    metadata:
+      labels:
+        heritage: {{ .Release.Service | quote }}
+        release: {{ .Release.Name | quote }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        component: "{{ .Release.Name }}-{{ .Values.worker.component }}"
+    spec:
+      containers:
+        - name: {{ template "worker-fullname" . }}
+          image: "{{ .Values.worker.image }}:{{ .Values.worker.imageTag }}"
+          command: ["{{ .Values.spark.path }}/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://{{ template "master-fullname" . }}:{{ .Values.master.servicePort }}"]
+          ports:
+            - containerPort: {{ .Values.worker.containerPort }}
+          resources:
+            requests:
+              cpu: "{{ .Values.worker.cpu }}"
+              memory: "{{ .Values.worker.memory }}"
+          env:
+          - name: SPARK_DAEMON_MEMORY
+            value: {{ default "1g" .Values.worker.daemonMemory | quote }}
+          - name: SPARK_WORKER_MEMORY
+            value: {{ default "1g" .Values.worker.executorMemory | quote }}
+          - name: SPARK_WORKER_WEBUI_PORT
+            value: {{ .Values.webUi.containerPort | quote }}

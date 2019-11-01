@@ -1,0 +1,20 @@
+{{ $persistence := .Values.zeppelin.persistence.config }}
+{{- if $persistence.enabled }}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ template "zeppelin-fullname" . }}-config
+spec:
+  accessModes:
+    - {{ $persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: "{{ $persistence.size }}Gi"
+{{- if $persistence.storageClass }}
+{{- if (eq "-" $persistence.storageClass) }}
+  storageClassName: ""
+{{- else }}
+  storageClassName: "{{ $persistence.storageClass }}"
+{{- end }}
+{{- end }}
+{{- end }}

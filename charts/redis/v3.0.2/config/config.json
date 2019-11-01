@@ -1,4 +1,0 @@
-[
-    {"label": "password", "jsonKey": "password", "type": "string", "required": "false", "description": "redis database password"},
-    { "label": "slaveCount", "jsonKey": "cluster.slaveCount", "type": "int", "required": "false", "description": "the number of redis slave", "default": 1}
-]
