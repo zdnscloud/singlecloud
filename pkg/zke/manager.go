@@ -22,7 +22,7 @@ const (
 type ZKEManager struct {
 	PubEventCh   chan interface{}
 	clusters     []*Cluster
-	db           kvzoo.DB
+	dbTable      kvzoo.Table
 	lock         sync.Mutex
 	scVersion    string // add cluster singlecloud version for easy to confirm zcloud component version
 	nodeListener NodeListener
@@ -33,10 +33,15 @@ type NodeListener interface {
 }
 
 func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
+	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
+	table, err := db.CreateOrGetTable(tn)
+	if err != nil {
+		return nil, fmt.Errorf("create or get db table failed %s", err.Error())
+	}
 	mgr := &ZKEManager{
 		clusters:     make([]*Cluster, 0),
 		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
-		db:           db,
+		dbTable:      table,
 		scVersion:    scVersion,
 		nodeListener: nl,
 	}
@@ -70,7 +75,7 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 		IsUnvailable: true,
 		ScVersion:    m.scVersion,
 	}
-	if err := createOrUpdateClusterFromDB(typesCluster.Name, state, m.db); err != nil {
+	if err := createOrUpdateClusterFromDB(typesCluster.Name, state, m.dbTable); err != nil {
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
@@ -112,7 +117,7 @@ func (m *ZKEManager) Import(ctx *restsource.Context) (interface{}, *resterr.APIE
 		ScVersion:  types.ScVersionImported,
 	}
 
-	if err := createOrUpdateClusterFromDB(id, state, m.db); err != nil {
+	if err := createOrUpdateClusterFromDB(id, state, m.dbTable); err != nil {
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
@@ -156,13 +161,13 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 	config := genZKEConfigForUpdateNodes(existCluster.config, typesCluster)
 	existCluster.config = config
 
-	state, err := getClusterFromDB(typesCluster.Name, m.db)
+	state, err := getClusterFromDB(typesCluster.Name, m.dbTable)
 	if err != nil {
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 	state.ZKEConfig = config
 	state.IsUnvailable = true
-	if err := createOrUpdateClusterFromDB(typesCluster.Name, state, m.db); err != nil {
+	if err := createOrUpdateClusterFromDB(typesCluster.Name, state, m.dbTable); err != nil {
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 
@@ -272,7 +277,7 @@ func (m *ZKEManager) CancelCluster(id string) (interface{}, *resterr.APIError) {
 }
 
 func (m *ZKEManager) loadDB() error {
-	states, err := getClustersFromDB(m.db)
+	states, err := getClustersFromDB(m.dbTable)
 	if err != nil {
 		return err
 	}
@@ -309,8 +314,8 @@ func (m *ZKEManager) SendEvent(e interface{}) {
 	m.PubEventCh <- e
 }
 
-func (m *ZKEManager) GetDB() kvzoo.DB {
-	return m.db
+func (m *ZKEManager) GetDBTable() kvzoo.Table {
+	return m.dbTable
 }
 
 func (m *ZKEManager) Remove(cluster *Cluster) {

@@ -4,10 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/zdnscloud/singlecloud/storage"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	ut "github.com/zdnscloud/cement/unittest"
-	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/kvzoo/backend/bolt"
 )
 
 const (
@@ -19,7 +19,7 @@ const (
 func TestFsmInitSuccessEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSConnecting)
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -33,7 +33,7 @@ func TestFsmInitSuccessEvent(t *testing.T) {
 func TestFsmInitFailedEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSConnecting)
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -48,7 +48,7 @@ func TestFsmCreateSuccessEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSCreateing)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -63,7 +63,7 @@ func TestFsmCreateFailedEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSCreateing)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -78,7 +78,7 @@ func TestFsmUpdateSuccessEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSUpdateing)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -93,7 +93,7 @@ func TestFsmUpdateFailedEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSUpdateing)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -108,7 +108,7 @@ func TestFsmGetInfoSuccessEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSUnreachable)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -123,7 +123,7 @@ func TestFsmGetInfoFailedEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSRunning)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -138,7 +138,7 @@ func TestFsmCancelEventWhenCreating(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSCreateing)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -153,7 +153,7 @@ func TestFsmCancelEventWhenUpdating(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSUpdateing)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -168,7 +168,7 @@ func TestFsmCancelEventWhenConnecting(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSConnecting)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
@@ -183,7 +183,7 @@ func TestFsmCancelSuccessEvent(t *testing.T) {
 	cluster := newCluster(fsmTestCluster, types.CSCanceling)
 	state := clusterState{}
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
+		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
 		mgr, err := New(db, fsmTestScVersion, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)

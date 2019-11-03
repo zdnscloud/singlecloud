@@ -50,32 +50,32 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				cluster.logCh = nil
-				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
+				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable())
 				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
 			CreateFailedEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
-				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
+				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable())
 			},
 			UpdateSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				cluster.logCh = nil
-				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
+				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable())
 				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
 			CancelSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				cluster.isCanceled = false
-				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDB())
-				cluster.setUnavailable(mgr.GetDB())
+				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable())
+				cluster.setUnavailable(mgr.GetDBTable())
 			},
 			DeleteSuccessEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				mgr.Remove(cluster)
-				deleteClusterFromDB(cluster.Name, mgr.GetDB())
+				deleteClusterFromDB(cluster.Name, mgr.GetDBTable())
 			},
 		},
 	)

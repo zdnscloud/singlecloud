@@ -24,13 +24,7 @@ type clusterState struct {
 	ScVersion        string    `json:"zcloudVersion"`
 }
 
-func getClusterFromDB(clusterID string, db kvzoo.DB) (clusterState, error) {
-	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
-	table, err := db.CreateOrGetTable(tn)
-	if err != nil {
-		return clusterState{}, fmt.Errorf("get table failed: %s", err.Error())
-	}
-
+func getClusterFromDB(clusterID string, table kvzoo.Table) (clusterState, error) {
 	tx, err := table.Begin()
 	if err != nil {
 		return clusterState{}, fmt.Errorf("begin transaction failed: %s", err.Error())
@@ -50,13 +44,7 @@ func getClusterFromDB(clusterID string, db kvzoo.DB) (clusterState, error) {
 	return state, nil
 }
 
-func createOrUpdateClusterFromDB(clsuterID string, s clusterState, db kvzoo.DB) error {
-	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
-	table, err := db.CreateOrGetTable(tn)
-	if err != nil {
-		return fmt.Errorf("get table failed %s", err.Error())
-	}
-
+func createOrUpdateClusterFromDB(clsuterID string, s clusterState, table kvzoo.Table) error {
 	tx, err := table.Begin()
 	if err != nil {
 		return fmt.Errorf("begin transaction failed %s", err.Error())
@@ -85,13 +73,7 @@ func createOrUpdateClusterFromDB(clsuterID string, s clusterState, db kvzoo.DB) 
 	return nil
 }
 
-func deleteClusterFromDB(clusterID string, db kvzoo.DB) error {
-	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
-	table, err := db.CreateOrGetTable(tn)
-	if err != nil {
-		return fmt.Errorf("get table failed %s", err.Error())
-	}
-
+func deleteClusterFromDB(clusterID string, table kvzoo.Table) error {
 	tx, err := table.Begin()
 	if err != nil {
 		return fmt.Errorf("begin transaction failed %s", err.Error())
@@ -108,14 +90,8 @@ func deleteClusterFromDB(clusterID string, db kvzoo.DB) error {
 	return nil
 }
 
-func getClustersFromDB(db kvzoo.DB) (map[string]clusterState, error) {
+func getClustersFromDB(table kvzoo.Table) (map[string]clusterState, error) {
 	stateMap := make(map[string]clusterState)
-
-	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
-	table, err := db.CreateOrGetTable(tn)
-	if err != nil {
-		return stateMap, fmt.Errorf("get table failed %s", err.Error())
-	}
 
 	tx, err := table.Begin()
 	if err != nil {
