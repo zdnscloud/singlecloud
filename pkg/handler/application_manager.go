@@ -126,11 +126,9 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 
 	var apps types.Applications
 	for _, app := range allApps {
-		if app.SystemChart {
-			continue
+		if app.SystemChart == false {
+			apps = append(apps, genReturnApplication(app))
 		}
-
-		apps = append(apps, genReturnApplication(app))
 	}
 
 	sort.Sort(apps)
@@ -295,11 +293,10 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	}
 
 	isAdminUser := isAdmin(getCurrentUser(ctx))
-	if isAdminUser == false && info.SystemChart {
+	app.SystemChart = slice.SliceIndex(info.Keywords, KeywordZcloudSystem) != -1
+	if isAdminUser == false && app.SystemChart {
 		return fmt.Errorf("user %s no authority to create application with chart %s", getCurrentUser(ctx), app.ChartName)
 	}
-
-	app.SystemChart = info.SystemChart
 
 	if clusterVersion, err := cluster.KubeClient.ServerVersion(); err != nil {
 		return fmt.Errorf("get cluster %s version failed: %s", cluster.Name, err.Error())
