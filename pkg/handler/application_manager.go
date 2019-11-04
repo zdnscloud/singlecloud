@@ -225,7 +225,7 @@ func deleteApplication(db kvzoo.DB, cli client.Client, clusterName, namespace, a
 }
 
 func updateAppStatusToDeleteFromDB(db kvzoo.DB, tableName kvzoo.TableName, name string, isSystemChart bool) (*types.Application, error) {
-	tx, err := BeginTableTransaction(db, tableName)
+	tx, err := beginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +251,20 @@ func updateAppStatusToDeleteFromDB(db kvzoo.DB, tableName kvzoo.TableName, name 
 	}
 
 	return app, tx.Commit()
+}
+
+func beginTableTransaction(db kvzoo.DB, tableName kvzoo.TableName) (kvzoo.Transaction, error) {
+	table, err := db.CreateOrGetTable(tableName)
+	if err != nil {
+		return nil, fmt.Errorf("get table failed: %s", err.Error())
+	}
+
+	tx, err := table.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction failed: %s", err.Error())
+	}
+
+	return tx, nil
 }
 
 func deleteAppResources(cli client.Client, namespace string, manifests []types.Manifest) error {
@@ -285,7 +299,7 @@ func deleteAppResources(cli client.Client, namespace string, manifests []types.M
 }
 
 func deleteApplicationFromDB(db kvzoo.DB, tableName kvzoo.TableName, name string) error {
-	tx, err := BeginTableTransaction(db, tableName)
+	tx, err := beginTableTransaction(db, tableName)
 	if err != nil {
 		return err
 	}
@@ -358,7 +372,7 @@ func addOrUpdateAppToDB(db kvzoo.DB, tableName kvzoo.TableName, app *types.Appli
 		return fmt.Errorf("marshal application %s failed: %s", app.Name, err.Error())
 	}
 
-	tx, err := BeginTableTransaction(db, tableName)
+	tx, err := beginTableTransaction(db, tableName)
 	if err != nil {
 		return err
 	}
@@ -378,7 +392,7 @@ func addOrUpdateAppToDB(db kvzoo.DB, tableName kvzoo.TableName, app *types.Appli
 }
 
 func getApplicationsFromDB(db kvzoo.DB, tableName kvzoo.TableName) (types.Applications, error) {
-	tx, err := BeginTableTransaction(db, tableName)
+	tx, err := beginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +425,7 @@ func getApplicationsFromDB(db kvzoo.DB, tableName kvzoo.TableName) (types.Applic
 }
 
 func getApplicationFromDB(db kvzoo.DB, tableName kvzoo.TableName, appName string, isSystemChart bool) (*types.Application, error) {
-	tx, err := BeginTableTransaction(db, tableName)
+	tx, err := beginTableTransaction(db, tableName)
 	if err != nil {
 		return nil, err
 	}

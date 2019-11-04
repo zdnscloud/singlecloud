@@ -61,7 +61,11 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.ServiceNetwork{}, newServiceNetworkManager(a.clusterManager))
 	schemas.MustImport(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager))
-	schemas.MustImport(&Version, types.Namespace{}, newNamespaceManager(a.clusterManager))
+	namespaceManager, err := newNamespaceManager(a.clusterManager)
+	if err != nil {
+		return err
+	}
+	schemas.MustImport(&Version, types.Namespace{}, namespaceManager)
 	schemas.MustImport(&Version, types.Chart{}, newChartManager(a.chartDir, a.repoUrl))
 	schemas.MustImport(&Version, types.ConfigMap{}, newConfigMapManager(a.clusterManager))
 	schemas.MustImport(&Version, types.CronJob{}, newCronJobManager(a.clusterManager))
@@ -78,12 +82,16 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.StatefulSet{}, newStatefulSetManager(a.clusterManager))
 	schemas.MustImport(&Version, types.Pod{}, newPodManager(a.clusterManager))
 	schemas.MustImport(&Version, types.UdpIngress{}, newUDPIngressManager(a.clusterManager))
-	schemas.MustImport(&Version, types.UserQuota{}, newUserQuotaManager(a.clusterManager))
 	schemas.MustImport(&Version, types.StorageClass{}, newStorageClassManager(a.clusterManager))
 	schemas.MustImport(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.KubeConfig{}, newKubeConfigManager(a.clusterManager))
 
+	userQuotaManager, err := newUserQuotaManager(a.clusterManager)
+	if err != nil {
+		return err
+	}
+	schemas.MustImport(&Version, types.UserQuota{}, userQuotaManager)
 	appManager := newApplicationManager(a.clusterManager, a.chartDir)
 	if err := appManager.addChartsConfig(charts.SupportChartsConfig); err != nil {
 		return err
