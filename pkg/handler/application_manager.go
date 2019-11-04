@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"reflect"
 	"sort"
@@ -37,11 +36,6 @@ import (
 
 var (
 	DefaultCapabilities = &chartutil.Capabilities{
-		KubeVersion: chartutil.KubeVersion{
-			Version: "v1.13.0",
-			Major:   "1",
-			Minor:   "13",
-		},
 		APIVersions: chartutil.DefaultVersionSet,
 	}
 
@@ -135,10 +129,6 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	}
 
 	chartPath := path.Join(m.chartDir, app.ChartName, app.ChartVersion)
-	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
-		return err
-	}
-
 	info, err := getChartInfo(chartPath)
 	if err != nil {
 		return fmt.Errorf("load chart %s with version %s info failed: %s", app.ChartName, app.ChartVersion, err.Error())
@@ -366,13 +356,13 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
 			}
 
-			tmpNS := namespace
-			if nm := metaObj.GetNamespace(); nm != "" {
+			ns := metaObj.GetNamespace()
+			if ns != "" {
 				if isAdmin == false {
 					return fmt.Errorf("chart file %s should not has namespace", manifest.File)
 				}
-				tmpNS = nm
 			} else {
+				ns = namespace
 				metaObj.SetNamespace(namespace)
 			}
 
@@ -388,7 +378,7 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				appResources = append(appResources, types.AppResource{
 					Name: metaObj.GetName(),
 					Type: typ,
-					Link: path.Join(urlPrefix, tmpNS, restutil.GuessPluralName(typ), metaObj.GetName()),
+					Link: path.Join(urlPrefix, ns, restutil.GuessPluralName(typ), metaObj.GetName()),
 				})
 			}
 			return nil
