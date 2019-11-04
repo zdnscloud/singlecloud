@@ -83,6 +83,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.KubeConfig{}, newKubeConfigManager(a.clusterManager))
+	schemas.MustImport(&Version, types.FluentBitConfig{}, newFluentBitConfigManager(a.clusterManager))
 
 	appManager := newApplicationManager(a.clusterManager, a.chartDir)
 	if err := appManager.addChartsConfig(charts.SupportChartsConfig); err != nil {

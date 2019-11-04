@@ -141,7 +141,7 @@ fluent-bit:
     fluent_bit:
       repository: fluent/fluent-bit
       tag: 0.12.11
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   nodeSelector: {}
   on_minikube: false
   rbac:

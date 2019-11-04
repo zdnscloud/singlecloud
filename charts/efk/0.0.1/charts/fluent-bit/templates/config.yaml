@@ -6,13 +6,16 @@ metadata:
   labels:
     app: {{ template "fluent-bit.fullname" . }}
 data:
-  fluent-bit.conf: |-
+  fluent-bit.conf: |
     [SERVICE]
         Flush        1
         Daemon       Off
         Log_Level    info
         Parsers_File parsers.conf
 
+    @INCLUDE alllog.conf
+
+  alllog.conf: |
     [INPUT]
         Name             tail
         Path             /var/log/containers/*.log

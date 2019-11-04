@@ -4,6 +4,8 @@ metadata:
   name: {{ template "fullname" . }}
   labels:
     app: {{ template "fluent-bit.fullname" . }}
+  annotations:
+    zcloud.cn/update-on-config-change: "true"
 spec:
   updateStrategy:
     type: RollingUpdate
@@ -13,6 +15,7 @@ spec:
         app: {{ template "fluent-bit.fullname" . }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+        zcloud.cn/update-on-config-change: "true"
     spec:
       serviceAccountName: {{ if .Values.rbac.create }}{{ template "fluent-bit.fullname" . }}{{ else }}"{{ .Values.rbac.serviceAccountName }}"{{ end }}
       containers:
@@ -30,8 +33,7 @@ spec:
           mountPath: /var/lib/docker/containers
           readOnly: true
         - name: config
-          mountPath: /fluent-bit/etc/fluent-bit.conf
-          subPath: fluent-bit.conf
+          mountPath: /fluent-bit/etc/
 {{- if .Values.extraVolumeMounts }}
 {{ toYaml .Values.extraVolumeMounts | indent 8 }}
 {{- end }}

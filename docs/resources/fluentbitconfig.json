@@ -1,0 +1,57 @@
+{
+    "resourceType": "fluentbitconfig",
+    "collectionName": "fluentbitconfigs",
+    "parentResources": [ "cluster" ],
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "workload": {"type": "workloadConf"},  
+        "regexp": {"type": "string"},
+        "timeKey": {"type": "string"},
+        "timeFormat": {"type": "string"}
+    },
+
+    "subResources": {
+        "workloadConf": {
+            "namespace": {"type": "string"},
+            "kind": {"type": "string"}, 
+            "name": {"type": "string"}
+        }
+    },
+
+    "resourceMethods": [ "GET", "PUT", "DELETE" ],
+    "collectionMethods": [ "POST", "GET" ],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string"},
+            "workload": {"type": "workloadConf"},  
+            "regexp": {"type": "string"},
+            "timeKey": {"type": "string"},
+            "timeFormat": {"type": "string"}
+        },
+        "subResources": {
+            "workloadConf": {
+                "namespace": {"type": "string"},
+                "kind": {"type": "string"}, 
+                "name": {"type": "string"}
+            }
+        }
+    },
+    "putParameters": {
+        "fields": {
+            "name": {"type": "string"},
+            "workload": {"type": "workloadConf"},  
+            "regexp": {"type": "string"},
+            "timeKey": {"type": "string"},
+            "timeFormat": {"type": "string"}
+        },
+        "subResources": {
+            "workloadConf": {
+                "namespace": {"type": "string"},
+                "kind": {"type": "string"}, 
+                "name": {"type": "string"}
+            }
+        }
+    }
+}
