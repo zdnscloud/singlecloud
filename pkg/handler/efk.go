@@ -13,8 +13,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-
-	"github.com/zdnscloud/kvzoo"
 )
 
 const (
@@ -90,8 +88,7 @@ func (m *EFKManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, cluster.Name, ZCloudNamespace)
-	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), tn, efkChartName)
+	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), cluster.Name, efkChartName)
 	if err != nil {
 		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, efkChartName, err.Error())
 		return nil

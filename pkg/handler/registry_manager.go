@@ -14,7 +14,6 @@ import (
 	"github.com/zdnscloud/cement/x509"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/kvzoo"
 )
 
 const (
@@ -86,8 +85,7 @@ func (m *RegistryManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, cluster.Name, ZCloudNamespace)
-	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), tn, registryChartName)
+	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), cluster.Name, registryChartName)
 	if err != nil {
 		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, registryChartName, err.Error())
 		return nil
