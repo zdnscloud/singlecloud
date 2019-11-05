@@ -138,7 +138,7 @@ func initDB(localDBPort int, dbFilePath, secondaryDBAddress string, stopCh chan 
 	if secondaryDBAddress != "" {
 		slaves = append(slaves, secondaryDBAddress)
 	}
-	dbClient, err := client.New(dbServerAddr, nil)
+	dbClient, err := client.New(dbServerAddr, slaves)
 	if err != nil {
 		db.Stop()
 		return nil, err
