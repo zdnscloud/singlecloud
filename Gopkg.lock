@@ -641,7 +641,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9b433c5a529eb6206f62323b48b5a993c34d9e3fd0e019d215e0ce1670c9df8d"
+  digest = "1:ab7bb98b011dd7d6a6720e9b176e6ef53cef8ed35b0c4500abfd8e50db545be6"
   name = "github.com/zdnscloud/kvzoo"
   packages = [
     ".",
@@ -651,7 +651,7 @@
     "server",
   ]
   pruneopts = "UT"
-  revision = "7da375347d9bd84e8c43c6da89c476183c200766"
+  revision = "d32f8b8c073f8be46157dd66507443d0a9f840ee"
 
 [[projects]]
   branch = "master"

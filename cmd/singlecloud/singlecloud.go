@@ -116,6 +116,12 @@ func main() {
 		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
+	if secondaryDBAddress != "" {
+		if _, err := dbClient.Checksum(); err != nil {
+			log.Fatalf("db isn't in sync:%s", err.Error())
+		}
+	}
+
 	if err := server.Run(addr); err != nil {
 		log.Fatalf("server run failed:%s", err.Error())
 	}

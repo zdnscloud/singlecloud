@@ -36,16 +36,10 @@ func New(masterAddr string, slaveAddrs []string) (kvzoo.DB, error) {
 		slaves = append(slaves, slave)
 	}
 
-	p := &Proxy{
+	return &Proxy{
 		master: master,
 		slaves: slaves,
-	}
-
-	if _, err := p.Checksum(); err != nil {
-		return nil, err
-	} else {
-		return p, nil
-	}
+	}, nil
 }
 
 func (p *Proxy) Checksum() (string, error) {

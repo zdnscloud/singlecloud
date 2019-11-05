@@ -16,15 +16,18 @@ const (
 	AllClusters   string = "_all_clusters"
 )
 
-var adminUser = &types.User{
-	Name: types.Administrator,
-	Projects: []types.Project{
-		types.Project{
-			Cluster:   AllClusters,
-			Namespace: AllNamespaces,
+var (
+	zcloudStartTime, _ = time.Parse(time.RFC3339, "2019-02-28T00:00:00Z")
+	adminUser          = &types.User{
+		Name: types.Administrator,
+		Projects: []types.Project{
+			types.Project{
+				Cluster:   AllClusters,
+				Namespace: AllNamespaces,
+			},
 		},
-	},
-}
+	}
+)
 
 type User struct {
 	Projects          []types.Project   `json:"projects,omitempty"`
@@ -48,8 +51,7 @@ func New(db kvzoo.DB) (*Authorizer, error) {
 
 	if _, ok := auth.users[types.Administrator]; ok == false {
 		adminUser.SetID(types.Administrator)
-		// adminUser.SetType(types.UserType)
-		adminUser.SetCreationTimestamp(time.Now())
+		adminUser.SetCreationTimestamp(zcloudStartTime)
 		auth.AddUser(adminUser)
 	}
 
