@@ -630,6 +630,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:f60d199f1d635b67739ac6383a45899d9cd44b0c52cdb075c01da97e3177b1cb"
+  name = "github.com/zdnscloud/iniconfig"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c8624280493d2f4014b110ec4e1f9522eb047635"
+
+[[projects]]
+  branch = "master"
   digest = "1:5cb1089db793f3d7aa9088adb498f078b51f16b83a12419a487c1b843eb91921"
   name = "github.com/zdnscloud/vanguard"
   packages = [
@@ -1098,6 +1106,7 @@
     "github.com/zdnscloud/gorest/resource/schema/resourcefield",
     "github.com/zdnscloud/gorest/util",
     "github.com/zdnscloud/immense/pkg/apis/zcloud/v1",
+    "github.com/zdnscloud/iniconfig",
     "github.com/zdnscloud/vanguard/httpcmd",
     "github.com/zdnscloud/vanguard/resolver/auth",
     "github.com/zdnscloud/vanguard/server",
