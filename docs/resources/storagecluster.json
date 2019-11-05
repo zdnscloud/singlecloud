@@ -1,53 +1,146 @@
 {
-    "resourceType":"storagecluster",
-    "collectionName":"storageclusters",
-    "parentResources": [ "cluster" ],
-
-    "resourceFields":{
-        "storageType":{"type":"enum", "validValues": ["lvm", "cephfs"]},
-        "hosts":{"type":"array","elemType":"string"},
-        "phase":{"type":"string"},
-        "size":{"type":"string"},
-        "usedSize":{"type":"string"},
-        "freeSize":{"type":"string"},
-        "nodes":{"type":"array","elemType":"storagenode"},
-        "pvs":{"type":"array","elemType":"storagepv"}
+  "resourceType": "storagecluster",
+  "collectionName": "storageclusters",
+  "parentResources": [
+    "cluster"
+  ],
+  "resourceFields": [
+    {
+      "storageType": {
+        "type": "enum",
+        "validValues": [
+          "lvm",
+          "cephfs"
+        ],
+        "description": [
+          "required"
+        ]
+      }
     },
-    "subResources":{
-        "storagenode":{
-            "name":{"type":"string"},
-            "size":{"type":"string"},
-            "usedSize":{"type":"string"},
-            "freeSize":{"type":"string"},
-            "stat":{"type":"bool"}
-        },
-        "storagepv":{
-            "name":{"type":"string"},
-            "size":{"type":"string"},
-            "usedSize":{"type":"string"},
-            "freeSize":{"type":"string"},
-            "pods":{"type":"array","elemType":"storagepod"},
-            "node":{"type":"string"}
-        },
-        "storagepod":{
-            "name":{"type":"string"}
-        },
-        "storagedev":{
-            "name":{"type":"string"},
-            "size":{"type":"string"}
-        }
+    {
+      "hosts": {
+        "type": "array",
+        "elemType": "string",
+        "description": [
+          "required"
+        ]
+      }
     },
-    "resourceMethods":["GET","PUT","DELETE"],
-    "collectionMethods":["POST","GET"],
-    "postParameters":{
-        "fields":{
-            "storagetype":{"type":"enum", "validValues": ["lvm", "cephfs"], "required": true},
-            "hosts":{"type":"array","elemType":"string", "required": true}
-        }
+    {
+      "phase": {
+        "type": "string"
+      }
     },
-    "putParameters":{
-        "fields":{
-            "hosts":{"type":"array","elemType":"string", "required": true}
-        }
+    {
+      "size": {
+        "type": "string"
+      }
+    },
+    {
+      "usedSize": {
+        "type": "string"
+      }
+    },
+    {
+      "freeSize": {
+        "type": "string"
+      }
+    },
+    {
+      "nodes": {
+        "type": "array",
+        "elemType": "storageNode"
+      }
+    },
+    {
+      "pvs": {
+        "type": "array",
+        "elemType": "pV"
+      }
     }
+  ],
+  "subResources": [
+    {
+      "storageNode": [
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "size": {
+            "type": "string"
+          }
+        },
+        {
+          "usedSize": {
+            "type": "string"
+          }
+        },
+        {
+          "freeSize": {
+            "type": "string"
+          }
+        },
+        {
+          "stat": {
+            "type": "bool"
+          }
+        }
+      ]
+    },
+    {
+      "storagePod": [
+        {
+          "name": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "pV": [
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "size": {
+            "type": "string"
+          }
+        },
+        {
+          "usedSize": {
+            "type": "string"
+          }
+        },
+        {
+          "freeSize": {
+            "type": "string"
+          }
+        },
+        {
+          "pods": {
+            "type": "array",
+            "elemType": "storagePod"
+          }
+        },
+        {
+          "node": {
+            "type": "string"
+          }
+        }
+      ]
+    }
+  ],
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

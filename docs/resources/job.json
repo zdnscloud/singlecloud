@@ -1,99 +1,205 @@
 {
-    "resourceType": "job",
-    "collectionName": "jobs",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"]},
-        "containers": {"type": "array", "elemType": "container"},
-        "status": {"type": "jobStatus"}
+  "resourceType": "job",
+  "collectionName": "jobs",
+  "parentResources": [
+    "namespace"
+  ],
+  "resourceFields": [
+    {
+      "name": {
+        "type": "string"
+      }
     },
-
-    "subResources": {
-        "container": {
-            "name": {"type": "string"},
-            "image": {"type": "string"},
-            "command": {"type": "array", "elemType": "string"},
-            "args": {"type": "array", "elemType": "string"},
-            "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-            "env": {"type": "array", "elemType": "envVar"},
-            "volumes": {"type": "array", "elemType": "volume"}
-        },
-
-        "volume": {
-            "type": {"type": "enum", "validValues": ["configmap", "secret"]},
-            "name": {"type": "string"},
-            "mountPath": {"type": "string"}
-        },
-
-        "deploymentPort": {
-            "name" : {"type": "string"},
-            "port" : {"type": "int"},
-            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
-        },
-
-        "envVar": {
-            "name": {"type": "string"},
-            "value": {"type": "string"}
-        },
-
-        "jobStatus": {
-            "startTime": {"type": "date"},
-            "completionTime": {"type": "date"},
-            "active": {"type": "int32"},
-            "succeeded": {"type": "int32"},
-            "failed": {"type": "int32"},
-            "jobConditions": {"type": "array", "elemType": "jobCondition"}
-        },
-
-        "jobCondition": {
-            "type": {"type": "enum", "validValues": ["Complete", "Failed"]},
-            "status": {"type": "enum", "validValues": ["True", "False", "Unknown"]},
-            "lastProbeTime": {"type": "date"},
-            "lastTransitionTime": {"type": "date"},
-            "reason": {"type": "string"},
-            "message": {"type": "string"}
-        }
+    {
+      "restartPolicy": {
+        "type": "string"
+      }
     },
-
-    "resourceMethods": [ "GET", "DELETE" ],
-    "collectionMethods": [ "GET", "POST"],
-
-    "postParameters": {
-        "fields": {
-            "name": {"type": "string", "required": true},
-            "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"], "required": true},
-            "containers": {"type": "array", "elemType": "container", "required": true}
-        },
-
-        "subResources": {
-            "container": {
-                "name": {"type": "string", "required": true},
-                "image": {"type": "string", "required": true},
-                "command": {"type": "array", "elemType": "string"},
-                "args": {"type": "array", "elemType": "string"},
-                "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-                "env": {"type": "array", "elemType": "envVar"},
-                "volumes": {"type": "array", "elemType": "volume"}
-            },
-
-            "volume": {
-                "type": {"type": "enum", "validValues": ["configmap", "secret"]},
-                "name": {"type": "string"},
-                "mountPath": {"type": "string"}
-            },
-
-            "deploymentPort": {
-                "name" : {"type": "string"},
-                "port" : {"type": "int"},
-                "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
-            },
-
-            "envVar": {
-                "name": {"type": "string"},
-                "value": {"type": "string"}
-            }
-        }
+    {
+      "containers": {
+        "type": "array",
+        "elemType": "container"
+      }
+    },
+    {
+      "status": {
+        "type": "jobStatus"
+      }
     }
+  ],
+  "subResources": [
+    {
+      "containerPort": [
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "port": {
+            "type": "int"
+          }
+        },
+        {
+          "protocol": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "envVar": [
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "value": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "volume": [
+        {
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "mountPath": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "container": [
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "image": {
+            "type": "string"
+          }
+        },
+        {
+          "command": {
+            "type": "array",
+            "elemType": "string"
+          }
+        },
+        {
+          "args": {
+            "type": "array",
+            "elemType": "string"
+          }
+        },
+        {
+          "exposedPorts": {
+            "type": "array",
+            "elemType": "containerPort"
+          }
+        },
+        {
+          "env": {
+            "type": "array",
+            "elemType": "envVar"
+          }
+        },
+        {
+          "volumes": {
+            "type": "array",
+            "elemType": "volume"
+          }
+        }
+      ]
+    },
+    {
+      "jobCondition": [
+        {
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "status": {
+            "type": "string"
+          }
+        },
+        {
+          "lastProbeTime": {
+            "type": "date"
+          }
+        },
+        {
+          "lastTransitionTime": {
+            "type": "date"
+          }
+        },
+        {
+          "reason": {
+            "type": "string"
+          }
+        },
+        {
+          "message": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "jobStatus": [
+        {
+          "startTime": {
+            "type": "date"
+          }
+        },
+        {
+          "completionTime": {
+            "type": "date"
+          }
+        },
+        {
+          "active": {
+            "type": "int"
+          }
+        },
+        {
+          "succeeded": {
+            "type": "int"
+          }
+        },
+        {
+          "failed": {
+            "type": "int"
+          }
+        },
+        {
+          "jobConditions": {
+            "type": "array",
+            "elemType": "jobCondition"
+          }
+        }
+      ]
+    }
+  ],
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

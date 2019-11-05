@@ -1,33 +1,45 @@
 {
-    "resourceType": "configmap",
-    "collectionName": "configmaps",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "configs": {"type": "array", "elemType": "config"}  
+  "resourceType": "configmap",
+  "collectionName": "configmaps",
+  "parentResources": [
+    "namespace"
+  ],
+  "resourceFields": [
+    {
+      "name": {
+        "type": "string"
+      }
     },
-
-    "subResources": {
-        "config": {
-            "name": {"type": "string"}, 
-            "data": {"type": "string"}
-        }
-    },
-
-    "resourceMethods": [ "GET", "PUT", "DELETE" ],
-    "collectionMethods": [ "POST", "GET" ],
-
-    "postParameters": {
-        "fields": {
-            "name": {"type": "string", "required": true },
-            "configs": {"type": "array", "elemType": "config", "required": true }
-        },
-        "subResources": {
-            "config": {
-                "name": {"type": "string", "required": true}, 
-                "data": {"type": "string", "required": true}
-            }
-        }
+    {
+      "configs": {
+        "type": "array",
+        "elemType": "config"
+      }
     }
+  ],
+  "subResources": [
+    {
+      "config": [
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "data": {
+            "type": "string"
+          }
+        }
+      ]
+    }
+  ],
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

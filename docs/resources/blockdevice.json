@@ -1,19 +1,44 @@
 {
-    "resourceType": "blockdevice",
-    "collectionName": "blockdevices",
-    "parentResources": [ "cluster" ],
-
-    "resourceFields": {
-        "nodeName":{"type":"string"},
-        "blockDevices":{"type":"array","elemType":"blockDevice"},
-        "usedby":{"type":"string"}
+  "resourceType": "blockdevice",
+  "collectionName": "blockdevices",
+  "parentResources": [
+    "cluster"
+  ],
+  "resourceFields": [
+    {
+      "nodeName": {
+        "type": "string"
+      }
     },
-    "subResources":{
-        "blockDevice":{
-            "name":{"type":"string"},
-            "size":{"type":"string"}
+    {
+      "blockDevices": {
+        "type": "array",
+        "elemType": "dev"
+      }
+    },
+    {
+      "usedby": {
+        "type": "string"
+      }
+    }
+  ],
+  "subResources": [
+    {
+      "dev": [
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "size": {
+            "type": "string"
+          }
         }
-    },
-
-    "collectionMethods": [ "GET" ]
+      ]
+    }
+  ],
+  "collectionMethods": [
+    "GET"
+  ]
 }

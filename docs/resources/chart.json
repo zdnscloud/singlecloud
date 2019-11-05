@@ -1,22 +1,103 @@
 {
-    "resourceType": "chart",
-    "collectionName": "charts",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "description": {"type": "string"},
-        "icon": {"type": "string"},
-        "versions": {"type": "array", "elemType": "chartVersion"}
+  "resourceType": "chart",
+  "collectionName": "charts",
+  "parentResources": [
+    "namespace"
+  ],
+  "resourceFields": [
+    {
+      "name": {
+        "type": "string"
+      }
     },
-
-    "subResources": {
-        "chartVersion": {
-            "version": {"type": "string"},
-            "config": {"type": "array", "elemType": "json"}
+    {
+      "description": {
+        "type": "string"
+      }
+    },
+    {
+      "icon": {
+        "type": "string"
+      }
+    },
+    {
+      "versions": {
+        "type": "array",
+        "elemType": "chartVersion"
+      }
+    }
+  ],
+  "subResources": [
+    {
+      "chartConfig": [
+        {
+          "label": {
+            "type": "string"
+          }
+        },
+        {
+          "jsonKey": {
+            "type": "string"
+          }
+        },
+        {
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "required": {
+            "type": "bool"
+          }
+        },
+        {
+          "validValues": {
+            "type": "array",
+            "elemType": "string"
+          }
+        },
+        {
+          "min": {
+            "type": "int"
+          }
+        },
+        {
+          "max": {
+            "type": "int"
+          }
+        },
+        {
+          "minLen": {
+            "type": "int"
+          }
+        },
+        {
+          "maxLen": {
+            "type": "int"
+          }
         }
+      ]
     },
-
-    "resourceMethods": [ "GET" ],
-    "collectionMethods": [ "GET" ]
+    {
+      "chartVersion": [
+        {
+          "version": {
+            "type": "string"
+          }
+        },
+        {
+          "config": {
+            "type": "array",
+            "elemType": "chartConfig"
+          }
+        }
+      ]
+    }
+  ],
+  "resourceMethods": [
+    "GET"
+  ],
+  "collectionMethods": [
+    "GET"
+  ]
 }

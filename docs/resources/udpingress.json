@@ -1,22 +1,32 @@
 {
-    "resourceType": "udpingress",
-    "collectionName": "udpingresses",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "port": {"type": "int", "required": true },
-        "serviceName": {"type": "string", "required": true },
-        "servicePort": {"type": "int", "required": true }
+  "resourceType": "udpingress",
+  "collectionName": "udpingresses",
+  "parentResources": [
+    "namespace"
+  ],
+  "resourceFields": [
+    {
+      "port": {
+        "type": "int"
+      }
     },
-
-    "resourceMethods": [ "GET", "DELETE" ],
-    "collectionMethods": [ "POST", "GET" ],
-
-    "postParameters": {
-        "fields": {
-            "port": {"type": "int", "required": true },
-            "serviceName": {"type": "string", "required": true },
-            "servicePort": {"type": "int", "required": true }
-        }
+    {
+      "serviceName": {
+        "type": "string"
+      }
+    },
+    {
+      "servicePort": {
+        "type": "int"
+      }
     }
+  ],
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

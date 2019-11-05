@@ -1,34 +1,104 @@
 {
-    "resourceType": "application",
-    "collectionName": "applications",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "chartName": {"type": "string"},
-        "chartVersion": {"type": "string"},
-        "chartIcon": {"type": "string"},
-        "appResources": {"type": "array", "elemType": "appResource"},
-        "status": {"type": "enum", "validValues": ["create", "delete", "succeed", "failed"]}
+  "resourceType": "application",
+  "collectionName": "applications",
+  "parentResources": [
+    "namespace"
+  ],
+  "resourceFields": [
+    {
+      "name": {
+        "type": "string"
+      }
     },
-
-    "subResources": {
-        "appResource": {
-            "name": {"type": "string"},
-            "type": {"type": "enum", "validValues": ["deployment", "daemonset", "statefulset", "configmap", "secret", "service", "ingress", "cronjob", "job"]},
-            "link": {"type": "string"}
-        }
+    {
+      "chartName": {
+        "type": "string"
+      }
     },
-
-    "collectionMethods": [ "GET", "POST" ],
-    "resourceMethods": [ "DELETE", "GET" ],
-
-    "postParameters": {
-        "fields": {
-            "name": {"type": "string", "required": "true"},
-            "chartName": {"type": "string", "required": "true"},
-            "chartVersion": {"type": "string", "required": "true"},
-            "configs": {"type": "json", "required": "true"}
-        }
+    {
+      "chartVersion": {
+        "type": "string"
+      }
+    },
+    {
+      "chartIcon": {
+        "type": "string"
+      }
+    },
+    {
+      "status": {
+        "type": "string"
+      }
+    },
+    {
+      "appResources": {
+        "type": "array",
+        "elemType": "appResource"
+      }
+    },
+    {
+      "configs": {
+        "type": "json"
+      }
+    },
+    {
+      "manifests": {
+        "type": "array",
+        "elemType": "manifest"
+      }
+    },
+    {
+      "systemChart": {
+        "type": "bool"
+      }
     }
+  ],
+  "subResources": [
+    {
+      "appResource": [
+        {
+          "name": {
+            "type": "string"
+          }
+        },
+        {
+          "type": {
+            "type": "string"
+          }
+        },
+        {
+          "link": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "manifest": [
+        {
+          "file": {
+            "type": "string"
+          }
+        },
+        {
+          "content": {
+            "type": "string"
+          }
+        },
+        {
+          "duplicate": {
+            "type": "bool"
+          }
+        }
+      ]
+    }
+  ],
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

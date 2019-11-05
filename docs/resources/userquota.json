@@ -1,64 +1,86 @@
 {
-    "resourceType": "userquota",
-    "collectionName": "userquotas",
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "clusterName": {"type": "string"},
-        "namespace": {"type": "string"},
-        "userName": {"type": "string"},
-        "cpu": {"type": "string"},
-        "memory": {"type": "string"},
-        "storage": {"type": "string"},
-        "requestType": {"type": "enum", "validValues": ["create", "update"]},
-        "status": {"type": "enum", "validValues": ["processing", "approval", "rejection"]},
-        "purpose": {"type": "string"},
-        "requestor": {"type": "string"},
-        "telephone": {"type": "string"},
-        "rejectionReason": {"type": "string"},
-        "responseTimestamp": {"type": "date"}
+  "resourceType": "userquota",
+  "collectionName": "userquotas",
+  "resourceFields": [
+    {
+      "name": {
+        "type": "string"
+      }
     },
-
-    "resourceMethods": [ "GET", "PUT", "DELETE" ],
-    "collectionMethods": [ "GET", "POST"],
-
-    "postParameters": {
-        "fields": {
-            "namespace": {"type": "string", "required": "true"},
-            "cpu": {"type": "string", "required": "true"},
-            "memory": {"type": "string", "required": "true"},
-            "storage": {"type": "string", "required": "true"},
-            "purpose": {"type": "string", "required": "true"},
-            "requestor": {"type": "string"},
-            "telephone": {"type": "string"}
-        }
+    {
+      "clusterName": {
+        "type": "string"
+      }
     },
-
-    "putParameters": {
-        "fields": {
-            "clusterName": {"type": "string", "required": "true"},
-            "namespace": {"type": "string", "required": "true"},
-            "cpu": {"type": "string", "required": "true"},
-            "memory": {"type": "string", "required": "true"},
-            "storage": {"type": "string", "required": "true"},
-            "purpose": {"type": "string", "required": "true"},
-            "requestor": {"type": "string"},
-            "telephone": {"type": "string"}
-        }
+    {
+      "namespace": {
+        "type": "string"
+      }
     },
-
-    "resourceActions":[ 
-        {
-            "name": "approval",
-            "input": {
-                "clusterName": {"type": "string", "required": "true"}
-            } 
-        },
-        {
-            "name": "reject",
-            "input": {
-                "reason": {"type": "string", "required": "true"}
-            } 
-        }
-    ]
+    {
+      "userName": {
+        "type": "string"
+      }
+    },
+    {
+      "cpu": {
+        "type": "string"
+      }
+    },
+    {
+      "memory": {
+        "type": "string"
+      }
+    },
+    {
+      "storage": {
+        "type": "string"
+      }
+    },
+    {
+      "requestType": {
+        "type": "string"
+      }
+    },
+    {
+      "status": {
+        "type": "string"
+      }
+    },
+    {
+      "purpose": {
+        "type": "string"
+      }
+    },
+    {
+      "requestor": {
+        "type": "string"
+      }
+    },
+    {
+      "telephone": {
+        "type": "string"
+      }
+    },
+    {
+      "rejectionReason": {
+        "type": "string"
+      }
+    },
+    {
+      "responseTimestamp": {
+        "type": "date"
+      }
+    }
+  ],
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT",
+    "POST"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

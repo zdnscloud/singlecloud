@@ -91,6 +91,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 
 	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.MustImport(&Version, types.User{}, userManager)
+	schemas.WriteJsonDocs(&Version, "./docs/resources/")
 	server := gorest.NewAPIServer(schemas)
 	server.Use(a.clusterManager.authorizationHandler())
 	adaptor.RegisterHandler(router, server, schemas.GenerateResourceRoute())

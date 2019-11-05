@@ -1,304 +1,341 @@
 {
-    "resourceType": "cluster",
-    "collectionName": "clusters",
-
-    "resourceFields": {
-        "name": {
-            "type": "string"
+  "resourceType": "cluster",
+  "collectionName": "clusters",
+  "resourceFields": [
+    {
+      "nodes": {
+        "type": "array",
+        "elemType": "node",
+        "description": [
+          "required"
+        ]
+      }
+    },
+    {
+      "network": {
+        "type": "clusterNetwork"
+      }
+    },
+    {
+      "privateRegistrys": {
+        "type": "array",
+        "elemType": "privateRegistry"
+      }
+    },
+    {
+      "singleCloudAddress": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      }
+    },
+    {
+      "name": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      }
+    },
+    {
+      "status": {
+        "type": "string"
+      }
+    },
+    {
+      "nodeCount": {
+        "type": "int"
+      }
+    },
+    {
+      "version": {
+        "type": "string"
+      }
+    },
+    {
+      "zcloudVersion": {
+        "type": "string"
+      }
+    },
+    {
+      "cpu": {
+        "type": "int"
+      }
+    },
+    {
+      "cpuUsed": {
+        "type": "int"
+      }
+    },
+    {
+      "cpuUsedRatio": {
+        "type": "string"
+      }
+    },
+    {
+      "memory": {
+        "type": "int"
+      }
+    },
+    {
+      "memoryUsed": {
+        "type": "int"
+      }
+    },
+    {
+      "memoryUsedRatio": {
+        "type": "string"
+      }
+    },
+    {
+      "pod": {
+        "type": "int"
+      }
+    },
+    {
+      "podUsed": {
+        "type": "int"
+      }
+    },
+    {
+      "podUsedRatio": {
+        "type": "string"
+      }
+    },
+    {
+      "sshUser": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      }
+    },
+    {
+      "sshKey": {
+        "type": "string"
+      }
+    },
+    {
+      "sshPort": {
+        "type": "string"
+      }
+    },
+    {
+      "dockerSocket": {
+        "type": "string"
+      }
+    },
+    {
+      "kubernetesVersion": {
+        "type": "string"
+      }
+    },
+    {
+      "ignoreDockerVersion": {
+        "type": "bool"
+      }
+    },
+    {
+      "clusterCidr": {
+        "type": "string"
+      }
+    },
+    {
+      "serviceCidr": {
+        "type": "string"
+      }
+    },
+    {
+      "clusterDomain": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      }
+    },
+    {
+      "clusterDNSServiceIP": {
+        "type": "string"
+      }
+    },
+    {
+      "clusterUpstreamDNS": {
+        "type": "array",
+        "elemType": "string"
+      }
+    },
+    {
+      "disablePortCheck": {
+        "type": "bool"
+      }
+    }
+  ],
+  "subResources": [
+    {
+      "node": [
+        {
+          "name": {
+            "type": "string",
+            "description": [
+              "required"
+            ]
+          }
         },
-        "status": {
+        {
+          "status": {
+            "type": "string"
+          }
+        },
+        {
+          "address": {
+            "type": "string",
+            "description": [
+              "required"
+            ]
+          }
+        },
+        {
+          "roles": {
             "type": "enum",
-            "validValues": ["Running", "Unreachable", "Creating", "Updating", "Connecting", "Unavailable", "Canceling", "Deleting"]
+            "validValues": [
+              "controlplane",
+              "etcd",
+              "worker",
+              "edge"
+            ],
+            "description": [
+              "required"
+            ]
+          }
         },
-        "nodeCount": {
-            "type": "uint32"
+        {
+          "labels": {
+            "type": "map",
+            "keyType": "string",
+            "valueType": "string"
+          }
         },
-        "version": {
+        {
+          "annotations": {
+            "type": "map",
+            "keyType": "string",
+            "valueType": "string"
+          }
+        },
+        {
+          "operatingSystem": {
             "type": "string"
+          }
         },
-        "cpu": {
+        {
+          "operatingSystemImage": {
+            "type": "string"
+          }
+        },
+        {
+          "dockerVersion": {
+            "type": "string"
+          }
+        },
+        {
+          "cpu": {
             "type": "int"
+          }
         },
-        "cpuUsed": {
+        {
+          "cpuUsed": {
             "type": "int"
+          }
         },
-        "cpuUsedRatio": {
+        {
+          "cpuUsedRatio": {
             "type": "string"
+          }
         },
-        "memory": {
+        {
+          "memory": {
             "type": "int"
+          }
         },
-        "memoryUsed": {
+        {
+          "memoryUsed": {
             "type": "int"
+          }
         },
-        "memoryUsedRatio": {
+        {
+          "memoryUsedRatio": {
             "type": "string"
+          }
         },
-        "pod": {
+        {
+          "pod": {
             "type": "int"
+          }
         },
-        "podUsed": {
+        {
+          "podUsed": {
             "type": "int"
+          }
         },
-        "podUsedRatio": {
+        {
+          "podUsedRatio": {
             "type": "string"
-        },
-        "option": {
-            "type": "zkeConfigOption"
-        },
-        "nodes": {
-            "type": "array",
-            "elemType": "zkeConfigNode"
-        },
-        "network": {
-            "type": "zkeConfigNetwork"
-        },
-        "privateRegistries": {
-            "type": "array",
-            "elemType": "privateRegistry"
-        },
-        "singleCloudAddress": {
-            "type": "string"
-        },
-        "sshUser": {
-            "type": "string"
-        },
-        "sshPort": {
-            "type": "string"
-        },
-        "sshKey": {
-            "type": "string"
-        },
-        "dockerSocket": {
-            "type": "string"
-        },
-        "kubernetesVersion": {
-            "type": "string"
-        },
-        "ignoreDockerVersion": {
-            "type": "bool"
-        },
-        "clusterCidr": {
-            "type": "string"
-        },
-        "serviceCidr": {
-            "type": "string"
-        },
-        "clusterDomain": {
-            "type": "string"
-        },
-        "clusterDNSServiceIP": {
-            "type": "string"
-        },
-        "clusterUpstreamDNS": {
-            "type": "array",
-            "elemType": "string"
-        },
-        "disablePortCheck": {
-            "type": "bool"
-        },
-        "zcloudVersion": {
-            "type": "string"
+          }
         }
+      ]
     },
-    "subResources": {
-        "zkeConfigNode": {
-            "name": {
-                "type": "string"
-            },
-            "address": {
-                "type": "string"
-            },
-            "status": {
-                "type": "string"
-            },
-            "roles": {
-                "type": "array",
-                "elemType": "enum",
-                "validValues": ["controlplane", "etcd", "worker", "edge"]
-            },
-            "labels": {
-                "type": "map",
-                "keyType": "string",
-                "valueType": "string"
-            },
-            "annotations": {
-                "type": "map",
-                "keyType": "string",
-                "valueType": "string"
-            },
-            "operatingSystem": {
-                "type": "string"
-            },
-            "operatingSystemImage": {
-                "type": "string"
-            },
-            "dockerVersion": {
-                "type": "string"
-            },
-            "cpu": {
-                "type": "int"
-            },
-            "cpuUsed": {
-                "type": "int"
-            },
-            "cpuUsedRatio": {
-                "type": "string"
-            },
-            "memory": {
-                "type": "int"
-            },
-            "memoryUsed": {
-                "type": "int"
-            },
-            "memoryUsedRatio": {
-                "type": "string"
-            },
-            "pod": {
-                "type": "int"
-            },
-            "podUsed": {
-                "type": "int"
-            },
-            "podUsedRatio": {
-                "type": "string"
-            }
+    {
+      "clusterNetwork": [
+        {
+          "plugin": {
+            "type": "enum",
+            "validValues": [
+              "flannel",
+              "calico"
+            ]
+          }
         },
-        "zkeConfigNetwork": {
-            "plugin": {
-                "type": "enum",
-                "validValues": ["flannel", "calico"]
-            },
-            "iface": {
-                "type": "string"
-            }
-        },
-        "privateRegistry": {
-            "url": {
-                "type": "string"
-            },
-            "user": {
-                "type": "string"
-            },
-            "password": {
-                "type": "string"
-            },
-            "caCert": {
-                "type": "string"
-            }
+        {
+          "iface": {
+            "type": "string"
+          }
         }
+      ]
     },
-
-    "postParameters": {
-        "fields": {
-            "name": {
-                "type": "string",
-                "required": true
-            },
-            "nodes": {
-                "type": "array",
-                "elemType": "zkeConfigNode",
-                "required": true
-            },
-            "network": {
-                "type": "zkeConfigNetwork"
-            },
-            "privateRegistries": {
-                "type": "array",
-                "elemType": "privateRegistry"
-            },
-            "singleCloudAddress": {
-                "type": "string",
-                "required": true
-            },
-            "sshUser": {
-                "type": "string",
-                "required": true
-            },
-            "sshPort": {
-                "type": "string"
-            },
-            "sshKey": {
-                "type": "string",
-                "required": true
-            },
-            "dockerSocket": {
-                "type": "string"
-            },
-            "kubernetsVersion": {
-                "type": "string"
-            },
-            "ignoreDockerVersion": {
-                "type": "bool"
-            },
-            "clusterCidr": {
-                "type": "string"
-            },
-            "serviceCidr": {
-                "type": "string"
-            },
-            "clusterDomain": {
-                "type": "string",
-                "required": true
-            },
-            "clusterDNSServiceIP": {
-                "type": "string"
-            },
-            "clusterUpstreamDNS": {
-                "type": "array",
-                "elemType": "string"
-            },
-            "disablePortCheck": {
-                "type": "bool"
-            }
+    {
+      "privateRegistry": [
+        {
+          "url": {
+            "type": "string"
+          }
         },
-        "subResources": {
-            "zkeConfigNode": {
-                "name": {
-                    "type": "string",
-                    "required": true
-                },
-                "address": {
-                    "type": "string",
-                    "required": true
-                },
-                "roles": {
-                    "type": "array",
-                    "elemType": "enum",
-                    "validValues": ["controlplane", "etcd", "worker", "edge"],
-                    "required": true
-                }
-            },
-            "zkeConfigNetwork": {
-                "plugin": {
-                    "type": "enum",
-                    "validValues": ["flannel", "calico"]
-                },
-                "iface": {
-                    "type": "string"
-                }
-            },
-            "privateRegistry": {
-                "url": {
-                    "type": "string"
-                },
-                "user": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "cacert": {
-                    "type": "string"
-                }
-            }
+        {
+          "user": {
+            "type": "string"
+          }
+        },
+        {
+          "password": {
+            "type": "string"
+          }
+        },
+        {
+          "caCert": {
+            "type": "string"
+          }
         }
-    },
-
-    "resourceMethods": ["GET", "DELETE", "PUT"],
-    "collectionMethods": ["GET", "POST"],
-
-    "resourceActions": [{
-        "name": "cancel"
-    }]
+      ]
+    }
+  ],
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT",
+    "POST"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }
