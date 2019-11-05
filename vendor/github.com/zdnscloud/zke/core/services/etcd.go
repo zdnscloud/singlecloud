@@ -25,7 +25,7 @@ import (
 const (
 	EtcdSnapshotPath     = "/opt/zke/etcd-snapshots/"
 	EtcdRestorePath      = "/opt/zke/etcd-snapshots-restore/"
-	EtcdDataDir          = "/var/lib/zdnscloud/etcd/"
+	EtcdDataDir          = "/var/lib/zcloud/etcd/"
 	EtcdInitWaitTime     = 10
 	EtcdSnapshotWaitTime = 5
 )
@@ -358,7 +358,7 @@ func RestoreEtcdSnapshot(ctx context.Context, etcdHost *hosts.Host, prsMap map[s
 	hostCfg := &container.HostConfig{
 		Binds: []string{
 			"/opt/zke/:/opt/zke/:z",
-			fmt.Sprintf("%s:/var/lib/zdnscloud/etcd:z", path.Join(etcdHost.PrefixPath, "/var/lib/etcd")),
+			fmt.Sprintf("%s:/var/lib/zcloud/etcd:z", path.Join(etcdHost.PrefixPath, "/var/lib/etcd")),
 			fmt.Sprintf("%s:/etc/kubernetes:z", path.Join(etcdHost.PrefixPath, "/etc/kubernetes"))},
 		NetworkMode: container.NetworkMode("host"),
 	}
