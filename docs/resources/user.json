@@ -1,6 +1,6 @@
 {
-  "resourceType": "user",
-  "collectionName": "users",
+  "resourceType": "User",
+  "collectionName": "Users",
   "resourceFields": [
     {
       "name": {

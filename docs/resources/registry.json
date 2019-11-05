@@ -1,6 +1,6 @@
 {
-  "resourceType": "registry",
-  "collectionName": "registries",
+  "resourceType": "Registry",
+  "collectionName": "Registries",
   "parentResources": [
     "cluster"
   ],

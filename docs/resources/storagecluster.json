@@ -1,6 +1,6 @@
 {
-  "resourceType": "storagecluster",
-  "collectionName": "storageclusters",
+  "resourceType": "Storagecluster",
+  "collectionName": "Storageclusters",
   "parentResources": [
     "cluster"
   ],

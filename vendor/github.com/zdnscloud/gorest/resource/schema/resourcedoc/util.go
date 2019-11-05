@@ -70,15 +70,18 @@ func setType(t reflect.Type) string {
 	return Unknow
 }
 
-func strFirstToLower(str string) string {
-	if len(str) < 1 {
-		return ""
+func LowerFirstCharacter(original string) string {
+	if len(original) > 0 {
+		original = strings.ToLower(original[:1]) + original[1:]
 	}
-	strArry := []rune(str)
-	if strArry[0] >= 65 && strArry[0] <= 96 {
-		strArry[0] += 32
+	return original
+}
+
+func UpperFirstCharacter(original string) string {
+	if len(original) > 0 {
+		original = strings.ToUpper(original[:1]) + original[1:]
 	}
-	return string(strArry)
+	return original
 }
 
 func fieldJsonName(name, jsonTag string) string {

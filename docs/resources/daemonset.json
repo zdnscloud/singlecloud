@@ -1,6 +1,6 @@
 {
-  "resourceType": "daemonset",
-  "collectionName": "daemonsets",
+  "resourceType": "Daemonset",
+  "collectionName": "Daemonsets",
   "parentResources": [
     "namespace"
   ],

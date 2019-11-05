@@ -1,6 +1,6 @@
 {
-  "resourceType": "blockdevice",
-  "collectionName": "blockdevices",
+  "resourceType": "Blockdevice",
+  "collectionName": "Blockdevices",
   "parentResources": [
     "cluster"
   ],

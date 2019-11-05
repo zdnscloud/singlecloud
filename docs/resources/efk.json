@@ -1,6 +1,6 @@
 {
-  "resourceType": "efk",
-  "collectionName": "efks",
+  "resourceType": "Efk",
+  "collectionName": "Efks",
   "parentResources": [
     "cluster"
   ],

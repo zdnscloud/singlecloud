@@ -1,6 +1,6 @@
 {
-  "resourceType": "podnetwork",
-  "collectionName": "podnetworks",
+  "resourceType": "Podnetwork",
+  "collectionName": "Podnetworks",
   "parentResources": [
     "cluster"
   ],

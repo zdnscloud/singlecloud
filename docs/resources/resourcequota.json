@@ -1,6 +1,6 @@
 {
-  "resourceType": "resourcequota",
-  "collectionName": "resourcequotas",
+  "resourceType": "Resourcequota",
+  "collectionName": "Resourcequotas",
   "parentResources": [
     "namespace"
   ],

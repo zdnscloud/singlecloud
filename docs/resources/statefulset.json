@@ -1,6 +1,6 @@
 {
-  "resourceType": "statefulset",
-  "collectionName": "statefulsets",
+  "resourceType": "Statefulset",
+  "collectionName": "Statefulsets",
   "parentResources": [
     "namespace"
   ],

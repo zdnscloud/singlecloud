@@ -1,6 +1,6 @@
 {
-  "resourceType": "cronjob",
-  "collectionName": "cronjobs",
+  "resourceType": "Cronjob",
+  "collectionName": "Cronjobs",
   "parentResources": [
     "namespace"
   ],

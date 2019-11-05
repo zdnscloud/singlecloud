@@ -1,6 +1,6 @@
 {
-  "resourceType": "limitrange",
-  "collectionName": "limitranges",
+  "resourceType": "Limitrange",
+  "collectionName": "Limitranges",
   "parentResources": [
     "namespace"
   ],

@@ -1,6 +1,6 @@
 {
-  "resourceType": "ingress",
-  "collectionName": "ingresses",
+  "resourceType": "Ingress",
+  "collectionName": "Ingresses",
   "parentResources": [
     "namespace"
   ],

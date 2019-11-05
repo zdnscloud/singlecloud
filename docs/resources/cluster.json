@@ -1,6 +1,6 @@
 {
-  "resourceType": "cluster",
-  "collectionName": "clusters",
+  "resourceType": "Cluster",
+  "collectionName": "Clusters",
   "resourceFields": [
     {
       "nodes": {

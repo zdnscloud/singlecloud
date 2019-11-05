@@ -1,6 +1,6 @@
 {
-  "resourceType": "persistentvolume",
-  "collectionName": "persistentvolumes",
+  "resourceType": "Persistentvolume",
+  "collectionName": "Persistentvolumes",
   "parentResources": [
     "cluster"
   ],

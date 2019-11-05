@@ -1,6 +1,6 @@
 {
-  "resourceType": "deployment",
-  "collectionName": "deployments",
+  "resourceType": "Deployment",
+  "collectionName": "Deployments",
   "parentResources": [
     "namespace"
   ],

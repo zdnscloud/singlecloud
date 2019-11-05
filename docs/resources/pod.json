@@ -1,6 +1,6 @@
 {
-  "resourceType": "pod",
-  "collectionName": "pods",
+  "resourceType": "Pod",
+  "collectionName": "Pods",
   "parentResources": [
     "deployment",
     "daemonset",
