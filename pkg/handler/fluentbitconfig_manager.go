@@ -174,20 +174,40 @@ func getFluentBitConfigMap(cli client.Client) (corev1.ConfigMap, error) {
 	return corev1.ConfigMap{}, errors.New("get fluent-bit configmap none")
 }
 
-func isFluentBitConfigExist(cli client.Client, name string, cm corev1.ConfigMap) bool {
+func isFluentBitConfigExist(cli client.Client, conf *types.FluentBitConfig, cm corev1.ConfigMap) bool {
 	instances := getInstances(cli, cm)
-	if index := slice.SliceIndex(instances, name); index >= 0 {
+	if index := slice.SliceIndex(instances, conf.Name); index >= 0 {
 		return true
 	}
 	return false
+}
+
+func isFluentBitConfigWorkloadExist(cli client.Client, conf *types.FluentBitConfig, cm corev1.ConfigMap) (bool, error) {
+	confs, err := getConfigs(cli, cm)
+	if err != nil {
+		return true, err
+	}
+	for _, c := range confs {
+		if reflect.DeepEqual(conf.Workload, c.Workload) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func createConfig(cli client.Client, conf *types.FluentBitConfig, cm corev1.ConfigMap) error {
 	if conf.Name == "" {
 		return errors.New("fluent-bit config field name can not be null")
 	}
-	if isFluentBitConfigExist(cli, conf.Name, cm) {
-		return errors.New(fmt.Sprintf("fluent-bit config %s has already exists", conf.Name))
+	if isFluentBitConfigExist(cli, conf, cm) {
+		return errors.New(fmt.Sprintf("fluent-bit config name %s has already exists", conf.Name))
+	}
+	exist, err := isFluentBitConfigWorkloadExist(cli, conf, cm)
+	if err != nil {
+		return fmt.Errorf("check fluent-bit config failed, %v", err)
+	}
+	if exist {
+		return errors.New(fmt.Sprintf("fluent-bit config workload namespace:%s kind:%s name:%s has already exists", conf.Workload.Namespace, conf.Workload.Kind, conf.Workload.Name))
 	}
 
 	oldFbConf, ok := cm.Data[FluentBitConfigFileName]
