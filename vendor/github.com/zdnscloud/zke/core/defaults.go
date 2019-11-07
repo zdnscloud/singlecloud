@@ -233,11 +233,11 @@ func (c *Cluster) setClusterNodesDefaults() {
 		}
 
 		if len(host.Port) == 0 {
-			c.Nodes[i].Port = DefaultSSHPort
+			c.Nodes[i].Port = c.Option.SSHPort
 		}
 
 		if len(host.DockerSocket) == 0 {
-			c.Nodes[i].DockerSocket = DefaultDockerSockPath
+			c.Nodes[i].DockerSocket = c.Option.DockerSocket
 		}
 
 		if host.Labels == nil {

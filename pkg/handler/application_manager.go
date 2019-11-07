@@ -29,6 +29,7 @@ import (
 	"github.com/zdnscloud/gorest/resource/schema/resourcefield"
 	restutil "github.com/zdnscloud/gorest/util"
 	"github.com/zdnscloud/kvzoo"
+	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -54,7 +55,6 @@ type ApplicationManager struct {
 	clusters       *ClusterManager
 	chartDir       string
 	clusterEventCh <-chan interface{}
-	chartConfigs   map[string]chartConfig
 }
 
 type chartConfig struct {
@@ -67,7 +67,6 @@ func newApplicationManager(clusters *ClusterManager, chartDir string) *Applicati
 		clusters:       clusters,
 		chartDir:       chartDir,
 		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
-		chartConfigs:   make(map[string]chartConfig),
 	}
 	go m.eventLoop()
 	return m
@@ -84,22 +83,6 @@ func (m *ApplicationManager) eventLoop() {
 			}
 		}
 	}
-}
-
-func (m *ApplicationManager) addChartsConfig(chartsConfig []interface{}) error {
-	for _, config := range chartsConfig {
-		typ := reflect.TypeOf(config)
-		fields, err := resourcefield.New(typ)
-		if err != nil {
-			return err
-		}
-
-		m.chartConfigs[strings.ToLower(typ.Name())] = chartConfig{
-			structVal: reflect.ValueOf(config),
-			fields:    fields,
-		}
-	}
-	return nil
 }
 
 func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
@@ -135,11 +118,10 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	}
 
 	isAdminUser := isAdmin(getCurrentUser(ctx))
-	if isAdminUser == false && info.SystemChart {
+	app.SystemChart = slice.SliceIndex(info.Keywords, KeywordZcloudSystem) != -1
+	if isAdminUser == false && app.SystemChart {
 		return fmt.Errorf("user %s no authority to create application with chart %s", getCurrentUser(ctx), app.ChartName)
 	}
-
-	app.SystemChart = info.SystemChart
 
 	if clusterVersion, err := cluster.KubeClient.ServerVersion(); err != nil {
 		return fmt.Errorf("get cluster %s version failed: %s", cluster.Name, err.Error())
@@ -149,7 +131,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		DefaultCapabilities.KubeVersion.Minor = clusterVersion.Minor
 	}
 
-	configs, err := m.parseChartConfigs(app.ChartName, app.Configs)
+	configs, err := m.parseChartConfigs(path.Join(m.chartDir, app.ChartName, app.ChartVersion), app.Configs)
 	if err != nil {
 		return fmt.Errorf("parse chart %s with version %s configs failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
@@ -203,42 +185,21 @@ func genUrlPrefix(ctx *resource.Context, clusterName string) string {
 	}
 }
 
-func (m *ApplicationManager) parseChartConfigs(chartName string, appConfigs json.RawMessage) (map[string]interface{}, error) {
-	objMap := make(map[string]interface{})
-	if appConfigs == nil {
-		return objMap, nil
+func (m *ApplicationManager) parseChartConfigs(chartVersionDir string, configRaw json.RawMessage) (map[string]interface{}, error) {
+	configs := make(map[string]interface{})
+	if configRaw == nil {
+		return configs, nil
 	}
 
-	if err := json.Unmarshal(appConfigs, &objMap); err != nil {
-		return nil, fmt.Errorf("unmarshal chart %s configs failed: %v", chartName, err.Error())
+	if err := json.Unmarshal(configRaw, &configs); err != nil {
+		return nil, fmt.Errorf("unmarshal chart configs failed: %v", err.Error())
 	}
 
-	chartConfig, ok := m.chartConfigs[strings.ToLower(chartName)]
-	if ok == false {
-		return nil, fmt.Errorf("no found chart %s resource info", chartName)
+	if err := charts.CheckConfigs(chartVersionDir, configs); err != nil {
+		return nil, err
 	}
 
-	if chartConfig.fields != nil {
-		if err := chartConfig.fields.CheckRequired(objMap); err != nil {
-			return nil, err
-		}
-	}
-
-	val := chartConfig.structVal
-	valPtr := reflect.New(val.Type())
-	valPtr.Elem().Set(val)
-	obj := valPtr.Interface()
-	if err := json.Unmarshal(appConfigs, obj); err != nil {
-		return nil, fmt.Errorf("unmarshal chart %s configs failed: %v", chartName, err.Error())
-	}
-
-	if chartConfig.fields != nil {
-		if err := chartConfig.fields.Validate(obj); err != nil {
-			return nil, err
-		}
-	}
-
-	return objMap, nil
+	return configs, nil
 }
 
 func loadChartFiles(namespace, chartPath, appName string, configs map[string]interface{}, caps *chartutil.Capabilities) ([]types.Manifest, []types.Manifest, error) {
@@ -411,15 +372,46 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 
 	var apps types.Applications
 	for _, app := range allApps {
-		if app.SystemChart {
-			continue
+		if app.SystemChart == false {
+			apps = append(apps, genReturnApplication(app))
 		}
-
-		apps = append(apps, genReturnApplication(app))
 	}
 
 	sort.Sort(apps)
 	return apps
+}
+
+func getApplicationsFromDB(table kvzoo.Table) (types.Applications, error) {
+	tx, err := table.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback()
+	appValues, err := tx.List()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	var apps types.Applications
+	for _, value := range appValues {
+		if len(value) == 0 {
+			continue
+		}
+
+		var app types.Application
+		if err := json.Unmarshal(value, &app); err != nil {
+			return nil, err
+		}
+
+		apps = append(apps, &app)
+	}
+
+	return apps, nil
 }
 
 func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
@@ -442,6 +434,35 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	return genReturnApplication(app)
+}
+
+func getApplicationFromDB(table kvzoo.Table, appName string, isSystemChart bool) (*types.Application, error) {
+	tx, err := table.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Commit()
+	return getApplicationFromDBTx(tx, appName, isSystemChart)
+}
+
+func getApplicationFromDBTx(tx kvzoo.Transaction, appName string, isSystemChart bool) (*types.Application, error) {
+	value, err := tx.Get(appName)
+	if err != nil {
+		return nil, err
+	}
+
+	var app types.Application
+	if err := json.Unmarshal(value, &app); err != nil {
+		return nil, err
+	}
+
+	//all user can`t access system chart, system chart operate is another logic and in alone page
+	if app.SystemChart != isSystemChart {
+		return nil, fmt.Errorf("user no authority to access application %s", appName)
+	}
+
+	return &app, nil
 }
 
 func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -565,68 +586,6 @@ func deleteApplicationFromDB(table kvzoo.Table, name string) error {
 	}
 
 	return tx.Commit()
-}
-
-func getApplicationsFromDB(table kvzoo.Table) (types.Applications, error) {
-	tx, err := table.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	defer tx.Rollback()
-	appValues, err := tx.List()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	var apps types.Applications
-	for _, value := range appValues {
-		if len(value) == 0 {
-			continue
-		}
-
-		var app types.Application
-		if err := json.Unmarshal(value, &app); err != nil {
-			return nil, err
-		}
-
-		apps = append(apps, &app)
-	}
-
-	return apps, nil
-}
-
-func getApplicationFromDB(table kvzoo.Table, appName string, isSystemChart bool) (*types.Application, error) {
-	tx, err := table.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	defer tx.Commit()
-	return getApplicationFromDBTx(tx, appName, isSystemChart)
-}
-
-func getApplicationFromDBTx(tx kvzoo.Transaction, appName string, isSystemChart bool) (*types.Application, error) {
-	value, err := tx.Get(appName)
-	if err != nil {
-		return nil, err
-	}
-
-	var app types.Application
-	if err := json.Unmarshal(value, &app); err != nil {
-		return nil, err
-	}
-
-	//all user can`t access system chart, system chart operate is another logic and in alone page
-	if app.SystemChart != isSystemChart {
-		return nil, fmt.Errorf("user no authority to access application %s", appName)
-	}
-
-	return &app, nil
 }
 
 func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace string) error {

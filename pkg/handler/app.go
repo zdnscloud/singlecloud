@@ -13,7 +13,6 @@ import (
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
-	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -93,9 +92,6 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	}
 	schemas.MustImport(&Version, types.UserQuota{}, userQuotaManager)
 	appManager := newApplicationManager(a.clusterManager, a.chartDir)
-	if err := appManager.addChartsConfig(charts.SupportChartsConfig); err != nil {
-		return err
-	}
 	schemas.MustImport(&Version, types.Application{}, appManager)
 	schemas.MustImport(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appManager))
 	schemas.MustImport(&Version, types.Registry{}, newRegistryManager(a.clusterManager, appManager))
