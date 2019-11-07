@@ -116,7 +116,7 @@ func k8sHpaToScHpa(k8sHpa *asv1.HorizontalPodAutoscaler) *types.HorizontalPodAut
 		currentCPUUtilizationPercentage = int(*k8sHpa.Status.CurrentCPUUtilizationPercentage)
 	}
 
-	return &types.HorizontalPodAutoscaler{
+	hpa := &types.HorizontalPodAutoscaler{
 		Name:                     k8sHpa.Name,
 		ScaleTargetKind:          k8sHpa.Spec.ScaleTargetRef.Kind,
 		ScaleTargetName:          k8sHpa.Spec.ScaleTargetRef.Name,
@@ -129,6 +129,9 @@ func k8sHpaToScHpa(k8sHpa *asv1.HorizontalPodAutoscaler) *types.HorizontalPodAut
 			CurrentCPUUtilizationPercentage: currentCPUUtilizationPercentage,
 		},
 	}
+	hpa.SetID(k8sHpa.Name)
+	hpa.SetCreationTimestamp(k8sHpa.CreationTimestamp.Time)
+	return hpa
 }
 
 func (m *HorizontalPodAutoscalerManager) Get(ctx *resource.Context) resource.Resource {

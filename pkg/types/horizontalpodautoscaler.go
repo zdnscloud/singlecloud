@@ -7,10 +7,10 @@ import (
 type HorizontalPodAutoscaler struct {
 	resource.ResourceBase    `json:",inline"`
 	Name                     string                        `json:"name"`
-	ScaleTargetKind          string                        `json:"scaleTargetKind"`
-	ScaleTargetName          string                        `json:"scaleTargetName"`
+	ScaleTargetKind          string                        `json:"scaleTargetKind" rest:"required=true,options=deployment|statefulset"`
+	ScaleTargetName          string                        `json:"scaleTargetName" rest:"required=true"`
 	MinReplicas              int                           `json:"minReplicas"`
-	MaxReplicas              int                           `json:"maxReplicas"`
+	MaxReplicas              int                           `json:"maxReplicas" rest:"required=true"`
 	CPUUtilizationPercentage int                           `json:"cpuUtilizationPercentage"`
 	Status                   HorizontalPodAutoscalerStatus `json:"status,omitempty"`
 }
