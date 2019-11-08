@@ -1,6 +1,6 @@
 {
-  "resourceType": "Innerservice",
-  "collectionName": "Innerservices",
+  "resourceType": "innerService",
+  "collectionName": "innerServices",
   "parentResources": [
     "namespace"
   ],

@@ -1,6 +1,6 @@
 {
-  "resourceType": "Userquota",
-  "collectionName": "Userquotas",
+  "resourceType": "userQuota",
+  "collectionName": "userQuotas",
   "resourceFields": [
     {
       "name": {

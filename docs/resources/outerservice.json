@@ -1,6 +1,6 @@
 {
-  "resourceType": "Outerservice",
-  "collectionName": "Outerservices",
+  "resourceType": "outerService",
+  "collectionName": "outerServices",
   "parentResources": [
     "namespace"
   ],

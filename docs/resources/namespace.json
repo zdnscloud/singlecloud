@@ -1,6 +1,6 @@
 {
-  "resourceType": "Namespace",
-  "collectionName": "Namespaces",
+  "resourceType": "namespace",
+  "collectionName": "namespaces",
   "parentResources": [
     "cluster"
   ],

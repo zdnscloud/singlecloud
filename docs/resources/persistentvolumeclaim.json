@@ -1,6 +1,6 @@
 {
-  "resourceType": "Persistentvolumeclaim",
-  "collectionName": "Persistentvolumeclaims",
+  "resourceType": "persistentVolumeClaim",
+  "collectionName": "persistentVolumeClaims",
   "parentResources": [
     "namespace"
   ],

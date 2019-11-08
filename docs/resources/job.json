@@ -1,6 +1,6 @@
 {
-  "resourceType": "Job",
-  "collectionName": "Jobs",
+  "resourceType": "job",
+  "collectionName": "jobs",
   "parentResources": [
     "namespace"
   ],

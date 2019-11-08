@@ -1,6 +1,6 @@
 {
-  "resourceType": "Servicenetwork",
-  "collectionName": "Servicenetworks",
+  "resourceType": "serviceNetwork",
+  "collectionName": "serviceNetworks",
   "parentResources": [
     "cluster"
   ],

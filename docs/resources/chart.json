@@ -1,6 +1,6 @@
 {
-  "resourceType": "Chart",
-  "collectionName": "Charts",
+  "resourceType": "chart",
+  "collectionName": "charts",
   "parentResources": [
     "namespace"
   ],

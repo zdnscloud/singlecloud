@@ -1,6 +1,6 @@
 {
-  "resourceType": "Monitor",
-  "collectionName": "Monitors",
+  "resourceType": "monitor",
+  "collectionName": "monitors",
   "parentResources": [
     "cluster"
   ],

@@ -1,6 +1,6 @@
 {
-  "resourceType": "Application",
-  "collectionName": "Applications",
+  "resourceType": "application",
+  "collectionName": "applications",
   "parentResources": [
     "namespace"
   ],

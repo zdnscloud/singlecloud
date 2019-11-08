@@ -1,6 +1,6 @@
 {
-  "resourceType": "Udpingress",
-  "collectionName": "Udpingresses",
+  "resourceType": "udpIngress",
+  "collectionName": "udpIngresses",
   "parentResources": [
     "namespace"
   ],

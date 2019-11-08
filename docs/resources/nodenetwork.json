@@ -1,6 +1,6 @@
 {
-  "resourceType": "Nodenetwork",
-  "collectionName": "Nodenetworks",
+  "resourceType": "nodeNetwork",
+  "collectionName": "nodeNetworks",
   "parentResources": [
     "cluster"
   ],

@@ -1,6 +1,6 @@
 {
-  "resourceType": "Configmap",
-  "collectionName": "Configmaps",
+  "resourceType": "configMap",
+  "collectionName": "configMaps",
   "parentResources": [
     "namespace"
   ],

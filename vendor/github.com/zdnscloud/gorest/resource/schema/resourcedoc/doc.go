@@ -54,8 +54,8 @@ func NewDocumentManager(name string, kind resource.ResourceKind, handler resourc
 		resourceName: name,
 		resourceKind: kind,
 		document: Document{
-			ResourceType:      UpperFirstCharacter(name),
-			CollectionName:    UpperFirstCharacter(util.GuessPluralName(name)),
+			ResourceType:      LowerFirstCharacter(reflect.TypeOf(kind).Name()),
+			CollectionName:    util.GuessPluralName(LowerFirstCharacter(reflect.TypeOf(kind).Name())),
 			ParentResources:   parents,
 			ResourceFields:    resourceFields,
 			SubResources:      subresources,
@@ -73,7 +73,7 @@ func (d *DocumentManager) WriteJsonFile(targetPath string) error {
 	if err := os.MkdirAll(targetPath, os.ModePerm); err != nil {
 		return err
 	}
-	file := path.Join(targetPath, LowerFirstCharacter(d.document.ResourceType)+".json")
+	file := path.Join(targetPath, d.document.ResourceType+".json")
 	filePtr, err := os.Create(file)
 	if err != nil {
 		return err

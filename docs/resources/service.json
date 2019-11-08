@@ -1,6 +1,6 @@
 {
-  "resourceType": "Service",
-  "collectionName": "Services",
+  "resourceType": "service",
+  "collectionName": "services",
   "parentResources": [
     "namespace"
   ],
