@@ -223,7 +223,7 @@ spec:
                     http "/"
                 else
                     echo 'Waiting for elasticsearch cluster to become cluster to be ready (request params: "{{ .Values.clusterHealthCheckParams }}" )'
-                    if http "/_cluster/health?{{ .Values.clusterHealthCheckParams }}" ; then
+                    if [ http "/_cluster/health?{{ .Values.clusterHealthCheckParams }}" ] || [ http "/_cluster/health?wait_for_status=yellow&timeout=1s" ] ; then
                         touch ${START_FILE}
                         exit 0
                     else
@@ -244,6 +244,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.name
           {{- if eq .Values.roles.master "true" }}
+          {{- if gt (int (.Values.replicas)) 1 }}
           {{- if ge (int (include "esMajorVersion" .)) 7 }}
           - name: cluster.initial_master_nodes
             value: "{{ template "endpoints" . }}"
@@ -252,12 +253,19 @@ spec:
             value: "{{ .Values.minimumMasterNodes }}"
           {{- end }}
           {{- end }}
+          {{- end }}
+          {{- if gt (int (.Values.replicas)) 1 }}
           {{- if lt (int (include "esMajorVersion" .)) 7 }}
           - name: discovery.zen.ping.unicast.hosts
             value: "{{ template "masterService" . }}-headless"
           {{- else }}
           - name: discovery.seed_hosts
             value: "{{ template "masterService" . }}-headless"
+          {{- end }}
+          {{- end }}
+          {{- if eq (int (.Values.replicas)) 1 }}
+          - name: discovery.type
+            value: single-node
           {{- end }}
           - name: cluster.name
             value: "{{ .Values.clusterName }}"

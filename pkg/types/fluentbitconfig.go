@@ -6,7 +6,7 @@ import (
 
 type FluentBitConfig struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string       `json:"name" rest:"required=true"`
+	Name                  string       `json:"-"`
 	Workload              WorkloadConf `json:"workload" rest:"required=true"`
 	RegExp                string       `json:"regexp" rest:"required=true"`
 	Time_Key              string       `json:"timeKey,omitempty"`

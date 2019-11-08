@@ -33,7 +33,7 @@ elasticsearch:
   masterService: ""
   masterTerminationFix: false
   maxUnavailable: 1
-  minimumMasterNodes: 2
+  minimumMasterNodes: 1
   nameOverride: ""
   networkHost: 0.0.0.0
   nodeAffinity: {}
@@ -75,7 +75,7 @@ elasticsearch:
     periodSeconds: 10
     successThreshold: 3
     timeoutSeconds: 5
-  replicas: 3
+  replicas: 1
   resources:
     limits:
       cpu: 1000m
