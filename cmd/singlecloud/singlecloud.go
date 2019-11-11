@@ -48,7 +48,7 @@ func main() {
 	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
 	flag.BoolVar(&asSlave, "as-slave", false, "run singlecloud as slave")
-	flag.BoolVar(&asMaster, "as-master", true, "run singlecloud as master")
+	flag.BoolVar(&asMaster, "as-master", false, "run singlecloud as master")
 	flag.StringVar(&chartDir, "chart", "", "chart path")
 	flag.StringVar(&dbFilePath, "db", "", "db file path")
 	flag.IntVar(&dbPort, "dbport", 6666, "db server port")
@@ -69,6 +69,10 @@ func main() {
 
 	if asSlave && slaveDBAddress != "" {
 		log.Fatalf("slave node cann't have other slaves")
+	}
+
+	if asMaster == false && asSlave == false {
+		asMaster = true
 	}
 
 	if asMaster && slaveDBAddress == "" {
