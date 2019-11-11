@@ -1,6 +1,10 @@
 package server
 
 import (
+	"fmt"
+	"os"
+	//"time"
+
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/zsais/go-gin-prometheus"
@@ -16,9 +20,23 @@ type WebHandler interface {
 
 func NewServer(middlewares ...gin.HandlerFunc) (*Server, error) {
 	gin.SetMode(gin.ReleaseMode)
+	gin.DefaultWriter = os.Stdout
 	router := gin.New()
-	router.Use(middlewares...)
+	router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("[%s] client:%s \"%s %s\" proto:%s status:%d latency:%s agent:%s errMsg:\"%s\"\n",
+			param.TimeStamp.Format("15:04 01/02/06"),
+			param.ClientIP,
+			param.Method,
+			param.Path,
+			param.Request.Proto,
+			param.StatusCode,
+			param.Latency,
+			param.Request.UserAgent(),
+			param.ErrorMessage,
+		)
+	}))
 	router.Use(static.Serve("/assets", static.LocalFile("/www", false)))
+	router.Use(middlewares...)
 	router.NoRoute(func(c *gin.Context) {
 		c.File("/www/index.html")
 	})
