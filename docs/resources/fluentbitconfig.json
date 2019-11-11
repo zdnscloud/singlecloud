@@ -4,7 +4,6 @@
     "parentResources": [ "cluster" ],
 
     "resourceFields": {
-        "name": {"type": "string"},
         "workload": {"type": "workloadConf"},  
         "regexp": {"type": "string"},
         "timeKey": {"type": "string"},
@@ -24,7 +23,6 @@
 
     "postParameters": {
         "fields": {
-            "name": {"type": "string"},
             "workload": {"type": "workloadConf"},  
             "regexp": {"type": "string"},
             "timeKey": {"type": "string"},
@@ -40,7 +38,6 @@
     },
     "putParameters": {
         "fields": {
-            "name": {"type": "string"},
             "workload": {"type": "workloadConf"},  
             "regexp": {"type": "string"},
             "timeKey": {"type": "string"},
