@@ -76,7 +76,7 @@ func main() {
 	}
 
 	if asMaster && slaveDBAddress == "" {
-		fmt.Printf("[Warning] No slave node is specified, which means no data backup\n")
+		log.Warnf("no slave node is specified, if master node is crashed, data will be lost\n")
 	}
 
 	if asMaster {
