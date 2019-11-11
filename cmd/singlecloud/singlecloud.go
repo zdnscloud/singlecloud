@@ -30,16 +30,16 @@ var (
 	showVersion bool
 	build       string
 
-	asSlave            bool
-	asMaster           bool
-	addr               string
-	casServer          string
-	globaldnsAddr      string
-	chartDir           string
-	dbFilePath         string
-	dbPort             int
-	secondaryDBAddress string
-	repoUrl            string
+	asSlave        bool
+	asMaster       bool
+	addr           string
+	casServer      string
+	globaldnsAddr  string
+	chartDir       string
+	dbFilePath     string
+	dbPort         int
+	slaveDBAddress string
+	repoUrl        string
 )
 
 func main() {
@@ -47,14 +47,16 @@ func main() {
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
 	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
-	flag.BoolVar(&asSlave, "slave", false, "run singlecloud slave instance")
-	flag.BoolVar(&asMaster, "master", true, "run singlecloud slave instance")
+	flag.BoolVar(&asSlave, "as-slave", false, "run singlecloud as slave")
+	flag.BoolVar(&asMaster, "as-master", true, "run singlecloud as master")
 	flag.StringVar(&chartDir, "chart", "", "chart path")
 	flag.StringVar(&dbFilePath, "db", "", "db file path")
 	flag.IntVar(&dbPort, "dbport", 6666, "db server port")
-	flag.StringVar(&secondaryDBAddress, "secondary-addr", "", "secondary db address")
+	flag.StringVar(&slaveDBAddress, "slave-db-addr", "", "slave db address")
 	flag.StringVar(&repoUrl, "repo", "", "chart repo url")
 	flag.Parse()
+
+	log.InitLogger(log.Debug)
 
 	if showVersion {
 		fmt.Printf("singlecloud %s (build at %s)\n", version, build)
@@ -62,17 +64,15 @@ func main() {
 	}
 
 	if asMaster && asSlave {
-		fmt.Printf("singlecloud can only run as master or as slave")
-		return
+		log.Fatalf("singlecloud can only run as master or as slave")
 	}
 
-	if asSlave && secondaryDBAddress != "" {
-		fmt.Printf("slave node cann't have other slaves")
-		return
+	if asSlave && slaveDBAddress != "" {
+		log.Fatalf("slave node cann't have other slaves")
 	}
 
-	if asMaster && secondaryDBAddress == "" {
-		fmt.Printf("[Warning] No slave node is specified, which means no data backup")
+	if asMaster && slaveDBAddress == "" {
+		fmt.Printf("[Warning] No slave node is specified, which means no data backup\n")
 	}
 
 	if asMaster {
@@ -83,11 +83,10 @@ func main() {
 }
 
 func runAsMaster() {
-	log.InitLogger(log.Debug)
 	eventBus := pubsub.New(EventBufLen)
 
 	stopCh := make(chan struct{})
-	dbClient, err := initMasterDB(dbPort, dbFilePath, secondaryDBAddress, stopCh)
+	dbClient, err := initMasterDB(dbPort, dbFilePath, slaveDBAddress, stopCh)
 	if err != nil {
 		log.Fatalf("create database failed: %s", err.Error())
 	}
@@ -140,7 +139,7 @@ func runAsMaster() {
 		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
-	if secondaryDBAddress != "" {
+	if slaveDBAddress != "" {
 		if _, err := dbClient.Checksum(); err != nil {
 			log.Fatalf("db isn't in sync:%s", err.Error())
 		}
@@ -151,7 +150,7 @@ func runAsMaster() {
 	}
 }
 
-func initMasterDB(localDBPort int, dbFilePath, secondaryDBAddress string, stopCh chan struct{}) (kvzoo.DB, error) {
+func initMasterDB(localDBPort int, dbFilePath, slaveDBAddress string, stopCh chan struct{}) (kvzoo.DB, error) {
 	dbServerAddr := fmt.Sprintf(":%d", localDBPort)
 	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(dbFilePath, DBFileName))
 	if err != nil {
@@ -165,8 +164,8 @@ func initMasterDB(localDBPort int, dbFilePath, secondaryDBAddress string, stopCh
 	<-dbStarted
 
 	var slaves []string
-	if secondaryDBAddress != "" {
-		slaves = append(slaves, secondaryDBAddress)
+	if slaveDBAddress != "" {
+		slaves = append(slaves, slaveDBAddress)
 	}
 	dbClient, err := client.New(dbServerAddr, slaves)
 	if err != nil {
