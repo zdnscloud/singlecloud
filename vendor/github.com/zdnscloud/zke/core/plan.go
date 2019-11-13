@@ -24,7 +24,7 @@ import (
 
 const (
 	EtcdPathPrefix     = "/registry"
-	ContainerNameLabel = "zdnscloud.cn.zke.container.name"
+	ContainerNameLabel = "zcloud.cn.zke.container.name"
 	CloudConfigSumEnv  = "ZKE_CLOUD_CONFIG_CHECKSUM"
 
 	DefaultToolsEntrypoint        = "/opt/zke-tools/entrypoint.sh"
@@ -410,7 +410,7 @@ func (c *Cluster) BuildKubeletProcess(host *hosts.Host, prefixPath string) types
 		"/sys:/sys:rprivate",
 		host.DockerInfo.DockerRootDir + ":" + host.DockerInfo.DockerRootDir + ":rw,rslave,z",
 		fmt.Sprintf("%s:%s:shared,z", path.Join(prefixPath, "/var/lib/kubelet"), path.Join(prefixPath, "/var/lib/kubelet")),
-		"/var/lib/zdnscloud:/var/lib/zdnscloud:shared,z",
+		"/var/lib/zcloud:/var/lib/zcloud:shared,z",
 		"/var/run:/var/run:rw,rprivate",
 		"/run:/run:rprivate",
 		fmt.Sprintf("%s:/etc/ceph", path.Join(prefixPath, "/etc/ceph")),

@@ -15,9 +15,9 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/kvzoo"
 )
 
 const (
@@ -31,11 +31,11 @@ type ClusterManager struct {
 	authorizer    *authorization.Authorizer
 	authenticator *authentication.Authenticator
 	zkeManager    *zke.ZKEManager
-	db            storage.DB
+	db            kvzoo.DB
 	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db storage.DB, scVersion string) (*ClusterManager, error) {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db kvzoo.DB, scVersion string) (*ClusterManager, error) {
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
@@ -56,7 +56,7 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 	return clusterMgr, nil
 }
 
-func (m *ClusterManager) GetDB() storage.DB {
+func (m *ClusterManager) GetDB() kvzoo.DB {
 	return m.db
 }
 

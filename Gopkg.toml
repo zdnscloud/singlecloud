@@ -57,9 +57,9 @@
   name = "github.com/zdnscloud/immense"
   branch = "master"
 
-[[override]]
- branch = "release-1.13"
- name = "k8s.io/metrics"
+[[constraint]]
+  name = "github.com/zdnscloud/kvzoo"
+  branch = "master"
 
 [prune]
   go-tests = true
@@ -69,10 +69,14 @@
   branch = "master"
   name = "github.com/zdnscloud/vanguard"
 
-[[constraint]]
-  branch = "dev-v3"
+[[override]]
   name = "helm.sh/helm"
   source = "https://github.com/helm/helm.git"
+  revision = "fba311ba2362ad629030c936b5d23aacb37bffcd"
+
+[[override]]
+  name = "github.com/docker/docker"
+  revision = "a9fbbdc8dd8794b20af358382ab780559bca589d"
 
 [[override]]
   name = "k8s.io/client-go"
@@ -81,15 +85,3 @@
 [[constraint]]
   branch = "master"
   name = "github.com/zdnscloud/zke"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/boltdb/bolt"
-
-[[override]]
-  branch = "release-1.13"
-  name = "k8s.io/apiextensions-apiserver"
-
-[[override]]
-  branch = "release-1.13"
-  name = "k8s.io/kube-aggregator"

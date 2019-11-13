@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package pb;
+
+import "google/protobuf/empty.proto";
+
+message ChecksumRequest {
+}
+
+message ChecksumReply{
+    string checksum = 1;
+}
+
+message DestroyRequest {
+}
+
+message CreateOrGetTableRequest {
+    string name = 1;
+}
+
+message DeleteTableRequest {
+    string name = 1;
+}
+
+message BeginTransactionRequest {
+    string table_name = 1;
+}
+
+message BeginTransactionReply {
+    int64 tx_id = 1;
+}
+
+message CommitTransactionRequest {
+    int64 tx_id = 1;
+}
+
+message RollbackTransactionRequest {
+    int64 tx_id = 1;
+}
+
+message AddRequest {
+    int64 tx_id = 1;
+    string key = 2;
+    bytes value = 3;
+}
+
+message DeleteRequest {
+    int64 tx_id = 1;
+    string key = 2;
+}
+
+message UpdateRequest {
+    int64 tx_id = 1;
+    string key = 2;
+    bytes value = 3;
+}
+
+message GetRequest {
+    int64 tx_id = 1;
+    string key = 2;
+}
+
+message GetResponse {
+    bytes value = 1;
+}
+
+message ListRequest {
+    int64 tx_id = 1;
+}
+
+message ListResponse {
+    map<string, bytes> values = 1;
+}
+
+
+service KVS {
+    rpc Checksum(ChecksumRequest) returns (ChecksumReply) {}
+    rpc Destroy(DestroyRequest) returns (google.protobuf.Empty) {}
+
+    rpc CreateOrGetTable(CreateOrGetTableRequest) returns (google.protobuf.Empty) {}
+    rpc DeleteTable(DeleteTableRequest) returns (google.protobuf.Empty) {}
+    
+    rpc BeginTransaction(BeginTransactionRequest) returns (BeginTransactionReply) {}
+    rpc CommitTransaction(CommitTransactionRequest) returns (google.protobuf.Empty) {}
+    rpc RollbackTransaction(RollbackTransactionRequest) returns (google.protobuf.Empty) {}
+
+    rpc Get(GetRequest) returns (GetResponse) {}
+    rpc List(ListRequest) returns (ListResponse) {}
+
+    rpc Add(AddRequest) returns (google.protobuf.Empty) {}
+    rpc Delete(DeleteRequest) returns (google.protobuf.Empty) {}
+    rpc Update(UpdateRequest) returns (google.protobuf.Empty) {}
+}

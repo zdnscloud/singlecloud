@@ -6,8 +6,8 @@ import (
 	"time"
 
 	resttypes "github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -16,15 +16,18 @@ const (
 	AllClusters   string = "_all_clusters"
 )
 
-var adminUser = &types.User{
-	Name: types.Administrator,
-	Projects: []types.Project{
-		types.Project{
-			Cluster:   AllClusters,
-			Namespace: AllNamespaces,
+var (
+	zcloudStartTime, _ = time.Parse(time.RFC3339, "2019-02-28T00:00:00Z")
+	adminUser          = &types.User{
+		Name: types.Administrator,
+		Projects: []types.Project{
+			types.Project{
+				Cluster:   AllClusters,
+				Namespace: AllNamespaces,
+			},
 		},
-	},
-}
+	}
+)
 
 type User struct {
 	Projects          []types.Project   `json:"projects,omitempty"`
@@ -34,10 +37,10 @@ type User struct {
 type Authorizer struct {
 	users map[string]*User
 	lock  sync.RWMutex
-	db    storage.Table
+	db    kvzoo.Table
 }
 
-func New(db storage.DB) (*Authorizer, error) {
+func New(db kvzoo.DB) (*Authorizer, error) {
 	auth := &Authorizer{
 		users: make(map[string]*User),
 	}
@@ -48,8 +51,7 @@ func New(db storage.DB) (*Authorizer, error) {
 
 	if _, ok := auth.users[types.Administrator]; ok == false {
 		adminUser.SetID(types.Administrator)
-		// adminUser.SetType(types.UserType)
-		adminUser.SetCreationTimestamp(time.Now())
+		adminUser.SetCreationTimestamp(zcloudStartTime)
 		auth.AddUser(adminUser)
 	}
 

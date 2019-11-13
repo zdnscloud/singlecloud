@@ -220,16 +220,6 @@ func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, 
 		return clusterState, err
 	}
 
-	clusterState, err = kubeCluster.UpdateClusterCurrentStateForSingleCloud(ctx, clusterState)
-	if err != nil {
-		return clusterState, err
-	}
-
-	err = core.SaveZKEConfigToKubernetes(ctx, kubeCluster, clusterState)
-	if err != nil {
-		return clusterState, err
-	}
-
 	err = kubeCluster.DeployWorkerPlane(ctx)
 	if err != nil {
 		return clusterState, err
@@ -246,6 +236,16 @@ func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, 
 	}
 
 	err = ConfigureCluster(ctx, kubeCluster.ZKEConfig, kubeCluster.Certificates, dialersOptions, isNewCluster)
+	if err != nil {
+		return clusterState, err
+	}
+
+	clusterState, err = kubeCluster.UpdateClusterCurrentStateForSingleCloud(ctx, clusterState)
+	if err != nil {
+		return clusterState, err
+	}
+
+	err = core.SaveZKEConfigToKubernetes(ctx, kubeCluster, clusterState)
 	if err != nil {
 		return clusterState, err
 	}

@@ -16,8 +16,8 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -26,10 +26,16 @@ const (
 
 type NamespaceManager struct {
 	clusters *ClusterManager
+	db       kvzoo.Table
 }
 
-func newNamespaceManager(clusters *ClusterManager) *NamespaceManager {
-	return &NamespaceManager{clusters: clusters}
+func newNamespaceManager(clusters *ClusterManager) (*NamespaceManager, error) {
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	table, err := clusters.GetDB().CreateOrGetTable(tn)
+	if err != nil {
+		return nil, fmt.Errorf("new namespace manager when create or get userquota table failed: %s", err.Error())
+	}
+	return &NamespaceManager{clusters: clusters, db: table}, nil
 }
 
 func (m *NamespaceManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
@@ -104,7 +110,7 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 	}
 
 	namespace := ctx.Resource.(*types.Namespace)
-	exits, err := IsExistsNamespaceInDB(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable), namespace.GetID())
+	exits, err := m.isExistsInUserQuotaTable(namespace.GetID())
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))
@@ -134,6 +140,17 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 		}
 	}
 	return nil
+}
+
+func (m *NamespaceManager) isExistsInUserQuotaTable(namespace string) (bool, error) {
+	tx, err := m.db.Begin()
+	if err != nil {
+		return false, err
+	}
+
+	value, _ := tx.Get(namespace)
+	tx.Commit()
+	return value != nil, nil
 }
 
 func getNamespaces(cli client.Client) (*corev1.NamespaceList, error) {

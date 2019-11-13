@@ -132,7 +132,7 @@ func (z *AuthDataSource) addAuthZone(view, name, content string, masters []strin
 
 func (z *AuthDataSource) deleteAuthZone(view, name string) *httpcmd.Error {
 	origin := g53.NameFromStringUnsafe(name)
-	zoneData, result := z.GetZone(view, origin)
+	_, result := z.GetZone(view, origin)
 	if result != domaintree.ExactMatch {
 		return ErrGetZoneFail
 	}
@@ -140,12 +140,6 @@ func (z *AuthDataSource) deleteAuthZone(view, name string) *httpcmd.Error {
 	z.lock.Lock()
 	z.viewZones[view].Delete(origin)
 	z.lock.Unlock()
-
-	if updator, ok := zoneData.GetUpdator(nil, false); ok {
-		if err := updator.Clean(); err != nil {
-			return ErrDeleteZoneFailed.AddDetail(err.Error())
-		}
-	}
 	return nil
 }
 

@@ -3,9 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"path"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
+	"github.com/zdnscloud/kvzoo"
+	"github.com/zdnscloud/kvzoo/client"
+	dbserver "github.com/zdnscloud/kvzoo/server"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
@@ -14,46 +18,83 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
 	"github.com/zdnscloud/singlecloud/pkg/k8sshell"
 	"github.com/zdnscloud/singlecloud/server"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
-const EventBufLen = 1000
+const (
+	EventBufLen = 1000
+	DBFileName  = "singlecloud.db"
+)
 
 var (
-	version string
-	build   string
+	version     string
+	showVersion bool
+	build       string
+
+	asSlave        bool
+	asMaster       bool
+	addr           string
+	casServer      string
+	globaldnsAddr  string
+	chartDir       string
+	dbFilePath     string
+	dbPort         int
+	slaveDBAddress string
+	repoUrl        string
 )
 
 func main() {
-	var addr string
-	var casServer string
-	var globaldnsAddr string
-	var showVersion bool
-	var chartDir string
-	var dbFilePath string
-	var repoUrl string
 	flag.StringVar(&addr, "listen", ":80", "server listen address")
 	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
 	flag.StringVar(&casServer, "cas", "", "cas server address")
 	flag.BoolVar(&showVersion, "version", false, "show version")
+	flag.BoolVar(&asSlave, "as-slave", false, "run singlecloud as slave")
+	flag.BoolVar(&asMaster, "as-master", false, "run singlecloud as master")
 	flag.StringVar(&chartDir, "chart", "", "chart path")
 	flag.StringVar(&dbFilePath, "db", "", "db file path")
+	flag.IntVar(&dbPort, "dbport", 6666, "db server port")
+	flag.StringVar(&slaveDBAddress, "slave-db-addr", "", "slave db address")
 	flag.StringVar(&repoUrl, "repo", "", "chart repo url")
 	flag.Parse()
+
+	log.InitLogger(log.Debug)
 
 	if showVersion {
 		fmt.Printf("singlecloud %s (build at %s)\n", version, build)
 		return
 	}
 
-	log.InitLogger(log.Debug)
+	if asMaster && asSlave {
+		log.Fatalf("singlecloud can only run as master or as slave")
+	}
+
+	if asSlave && slaveDBAddress != "" {
+		log.Fatalf("slave node cann't have other slaves")
+	}
+
+	if asMaster == false && asSlave == false {
+		asMaster = true
+	}
+
+	if asMaster && slaveDBAddress == "" {
+		log.Warnf("no slave node is specified, if master node is crashed, data will be lost\n")
+	}
+
+	if asMaster {
+		runAsMaster()
+	} else {
+		runAsSlave()
+	}
+}
+
+func runAsMaster() {
 	eventBus := pubsub.New(EventBufLen)
 
-	db, err := storage.New(dbFilePath)
+	stopCh := make(chan struct{})
+	dbClient, err := initMasterDB(dbPort, dbFilePath, slaveDBAddress, stopCh)
 	if err != nil {
-		log.Fatalf("init database failed: %s", err.Error())
+		log.Fatalf("create database failed: %s", err.Error())
 	}
-	defer db.Close()
+	defer close(stopCh)
 
 	if globaldnsAddr != "" {
 		if err := globaldns.New(globaldnsAddr, eventBus); err != nil {
@@ -61,12 +102,12 @@ func main() {
 		}
 	}
 
-	authenticator, err := authentication.New(casServer, db)
+	authenticator, err := authentication.New(casServer, dbClient)
 	if err != nil {
 		log.Fatalf("create authenticator failed:%s", err.Error())
 	}
 
-	authorizer, err := authorization.New(db)
+	authorizer, err := authorization.New(dbClient)
 	if err != nil {
 		log.Fatalf("create authorizer failed:%s", err.Error())
 	}
@@ -77,7 +118,7 @@ func main() {
 	}
 
 	agent := clusteragent.New()
-	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, db, chartDir, version, repoUrl)
+	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, chartDir, version, repoUrl)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}
@@ -102,7 +143,53 @@ func main() {
 		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
+	if slaveDBAddress != "" {
+		if _, err := dbClient.Checksum(); err != nil {
+			log.Fatalf("db isn't in sync:%s", err.Error())
+		}
+	}
+
 	if err := server.Run(addr); err != nil {
 		log.Fatalf("server run failed:%s", err.Error())
 	}
+}
+
+func initMasterDB(localDBPort int, dbFilePath, slaveDBAddress string, stopCh chan struct{}) (kvzoo.DB, error) {
+	dbServerAddr := fmt.Sprintf(":%d", localDBPort)
+	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(dbFilePath, DBFileName))
+	if err != nil {
+		return nil, err
+	}
+	dbStarted := make(chan struct{})
+	go func() {
+		close(dbStarted)
+		db.Start()
+	}()
+	<-dbStarted
+
+	var slaves []string
+	if slaveDBAddress != "" {
+		slaves = append(slaves, slaveDBAddress)
+	}
+	dbClient, err := client.New(dbServerAddr, slaves)
+	if err != nil {
+		db.Stop()
+		return nil, err
+	}
+
+	go func() {
+		<-stopCh
+		db.Stop()
+	}()
+	return dbClient, nil
+}
+
+func runAsSlave() {
+	dbServerAddr := fmt.Sprintf(":%d", dbPort)
+	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(dbFilePath, DBFileName))
+	if err != nil {
+		log.Fatalf("start slave failed:%s", err.Error())
+		return
+	}
+	db.Start()
 }
