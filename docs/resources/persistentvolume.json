@@ -1,57 +1,39 @@
 {
-  "resourceType": "persistentVolume",
-  "collectionName": "persistentVolumes",
+  "resourceType": "persistentvolume",
+  "collectionName": "persistentvolumes",
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
+  "resourceFields": {
+    "claimRef": {
+      "type": "claimRef"
+    },
+    "name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "storageClassName": {
+      "type": "string"
+    },
+    "storageSize": {
+      "type": "string"
+    }
+  },
+  "subResources": {
+    "claimRef": {
       "name": {
         "type": "string"
-      }
-    },
-    {
-      "storageSize": {
+      },
+      "namespace": {
         "type": "string"
-      }
-    },
-    {
-      "storageClassName": {
-        "type": "string"
-      }
-    },
-    {
-      "claimRef": {
-        "type": "claimRef"
-      }
-    },
-    {
-      "status": {
+      },
+      "string": {
         "type": "string"
       }
     }
-  ],
-  "subResources": [
-    {
-      "claimRef": [
-        {
-          "string": {
-            "type": "string"
-          }
-        },
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "namespace": {
-            "type": "string"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE"

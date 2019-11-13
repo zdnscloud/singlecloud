@@ -4,52 +4,36 @@
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
-      "ingressDomain": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "adminPassword": {
+      "type": "string"
     },
-    {
-      "storageClass": {
-        "type": "enum",
-        "validValues": [
-          "lvm",
-          "cephfs"
-        ]
-      }
+    "ingressDomain": {
+      "type": "string"
     },
-    {
-      "storageSize": {
-        "type": "int"
-      }
+    "prometheusRetention": {
+      "type": "int"
     },
-    {
-      "prometheusRetention": {
-        "type": "int"
-      }
+    "redirectUrl": {
+      "type": "string"
     },
-    {
-      "scrapeInterval": {
-        "type": "int"
-      }
+    "scrapeInterval": {
+      "type": "int"
     },
-    {
-      "adminPassword": {
-        "type": "string"
-      }
+    "status": {
+      "type": "string"
     },
-    {
-      "redirectUrl": {
-        "type": "string"
-      }
+    "storageClass": {
+      "type": "enum",
+      "validValues": [
+        "lvm",
+        "cephfs"
+      ]
     },
-    {
-      "status": {
-        "type": "string"
-      }
+    "storageSize": {
+      "type": "int"
     }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE"

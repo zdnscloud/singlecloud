@@ -1,43 +1,31 @@
 {
-  "resourceType": "podNetwork",
-  "collectionName": "podNetworks",
+  "resourceType": "podnetwork",
+  "collectionName": "podnetworks",
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
-      "nodeName": {
+  "resourceFields": {
+    "nodeName": {
+      "type": "string"
+    },
+    "podCIDR": {
+      "type": "string"
+    },
+    "podIPs": {
+      "type": "array",
+      "elemType": "podIP"
+    }
+  },
+  "subResources": {
+    "podIP": {
+      "ip": {
+        "type": "string"
+      },
+      "name": {
         "type": "string"
       }
-    },
-    {
-      "podCIDR": {
-        "type": "string"
-      }
-    },
-    {
-      "podIPs": {
-        "type": "array",
-        "elemType": "podIP"
-      }
     }
-  ],
-  "subResources": [
-    {
-      "podIP": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "ip": {
-            "type": "string"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "collectionMethods": [
     "GET"
   ]

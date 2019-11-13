@@ -96,47 +96,37 @@ func (m *SchemaManager) WriteJsonDocs(v *resource.APIVersion, path string) error
 	if vs == nil {
 		vs = NewVersionedSchemas(v)
 	}
-	ss := getSchemas(v, vs)
-	for _, s := range ss {
-		var parents []string
-		ps := s.resourceKind.GetParents()
-		for _, p := range ps {
-			parent := vs.GetSchema(p).resourceKindName
-			parents = append(parents, parent)
-		}
-		if err := s.WriteJsonDoc(path, parents); err != nil {
+	for _, schema := range getSchemas(vs) {
+		if err := schema.WriteJsonDoc(path); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func getSchemas(v *resource.APIVersion, vs *VersionedSchemas) []Schema {
-	var schemass []Schema
+func getSchemas(vs *VersionedSchemas) []*Schema {
+	var schemas []*Schema
 	for _, topSchema := range vs.toplevelSchemas {
-		getChild(v, vs, topSchema, &schemass)
+		schemas = append(schemas, topSchema)
+		for _, child := range getChild(topSchema) {
+			schemas = append(schemas, child)
+		}
 	}
-	return schemass
+	return schemas
 }
 
-func getChild(v *resource.APIVersion, vs *VersionedSchemas, s *Schema, schemass *[]Schema) {
-	resourceSchema := vs.GetSchema(s.resourceKind)
-	*schemass = append(*schemass, *resourceSchema)
+func getChild(s *Schema) []*Schema {
+	var schemas []*Schema
 	for _, child := range s.GetChildren() {
-		childResourceSchema := vs.GetSchema(child.resourceKind)
-		if !isExist(schemass, *childResourceSchema) {
-			*schemass = append(*schemass, *childResourceSchema)
-		}
-
-		for _, c := range child.GetChildren() {
-			getChild(v, vs, c, schemass)
-		}
+		schemas = append(schemas, child)
+		schemas = append(schemas, getChild(child)...)
 	}
+	return schemas
 }
 
-func isExist(schemass *[]Schema, s Schema) bool {
-	for _, schemas := range *schemass {
-		if s.resourceName == schemas.resourceName {
+func isExist(schemass []*Schema, s *Schema) bool {
+	for _, schemas := range schemass {
+		if s.Equal(schemas) {
 			return true
 		}
 	}

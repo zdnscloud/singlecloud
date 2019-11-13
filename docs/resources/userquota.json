@@ -1,78 +1,50 @@
 {
-  "resourceType": "userQuota",
-  "collectionName": "userQuotas",
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string"
-      }
+  "resourceType": "userquota",
+  "collectionName": "userquotas",
+  "resourceFields": {
+    "clusterName": {
+      "type": "string"
     },
-    {
-      "clusterName": {
-        "type": "string"
-      }
+    "cpu": {
+      "type": "string"
     },
-    {
-      "namespace": {
-        "type": "string"
-      }
+    "memory": {
+      "type": "string"
     },
-    {
-      "userName": {
-        "type": "string"
-      }
+    "name": {
+      "type": "string"
     },
-    {
-      "cpu": {
-        "type": "string"
-      }
+    "namespace": {
+      "type": "string"
     },
-    {
-      "memory": {
-        "type": "string"
-      }
+    "purpose": {
+      "type": "string"
     },
-    {
-      "storage": {
-        "type": "string"
-      }
+    "rejectionReason": {
+      "type": "string"
     },
-    {
-      "requestType": {
-        "type": "string"
-      }
+    "requestType": {
+      "type": "string"
     },
-    {
-      "status": {
-        "type": "string"
-      }
+    "requestor": {
+      "type": "string"
     },
-    {
-      "purpose": {
-        "type": "string"
-      }
+    "responseTimestamp": {
+      "type": "date"
     },
-    {
-      "requestor": {
-        "type": "string"
-      }
+    "status": {
+      "type": "string"
     },
-    {
-      "telephone": {
-        "type": "string"
-      }
+    "storage": {
+      "type": "string"
     },
-    {
-      "rejectionReason": {
-        "type": "string"
-      }
+    "telephone": {
+      "type": "string"
     },
-    {
-      "responseTimestamp": {
-        "type": "date"
-      }
+    "userName": {
+      "type": "string"
     }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE",

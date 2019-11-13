@@ -1,22 +1,23 @@
 {
-  "resourceType": "serviceNetwork",
-  "collectionName": "serviceNetworks",
+  "resourceType": "servicenetwork",
+  "collectionName": "servicenetworks",
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "ip": {
+      "type": "string"
     },
-    {
-      "ip": {
-        "type": "string"
-      }
+    "name": {
+      "type": "string"
     }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
   ],
   "collectionMethods": [
-    "GET"
+    "GET",
+    "POST"
   ]
 }

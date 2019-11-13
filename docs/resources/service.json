@@ -4,84 +4,54 @@
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
+  "resourceFields": {
+    "clusterIP": {
+      "type": "string"
+    },
+    "exposedPorts": {
+      "type": "array",
+      "elemType": "servicePort"
+    },
+    "headless": {
+      "type": "bool"
+    },
+    "name": {
+      "type": "string"
+    },
+    "serviceType": {
+      "type": "string"
+    }
+  },
+  "subResources": {
+    "intOrString": {
+      "IntVal": {
+        "type": "int"
+      },
+      "StrVal": {
+        "type": "string"
+      },
+      "Type": {
+        "type": "int"
+      }
+    },
+    "servicePort": {
       "name": {
         "type": "string"
-      }
-    },
-    {
-      "serviceType": {
+      },
+      "nodePort": {
+        "type": "int"
+      },
+      "port": {
+        "type": "int"
+      },
+      "protocol": {
         "type": "string"
-      }
-    },
-    {
-      "headless": {
-        "type": "bool"
-      }
-    },
-    {
-      "clusterIP": {
-        "type": "string"
-      }
-    },
-    {
-      "exposedPorts": {
-        "type": "array",
-        "elemType": "servicePort"
+      },
+      "targetPort": {
+        "type": "intOrString"
       }
     }
-  ],
-  "subResources": [
-    {
-      "intOrString": [
-        {
-          "type": {
-            "type": "int"
-          }
-        },
-        {
-          "intVal": {
-            "type": "int"
-          }
-        },
-        {
-          "strVal": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    {
-      "servicePort": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "port": {
-            "type": "int"
-          }
-        },
-        {
-          "targetPort": {
-            "type": "intOrString"
-          }
-        },
-        {
-          "protocol": {
-            "type": "string"
-          }
-        },
-        {
-          "nodePort": {
-            "type": "int"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE"

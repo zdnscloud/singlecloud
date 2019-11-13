@@ -1,43 +1,31 @@
 {
   "resourceType": "user",
   "collectionName": "users",
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string",
-        "description": [
-          "required"
-        ]
-      }
+  "resourceFields": {
+    "name": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
-    {
-      "password": {
+    "password": {
+      "type": "string"
+    },
+    "projects": {
+      "type": "array",
+      "elemType": "project"
+    }
+  },
+  "subResources": {
+    "project": {
+      "cluster": {
+        "type": "string"
+      },
+      "namespace": {
         "type": "string"
       }
-    },
-    {
-      "projects": {
-        "type": "array",
-        "elemType": "project"
-      }
     }
-  ],
-  "subResources": [
-    {
-      "project": [
-        {
-          "cluster": {
-            "type": "string"
-          }
-        },
-        {
-          "namespace": {
-            "type": "string"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE",

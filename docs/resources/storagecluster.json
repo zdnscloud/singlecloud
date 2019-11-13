@@ -1,139 +1,93 @@
 {
-  "resourceType": "storageCluster",
-  "collectionName": "storageClusters",
+  "resourceType": "storagecluster",
+  "collectionName": "storageclusters",
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
-      "storageType": {
-        "type": "enum",
-        "validValues": [
-          "lvm",
-          "cephfs"
-        ],
-        "description": [
-          "required"
-        ]
-      }
+  "resourceFields": {
+    "freeSize": {
+      "type": "string"
     },
-    {
-      "hosts": {
-        "type": "array",
-        "elemType": "string",
-        "description": [
-          "required"
-        ]
-      }
+    "hosts": {
+      "type": "array",
+      "elemType": "string",
+      "description": [
+        "required"
+      ]
     },
-    {
-      "phase": {
+    "nodes": {
+      "type": "array",
+      "elemType": "storageNode"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "pvs": {
+      "type": "array",
+      "elemType": "pV"
+    },
+    "size": {
+      "type": "string"
+    },
+    "storageType": {
+      "type": "enum",
+      "validValues": [
+        "lvm",
+        "cephfs"
+      ],
+      "description": [
+        "required"
+      ]
+    },
+    "usedSize": {
+      "type": "string"
+    }
+  },
+  "subResources": {
+    "pV": {
+      "freeSize": {
         "type": "string"
-      }
-    },
-    {
+      },
+      "name": {
+        "type": "string"
+      },
+      "node": {
+        "type": "string"
+      },
+      "pods": {
+        "type": "array",
+        "elemType": "storagePod"
+      },
       "size": {
         "type": "string"
-      }
-    },
-    {
+      },
       "usedSize": {
         "type": "string"
       }
     },
-    {
+    "storageNode": {
       "freeSize": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "size": {
+        "type": "string"
+      },
+      "stat": {
+        "type": "bool"
+      },
+      "usedSize": {
         "type": "string"
       }
     },
-    {
-      "nodes": {
-        "type": "array",
-        "elemType": "storageNode"
-      }
-    },
-    {
-      "pvs": {
-        "type": "array",
-        "elemType": "pV"
+    "storagePod": {
+      "name": {
+        "type": "string"
       }
     }
-  ],
-  "subResources": [
-    {
-      "storageNode": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "size": {
-            "type": "string"
-          }
-        },
-        {
-          "usedSize": {
-            "type": "string"
-          }
-        },
-        {
-          "freeSize": {
-            "type": "string"
-          }
-        },
-        {
-          "stat": {
-            "type": "bool"
-          }
-        }
-      ]
-    },
-    {
-      "storagePod": [
-        {
-          "name": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    {
-      "pV": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "size": {
-            "type": "string"
-          }
-        },
-        {
-          "usedSize": {
-            "type": "string"
-          }
-        },
-        {
-          "freeSize": {
-            "type": "string"
-          }
-        },
-        {
-          "pods": {
-            "type": "array",
-            "elemType": "storagePod"
-          }
-        },
-        {
-          "node": {
-            "type": "string"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE",

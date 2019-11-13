@@ -4,100 +4,64 @@
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
+  "resourceFields": {
+    "cpu": {
+      "type": "int"
+    },
+    "cpuUsed": {
+      "type": "int"
+    },
+    "cpuUsedRatio": {
+      "type": "string"
+    },
+    "memory": {
+      "type": "int"
+    },
+    "memoryUsed": {
+      "type": "int"
+    },
+    "memoryUsedRatio": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "pod": {
+      "type": "int"
+    },
+    "podUsed": {
+      "type": "int"
+    },
+    "podUsedRatio": {
+      "type": "string"
+    },
+    "podsUseMostCPU": {
+      "type": "array",
+      "elemType": "podCpuInfo"
+    },
+    "podsUseMostMemory": {
+      "type": "array",
+      "elemType": "podMemoryInfo"
+    }
+  },
+  "subResources": {
+    "podCpuInfo": {
+      "cpuUsed": {
+        "type": "int"
+      },
       "name": {
         "type": "string"
       }
     },
-    {
-      "cpu": {
-        "type": "int"
-      }
-    },
-    {
-      "cpuUsed": {
-        "type": "int"
-      }
-    },
-    {
-      "cpuUsedRatio": {
-        "type": "string"
-      }
-    },
-    {
-      "memory": {
-        "type": "int"
-      }
-    },
-    {
+    "podMemoryInfo": {
       "memoryUsed": {
         "type": "int"
-      }
-    },
-    {
-      "memoryUsedRatio": {
+      },
+      "name": {
         "type": "string"
       }
-    },
-    {
-      "pod": {
-        "type": "int"
-      }
-    },
-    {
-      "podUsed": {
-        "type": "int"
-      }
-    },
-    {
-      "podUsedRatio": {
-        "type": "string"
-      }
-    },
-    {
-      "podsUseMostCPU": {
-        "type": "array",
-        "elemType": "podCpuInfo"
-      }
-    },
-    {
-      "podsUseMostMemory": {
-        "type": "array",
-        "elemType": "podMemoryInfo"
-      }
     }
-  ],
-  "subResources": [
-    {
-      "podCpuInfo": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "cpuUsed": {
-            "type": "int"
-          }
-        }
-      ]
-    },
-    {
-      "podMemoryInfo": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "memoryUsed": {
-            "type": "int"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE",

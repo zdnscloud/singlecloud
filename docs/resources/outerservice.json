@@ -1,74 +1,50 @@
 {
-  "resourceType": "outerService",
-  "collectionName": "outerServices",
+  "resourceType": "outerservice",
+  "collectionName": "outerservices",
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
-      "entryPoint": {
+  "resourceFields": {
+    "entryPoint": {
+      "type": "string"
+    },
+    "services": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "innerService"
+    }
+  },
+  "subResources": {
+    "innerService": {
+      "name": {
+        "type": "string"
+      },
+      "workloads": {
+        "type": "array",
+        "elemType": "workload"
+      }
+    },
+    "workload": {
+      "kind": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "pods": {
+        "type": "array",
+        "elemType": "workloadPod"
+      }
+    },
+    "workloadPod": {
+      "name": {
+        "type": "string"
+      },
+      "state": {
         "type": "string"
       }
-    },
-    {
-      "services": {
-        "type": "map",
-        "keyType": "string",
-        "valueType": "innerService"
-      }
     }
-  ],
-  "subResources": [
-    {
-      "workloadPod": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "state": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    {
-      "workload": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "kind": {
-            "type": "string"
-          }
-        },
-        {
-          "pods": {
-            "type": "array",
-            "elemType": "workloadPod"
-          }
-        }
-      ]
-    },
-    {
-      "innerService": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "workloads": {
-            "type": "array",
-            "elemType": "workload"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "collectionMethods": [
     "GET"
   ]

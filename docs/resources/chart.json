@@ -4,96 +4,62 @@
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "description": {
+      "type": "string"
     },
-    {
-      "description": {
-        "type": "string"
-      }
+    "icon": {
+      "type": "string"
     },
-    {
-      "icon": {
-        "type": "string"
-      }
+    "name": {
+      "type": "string"
     },
-    {
-      "versions": {
+    "versions": {
+      "type": "array",
+      "elemType": "chartVersion"
+    }
+  },
+  "subResources": {
+    "chartConfig": {
+      "jsonKey": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "max": {
+        "type": "int"
+      },
+      "maxLen": {
+        "type": "int"
+      },
+      "min": {
+        "type": "int"
+      },
+      "minLen": {
+        "type": "int"
+      },
+      "required": {
+        "type": "bool"
+      },
+      "type": {
+        "type": "string"
+      },
+      "validValues": {
         "type": "array",
-        "elemType": "chartVersion"
+        "elemType": "string"
+      }
+    },
+    "chartVersion": {
+      "config": {
+        "type": "array",
+        "elemType": "chartConfig"
+      },
+      "version": {
+        "type": "string"
       }
     }
-  ],
-  "subResources": [
-    {
-      "chartConfig": [
-        {
-          "label": {
-            "type": "string"
-          }
-        },
-        {
-          "jsonKey": {
-            "type": "string"
-          }
-        },
-        {
-          "type": {
-            "type": "string"
-          }
-        },
-        {
-          "required": {
-            "type": "bool"
-          }
-        },
-        {
-          "validValues": {
-            "type": "array",
-            "elemType": "string"
-          }
-        },
-        {
-          "min": {
-            "type": "int"
-          }
-        },
-        {
-          "max": {
-            "type": "int"
-          }
-        },
-        {
-          "minLen": {
-            "type": "int"
-          }
-        },
-        {
-          "maxLen": {
-            "type": "int"
-          }
-        }
-      ]
-    },
-    {
-      "chartVersion": [
-        {
-          "version": {
-            "type": "string"
-          }
-        },
-        {
-          "config": {
-            "type": "array",
-            "elemType": "chartConfig"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET"
   ],

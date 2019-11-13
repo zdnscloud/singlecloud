@@ -1,26 +1,20 @@
 {
-  "resourceType": "udpIngress",
-  "collectionName": "udpIngresses",
+  "resourceType": "udpingress",
+  "collectionName": "udpingresses",
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
-      "port": {
-        "type": "int"
-      }
+  "resourceFields": {
+    "port": {
+      "type": "int"
     },
-    {
-      "serviceName": {
-        "type": "string"
-      }
+    "serviceName": {
+      "type": "string"
     },
-    {
-      "servicePort": {
-        "type": "int"
-      }
+    "servicePort": {
+      "type": "int"
     }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE"

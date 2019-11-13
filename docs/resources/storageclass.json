@@ -1,16 +1,14 @@
 {
-  "resourceType": "storageClass",
-  "collectionName": "storageClasses",
+  "resourceType": "storageclass",
+  "collectionName": "storageclasses",
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "name": {
+      "type": "string"
     }
-  ],
+  },
   "collectionMethods": [
     "GET"
   ]

@@ -1,58 +1,40 @@
 {
-  "resourceType": "innerService",
-  "collectionName": "innerServices",
+  "resourceType": "innerservice",
+  "collectionName": "innerservices",
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
+  "resourceFields": {
+    "name": {
+      "type": "string"
+    },
+    "workloads": {
+      "type": "array",
+      "elemType": "workload"
+    }
+  },
+  "subResources": {
+    "workload": {
+      "kind": {
+        "type": "string"
+      },
       "name": {
         "type": "string"
-      }
-    },
-    {
-      "workloads": {
+      },
+      "pods": {
         "type": "array",
-        "elemType": "workload"
+        "elemType": "workloadPod"
+      }
+    },
+    "workloadPod": {
+      "name": {
+        "type": "string"
+      },
+      "state": {
+        "type": "string"
       }
     }
-  ],
-  "subResources": [
-    {
-      "workloadPod": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "state": {
-            "type": "string"
-          }
-        }
-      ]
-    },
-    {
-      "workload": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "kind": {
-            "type": "string"
-          }
-        },
-        {
-          "pods": {
-            "type": "array",
-            "elemType": "workloadPod"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "collectionMethods": [
     "GET"
   ]

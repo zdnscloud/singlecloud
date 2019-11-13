@@ -4,45 +4,31 @@
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "name": {
+      "type": "string"
     },
-    {
-      "rules": {
-        "type": "array",
-        "elemType": "ingressRule"
+    "rules": {
+      "type": "array",
+      "elemType": "ingressRule"
+    }
+  },
+  "subResources": {
+    "ingressRule": {
+      "host": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "serviceName": {
+        "type": "string"
+      },
+      "servicePort": {
+        "type": "int"
       }
     }
-  ],
-  "subResources": [
-    {
-      "ingressRule": [
-        {
-          "host": {
-            "type": "string"
-          }
-        },
-        {
-          "path": {
-            "type": "string"
-          }
-        },
-        {
-          "serviceName": {
-            "type": "string"
-          }
-        },
-        {
-          "servicePort": {
-            "type": "int"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE",

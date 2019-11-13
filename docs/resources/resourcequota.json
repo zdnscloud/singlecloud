@@ -1,48 +1,36 @@
 {
-  "resourceType": "resourceQuota",
-  "collectionName": "resourceQuotas",
+  "resourceType": "resourcequota",
+  "collectionName": "resourcequotas",
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "limits": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string"
     },
-    {
+    "name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "resourceQuotaStatus"
+    }
+  },
+  "subResources": {
+    "resourceQuotaStatus": {
       "limits": {
         "type": "map",
         "keyType": "string",
         "valueType": "string"
-      }
-    },
-    {
-      "status": {
-        "type": "resourceQuotaStatus"
+      },
+      "used": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "string"
       }
     }
-  ],
-  "subResources": [
-    {
-      "resourceQuotaStatus": [
-        {
-          "limits": {
-            "type": "map",
-            "keyType": "string",
-            "valueType": "string"
-          }
-        },
-        {
-          "used": {
-            "type": "map",
-            "keyType": "string",
-            "valueType": "string"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE"

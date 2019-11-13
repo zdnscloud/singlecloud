@@ -25,5 +25,5 @@ type Schema interface {
 	GetHandler() Handler
 	AddLinksToResource(r Resource, httpSchemeAndHost string) error
 	AddLinksToResourceCollection(rs *ResourceCollection, httpSchemeAndHost string) error
-	WriteJsonDoc(path string, parents []string) error
+	WriteJsonDoc(path string) error
 }

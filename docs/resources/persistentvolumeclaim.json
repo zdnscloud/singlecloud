@@ -1,46 +1,32 @@
 {
-  "resourceType": "persistentVolumeClaim",
-  "collectionName": "persistentVolumeClaims",
+  "resourceType": "persistentvolumeclaim",
+  "collectionName": "persistentvolumeclaims",
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "actualStorageSize": {
+      "type": "string"
     },
-    {
-      "namespace": {
-        "type": "string"
-      }
+    "name": {
+      "type": "string"
     },
-    {
-      "requestStorageSize": {
-        "type": "string"
-      }
+    "namespace": {
+      "type": "string"
     },
-    {
-      "storageClassName": {
-        "type": "string"
-      }
+    "requestStorageSize": {
+      "type": "string"
     },
-    {
-      "volumeName": {
-        "type": "string"
-      }
+    "status": {
+      "type": "string"
     },
-    {
-      "actualStorageSize": {
-        "type": "string"
-      }
+    "storageClassName": {
+      "type": "string"
     },
-    {
-      "status": {
-        "type": "string"
-      }
+    "volumeName": {
+      "type": "string"
     }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE"

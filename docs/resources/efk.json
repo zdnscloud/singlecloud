@@ -1,41 +1,29 @@
 {
-  "resourceType": "eFK",
-  "collectionName": "eFKs",
+  "resourceType": "efk",
+  "collectionName": "efks",
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
-      "ingressDomain": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "esReplicas": {
+      "type": "int"
     },
-    {
-      "esReplicas": {
-        "type": "int"
-      }
+    "ingressDomain": {
+      "type": "string"
     },
-    {
-      "storageSize": {
-        "type": "int"
-      }
+    "redirectUrl": {
+      "type": "string"
     },
-    {
-      "storageClass": {
-        "type": "string"
-      }
+    "status": {
+      "type": "string"
     },
-    {
-      "redirectUrl": {
-        "type": "string"
-      }
+    "storageClass": {
+      "type": "string"
     },
-    {
-      "status": {
-        "type": "string"
-      }
+    "storageSize": {
+      "type": "int"
     }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE"

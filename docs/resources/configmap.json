@@ -1,38 +1,28 @@
 {
-  "resourceType": "configMap",
-  "collectionName": "configMaps",
+  "resourceType": "configmap",
+  "collectionName": "configmaps",
   "parentResources": [
     "namespace"
   ],
-  "resourceFields": [
-    {
+  "resourceFields": {
+    "configs": {
+      "type": "array",
+      "elemType": "config"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "subResources": {
+    "config": {
+      "data": {
+        "type": "string"
+      },
       "name": {
         "type": "string"
       }
-    },
-    {
-      "configs": {
-        "type": "array",
-        "elemType": "config"
-      }
     }
-  ],
-  "subResources": [
-    {
-      "config": [
-        {
-          "name": {
-            "type": "string"
-          }
-        },
-        {
-          "data": {
-            "type": "string"
-          }
-        }
-      ]
-    }
-  ],
+  },
   "resourceMethods": [
     "GET",
     "DELETE",

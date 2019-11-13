@@ -4,117 +4,81 @@
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string",
-        "description": [
-          "required"
-        ]
-      }
+  "resourceFields": {
+    "address": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
-    {
-      "status": {
-        "type": "string"
-      }
+    "annotations": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string"
     },
-    {
-      "address": {
-        "type": "string",
-        "description": [
-          "required"
-        ]
-      }
+    "cpu": {
+      "type": "int"
     },
-    {
-      "roles": {
-        "type": "enum",
-        "validValues": [
-          "controlplane",
-          "etcd",
-          "worker",
-          "edge"
-        ],
-        "description": [
-          "required"
-        ]
-      }
+    "cpuUsed": {
+      "type": "int"
     },
-    {
-      "labels": {
-        "type": "map",
-        "keyType": "string",
-        "valueType": "string"
-      }
+    "cpuUsedRatio": {
+      "type": "string"
     },
-    {
-      "annotations": {
-        "type": "map",
-        "keyType": "string",
-        "valueType": "string"
-      }
+    "dockerVersion": {
+      "type": "string"
     },
-    {
-      "operatingSystem": {
-        "type": "string"
-      }
+    "labels": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string"
     },
-    {
-      "operatingSystemImage": {
-        "type": "string"
-      }
+    "memory": {
+      "type": "int"
     },
-    {
-      "dockerVersion": {
-        "type": "string"
-      }
+    "memoryUsed": {
+      "type": "int"
     },
-    {
-      "cpu": {
-        "type": "int"
-      }
+    "memoryUsedRatio": {
+      "type": "string"
     },
-    {
-      "cpuUsed": {
-        "type": "int"
-      }
+    "name": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
-    {
-      "cpuUsedRatio": {
-        "type": "string"
-      }
+    "operatingSystem": {
+      "type": "string"
     },
-    {
-      "memory": {
-        "type": "int"
-      }
+    "operatingSystemImage": {
+      "type": "string"
     },
-    {
-      "memoryUsed": {
-        "type": "int"
-      }
+    "pod": {
+      "type": "int"
     },
-    {
-      "memoryUsedRatio": {
-        "type": "string"
-      }
+    "podUsed": {
+      "type": "int"
     },
-    {
-      "pod": {
-        "type": "int"
-      }
+    "podUsedRatio": {
+      "type": "string"
     },
-    {
-      "podUsed": {
-        "type": "int"
-      }
+    "roles": {
+      "type": "enum",
+      "validValues": [
+        "controlplane",
+        "etcd",
+        "worker",
+        "edge"
+      ],
+      "description": [
+        "required"
+      ]
     },
-    {
-      "podUsedRatio": {
-        "type": "string"
-      }
+    "status": {
+      "type": "string"
     }
-  ],
+  },
   "resourceMethods": [
     "GET"
   ],

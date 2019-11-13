@@ -1,21 +1,17 @@
 {
-  "resourceType": "nodeNetwork",
-  "collectionName": "nodeNetworks",
+  "resourceType": "nodenetwork",
+  "collectionName": "nodenetworks",
   "parentResources": [
     "cluster"
   ],
-  "resourceFields": [
-    {
-      "name": {
-        "type": "string"
-      }
+  "resourceFields": {
+    "ip": {
+      "type": "string"
     },
-    {
-      "ip": {
-        "type": "string"
-      }
+    "name": {
+      "type": "string"
     }
-  ],
+  },
   "collectionMethods": [
     "GET"
   ]
