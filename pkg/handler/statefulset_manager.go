@@ -166,7 +166,7 @@ func (m *StatefulSetManager) Action(ctx *resource.Context) (interface{}, *rester
 }
 
 func getStatefulSetPodsVolumes(cli client.Client, namespace string, k8sStatefulSet *appsv1.StatefulSet) ([]corev1.Volume, error) {
-	k8sPods, err := getOwnerPods(cli, namespace, StatefulSetType, k8sStatefulSet.Name)
+	k8sPods, err := getOwnerPods(cli, namespace, types.ResourceTypeStatefulSet, k8sStatefulSet.Name)
 	if err != nil {
 		return nil, err
 	}

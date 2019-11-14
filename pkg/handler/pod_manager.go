@@ -26,14 +26,6 @@ const (
 	OwnerKindDaemonSet   = "DaemonSet"
 )
 
-var (
-	DeploymentType  = resource.DefaultKindName(types.Deployment{})
-	DaemonSetType   = resource.DefaultKindName(types.DaemonSet{})
-	StatefulSetType = resource.DefaultKindName(types.StatefulSet{})
-	JobType         = resource.DefaultKindName(types.Job{})
-	CronJobType     = resource.DefaultKindName(types.CronJob{})
-)
-
 type PodManager struct {
 	clusters *ClusterManager
 }
@@ -126,30 +118,30 @@ func getOwnerPods(cli client.Client, namespace, ownerType, ownerName string) (*c
 func getPodParentSelector(cli client.Client, namespace string, typ string, name string) (labels.Selector, error) {
 	var selector *metav1.LabelSelector
 	switch typ {
-	case DeploymentType:
+	case types.ResourceTypeDeployment:
 		k8sDeploy, err := getDeployment(cli, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 
 		selector = k8sDeploy.Spec.Selector
-	case DaemonSetType:
+	case types.ResourceTypeDaemonSet:
 		k8sDaemonSet, err := getDaemonSet(cli, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 
 		selector = k8sDaemonSet.Spec.Selector
-	case StatefulSetType:
+	case types.ResourceTypeStatefulSet:
 		k8sStatefulSet, err := getStatefulSet(cli, namespace, name)
 		if err != nil {
 			return nil, err
 		}
 
 		selector = k8sStatefulSet.Spec.Selector
-	case JobType:
+	case types.ResourceTypeJob:
 		return genJobSelector(cli, namespace, name)
-	case CronJobType:
+	case types.ResourceTypeCronJob:
 		return genCronJobSelector(cli, namespace, name)
 	default:
 		return nil, fmt.Errorf("pod no such parent %v", typ)
@@ -165,7 +157,7 @@ func getPodParentSelector(cli client.Client, namespace string, typ string, name 
 func filterPodBasedOnOwner(pods *corev1.PodList, typ string, name string) {
 	var results []corev1.Pod
 	switch typ {
-	case DeploymentType:
+	case types.ResourceTypeDeployment:
 		for _, pod := range pods.Items {
 			rsHash, ok := pod.Labels["pod-template-hash"]
 			if ok == false {
@@ -179,9 +171,9 @@ func filterPodBasedOnOwner(pods *corev1.PodList, typ string, name string) {
 				results = append(results, pod)
 			}
 		}
-	case DaemonSetType, StatefulSetType:
+	case types.ResourceTypeDaemonSet, types.ResourceTypeStatefulSet:
 		kind := OwnerKindDaemonSet
-		if typ == StatefulSetType {
+		if typ == types.ResourceTypeStatefulSet {
 			kind = OwnerKindStatefulSet
 		}
 
@@ -194,7 +186,7 @@ func filterPodBasedOnOwner(pods *corev1.PodList, typ string, name string) {
 				results = append(results, pod)
 			}
 		}
-	case JobType, CronJobType:
+	case types.ResourceTypeJob, types.ResourceTypeCronJob:
 		results = pods.Items
 	}
 	pods.Items = results

@@ -40,7 +40,8 @@ var (
 		APIVersions: chartutil.DefaultVersionSet,
 	}
 
-	AppSupportResourceTypes = []string{"deployment", "daemonset", "statefulset", "cronjob", "job", "configmap", "secret", "service", "ing    ress"}
+	AppSupportWorkloadTypes = []string{types.ResourceTypeDeployment, types.ResourceTypeDaemonSet, types.ResourceTypeStatefulSet}
+	AppSupportResourceTypes = append(AppSupportWorkloadTypes, types.ResourceTypeCronJob, types.ResourceTypeJob, types.ResourceTypeConfigMap, types.ResourceTypeSecret, types.ResourceTypeService, types.ResourceTypeIngress)
 )
 
 const (
@@ -131,7 +132,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		DefaultCapabilities.KubeVersion.Minor = clusterVersion.Minor
 	}
 
-	configs, err := m.parseChartConfigs(path.Join(m.chartDir, app.ChartName, app.ChartVersion), app.Configs)
+	configs, err := parseChartConfigs(path.Join(m.chartDir, app.ChartName, app.ChartVersion), app.Configs)
 	if err != nil {
 		return fmt.Errorf("parse chart %s with version %s configs failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
@@ -150,7 +151,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		return err
 	}
 
-	if err := addOrUpdateAppToDB(table, app, true); err != nil {
+	if err := addApplicationToDB(table, app); err != nil {
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
 
@@ -185,7 +186,7 @@ func genUrlPrefix(ctx *resource.Context, clusterName string) string {
 	}
 }
 
-func (m *ApplicationManager) parseChartConfigs(chartVersionDir string, configRaw json.RawMessage) (map[string]interface{}, error) {
+func parseChartConfigs(chartVersionDir string, configRaw json.RawMessage) (map[string]interface{}, error) {
 	configs := make(map[string]interface{})
 	if configRaw == nil {
 		return configs, nil
@@ -249,7 +250,15 @@ func loadChartFiles(namespace, chartPath, appName string, configs map[string]int
 	return manifests, crdManifests, nil
 }
 
-func addOrUpdateAppToDB(table kvzoo.Table, app *types.Application, isCreate bool) error {
+func addApplicationToDB(table kvzoo.Table, app *types.Application) error {
+	return addOrUpdateApplicationToDB(table, app, true)
+}
+
+func updateApplicationToDB(table kvzoo.Table, app *types.Application) error {
+	return addOrUpdateApplicationToDB(table, app, false)
+}
+
+func addOrUpdateApplicationToDB(table kvzoo.Table, app *types.Application, isCreate bool) error {
 	value, err := json.Marshal(app)
 	if err != nil {
 		return fmt.Errorf("marshal application %s failed: %s", app.Name, err.Error())
@@ -281,16 +290,14 @@ func createApplication(table kvzoo.Table, cli client.Client, isAdmin bool, names
 		return
 	}
 
-	appResources, err := createAppResources(cli, isAdmin, namespace, urlPrefix, app.Manifests)
-	if err != nil {
+	if err := createAppResources(cli, isAdmin, namespace, urlPrefix, app); err != nil {
 		log.Warnf("create application %s resources failed: %s", app.Name, err.Error())
 		updateAppStatusToFailed(table, app)
 		return
 	}
 
-	app.AppResources = appResources
 	app.Status = types.AppStatusSucceed
-	if err := addOrUpdateAppToDB(table, app, false); err != nil {
+	if err := updateApplicationToDB(table, app); err != nil {
 		log.Warnf("update application %s status to succeed failed: %s", app.Name, err.Error())
 		updateAppStatusToFailed(table, app)
 	}
@@ -298,14 +305,13 @@ func createApplication(table kvzoo.Table, cli client.Client, isAdmin bool, names
 
 func updateAppStatusToFailed(table kvzoo.Table, app *types.Application) {
 	app.Status = types.AppStatusFailed
-	if err := addOrUpdateAppToDB(table, app, false); err != nil {
+	if err := updateApplicationToDB(table, app); err != nil {
 		log.Warnf("update application %s status to failed get error: %s", app.Name, err.Error())
 	}
 }
 
-func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix string, manifests []types.Manifest) (types.AppResources, error) {
-	var appResources types.AppResources
-	for i, manifest := range manifests {
+func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix string, app *types.Application) error {
+	for i, manifest := range app.Manifests {
 		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
 			if obj == nil {
 				return fmt.Errorf("cann`t unmarshal file %s to k8s runtime object\n", manifest.File)
@@ -329,14 +335,17 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 
 			if err := cli.Create(ctx, obj); err != nil {
 				if apierrors.IsAlreadyExists(err) {
-					manifests[i].Duplicate = true
+					app.Manifests[i].Duplicate = true
 				}
 				return fmt.Errorf("create resource with file %s failed: %s", manifest.File, err.Error())
 			}
 
 			typ := strings.ToLower(gvk.Kind)
 			if slice.SliceIndex(AppSupportResourceTypes, typ) != -1 {
-				appResources = append(appResources, types.AppResource{
+				if slice.SliceIndex(AppSupportWorkloadTypes, typ) != -1 {
+					app.WorkloadCount += 1
+				}
+				app.AppResources = append(app.AppResources, types.AppResource{
 					Name: metaObj.GetName(),
 					Type: typ,
 					Link: path.Join(urlPrefix, ns, restutil.GuessPluralName(typ), metaObj.GetName()),
@@ -344,12 +353,12 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 			}
 			return nil
 		}); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	sort.Sort(appResources)
-	return appResources, nil
+	sort.Sort(app.AppResources)
+	return nil
 }
 
 func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
@@ -373,6 +382,11 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	var apps types.Applications
 	for _, app := range allApps {
 		if app.SystemChart == false {
+			if err := getAppResources(cluster.KubeClient, namespace, app); err != nil {
+				log.Warnf("list applications when get application %s resources failed: %s", app.Name, err.Error())
+				continue
+			}
+
 			apps = append(apps, genReturnApplication(app))
 		}
 	}
@@ -414,6 +428,72 @@ func getApplicationsFromDB(table kvzoo.Table) (types.Applications, error) {
 	return apps, nil
 }
 
+func getAppResources(cli client.Client, namespace string, app *types.Application) error {
+	for i, resource := range app.AppResources {
+		switch resource.Type {
+		case types.ResourceTypeDeployment:
+			k8sDeploy, err := getDeployment(cli, namespace, resource.Name)
+			if err != nil {
+				return err
+			}
+
+			app.AppResources[i].Replicas = int(*k8sDeploy.Spec.Replicas)
+			app.AppResources[i].ReadyReplicas = int(k8sDeploy.Status.ReadyReplicas)
+			if *k8sDeploy.Spec.Replicas == k8sDeploy.Status.ReadyReplicas {
+				app.ReadyWorkloadCount += 1
+			}
+		case types.ResourceTypeDaemonSet:
+			k8sDaemonSet, err := getDaemonSet(cli, namespace, resource.Name)
+			if err != nil {
+				return err
+			}
+
+			app.AppResources[i].Replicas = int(k8sDaemonSet.Status.DesiredNumberScheduled)
+			app.AppResources[i].ReadyReplicas = int(k8sDaemonSet.Status.NumberReady)
+			if k8sDaemonSet.Status.DesiredNumberScheduled == k8sDaemonSet.Status.NumberReady {
+				app.ReadyWorkloadCount += 1
+			}
+		case types.ResourceTypeStatefulSet:
+			k8sStatefulSet, err := getStatefulSet(cli, namespace, resource.Name)
+			if err != nil {
+				return err
+			}
+
+			app.AppResources[i].Replicas = int(*k8sStatefulSet.Spec.Replicas)
+			app.AppResources[i].ReadyReplicas = int(k8sStatefulSet.Status.ReadyReplicas)
+			if *k8sStatefulSet.Spec.Replicas == k8sStatefulSet.Status.ReadyReplicas {
+				app.ReadyWorkloadCount += 1
+			}
+		case types.ResourceTypeCronJob:
+			if _, err := getCronJob(cli, namespace, resource.Name); err != nil {
+				return err
+			}
+		case types.ResourceTypeJob:
+			if _, err := getJob(cli, namespace, resource.Name); err != nil {
+				return err
+			}
+		case types.ResourceTypeConfigMap:
+			if _, err := getConfigMap(cli, namespace, resource.Name); err != nil {
+				return err
+			}
+		case types.ResourceTypeSecret:
+			if _, err := getSecret(cli, namespace, resource.Name); err != nil {
+				return err
+			}
+		case types.ResourceTypeService:
+			if _, err := getService(cli, namespace, resource.Name); err != nil {
+				return err
+			}
+		case types.ResourceTypeIngress:
+			if _, err := getIngress(cli, namespace, resource.Name); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
@@ -423,13 +503,18 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	namespace := ctx.Resource.GetParent().GetID()
 	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
 	if err != nil {
-		log.Warnf("get applications failed %s", err.Error())
+		log.Warnf("get application %s failed %s", ctx.Resource.GetID(), err.Error())
 		return nil
 	}
 
 	app, err := getApplicationFromDB(table, ctx.Resource.GetID(), false)
 	if err != nil {
-		log.Warnf("get applications failed %s", err.Error())
+		log.Warnf("get application %s failed %s", ctx.Resource.GetID(), err.Error())
+		return nil
+	}
+
+	if err := getAppResources(cluster.KubeClient, namespace, app); err != nil {
+		log.Warnf("get application %s resources failed %s", ctx.Resource.GetID(), err.Error())
 		return nil
 	}
 
@@ -601,7 +686,7 @@ func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace st
 
 	for _, app := range apps {
 		app.Status = types.AppStatusDelete
-		if err := addOrUpdateAppToDB(table, app, false); err != nil {
+		if err := updateApplicationToDB(table, app); err != nil {
 			return fmt.Errorf("update application %s status to delete failed: %s", app.Name, err.Error())
 		}
 
