@@ -15,20 +15,15 @@ type SinglecloudConf struct {
 }
 
 type ServerConf struct {
-	Addr    string   `yaml:"addr"`
-	DNSAddr string   `yaml:"dns_addr"`
-	CasAddr string   `yaml:"cas_addr"`
-	Role    RoleConf `yaml:"role"`
-}
-
-type RoleConf struct {
-	Master bool `yaml:"master,omitempty"`
-	Slave  bool `yaml:"slave,omitempty"`
+	Addr    string `yaml:"addr"`
+	DNSAddr string `yaml:"dns_addr"`
+	CasAddr string `yaml:"cas_addr"`
 }
 
 type DBConf struct {
 	Path        string `yaml:"path"`
 	Port        int    `yaml:"port"`
+	Role        string `yaml:"role"`
 	SlaveDBAddr string `yaml:"slave_db_addr"`
 }
 
@@ -44,6 +39,7 @@ func CreateDefaultConfig() SinglecloudConf {
 		},
 		DB: DBConf{
 			Port: 6666,
+			Role: "master",
 		},
 	}
 }
@@ -72,19 +68,15 @@ func (c *SinglecloudConf) Reload() error {
 }
 
 func (c *SinglecloudConf) Verify() error {
-	if !c.Server.Role.Master && !c.Server.Role.Slave {
-		c.Server.Role.Master = true
+	if c.DB.Role != "master" && c.DB.Role != "slave" {
+		return errors.New("db role can only as master or slave")
 	}
 
-	if c.Server.Role.Master && c.Server.Role.Slave {
-		return errors.New("singlecloud can only run as master or as slave")
-	}
-
-	if c.Server.Role.Slave && c.DB.SlaveDBAddr != "" {
+	if c.DB.Role == "slave" && c.DB.SlaveDBAddr != "" {
 		return errors.New("slave node cann't have other slaves")
 	}
 
-	if c.Server.Role.Master && c.DB.SlaveDBAddr == "" {
+	if c.DB.Role == "master" && c.DB.SlaveDBAddr == "" {
 		log.Warnf("no slave node is specified, if master node is crashed, data will be lost\n")
 	}
 	return nil
