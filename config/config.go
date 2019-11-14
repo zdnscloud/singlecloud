@@ -7,6 +7,13 @@ import (
 	"github.com/zdnscloud/cement/log"
 )
 
+type DBRole string
+
+const (
+	Master DBRole = "master"
+	Slave  DBRole = "slave"
+)
+
 type SinglecloudConf struct {
 	Path   string     `yaml:"-"`
 	Server ServerConf `yaml:"server"`
@@ -23,7 +30,7 @@ type ServerConf struct {
 type DBConf struct {
 	Path        string `yaml:"path"`
 	Port        int    `yaml:"port"`
-	Role        string `yaml:"role"`
+	Role        DBRole `yaml:"role"`
 	SlaveDBAddr string `yaml:"slave_db_addr"`
 }
 
@@ -39,7 +46,7 @@ func CreateDefaultConfig() SinglecloudConf {
 		},
 		DB: DBConf{
 			Port: 6666,
-			Role: "master",
+			Role: Master,
 		},
 	}
 }
@@ -68,15 +75,15 @@ func (c *SinglecloudConf) Reload() error {
 }
 
 func (c *SinglecloudConf) Verify() error {
-	if c.DB.Role != "master" && c.DB.Role != "slave" {
+	if c.DB.Role != Master && c.DB.Role != Slave {
 		return errors.New("db role can only as master or slave")
 	}
 
-	if c.DB.Role == "slave" && c.DB.SlaveDBAddr != "" {
+	if c.DB.Role == Slave && c.DB.SlaveDBAddr != "" {
 		return errors.New("slave node cann't have other slaves")
 	}
 
-	if c.DB.Role == "master" && c.DB.SlaveDBAddr == "" {
+	if c.DB.Role == Master && c.DB.SlaveDBAddr == "" {
 		log.Warnf("no slave node is specified, if master node is crashed, data will be lost\n")
 	}
 	return nil

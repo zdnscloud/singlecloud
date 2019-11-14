@@ -59,7 +59,7 @@ func main() {
 		panic("load configure file failed:" + err.Error())
 	}
 
-	if conf.DB.Role == "master" {
+	if conf.DB.Role == config.Master {
 		runAsMaster(conf)
 	} else {
 		runAsSlave(conf)
