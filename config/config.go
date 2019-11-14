@@ -15,10 +15,11 @@ const (
 )
 
 type SinglecloudConf struct {
-	Path   string     `yaml:"-"`
-	Server ServerConf `yaml:"server"`
-	DB     DBConf     `yaml:"db"`
-	Chart  ChartConf  `yaml:"chart"`
+	Path     string         `yaml:"-"`
+	Server   ServerConf     `yaml:"server"`
+	DB       DBConf         `yaml:"db"`
+	Chart    ChartConf      `yaml:"chart"`
+	Registry RegistryCAConf `yaml:"registry"`
 }
 
 type ServerConf struct {
@@ -37,6 +38,11 @@ type DBConf struct {
 type ChartConf struct {
 	Path string `yaml:"path"`
 	Repo string `yaml:"repo"`
+}
+
+type RegistryCAConf struct {
+	CaCertPath string `yaml:"ca_cert_path"`
+	CaKeyPath  string `yaml:"ca_key_path"`
 }
 
 func CreateDefaultConfig() SinglecloudConf {
@@ -85,6 +91,10 @@ func (c *SinglecloudConf) Verify() error {
 
 	if c.DB.Role == Master && c.DB.SlaveDBAddr == "" {
 		log.Warnf("no slave node is specified, if master node is crashed, data will be lost\n")
+	}
+
+	if c.Registry.CaCertPath == "" || c.Registry.CaKeyPath == "" {
+		return errors.New("registry ca must be specified")
 	}
 	return nil
 }

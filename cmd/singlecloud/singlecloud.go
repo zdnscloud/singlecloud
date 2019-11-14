@@ -98,7 +98,7 @@ func runAsMaster(conf *config.SinglecloudConf) {
 	}
 
 	agent := clusteragent.New()
-	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, conf.Chart.Path, version, conf.Chart.Repo)
+	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, conf.Chart.Path, version, conf.Chart.Repo, conf.Registry)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}
