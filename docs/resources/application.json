@@ -8,6 +8,8 @@
         "chartName": {"type": "string"},
         "chartVersion": {"type": "string"},
         "chartIcon": {"type": "string"},
+        "workloadCount": {"type": "int"},
+        "readyWorkloadCount": {"type": "int"},
         "appResources": {"type": "array", "elemType": "appResource"},
         "status": {"type": "enum", "validValues": ["create", "delete", "succeed", "failed"]}
     },
@@ -16,7 +18,9 @@
         "appResource": {
             "name": {"type": "string"},
             "type": {"type": "enum", "validValues": ["deployment", "daemonset", "statefulset", "configmap", "secret", "service", "ingress", "cronjob", "job"]},
-            "link": {"type": "string"}
+            "link": {"type": "string"},
+            "replicas": {"type": "int"},
+            "readyReplicas": {"type": "int"}
         }
     },
 
