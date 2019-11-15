@@ -546,7 +546,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3215c4903ac61c09f1dd83d9ff4a22445071a042ecbc6db1bd39430d667d8865"
+  digest = "1:0df1c7caf4c6135a0c943dc250e2cc2156e56a4e2b7317a387a667d54fc039a8"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -570,7 +570,7 @@
     "x509",
   ]
   pruneopts = "UT"
-  revision = "28c1280e43f239c7b6864ec1c19215a86dcae3f8"
+  revision = "e70d68aebdadfacf1a5168fb29b1f5554f977966"
 
 [[projects]]
   branch = "master"
@@ -655,7 +655,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:816c76001e99f07ede87bf7e4ccf45d7a477bc483aaa10b1870dd4f277858da1"
+  digest = "1:1038982fc7ededb2563135eb7863b48510cd8e316e5fe7bcfc73656be09bcf1f"
   name = "github.com/zdnscloud/vanguard"
   packages = [
     "acl",
@@ -673,7 +673,7 @@
     "viewselector",
   ]
   pruneopts = "UT"
-  revision = "c2461ab1c22122d3b6b3aac500f0c690b864f7b9"
+  revision = "e2cf498e111a1a12d95ff1fb0119e87d78e90ad6"
 
 [[projects]]
   branch = "master"
