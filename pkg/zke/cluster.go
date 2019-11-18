@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
@@ -157,8 +157,8 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	return nil
 }
 
-func (c *Cluster) setUnavailable(db storage.DB) error {
-	state, err := getClusterFromDB(c.Name, db)
+func (c *Cluster) setUnavailable(table kvzoo.Table) error {
+	state, err := getClusterFromDB(c.Name, table)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (c *Cluster) setUnavailable(db storage.DB) error {
 		return nil
 	}
 	state.IsUnvailable = true
-	return createOrUpdateClusterFromDB(c.Name, state, db)
+	return createOrUpdateClusterFromDB(c.Name, state, table)
 }
 
 func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManager) {
@@ -341,8 +341,8 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	return sc
 }
 
-func (c *Cluster) GetKubeConfig(user string, db storage.DB) (string, error) {
-	state, err := getClusterFromDB(c.Name, db)
+func (c *Cluster) GetKubeConfig(user string, table kvzoo.Table) (string, error) {
+	state, err := getClusterFromDB(c.Name, table)
 	if err != nil {
 		return "", err
 	}

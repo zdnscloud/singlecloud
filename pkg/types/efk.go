@@ -4,6 +4,12 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
+const (
+	defaultEFKESReplicas   = 3
+	defaultEFKStorageClass = "lvm"
+	defaultEFKStorageSize  = 10
+)
+
 type EFK struct {
 	resource.ResourceBase `json:",inline"`
 	IngressDomain         string `json:"ingressDomain,omitempty"`
@@ -16,4 +22,12 @@ type EFK struct {
 
 func (e EFK) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
+}
+
+func (e EFK) CreateDefaultResource() resource.Resource {
+	return &EFK{
+		StorageClass: defaultEFKStorageClass,
+		StorageSize:  defaultEFKStorageSize,
+		ESReplicas:   defaultEFKESReplicas,
+	}
 }

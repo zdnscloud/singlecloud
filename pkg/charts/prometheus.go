@@ -21,10 +21,10 @@ type PrometheusPrometheus struct {
 }
 
 type PrometheusSpec struct {
-	Retention      string `json:"retention"`
-	ScrapeInterval string `json:"scrapeInterval"`
+	Retention      int    `json:"retention"`
+	ScrapeInterval int    `json:"scrapeInterval"`
 	StorageClass   string `json:"storageClass"`
-	StorageSize    string `json:"storageSize"`
+	StorageSize    int    `json:"storageSize"`
 }
 
 type PrometheusAlertManager struct {

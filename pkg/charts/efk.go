@@ -20,7 +20,7 @@ type PvcResources struct {
 }
 
 type PvcRequests struct {
-	Storage string `json:"storage"`
+	Storage int `json:"storage"`
 }
 
 type KA struct {

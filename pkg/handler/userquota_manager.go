@@ -16,24 +16,30 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const UserQuotaTable = "userquota"
 
 type UserQuotaManager struct {
 	clusters *ClusterManager
+	db       kvzoo.Table
 }
 
-func newUserQuotaManager(clusters *ClusterManager) *UserQuotaManager {
-	return &UserQuotaManager{clusters: clusters}
+func newUserQuotaManager(clusters *ClusterManager) (*UserQuotaManager, error) {
+	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
+	table, err := clusters.GetDB().CreateOrGetTable(tn)
+	if err != nil {
+		return nil, fmt.Errorf("new userquota manager failed: %s", err.Error())
+	}
+	return &UserQuotaManager{clusters: clusters, db: table}, nil
 }
 
 func (m *UserQuotaManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	userName := getCurrentUser(ctx)
 	if userName == "" {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, "create user quota failed: user name should not be empty")
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, "create userquota failed: user name should not be empty")
 	}
 
 	userQuota := ctx.Resource.(*types.UserQuota)
@@ -45,10 +51,10 @@ func (m *UserQuotaManager) Create(ctx *resource.Context) (resource.Resource, *re
 	value, err := json.Marshal(userQuota)
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
+			fmt.Sprintf("marshal userquota to storage value failed: %s", err.Error()))
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tx, err := m.db.Begin()
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("create user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -62,7 +68,7 @@ func (m *UserQuotaManager) Create(ctx *resource.Context) (resource.Resource, *re
 
 	if err := tx.Commit(); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("commit user_resource_quota table failed: %s", err.Error()))
+			fmt.Sprintf("commit userquota table failed: %s", err.Error()))
 	}
 
 	return userQuota, nil
@@ -70,7 +76,7 @@ func (m *UserQuotaManager) Create(ctx *resource.Context) (resource.Resource, *re
 
 func (m *UserQuotaManager) List(ctx *resource.Context) interface{} {
 	userName := getCurrentUser(ctx)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tx, err := m.db.Begin()
 	if err != nil {
 		log.Warnf("list user quota info failed: %s", err.Error())
 		return nil
@@ -105,7 +111,7 @@ func (m *UserQuotaManager) List(ctx *resource.Context) interface{} {
 func (m *UserQuotaManager) Get(ctx *resource.Context) resource.Resource {
 	userName := getCurrentUser(ctx)
 	userQuota := ctx.Resource.(*types.UserQuota)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tx, err := m.db.Begin()
 	if err != nil {
 		log.Warnf("get user quota info failed: %s", err.Error())
 		return nil
@@ -137,7 +143,7 @@ func (m *UserQuotaManager) Update(ctx *resource.Context) (resource.Resource, *re
 		return nil, resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("params is invalid: %s", err.Error()))
 	}
 
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tx, err := m.db.Begin()
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("update user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -192,7 +198,7 @@ func (m *UserQuotaManager) Delete(ctx *resource.Context) *resterror.APIError {
 	}
 
 	userQuota := ctx.Resource.(*types.UserQuota)
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tx, err := m.db.Begin()
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user %s quota with namespace %s failed %s", userName, userQuota.Namespace, err.Error()))
@@ -279,7 +285,7 @@ func (m *UserQuotaManager) approval(ctx *resource.Context) *resterror.APIError {
 	}
 
 	userQuotaID := ctx.Resource.(*types.UserQuota).GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+	tx, err := m.db.Begin()
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("approval user quota %s failed %s", userQuotaID, err.Error()))
@@ -379,7 +385,8 @@ func (m *UserQuotaManager) reject(ctx *resource.Context) *resterror.APIError {
 	}
 
 	userQuotaID := ctx.Resource.(*types.UserQuota).GetID()
-	tx, err := BeginTableTransaction(m.clusters.GetDB(), storage.GenTableName(UserQuotaTable))
+
+	tx, err := m.db.Begin()
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("reject user quota %s failed %s", userQuotaID, err.Error()))
@@ -469,38 +476,13 @@ func storageResourceValueToSCUserQuota(value []byte) (*types.UserQuota, error) {
 	return &userQuota, nil
 }
 
-func BeginTableTransaction(db storage.DB, tableName string) (storage.Transaction, error) {
-	table, err := db.CreateOrGetTable(tableName)
-	if err != nil {
-		return nil, fmt.Errorf("get table failed: %s", err.Error())
-	}
-
-	tx, err := table.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("begin transaction failed: %s", err.Error())
-	}
-
-	return tx, nil
-}
-
-func getUserQuotaFromDB(tx storage.Transaction, id string) (*types.UserQuota, error) {
+func getUserQuotaFromDB(tx kvzoo.Transaction, id string) (*types.UserQuota, error) {
 	value, err := tx.Get(id)
 	if err != nil {
 		return nil, err
 	}
 
 	return storageResourceValueToSCUserQuota(value)
-}
-
-func IsExistsNamespaceInDB(db storage.DB, tableName, namespace string) (bool, error) {
-	tx, err := BeginTableTransaction(db, tableName)
-	if err != nil {
-		return false, err
-	}
-
-	value, _ := tx.Get(namespace)
-	tx.Commit()
-	return value != nil, nil
 }
 
 var namespaceRegex = regexp.MustCompile("[-a-z0-9]")

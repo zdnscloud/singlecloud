@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/singlecloud/pkg/charts"
 )
 
 type Chart struct {
@@ -13,8 +14,8 @@ type Chart struct {
 }
 
 type ChartVersion struct {
-	Version string                   `json:"version"`
-	Config  []map[string]interface{} `json:"config,omitempty"`
+	Version string              `json:"version"`
+	Config  charts.ChartConfigs `json:"config,omitempty"`
 }
 
 type Charts []*Chart

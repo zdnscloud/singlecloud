@@ -88,9 +88,10 @@
     * 检查提供的chart包对应的版本是否存在
     * 获取chart包信息，如果当前用户是普通用户，且chart包是系统chart，则报错
     * 如果当前用户是admin且chart为系统chart，为标记application为系统applicaton
-    * 获取所有chart文件内容，将web server传过来的参数与文件内容做merge，用于templates中文件生成k8s	 manifest文件内容，并保存到application中
+    * 获取所有chart文件内容，将web server传过来的参数与文件内容做merge，用于templates中文件生成k8s manifest文件内容，并保存到application中;同时获取chart文件中crd资源（crds目录下的所有yaml文件），生成crd资源的manifest文件内容
     * 设置application的status为create
     * 使用cluster名字、namespace生成数据库表名，将application信息保存到数据库
+    * 预创建chart需要的crd资源（若chart的crd为空，则直接跳过），若创建过程中发现某crd manifest资源类型非crd类型，则会报错，并将该application状态置为fail，若k8s中已存在同名crd，则忽略该crd（会记录日志）
     * 开线程创建application所有资源，并返回application信息给web server
     * 创建资源线程
       * 检查使用manifest内容生成的object中是否包含namespace
@@ -111,6 +112,7 @@
        * 使用object删除资源
        * 删除数据库中application纪录
        * 如果上述任何步骤出现错误，则更新数据库的application的status为failed，需要用户再次删除
+    > 注：delete不会删除创建该application时创建的crd资源，原因是crd为k8s顶级资源，有可能其他application正在使用。
        
   * list
      * 从数据库中获取这个namespace所有application纪录
@@ -118,5 +120,4 @@
      * 如果是普通用户，只返回非系统application纪录
      
 ## 未来工作
-* 支持CRD
 * 支持资源排序创建
