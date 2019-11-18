@@ -4,6 +4,7 @@
   "parentResources": [
     "namespace"
   ],
+  "goStructName": "OuterService",
   "resourceFields": {
     "entryPoint": {
       "type": "string"

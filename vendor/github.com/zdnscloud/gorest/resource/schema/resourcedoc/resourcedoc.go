@@ -29,6 +29,7 @@ type ResourceDocument struct {
 	ResourceType      string                    `json:"resourceType,omitempty"`
 	CollectionName    string                    `json:"collectionName,omitempty"`
 	ParentResources   []string                  `json:"parentResources,omitempty"`
+	GoStructName      string                    `json:"goStructName,omitempty"`
 	ResourceFields    ResourceFields            `json:"resourceFields,omitempty"`
 	SubResources      map[string]ResourceFields `json:"subResources,omitempty"`
 	ResourceMethods   []resource.HttpMethod     `json:"resourceMethods,omitempty"`
@@ -51,6 +52,7 @@ func NewResourceDocument(name string, kind resource.ResourceKind, handler resour
 		ResourceType:      name,
 		CollectionName:    util.GuessPluralName(name),
 		ParentResources:   parents,
+		GoStructName:      reflect.TypeOf(kind).Name(),
 		SubResources:      make(map[string]ResourceFields),
 		ResourceMethods:   resource.GetResourceMethods(handler),
 		CollectionMethods: resource.GetCollectionMethods(handler),

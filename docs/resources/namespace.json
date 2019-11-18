@@ -4,6 +4,7 @@
   "parentResources": [
     "cluster"
   ],
+  "goStructName": "Namespace",
   "resourceFields": {
     "cpu": {
       "type": "int"

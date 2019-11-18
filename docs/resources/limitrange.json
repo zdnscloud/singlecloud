@@ -4,6 +4,7 @@
   "parentResources": [
     "namespace"
   ],
+  "goStructName": "LimitRange",
   "resourceFields": {
     "max": {
       "type": "map",

@@ -4,6 +4,7 @@
   "parentResources": [
     "cluster"
   ],
+  "goStructName": "EFK",
   "resourceFields": {
     "esReplicas": {
       "type": "int"

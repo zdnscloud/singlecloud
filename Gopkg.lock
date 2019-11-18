@@ -617,7 +617,7 @@
 
 [[projects]]
   branch = "add-resourcedoc"
-  digest = "1:3da3e278ae6b1f8e15f13c1890336688ce86f63567230c4bbd467ee1f236ae2c"
+  digest = "1:0d5860a6244227d825d90b4c3140d0c0463574ff8dcf7518f2f3af33c7b72ad5"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -630,7 +630,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "5d2750d056993dbc4acad990dab48c53e7752064"
+  revision = "137848a18b9b7e458bf4026d9d38158cdad74af0"
 
 [[projects]]
   branch = "master"

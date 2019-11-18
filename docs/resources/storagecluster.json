@@ -4,6 +4,7 @@
   "parentResources": [
     "cluster"
   ],
+  "goStructName": "StorageCluster",
   "resourceFields": {
     "freeSize": {
       "type": "string"

@@ -4,6 +4,7 @@
   "parentResources": [
     "cluster"
   ],
+  "goStructName": "Monitor",
   "resourceFields": {
     "adminPassword": {
       "type": "string"

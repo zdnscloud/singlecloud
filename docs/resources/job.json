@@ -4,6 +4,7 @@
   "parentResources": [
     "namespace"
   ],
+  "goStructName": "Job",
   "resourceFields": {
     "containers": {
       "type": "array",

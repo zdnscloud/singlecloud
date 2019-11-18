@@ -4,6 +4,7 @@
   "parentResources": [
     "cluster"
   ],
+  "goStructName": "BlockDevice",
   "resourceFields": {
     "blockDevices": {
       "type": "array",

@@ -1,6 +1,7 @@
 {
   "resourceType": "cluster",
   "collectionName": "clusters",
+  "goStructName": "Cluster",
   "resourceFields": {
     "clusterCidr": {
       "type": "string"

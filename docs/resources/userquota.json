@@ -1,6 +1,7 @@
 {
   "resourceType": "userquota",
   "collectionName": "userquotas",
+  "goStructName": "UserQuota",
   "resourceFields": {
     "clusterName": {
       "type": "string"

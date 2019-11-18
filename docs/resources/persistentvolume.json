@@ -4,6 +4,7 @@
   "parentResources": [
     "cluster"
   ],
+  "goStructName": "PersistentVolume",
   "resourceFields": {
     "claimRef": {
       "type": "claimRef"

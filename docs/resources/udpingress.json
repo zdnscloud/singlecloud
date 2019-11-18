@@ -4,6 +4,7 @@
   "parentResources": [
     "namespace"
   ],
+  "goStructName": "UDPIngress",
   "resourceFields": {
     "port": {
       "type": "int"

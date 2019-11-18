@@ -4,6 +4,7 @@
   "parentResources": [
     "namespace"
   ],
+  "goStructName": "Application",
   "resourceFields": {
     "appResources": {
       "type": "array",

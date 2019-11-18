@@ -4,6 +4,7 @@
   "parentResources": [
     "cluster"
   ],
+  "goStructName": "NodeNetwork",
   "resourceFields": {
     "ip": {
       "type": "string"

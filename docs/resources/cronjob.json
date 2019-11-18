@@ -4,6 +4,7 @@
   "parentResources": [
     "namespace"
   ],
+  "goStructName": "CronJob",
   "resourceFields": {
     "containers": {
       "type": "array",

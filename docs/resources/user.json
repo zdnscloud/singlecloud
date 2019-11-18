@@ -1,6 +1,7 @@
 {
   "resourceType": "user",
   "collectionName": "users",
+  "goStructName": "User",
   "resourceFields": {
     "name": {
       "type": "string",

@@ -4,6 +4,7 @@
   "parentResources": [
     "namespace"
   ],
+  "goStructName": "PersistentVolumeClaim",
   "resourceFields": {
     "actualStorageSize": {
       "type": "string"
