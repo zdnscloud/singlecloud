@@ -12,12 +12,7 @@
       "type": "string"
     }
   },
-  "resourceMethods": [
-    "GET",
-    "DELETE"
-  ],
   "collectionMethods": [
-    "GET",
-    "POST"
+    "GET"
   ]
 }

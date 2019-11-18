@@ -80,7 +80,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.Service{}, newServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.StatefulSet{}, newStatefulSetManager(a.clusterManager))
 	schemas.MustImport(&Version, types.Pod{}, newPodManager(a.clusterManager))
-	schemas.MustImport(&Version, types.UdpIngress{}, newUDPIngressManager(a.clusterManager))
+	schemas.MustImport(&Version, types.UDPIngress{}, newUDPIngressManager(a.clusterManager))
 	schemas.MustImport(&Version, types.StorageClass{}, newStorageClassManager(a.clusterManager))
 	schemas.MustImport(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager))
