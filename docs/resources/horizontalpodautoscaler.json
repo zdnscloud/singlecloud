@@ -9,32 +9,33 @@
         "scaleTargetName": {"type": "string"},
         "minReplicas": {"type": "int"},
         "maxReplicas": {"type": "int"},
-        "metrics": {"type": "array", "elemType": "metricSpec"},
+        "resourceMetrics": {"type": "array", "elemType": "resourceMetricSpec"},
+        "customMetrics": {"type": "array", "elemType": "customMetricSpec"},
         "status": {"type": "horizontalPodAutoscalerStatus"}
     },
 
     "subResources": {
-        "metricSpec": {
-            "type": {"type": "enum", "validValues": ["Resource", "Pods"]},
+        "resourceMetricSpec": {
             "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
-            "metricName": {"type": "string"},
             "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
             "averageValue": {"type": "string"},
             "averageUtilization": {"type": "int"}
         },
 
+        "customMetricSpec": {
+            "metricName": {"type": "string"},
+            "averageValue": {"type": "string"}
+        },
+
         "horizontalPodAutoscalerStatus": {
             "currentReplicas": {"type": "int"},
             "desiredReplicas": {"type": "int"},
-            "currentMetrics": {"type": "array", "elemType": "metricStatus"}
+            "currentMetrics": {"type": "metricStatus"}
         },
 
         "metricStatus": {
-            "type": {"type": "enum", "validValues": ["Resource", "Pods"]},
-            "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
-            "metricName": {"type": "string"},
-            "averageValue": {"type": "string"},
-            "averageUtilization": {"type": "int"}
+            "resourceMetrics": {"type": "array", "elemType": "resourceMetricSpec"},
+            "customMetrics": {"type": "array", "elemType": "customMetricSpec"}
         }
     },
 
@@ -48,17 +49,21 @@
             "scaleTargetName": {"type": "string", "required": true},
             "minReplicas": {"type": "int", "required": true},
             "maxReplicas": {"type": "int", "required": true},
-            "metrics": {"type": "array", "elemType": "metricSpec"}
+            "resourceMetrics": {"type": "array", "elemType": "resourceMetricSpec"},
+            "customMetrics": {"type": "array", "elemType": "customMetricSpec"}
         },
 
         "subResources": {
-            "metricSpec": {
-                "type": {"type": "enum", "validValues": ["Resource", "Pods"]},
+            "resourceMetricSpec": {
                 "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
-                "metricName": {"type": "string"},
                 "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
                 "averageValue": {"type": "string"},
                 "averageUtilization": {"type": "int"}
+            },
+
+            "customMetricSpec": {
+                "metricName": {"type": "string"},
+                "averageValue": {"type": "string"}
             }
         }
     },
@@ -70,17 +75,21 @@
             "scaleTargetName": {"type": "string", "required": true},
             "minReplicas": {"type": "int"},
             "maxReplicas": {"type": "int", "required": true},
-            "metrics": {"type": "array", "elemType": "metricSpec"}
+            "resourceMetrics": {"type": "array", "elemType": "resourceMetricSpec"},
+            "customMetrics": {"type": "array", "elemType": "customMetricSpec"}
         },
 
         "subResources": {
-            "metricSpec": {
-                "type": {"type": "enum", "validValues": ["Resource", "Pods"]},
+            "resourceMetricSpec": {
                 "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
-                "metricName": {"type": "string"},
                 "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
                 "averageValue": {"type": "string"},
                 "averageUtilization": {"type": "int"}
+            },
+
+            "customMetricSpec": {
+                "metricName": {"type": "string"},
+                "averageValue": {"type": "string"}
             }
         }
     }

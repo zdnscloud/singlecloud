@@ -24,10 +24,11 @@ import (
 )
 
 const (
-	chartYamlFile = "Chart.yaml"
-	iconPrefix    = "/assets/helm/icons/"
-	iconFormat    = ".png"
-	indexFile     = "index.yaml"
+	chartYamlFile       = "Chart.yaml"
+	iconPrefixForReturn = "/assets/helm/icons/"
+	iconPrefixForLoad   = "/helm-icons/"
+	iconFormat          = ".png"
+	indexFile           = "index.yaml"
 
 	KeywordZcloudSystem = "zcloud-system"
 )
@@ -99,7 +100,7 @@ func getLocalChart(chartDir, chartName string, needSystemChart bool) (*types.Cha
 	chart := &types.Chart{
 		Name:        chartName,
 		Description: description,
-		Icon:        genChartIcon(chartName),
+		Icon:        genChartIcon(iconPrefixForReturn, chartName),
 		Versions:    versions,
 	}
 	chart.SetID(chartName)
@@ -321,8 +322,8 @@ func getChartInfo(chartYamlPath string) (*ChartInfo, error) {
 	return &info, nil
 }
 
-func genChartIcon(chartName string) string {
-	return iconPrefix + chartName + iconFormat
+func genChartIcon(iconPrefix, chartName string) string {
+	return path.Join(iconPrefix, chartName+iconFormat)
 }
 
 func expandFile(chartDir, chartName string, r io.Reader) (string, error) {
@@ -359,7 +360,7 @@ func expandFile(chartDir, chartName string, r io.Reader) (string, error) {
 
 		chartFilePath := filepath.Clean(filepath.Join(chartFileDir, headerName))
 		if filepath.Base(headerName) == chartName+iconFormat {
-			chartFilePath = genChartIcon(chartName)
+			chartFilePath = genChartIcon(iconPrefixForLoad, chartName)
 		}
 
 		info := header.FileInfo()

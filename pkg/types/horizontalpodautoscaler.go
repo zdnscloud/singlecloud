@@ -11,13 +11,6 @@ const (
 	ScaleTargetKindStatefulSet ScaleTargetKind = "statefulset"
 )
 
-type MetricSourceType string
-
-const (
-	MetricSourceTypeResource = "Resource"
-	MetricSourceTypePods     = "Pods"
-)
-
 type ResourceName string
 
 const (
@@ -32,30 +25,27 @@ const (
 	MetricTargetTypeAverageValue MetricTargetType = "AverageValue"
 )
 
-type MetricSpec struct {
-	Type         MetricSourceType `json:"type,omitempty"`
-	MetricName   string           `json:"metricName,omitempty"`
-	ResourceName ResourceName     `json:"resourceName,omitempty"`
-	TargetType   MetricTargetType `json:"targetType,omitempty"`
-	MetricValue  `json:",inline"`
+type ResourceMetricSpec struct {
+	ResourceName       ResourceName     `json:"resourceName,omitempty"`
+	TargetType         MetricTargetType `json:"targetType,omitempty"`
+	AverageValue       string           `json:"averageValue,omitempty"`
+	AverageUtilization int              `json:"averageUtilization,omitempty"`
 }
 
-type MetricValue struct {
-	AverageValue       string `json:"averageValue,omitempty"`
-	AverageUtilization int    `json:"averageUtilization,omitempty"`
+type CustomMetricSpec struct {
+	MetricName   string `json:"metricName,omitempty"`
+	AverageValue string `json:"averageValue,omitempty"`
 }
 
 type HorizontalPodAutoscalerStatus struct {
-	CurrentReplicas int            `json:"currentReplicas,omitempty"`
-	DesiredReplicas int            `json:"desiredReplicas,omitempty"`
-	CurrentMetrics  []MetricStatus `json:"currentMetrics,omitempty"`
+	CurrentReplicas int          `json:"currentReplicas,omitempty"`
+	DesiredReplicas int          `json:"desiredReplicas,omitempty"`
+	CurrentMetrics  MetricStatus `json:"currentMetrics,omitempty"`
 }
 
 type MetricStatus struct {
-	Type         MetricSourceType `json:"type,omitempty"`
-	MetricName   string           `json:"metricName,omitempty"`
-	ResourceName ResourceName     `json:"resourceName,omitempty"`
-	MetricValue  `json:",inline"`
+	ResourceMetrics []ResourceMetricSpec `json:"resourceMetrics,omitempty"`
+	CustomMetrics   []CustomMetricSpec   `json:"customMetrics,omitempty"`
 }
 
 type HorizontalPodAutoscaler struct {
@@ -65,7 +55,8 @@ type HorizontalPodAutoscaler struct {
 	ScaleTargetName       string                        `json:"scaleTargetName" rest:"required=true"`
 	MinReplicas           int                           `json:"minReplicas"`
 	MaxReplicas           int                           `json:"maxReplicas" rest:"required=true"`
-	Metrics               []MetricSpec                  `json:"metrics,omitempty"`
+	ResourceMetrics       []ResourceMetricSpec          `json:"resourceMetrics,omitempty"`
+	CustomMetrics         []CustomMetricSpec            `json:"customMetrics,omitempty"`
 	Status                HorizontalPodAutoscalerStatus `json:"status,omitempty"`
 }
 
