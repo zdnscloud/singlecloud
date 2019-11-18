@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"path"
 
 	"github.com/zdnscloud/cement/log"
@@ -10,6 +12,7 @@ import (
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/kvzoo/client"
 	dbserver "github.com/zdnscloud/kvzoo/server"
+	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
@@ -26,34 +29,17 @@ const (
 )
 
 var (
+	configFile  string
 	version     string
 	showVersion bool
+	genConfFile bool
 	build       string
-
-	asSlave        bool
-	asMaster       bool
-	addr           string
-	casServer      string
-	globaldnsAddr  string
-	chartDir       string
-	dbFilePath     string
-	dbPort         int
-	slaveDBAddress string
-	repoUrl        string
 )
 
 func main() {
-	flag.StringVar(&addr, "listen", ":80", "server listen address")
-	flag.StringVar(&globaldnsAddr, "dns", "", "globaldns cmd server listen address")
-	flag.StringVar(&casServer, "cas", "", "cas server address")
+	flag.StringVar(&configFile, "c", "singlecloud.conf", "configure file path")
+	flag.BoolVar(&genConfFile, "gen", false, "generate initial configure file to current directory")
 	flag.BoolVar(&showVersion, "version", false, "show version")
-	flag.BoolVar(&asSlave, "as-slave", false, "run singlecloud as slave")
-	flag.BoolVar(&asMaster, "as-master", false, "run singlecloud as master")
-	flag.StringVar(&chartDir, "chart", "", "chart path")
-	flag.StringVar(&dbFilePath, "db", "", "db file path")
-	flag.IntVar(&dbPort, "dbport", 6666, "db server port")
-	flag.StringVar(&slaveDBAddress, "slave-db-addr", "", "slave db address")
-	flag.StringVar(&repoUrl, "repo", "", "chart repo url")
 	flag.Parse()
 
 	log.InitLogger(log.Debug)
@@ -62,47 +48,41 @@ func main() {
 		fmt.Printf("singlecloud %s (build at %s)\n", version, build)
 		return
 	}
-
-	if asMaster && asSlave {
-		log.Fatalf("singlecloud can only run as master or as slave")
+	if genConfFile {
+		if err := genInitConfig(); err != nil {
+			panic("generate initial configure file failed:" + err.Error())
+		}
+		return
+	}
+	conf, err := config.LoadConfig(configFile)
+	if err != nil {
+		panic("load configure file failed:" + err.Error())
 	}
 
-	if asSlave && slaveDBAddress != "" {
-		log.Fatalf("slave node cann't have other slaves")
-	}
-
-	if asMaster == false && asSlave == false {
-		asMaster = true
-	}
-
-	if asMaster && slaveDBAddress == "" {
-		log.Warnf("no slave node is specified, if master node is crashed, data will be lost\n")
-	}
-
-	if asMaster {
-		runAsMaster()
+	if conf.DB.Role == config.Master {
+		runAsMaster(conf)
 	} else {
-		runAsSlave()
+		runAsSlave(conf)
 	}
 }
 
-func runAsMaster() {
+func runAsMaster(conf *config.SinglecloudConf) {
 	eventBus := pubsub.New(EventBufLen)
 
 	stopCh := make(chan struct{})
-	dbClient, err := initMasterDB(dbPort, dbFilePath, slaveDBAddress, stopCh)
+	dbClient, err := initMasterDB(conf.DB.Port, conf.DB.Path, conf.DB.SlaveDBAddr, stopCh)
 	if err != nil {
 		log.Fatalf("create database failed: %s", err.Error())
 	}
 	defer close(stopCh)
 
-	if globaldnsAddr != "" {
-		if err := globaldns.New(globaldnsAddr, eventBus); err != nil {
+	if conf.Server.DNSAddr != "" {
+		if err := globaldns.New(conf.Server.DNSAddr, eventBus); err != nil {
 			log.Fatalf("create globaldns failed: %v", err.Error())
 		}
 	}
 
-	authenticator, err := authentication.New(casServer, dbClient)
+	authenticator, err := authentication.New(conf.Server.CasAddr, dbClient)
 	if err != nil {
 		log.Fatalf("create authenticator failed:%s", err.Error())
 	}
@@ -118,7 +98,7 @@ func runAsMaster() {
 	}
 
 	agent := clusteragent.New()
-	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, chartDir, version, repoUrl)
+	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, conf.Chart.Path, version, conf.Chart.Repo, conf.Registry)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}
@@ -143,13 +123,13 @@ func runAsMaster() {
 		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
-	if slaveDBAddress != "" {
+	if conf.DB.SlaveDBAddr != "" {
 		if _, err := dbClient.Checksum(); err != nil {
 			log.Fatalf("db isn't in sync:%s", err.Error())
 		}
 	}
 
-	if err := server.Run(addr); err != nil {
+	if err := server.Run(conf.Server.Addr); err != nil {
 		log.Fatalf("server run failed:%s", err.Error())
 	}
 }
@@ -184,12 +164,22 @@ func initMasterDB(localDBPort int, dbFilePath, slaveDBAddress string, stopCh cha
 	return dbClient, nil
 }
 
-func runAsSlave() {
-	dbServerAddr := fmt.Sprintf(":%d", dbPort)
-	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(dbFilePath, DBFileName))
+func runAsSlave(conf *config.SinglecloudConf) {
+	dbServerAddr := fmt.Sprintf(":%d", conf.DB.Port)
+	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(conf.DB.Path, DBFileName))
 	if err != nil {
 		log.Fatalf("start slave failed:%s", err.Error())
 		return
 	}
 	db.Start()
+}
+
+func genInitConfig() error {
+	yamlConfig, err := yaml.Marshal(config.CreateDefaultConfig())
+	if err != nil {
+		return err
+	}
+	configFile := "./singlecloud.conf"
+	log.Debugf("Deploying cluster configuration file: %s", configFile)
+	return ioutil.WriteFile(configFile, yamlConfig, 0640)
 }
