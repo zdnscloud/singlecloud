@@ -15,8 +15,9 @@
 
     "subResources": {
         "metricSpec": {
-            "type": {"type": "enum", "validValues": ["Resource"]},
+            "type": {"type": "enum", "validValues": ["Resource", "Pods"]},
             "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
+            "metricName": {"type": "string"},
             "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
             "averageValue": {"type": "string"},
             "averageUtilization": {"type": "int"}
@@ -29,8 +30,9 @@
         },
 
         "metricStatus": {
-            "type": {"type": "enum", "validValues": ["Resource"]},
+            "type": {"type": "enum", "validValues": ["Resource", "Pods"]},
             "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
+            "metricName": {"type": "string"},
             "averageValue": {"type": "string"},
             "averageUtilization": {"type": "int"}
         }
@@ -51,8 +53,9 @@
 
         "subResources": {
             "metricSpec": {
-                "type": {"type": "enum", "validValues": ["Resource"]},
+                "type": {"type": "enum", "validValues": ["Resource", "Pods"]},
                 "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
+                "metricName": {"type": "string"},
                 "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
                 "averageValue": {"type": "string"},
                 "averageUtilization": {"type": "int"}
@@ -72,8 +75,9 @@
 
         "subResources": {
             "metricSpec": {
-                "type": {"type": "enum", "validValues": ["Resource"]},
+                "type": {"type": "enum", "validValues": ["Resource", "Pods"]},
                 "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
+                "metricName": {"type": "string"},
                 "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
                 "averageValue": {"type": "string"},
                 "averageUtilization": {"type": "int"}
