@@ -12,31 +12,30 @@ HPA为namespace下的子资源
     	ScaleTargetName       string
     	MinReplicas           int
     	MaxReplicas           int                              
-    	Metrics               []MetricSpec                   
+    	ResourceMetrics       []ResourceMetricSpec
+    	CustomMetrics         []CustomMetricSpec                   
     	Status                HorizontalPodAutoscalerStatus  
 	}
 
-	type MetricSpec struct {
-    	Type         MetricSourceType  
-    	MetricName   string            
-    	ResourceName ResourceName      
-    	TargetType   MetricTargetType  
-    	MetricValue  `json:",inline"`
+	type ResourceMetricSpec struct {
+    	ResourceName       ResourceName      
+    	TargetType         MetricTargetType  
+    	AverageValue       string  
+    	AverageUtilization int
 	}
 	
-	type MetricValue struct {
-    	AverageValue       string  
-    	AverageUtilization int     
+	type CustomMetricSpec struct {
+    	MetricName   string            
+    	AverageValue string  
 	}
 	
 ## 配置
 	
 * ScaleTargetKind支持deployment和statefulset，表明HPA对哪一种workload进行配置，即通过ScaleTargetKind和ScaleTargetName字段定位一个workload
 * MinReplicas和MaxReplicas表示这个workload的最小和最大replicas值
-* Metrics为HPA指标参数数值，MetricSpec.Type支持Resource 和 Pods两种类型的指标，每种指标的值的类型通过MetricSpec.TargetType指定，支持Utilization和AverageValue。
-	* Resource类型通过指定MetricSpec.ResourceName表示以哪种资源为指标，MetricSpec.ResourceName支持cpu和memory，MetricSpec.TargetType支持Utilization和AverageValue
-	* Pods是以自定义metric为指标，通过指定MetricName表示以哪一个自定义metric为指标，只支持AverageValue
-* 无论HPA如何通过Metrics来动态调整workload的pods个数，所调整的pods个数都不会超过MinReplicas和MaxReplicas的范围。
+* ResourceMetrics为HPA基础资源指标的配置，通过指定ResourceName表示以哪种资源为指标，ResourceName支持cpu和memory，TargetType支持Utilization和AverageValue
+* CustomMetrics是以自定义metric为指标，通过指定MetricName表示以哪一个自定义metric为指标，只支持AverageValue
+* 无论HPA如何动态调整workload的pods个数，所调整的pods个数都不会超过MinReplicas和MaxReplicas的范围。
 
 ## 配置范例
 
@@ -45,21 +44,19 @@ HPA为namespace下的子资源
     "scaleTargetName": "vg1-vanguard",
     "minReplicas": 1,
     "maxReplicas": 5,
-    "metrics":[
+    "customMetrics":[
     	{
-    		"type": "Pods",
     		"metricName": "zdns_vanguard_qps",
-    		"targetType": "AverageValue",
     		"averageValue": "2000"
-    	},
+    	}
+    ]
+    "resourceMetrics": [
     	{
-    		"type": "Resource",
     		"ResourceName": "cpu",
     		"targetType": "Utilization",
     		"averageUtilization": 50
     	},
     	{
-    		"type": "Resource",
     		"ResourceName": "memory",
     		"targetType": "AverageValue",
     		"averageValue": "256Mi"
