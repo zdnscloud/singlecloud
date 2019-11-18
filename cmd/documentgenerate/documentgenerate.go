@@ -3,41 +3,53 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"text/template"
 
-	"github.com/zdnscloud/cement/randomdata"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-type TempConf struct {
-	TargetPtah string
-	Resources  []string
-}
+const goTemp = `
+package main
+        
+import (
+        "log"   
+                        
+        "github.com/zdnscloud/gorest/resource/schema"
+        "github.com/zdnscloud/singlecloud/pkg/handler"
+        "github.com/zdnscloud/singlecloud/pkg/types"
+)                                       
+
+func main() {                                                                           
+        targetPath := "{{.TargetPath}}"                                                         
+        schemas := importResource()                                                                     
+        if err := schemas.WriteJsonDocs(&handler.Version, targetPath); err != nil {                                     
+                log.Fatalf("generate resource doc failed. %s", err.Error())                                                     
+        }                                                                                                                               
+}                                                                                                                                       
+
+func importResource() *schema.SchemaManager {                                                                                           
+        schemas := schema.NewSchemaManager()                                                                                                    
+        {{range .Resources}}                                                                                                                        
+        schemas.MustImport(&handler.Version, types.{{.}}{}, &handler.{{.}}Manager{})                                                                              
+        {{end}}                                                                                                                                                 
+        return schemas                                                                                                                                  
+}  
+`
 
 func main() {
-	var targetPtah string
-	flag.StringVar(&targetPtah, "path", "../../docs/resources/", "generate target path")
+	var targetPath string
+	flag.StringVar(&targetPath, "path", "../../docs/resources/", "generate target path")
 	flag.Parse()
 
-	tmpFile := randomdata.RandString(10) + ".go"
-	resourcesName := getReosurcesName()
-	if err := genGofile(resourcesName, targetPtah, tmpFile); err != nil {
-		panic(err)
-	}
-	_, err := os.Stat(tmpFile)
-	if err != nil {
-		panic(err)
-	}
-	if err := goRun(tmpFile); err != nil {
-		panic(err)
-	}
-	if err := os.Remove(tmpFile); err != nil {
-		panic(err)
+	if err := genGoTmpfileAndRunIt(getReosurcesName(), targetPath); err != nil {
+		log.Fatalf("generate resource doc failed. %s", err.Error())
 	}
 	log.Printf("generate resource doc success")
 }
@@ -50,63 +62,32 @@ func getReosurcesName() []string {
 	return resourcesName
 }
 
-func genGofile(resourcesName []string, targetPtah, file string) error {
-	tp, err := template.New("tp").Parse(goTemp)
+func genGoTmpfileAndRunIt(resourcesName []string, targetPath string) error {
+	tmpFile, err := ioutil.TempFile("./", "doc*.go")
 	if err != nil {
-		return err
+		return fmt.Errorf("generate tmp file failed, %v", err)
 	}
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}()
+
 	buf := new(bytes.Buffer)
-	conf := TempConf{
-		TargetPtah: targetPtah,
-		Resources:  resourcesName,
+	tp := template.Must(template.New("compiled_template").Parse(goTemp))
+	conf := struct {
+		TargetPath string
+		Resources  []string
+	}{
+		targetPath,
+		resourcesName,
 	}
 	if err := tp.Execute(buf, conf); err != nil {
-		return err
+		return fmt.Errorf("generate go file failed, %v", err)
 	}
-	if err = ioutil.WriteFile(file, []byte(buf.String()), 0644); err != nil {
-		return err
-	}
-	return nil
-}
-
-func goRun(file string) error {
-	if _, err := exec.Command("go", "run", file).Output(); err != nil {
-		return err
+	tmpFile.WriteString(buf.String())
+	out, err := exec.Command("go", "run", tmpFile.Name()).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("go run failed.\nCmd Out:%s\nErr: %v", strings.TrimSpace(string(out)), err)
 	}
 	return nil
 }
-
-const goTemp = `
-package main
-
-import (
-        "log"
-
-        restresource "github.com/zdnscloud/gorest/resource"
-        "github.com/zdnscloud/gorest/resource/schema"
-        "github.com/zdnscloud/singlecloud/pkg/handler"
-        "github.com/zdnscloud/singlecloud/pkg/types"
-)
-
-var (
-        Version = restresource.APIVersion{
-                Version: "v1",
-                Group:   "zcloud.cn",
-        }
-)
-
-func main() {
-	targetPtah := "{{.TargetPtah}}"
-        schemas := importResource()
-        if err := schemas.WriteJsonDocs(&Version, targetPtah); err != nil {
-                log.Fatalf("generate resource doc failed. %s", err.Error())
-        }
-        log.Printf("generate resource doc success")
-}
-func importResource() *schema.SchemaManager {
-        schemas := schema.NewSchemaManager()
-        {{range .Resources}}
-        schemas.MustImport(&Version, types.{{.}}{}, &handler.{{.}}Manager{}){{end}}
-        return schemas
-}
-`
