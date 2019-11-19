@@ -10,19 +10,16 @@ import (
 type ClusterStatus string
 
 const (
-	CSRunning     ClusterStatus = "Running"
-	CSUnreachable ClusterStatus = "Unreachable"
-	CSCreateing   ClusterStatus = "Creating"
-	CSUpdateing   ClusterStatus = "Updating"
-	CSConnecting  ClusterStatus = "Connecting"
-	CSUnavailable ClusterStatus = "Unavailable"
-	CSCanceling   ClusterStatus = "Canceling"
-	CSDeleting    ClusterStatus = "Deleting"
-	CSDeleted     ClusterStatus = "Deleted"
+	CSRunning      ClusterStatus = "Running"
+	CSUnreachable  ClusterStatus = "Unreachable"
+	CSCreating     ClusterStatus = "Creating"
+	CSCreateFailed ClusterStatus = "CreateFailed"
+	CSUpdating     ClusterStatus = "Updating"
+	CSDeleting     ClusterStatus = "Deleting"
+	CSDeleted      ClusterStatus = "Deleted"
 
-	CSCancelAction        = "cancel"
-	CSGetKubeConfigAction = "getkubeconfig"
-	CSImportAction        = "import"
+	CSCancelAction = "cancel"
+	CSImportAction = "import"
 
 	DefaultNetworkPlugin       = "flannel"
 	DefaultClusterCIDR         = "10.42.0.0/16"
@@ -104,10 +101,6 @@ func (c Cluster) CreateAction(name string) *resource.Action {
 	case CSCancelAction:
 		return &resource.Action{
 			Name: CSCancelAction,
-		}
-	case CSGetKubeConfigAction:
-		return &resource.Action{
-			Name: CSGetKubeConfigAction,
 		}
 	case CSImportAction:
 		return &resource.Action{

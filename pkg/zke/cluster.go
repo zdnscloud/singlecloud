@@ -20,10 +20,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const (
-	ClusterRetryInterval = time.Second * 10
-)
-
 type Cluster struct {
 	Name       string
 	CreateTime time.Time
@@ -51,8 +47,7 @@ type DeleteCluster struct {
 
 func newCluster(name string, initialStatus types.ClusterStatus) *Cluster {
 	cluster := &Cluster{
-		Name:   name,
-		stopCh: make(chan struct{}),
+		Name: name,
 	}
 
 	fsm := newClusterFsm(cluster, initialStatus)
@@ -66,6 +61,12 @@ func (c *Cluster) IsReady() bool {
 		return true
 	}
 	return false
+}
+
+func (c *Cluster) event(e string, zkeMgr *ZKEManager, state clusterState) {
+	if err := c.fsm.Event(e, zkeMgr, state); err != nil {
+		log.Warnf("send cluster %s fsm %s event failed %s", c.Name, e, err.Error())
+	}
 }
 
 func (c *Cluster) Event(e string) error {
@@ -83,69 +84,50 @@ func (c *Cluster) GetNodeIpsByRole(role types.NodeRole) []string {
 	return ips
 }
 
-func (c *Cluster) Cancel() error {
-	if err := c.fsm.Event(CancelEvent); err != nil {
-		return err
-	}
+func (c *Cluster) Cancel() {
 	c.cancel()
 	c.isCanceled = true
-	return nil
 }
 
 func (c *Cluster) CanUpdate() bool {
+	// doesn't support imported cluster update because no sshkey
+	if c.scVersion == types.ScVersionImported {
+		return false
+	}
 	return c.fsm.Can(UpdateEvent)
+}
+
+func (c *Cluster) CanDelete() bool {
+	return c.fsm.Can(DeleteEvent)
 }
 
 func (c *Cluster) getStatus() types.ClusterStatus {
 	return types.ClusterStatus(c.fsm.Current())
 }
 
-func (c *Cluster) InitLoop(ctx context.Context, kubeConfig string, mgr *ZKEManager, state clusterState) {
+func (c *Cluster) Init(kubeConfig string) error {
 	k8sConfig, err := config.BuildConfig([]byte(kubeConfig))
 	if err != nil {
-		log.Errorf("build cluster %s k8sconfig failed %s", c.Name, err)
-		if err := c.fsm.Event(InitFailedEvent); err != nil {
-			log.Warnf("send cluster fsm %s event failed %s", InitFailedEvent, err.Error())
-		}
-		return
+		return fmt.Errorf("build cluster %s k8sconfig failed %s", c.Name, err.Error())
 	}
 
-	for {
-		if c.isCanceled {
-			if err := c.fsm.Event(CancelSuccessEvent, mgr, state); err != nil {
-				log.Warnf("send cluster fsm %s event failed %s", CancelSuccessEvent, err.Error())
-			}
-			return
-		}
+	var options client.Options
+	options.Scheme = client.GetDefaultScheme()
+	storagev1.AddToScheme(options.Scheme)
 
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			var options client.Options
-			options.Scheme = client.GetDefaultScheme()
-			storagev1.AddToScheme(options.Scheme)
-			kubeClient, err := client.New(k8sConfig, options)
-			if err == nil {
-				c.KubeClient = kubeClient
-				if err := c.setCache(k8sConfig); err != nil {
-					log.Errorf("set cluster %s cache failed %s", c.Name, err)
-					if err := c.fsm.Event(InitFailedEvent); err != nil {
-						log.Warnf("send cluster fsm %s event failed %s", InitFailedEvent, err.Error())
-					}
-					return
-				}
-				if err := c.fsm.Event(InitSuccessEvent, mgr); err != nil {
-					log.Warnf("send cluster fsm %s event failed %s", InitSuccessEvent, err.Error())
-				}
-				return
-			}
-			time.Sleep(ClusterRetryInterval)
-		}
+	kubeClient, err := client.New(k8sConfig, options)
+	if err != nil {
+		return fmt.Errorf("New cluster %s gok8s client failed %s", c.Name, err.Error())
 	}
+	c.KubeClient = kubeClient
+	if err := c.setCache(k8sConfig); err != nil {
+		return fmt.Errorf("set cluster %s cache failed %s", c.Name, err.Error())
+	}
+	return nil
 }
 
 func (c *Cluster) setCache(k8sConfig *rest.Config) error {
+	c.stopCh = make(chan struct{})
 	c.K8sConfig = k8sConfig
 	cache, err := cache.New(k8sConfig, cache.Options{})
 	if err != nil {
@@ -157,26 +139,11 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	return nil
 }
 
-func (c *Cluster) setUnavailable(table kvzoo.Table) error {
-	state, err := getClusterFromDB(c.Name, table)
-	if err != nil {
-		return err
-	}
-	// only connecting status cancel action need update and write db
-	if state.IsUnvailable {
-		return nil
-	}
-	state.IsUnvailable = true
-	return createOrUpdateClusterFromDB(c.Name, state, table)
-}
-
 func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManager) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("zke pannic info %s", r)
-			if err := c.fsm.Event(CreateFailedEvent, mgr, state); err != nil {
-				log.Warnf("send cluster fsm %s event failed %s", CreateFailedEvent, err.Error())
-			}
+			c.event(CreateFailedEvent, mgr, state)
 		}
 	}()
 
@@ -187,45 +154,30 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 	zkeState, k8sConfig, kubeClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
-		if err := c.fsm.Event(CancelSuccessEvent, mgr, state); err != nil {
-			log.Warnf("send cluster fsm %s event failed %s", CancelSuccessEvent, err.Error())
-		}
+		c.event(CreateCanceledEvent, mgr, state)
 		return
 	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
-		if err := c.fsm.Event(CreateFailedEvent, mgr, state); err != nil {
-			log.Warnf("send cluster fsm %s event failed %s", CreateFailedEvent, err.Error())
-		}
+		c.event(CreateFailedEvent, mgr, state)
 		return
 	}
 
 	c.KubeClient = kubeClient
-	c.K8sConfig = k8sConfig
-
-	state.FullState = zkeState
-	state.IsUnvailable = false
-
 	if err := c.setCache(k8sConfig); err != nil {
-		if err := c.fsm.Event(CreateFailedEvent, mgr, state); err != nil {
-			log.Warnf("send cluster fsm %s event failed %s", CreateFailedEvent, err.Error())
-		}
+		c.event(CreateFailedEvent, mgr, state)
 		return
 	}
-
-	if err := c.fsm.Event(CreateSuccessEvent, mgr, state); err != nil {
-		log.Warnf("send cluster fsm %s event failed %s", CreateSuccessEvent, err.Error())
-	}
+	state.Created = true
+	c.event(CreateSucceedEvent, mgr, state)
 }
 
 func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManager) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("zke pannic info %s", r)
-			if err := c.fsm.Event(UpdateFailedEvent, mgr, state); err != nil {
-				log.Warnf("send cluster fsm %s event failed %s", UpdateFailedEvent, err.Error())
-			}
+			c.event(UpdateCompletedEvent, mgr, state)
 		}
 	}()
 
@@ -233,37 +185,30 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 	defer logger.Close()
 	c.logCh = logCh
 
-	zkeState, k8sConfig, kubeClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
+	zkeState, k8sConfig, k8sClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
-		if err := c.fsm.Event(CancelSuccessEvent, mgr, state); err != nil {
-			log.Warnf("send cluster fsm %s event failed %s", CancelSuccessEvent, err.Error())
+		if state.Created {
+			c.event(UpdateCanceledEvent, mgr, state)
+		} else {
+			c.event(CreateCanceledEvent, mgr, state)
 		}
 		return
 	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
-		if err := c.fsm.Event(UpdateFailedEvent, mgr, state); err != nil {
-			log.Warnf("send cluster fsm %s event failed %s", UpdateFailedEvent, err.Error())
-		}
-		return
 	}
 
-	if err := c.setCache(k8sConfig); err != nil {
-		if err := c.fsm.Event(UpdateFailedEvent, mgr, state); err != nil {
-			log.Warnf("send cluster fsm %s event failed %s", UpdateFailedEvent, err.Error())
+	if state.Created {
+		c.event(UpdateCompletedEvent, mgr, state)
+	} else {
+		c.KubeClient = k8sClient
+		if err := c.setCache(k8sConfig); err != nil {
+			c.event(CreateFailedEvent, mgr, state)
 		}
-		return
-	}
-
-	c.stopCh = make(chan struct{})
-	c.KubeClient = kubeClient
-	state.FullState = zkeState
-	state.IsUnvailable = false
-
-	if err := c.fsm.Event(UpdateSuccessEvent, mgr, state); err != nil {
-		log.Warnf("send cluster fsm %s event failed %s", UpdateSuccessEvent, err.Error())
+		state.Created = true
+		c.event(CreateSucceedEvent, mgr, state)
 	}
 }
 
@@ -271,9 +216,7 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("zke pannic info %s", r)
-			if err := c.fsm.Event(DeleteSuccessEvent, mgr); err != nil {
-				log.Warnf("send cluster fsm %s event failed %s", DeleteSuccessEvent, err.Error())
-			}
+			c.event(DeleteCompletedEvent, mgr, clusterState{})
 		}
 	}()
 
@@ -285,11 +228,7 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
 	}
-
-	if err := c.fsm.Event(DeleteSuccessEvent, mgr); err != nil {
-		log.Warnf("send cluster fsm %s event failed %s", DeleteSuccessEvent, err.Error())
-	}
-	return
+	c.event(DeleteCompletedEvent, mgr, clusterState{})
 }
 
 func (c *Cluster) ToTypesCluster() *types.Cluster {

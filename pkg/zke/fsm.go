@@ -4,78 +4,86 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/cement/fsm"
+	"github.com/zdnscloud/cement/log"
 )
 
 const (
-	InitSuccessEvent    = "initSuccess"
-	InitFailedEvent     = "initFailed"
-	CreateSuccessEvent  = "createSuccess"
-	CreateFailedEvent   = "createFailed"
-	UpdateEvent         = "update"
-	UpdateSuccessEvent  = "updateSuccess"
-	UpdateFailedEvent   = "updateFailed"
-	GetInfoFailedEvent  = "getInfoFailed"
-	GetInfoSuccessEvent = "getInfoSuccess"
-	CancelEvent         = "cancel"
-	CancelSuccessEvent  = "cancelSuccess"
-	DeleteEvent         = "delete"
-	DeleteSuccessEvent  = "deleteSuccess"
+	CreateSucceedEvent   = "createSucceed"
+	CreateFailedEvent    = "createFailed"
+	CreateCanceledEvent  = "createCanceled"
+	ContinuteCreateEvent = "continuteCreate"
+	UpdateEvent          = "update"
+	UpdateCompletedEvent = "updateCompleted"
+	UpdateCanceledEvent  = "updateCanceled"
+	GetInfoFailedEvent   = "getInfoFailed"
+	GetInfoSucceedEvent  = "getInfoSucceed"
+	DeleteEvent          = "delete"
+	DeleteCompletedEvent = "deleteCompleted"
 )
 
 func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM {
 	return fsm.NewFSM(
 		string(initialStatus),
 		fsm.Events{
-			{Name: InitSuccessEvent, Src: []string{string(types.CSConnecting)}, Dst: string(types.CSRunning)},
-			{Name: InitFailedEvent, Src: []string{string(types.CSConnecting)}, Dst: string(types.CSUnavailable)},
-			{Name: CreateSuccessEvent, Src: []string{string(types.CSCreateing)}, Dst: string(types.CSRunning)},
-			{Name: CreateFailedEvent, Src: []string{string(types.CSCreateing)}, Dst: string(types.CSUnavailable)},
-			{Name: UpdateEvent, Src: []string{string(types.CSRunning), string(types.CSUnavailable)}, Dst: string(types.CSUpdateing)},
-			{Name: UpdateSuccessEvent, Src: []string{string(types.CSUpdateing)}, Dst: string(types.CSRunning)},
-			{Name: UpdateFailedEvent, Src: []string{string(types.CSUpdateing)}, Dst: string(types.CSUnavailable)},
+			{Name: CreateSucceedEvent, Src: []string{string(types.CSCreating)}, Dst: string(types.CSRunning)},
+			{Name: CreateFailedEvent, Src: []string{string(types.CSCreating)}, Dst: string(types.CSCreateFailed)},
+			{Name: CreateCanceledEvent, Src: []string{string(types.CSCreating)}, Dst: string(types.CSCreateFailed)},
+			{Name: ContinuteCreateEvent, Src: []string{string(types.CSCreateFailed)}, Dst: string(types.CSCreating)},
+			{Name: UpdateEvent, Src: []string{string(types.CSRunning)}, Dst: string(types.CSUpdating)},
+			{Name: UpdateCompletedEvent, Src: []string{string(types.CSUpdating)}, Dst: string(types.CSRunning)},
+			{Name: UpdateCanceledEvent, Src: []string{string(types.CSUpdating)}, Dst: string(types.CSRunning)},
 			{Name: GetInfoFailedEvent, Src: []string{string(types.CSRunning)}, Dst: string(types.CSUnreachable)},
-			{Name: GetInfoSuccessEvent, Src: []string{string(types.CSUnreachable)}, Dst: string(types.CSRunning)},
-			{Name: CancelEvent, Src: []string{string(types.CSUpdateing), string(types.CSCreateing), string(types.CSConnecting)}, Dst: string(types.CSCanceling)},
-			{Name: CancelSuccessEvent, Src: []string{string(types.CSCanceling)}, Dst: string(types.CSUnavailable)},
-			{Name: DeleteEvent, Src: []string{string(types.CSRunning), string(types.CSUnreachable), string(types.CSUnavailable)}, Dst: string(types.CSDeleting)},
-			{Name: DeleteSuccessEvent, Src: []string{string(types.CSDeleting)}, Dst: string(types.CSDeleted)},
+			{Name: GetInfoSucceedEvent, Src: []string{string(types.CSUnreachable)}, Dst: string(types.CSRunning)},
+			{Name: DeleteEvent, Src: []string{string(types.CSRunning), string(types.CSCreateFailed), string(types.CSUnreachable)}, Dst: string(types.CSDeleting)},
+			{Name: DeleteCompletedEvent, Src: []string{string(types.CSDeleting)}, Dst: string(types.CSDeleted)},
 		},
 		fsm.Callbacks{
-			InitSuccessEvent: func(e *fsm.Event) {
-				mgr := e.Args[0].(*ZKEManager)
-				cluster.logCh = nil
-				mgr.SendEvent(AddCluster{Cluster: cluster})
-			},
-			CreateSuccessEvent: func(e *fsm.Event) {
+			CreateSucceedEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				cluster.logCh = nil
-				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable())
+				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
+					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
+				}
 				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
 			CreateFailedEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
-				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable())
+				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
+					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
+				}
 			},
-			UpdateSuccessEvent: func(e *fsm.Event) {
-				mgr := e.Args[0].(*ZKEManager)
-				state := e.Args[1].(clusterState)
-				cluster.logCh = nil
-				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable())
-				mgr.SendEvent(AddCluster{Cluster: cluster})
-			},
-			CancelSuccessEvent: func(e *fsm.Event) {
+			CreateCanceledEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				cluster.isCanceled = false
-				createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable())
-				cluster.setUnavailable(mgr.GetDBTable())
+				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
+					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
+				}
 			},
-			DeleteSuccessEvent: func(e *fsm.Event) {
+			UpdateCompletedEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ZKEManager)
+				state := e.Args[1].(clusterState)
+				cluster.logCh = nil
+				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
+					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
+				}
+			},
+			UpdateCanceledEvent: func(e *fsm.Event) {
+				mgr := e.Args[0].(*ZKEManager)
+				state := e.Args[1].(clusterState)
+				cluster.isCanceled = false
+				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
+					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
+				}
+			},
+			DeleteCompletedEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				mgr.Remove(cluster)
-				deleteClusterFromDB(cluster.Name, mgr.GetDBTable())
+				if err := deleteClusterFromDB(cluster.Name, mgr.GetDBTable()); err != nil {
+					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
+				}
 			},
 		},
 	)

@@ -20,7 +20,7 @@ type clusterState struct {
 	*core.FullState  `json:",inline"`
 	*types.ZKEConfig `json:",inline"`
 	CreateTime       time.Time `json:"createTime"`
-	IsUnvailable     bool      `json:"isUnvailable"`
+	Created          bool      `json:"created"`
 	ScVersion        string    `json:"zcloudVersion"`
 }
 
