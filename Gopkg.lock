@@ -616,7 +616,7 @@
   revision = "89eeea17b1b41d16b8ec2cda9783ad2a34a404b9"
 
 [[projects]]
-  branch = "add-resourcedoc"
+  branch = "master"
   digest = "1:0d5860a6244227d825d90b4c3140d0c0463574ff8dcf7518f2f3af33c7b72ad5"
   name = "github.com/zdnscloud/gorest"
   packages = [
@@ -1159,6 +1159,7 @@
     "github.com/gin-gonic/gin",
     "github.com/gorilla/websocket",
     "github.com/kyokomi/emoji",
+    "github.com/zdnscloud/cement/configure",
     "github.com/zdnscloud/cement/fsm",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",
