@@ -502,12 +502,11 @@
   version = "v1.1.7"
 
 [[projects]]
-  digest = "1:ca4df663ad76879ad38dbd736493679cbb1aa596c6d479fd9fc5e959e5ceb4fb"
+  digest = "1:b24d38b282bacf9791408a080f606370efa3d364e4b5fd9ba0f7b87786d3b679"
   name = "github.com/urfave/cli"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e6cf83ec39f6e1158ced1927d4ed14578fda8edb"
-  version = "v1.21.0"
+  revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
 
 [[projects]]
   branch = "master"
@@ -660,7 +659,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b4298a1dc833b585f93e9df187783b0840f2fc82370a2c30d298b01f78ba9446"
+  digest = "1:e08bad7402f6165b1c25671d61aa2ba36cb7ee688856647a80b98f52fc29b9e8"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -689,7 +688,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "a26bdb6505d01060761d7fffd8b84b0744fc533a"
+  revision = "365f5019f6f8ad64de2bf4b586c011ba605e67a5"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
