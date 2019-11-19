@@ -1,21 +1,12 @@
 {
     "resourceType": "fluentbitconfig",
     "collectionName": "fluentbitconfigs",
-    "parentResources": [ "cluster" ],
+    "parentResources": [ "deployment", "daemonset", "statefulset" ],
 
     "resourceFields": {
-        "workload": {"type": "workloadConf"},  
         "regexp": {"type": "string"},
         "timeKey": {"type": "string"},
         "timeFormat": {"type": "string"}
-    },
-
-    "subResources": {
-        "workloadConf": {
-            "namespace": {"type": "string"},
-            "kind": {"type": "string"}, 
-            "name": {"type": "string"}
-        }
     },
 
     "resourceMethods": [ "GET", "PUT", "DELETE" ],
@@ -23,32 +14,16 @@
 
     "postParameters": {
         "fields": {
-            "workload": {"type": "workloadConf"},  
             "regexp": {"type": "string"},
             "timeKey": {"type": "string"},
             "timeFormat": {"type": "string"}
-        },
-        "subResources": {
-            "workloadConf": {
-                "namespace": {"type": "string"},
-                "kind": {"type": "string"}, 
-                "name": {"type": "string"}
-            }
         }
     },
     "putParameters": {
         "fields": {
-            "workload": {"type": "workloadConf"},  
             "regexp": {"type": "string"},
             "timeKey": {"type": "string"},
             "timeFormat": {"type": "string"}
-        },
-        "subResources": {
-            "workloadConf": {
-                "namespace": {"type": "string"},
-                "kind": {"type": "string"}, 
-                "name": {"type": "string"}
-            }
         }
     }
 }
