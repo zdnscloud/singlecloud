@@ -1,53 +1,101 @@
 {
-    "resourceType":"storagecluster",
-    "collectionName":"storageclusters",
-    "parentResources": [ "cluster" ],
-
-    "resourceFields":{
-        "storageType":{"type":"enum", "validValues": ["lvm", "cephfs"]},
-        "hosts":{"type":"array","elemType":"string"},
-        "phase":{"type":"string"},
-        "size":{"type":"string"},
-        "usedSize":{"type":"string"},
-        "freeSize":{"type":"string"},
-        "nodes":{"type":"array","elemType":"storagenode"},
-        "pvs":{"type":"array","elemType":"storagepv"}
+  "resourceType": "storagecluster",
+  "collectionName": "storageclusters",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "StorageCluster",
+  "resourceFields": {
+    "freeSize": {
+      "type": "string"
     },
-    "subResources":{
-        "storagenode":{
-            "name":{"type":"string"},
-            "size":{"type":"string"},
-            "usedSize":{"type":"string"},
-            "freeSize":{"type":"string"},
-            "stat":{"type":"bool"}
-        },
-        "storagepv":{
-            "name":{"type":"string"},
-            "size":{"type":"string"},
-            "usedSize":{"type":"string"},
-            "freeSize":{"type":"string"},
-            "pods":{"type":"array","elemType":"storagepod"},
-            "node":{"type":"string"}
-        },
-        "storagepod":{
-            "name":{"type":"string"}
-        },
-        "storagedev":{
-            "name":{"type":"string"},
-            "size":{"type":"string"}
-        }
+    "hosts": {
+      "type": "array",
+      "elemType": "string",
+      "description": [
+        "required"
+      ]
     },
-    "resourceMethods":["GET","PUT","DELETE"],
-    "collectionMethods":["POST","GET"],
-    "postParameters":{
-        "fields":{
-            "storagetype":{"type":"enum", "validValues": ["lvm", "cephfs"], "required": true},
-            "hosts":{"type":"array","elemType":"string", "required": true}
-        }
+    "nodes": {
+      "type": "array",
+      "elemType": "storageNode"
     },
-    "putParameters":{
-        "fields":{
-            "hosts":{"type":"array","elemType":"string", "required": true}
-        }
+    "phase": {
+      "type": "string"
+    },
+    "pvs": {
+      "type": "array",
+      "elemType": "pV"
+    },
+    "size": {
+      "type": "string"
+    },
+    "storageType": {
+      "type": "enum",
+      "validValues": [
+        "lvm",
+        "cephfs"
+      ],
+      "description": [
+        "required"
+      ]
+    },
+    "usedSize": {
+      "type": "string"
     }
+  },
+  "subResources": {
+    "pV": {
+      "freeSize": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "node": {
+        "type": "string"
+      },
+      "pods": {
+        "type": "array",
+        "elemType": "storagePod"
+      },
+      "size": {
+        "type": "string"
+      },
+      "usedSize": {
+        "type": "string"
+      }
+    },
+    "storageNode": {
+      "freeSize": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "size": {
+        "type": "string"
+      },
+      "stat": {
+        "type": "bool"
+      },
+      "usedSize": {
+        "type": "string"
+      }
+    },
+    "storagePod": {
+      "name": {
+        "type": "string"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

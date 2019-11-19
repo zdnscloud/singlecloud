@@ -1,33 +1,43 @@
 {
-    "resourceType": "resourcequota",
-    "collectionName": "resourcequotas",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "limits": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-        "status": {"type": "array", "type": "resourceQuotaStatus"}
+  "resourceType": "resourcequota",
+  "collectionName": "resourcequotas",
+  "parentResources": [
+    "namespace"
+  ],
+  "goStructName": "ResourceQuota",
+  "resourceFields": {
+    "limits": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string"
     },
-
-    "subResources": {
-        "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory", "requests.storage"]},
-        "resourceQuotaStatus": {
-            "limits": {"type": "resourceList"},
-            "used": {"type": "resourceList"}
-        }
+    "name": {
+      "type": "string"
     },
-
-    "resourceMethods": [ "GET", "DELETE" ],
-    "collectionMethods": [ "GET", "POST"],
-
-    "postParameters": {
-        "fields": {
-            "name": {"type": "string", "required": true},
-            "limits": {"type": "map", "keyType": "resourceName", "valueType": "string"}
-        },
-
-        "subResources": {
-            "resourceName": { "type": "enum", "validValues": ["requests.cpu", "requests.memory", "limits.cpu", "limits.memory", "requests.storage"]}
-        }
+    "status": {
+      "type": "resourceQuotaStatus"
     }
+  },
+  "subResources": {
+    "resourceQuotaStatus": {
+      "limits": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "string"
+      },
+      "used": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "string"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

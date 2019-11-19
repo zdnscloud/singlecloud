@@ -1,12 +1,19 @@
 {
-    "resourceType": "nodenetwork",
-    "collectionName": "nodenetworks",
-    "parentResources": [ "cluster" ],
-
-    "resourceFields": {
-         "name": {"type":"string"},
-         "ip": {"type":"string"}
+  "resourceType": "nodenetwork",
+  "collectionName": "nodenetworks",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "NodeNetwork",
+  "resourceFields": {
+    "ip": {
+      "type": "string"
     },
-
-    "collectionMethods": [ "GET" ]
+    "name": {
+      "type": "string"
+    }
+  },
+  "collectionMethods": [
+    "GET"
+  ]
 }

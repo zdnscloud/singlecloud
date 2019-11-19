@@ -1,24 +1,45 @@
 {
-    "resourceType": "persistentvolume",
-    "collectionName": "persistentvolumes",
-    "parentResources": [ "cluster" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "storageSize": {"type": "string"},
-        "storageClassName": {"type": "string"},
-        "claimRef": {"type": "claimRef"},
-        "status": {"type": "enum", "validValues": ["Pending", "Bound", "Available", "Released", "Failed"]}
+  "resourceType": "persistentvolume",
+  "collectionName": "persistentvolumes",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "PersistentVolume",
+  "resourceFields": {
+    "claimRef": {
+      "type": "claimRef"
     },
-
-    "subResources": {
-        "claimRef": {
-            "kind": {"type": "string"},
-            "name": {"type": "string"},
-            "namespace": {"type": "string"}
-        }
+    "name": {
+      "type": "string"
     },
-
-    "resourceMethods": [ "GET", "DELETE" ],
-    "collectionMethods": [ "GET" ]
+    "status": {
+      "type": "string"
+    },
+    "storageClassName": {
+      "type": "string"
+    },
+    "storageSize": {
+      "type": "string"
+    }
+  },
+  "subResources": {
+    "claimRef": {
+      "name": {
+        "type": "string"
+      },
+      "namespace": {
+        "type": "string"
+      },
+      "string": {
+        "type": "string"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET"
+  ]
 }

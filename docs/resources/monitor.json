@@ -1,59 +1,46 @@
 {
-    "resourceType": "monitor",
-    "collectionName": "monitors",
-    "parentResources": ["cluster"],
-
-    "resourceFields": {
-        "ingressDomain": {
-            "type": "string"
-        },
-        "storageClass": {
-            "type": "enum",
-            "validValues": ["cephfs", "lvm"]
-        },
-        "storageSize": {
-            "type": "int"
-        },
-        "prometheusRetention": {
-            "type": "int"
-        },
-        "scrapeInterval": {
-            "type": "int"
-        },
-        "adminPassword": {
-            "type": "string"
-        },
-        "redirectUrl": {
-            "type": "string"
-        },
-        "status": {
-            "type": "enum",
-            "validValues": ["create", "succeed"]
-        }
+  "resourceType": "monitor",
+  "collectionName": "monitors",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "Monitor",
+  "resourceFields": {
+    "adminPassword": {
+      "type": "string"
     },
-    "resourceMethods": ["GET"],
-    "collectionMethods": ["GET", "POST"],
-    "postParameters": {
-        "fields": {
-            "ingressDomain": {
-                "type": "string"
-            },
-            "storageClass": {
-                "type": "enum",
-                "validValues": ["cephfs", "lvm"]
-            },
-            "storageSize": {
-                "type": "int"
-            },
-            "prometheusRetention": {
-                "type": "int"
-            },
-            "scrapeInterval": {
-                "type": "int"
-            },
-            "adminPassword": {
-                "type": "string"
-            }
-        }
+    "ingressDomain": {
+      "type": "string"
+    },
+    "prometheusRetention": {
+      "type": "int"
+    },
+    "redirectUrl": {
+      "type": "string"
+    },
+    "scrapeInterval": {
+      "type": "int"
+    },
+    "status": {
+      "type": "string"
+    },
+    "storageClass": {
+      "type": "enum",
+      "validValues": [
+        "lvm",
+        "cephfs"
+      ]
+    },
+    "storageSize": {
+      "type": "int"
     }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

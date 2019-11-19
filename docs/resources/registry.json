@@ -1,47 +1,40 @@
 {
-    "resourceType": "registry",
-    "collectionName": "registries",
-    "parentResources": ["cluster"],
-
-    "resourceFields": {
-        "ingressDomain": {
-            "type": "string"
-        },
-        "storageClass": {
-            "type": "enum",
-            "validValues": ["cephfs", "lvm"]
-        },
-        "storageSize": {
-            "type": "int"
-        },
-        "adminPassword": {
-            "type": "string"
-        },
-        "redirectUrl": {
-            "type": "string"
-        },
-        "status": {
-            "type": "enum",
-            "validValues": ["create", "succeed"]
-        }
+  "resourceType": "registry",
+  "collectionName": "registries",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "Registry",
+  "resourceFields": {
+    "adminPassword": {
+      "type": "string"
     },
-    "resourceMethods": ["GET"],
-    "collectionMethods": ["GET", "POST"],
-    "postParameters": {
-        "fields": {
-            "ingressDomain": {
-                "type": "string"
-            },
-            "storageClass": {
-                "type": "enum",
-                "validValues": ["cephfs", "lvm"]
-            },
-            "storageSize": {
-                "type": "int"
-            },
-            "adminPassword": {
-                "type": "string"
-            }
-        }
+    "ingressDomain": {
+      "type": "string"
+    },
+    "redirectUrl": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "storageClass": {
+      "type": "enum",
+      "validValues": [
+        "lvm",
+        "cephfs"
+      ]
+    },
+    "storageSize": {
+      "type": "int"
     }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }
