@@ -72,7 +72,6 @@ func genGoTmpfileAndRunIt(resourcesName []string, targetPath string) error {
 		os.Remove(tmpFile.Name())
 	}()
 
-	buf := new(bytes.Buffer)
 	tp := template.Must(template.New("compiled_template").Parse(goTemp))
 	conf := struct {
 		TargetPath string
@@ -81,6 +80,7 @@ func genGoTmpfileAndRunIt(resourcesName []string, targetPath string) error {
 		targetPath,
 		resourcesName,
 	}
+	buf := new(bytes.Buffer)
 	if err := tp.Execute(buf, conf); err != nil {
 		return fmt.Errorf("generate go file failed, %v", err)
 	}
