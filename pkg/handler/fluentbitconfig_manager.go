@@ -6,8 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
-	"reflect"
 	"strings"
 	"text/template"
 
@@ -35,7 +33,7 @@ const (
 const (
 	InstanceConfTemp = `[INPUT]
     Name              tail
-    Tag               InstanceName.*
+    Tag               InstanceName
     Path              /var/log/containers/LogName*.log
     Parser            docker
     DB                /var/log/flb_DBPath.db
@@ -44,13 +42,13 @@ const (
     Refresh_Interval  10
 [FILTER]
     Name                parser
-    Match               InstanceName.*
+    Match               InstanceName
     Parser              InstanceName
     Key_Name            log
     Reserve_Data        On
 [OUTPUT]
     Name            es
-    Match           InstanceName.*
+    Match           InstanceName
     Host            ElasticsearchSvcName
     Port            ElasticsearchSvcPort
     Logstash_Format On
@@ -81,8 +79,9 @@ func (m *FluentBitConfigManager) Create(ctx *resource.Context) (resource.Resourc
 	if cluster == nil {
 		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
-
 	conf := ctx.Resource.(*types.FluentBitConfig)
+	replenishConf(ctx, conf)
+
 	cm, err := getFluentBitConfigMap(cluster.KubeClient)
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
@@ -99,8 +98,9 @@ func (m *FluentBitConfigManager) Update(ctx *resource.Context) (resource.Resourc
 	if cluster == nil {
 		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
 	}
-
 	conf := ctx.Resource.(*types.FluentBitConfig)
+	replenishConf(ctx, conf)
+
 	cm, err := getFluentBitConfigMap(cluster.KubeClient)
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
@@ -117,11 +117,15 @@ func (m *FluentBitConfigManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
+	namespace := ctx.Resource.GetParent().GetParent().GetID()
+	ownerType := ctx.Resource.GetParent().GetType()
+	ownerName := ctx.Resource.GetParent().GetID()
+
 	cm, err := getFluentBitConfigMap(cluster.KubeClient)
 	if err != nil {
 		log.Warnf("list fluent-bit config failed %s", err.Error())
 	}
-	fbConfs, err := getConfigs(cluster.KubeClient, cm)
+	fbConfs, err := getConfigs(cluster.KubeClient, cm, namespace, ownerType, ownerName)
 	if err != nil {
 		log.Warnf("list fluent-bit config failed %s", err.Error())
 	}
@@ -134,6 +138,8 @@ func (m FluentBitConfigManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 	conf := ctx.Resource.(*types.FluentBitConfig)
+	replenishConf(ctx, conf)
+
 	cm, err := getFluentBitConfigMap(cluster.KubeClient)
 	if err != nil {
 		log.Warnf("get fluent-bit config %s failed %s", conf.GetID(), err.Error())
@@ -161,6 +167,12 @@ func (m FluentBitConfigManager) Delete(ctx *resource.Context) *resterror.APIErro
 	return nil
 }
 
+func replenishConf(ctx *resource.Context, conf *types.FluentBitConfig) {
+	conf.Namespace = ctx.Resource.GetParent().GetParent().GetID()
+	conf.OwnerType = ctx.Resource.GetParent().GetType()
+	conf.OwnerName = ctx.Resource.GetParent().GetID()
+}
+
 func getFluentBitConfigMap(cli client.Client) (corev1.ConfigMap, error) {
 	cms := corev1.ConfigMapList{}
 	if err := cli.List(context.TODO(), &client.ListOptions{Namespace: FluentBitConfigMapNamespace}, &cms); err != nil {
@@ -183,7 +195,7 @@ func isFluentBitConfigExist(cli client.Client, conf *types.FluentBitConfig, cm c
 }
 
 func createConfig(cli client.Client, conf *types.FluentBitConfig, cm corev1.ConfigMap) error {
-	conf.Name = conf.Workload.Namespace + "_" + conf.Workload.Kind + "_" + conf.Workload.Name
+	conf.Name = conf.Namespace + "_" + conf.OwnerType + "_" + conf.OwnerName
 	if isFluentBitConfigExist(cli, conf, cm) {
 		return errors.New(fmt.Sprintf("fluent-bit config name %s has already exists", conf.Name))
 	}
@@ -208,19 +220,14 @@ func createConfig(cli client.Client, conf *types.FluentBitConfig, cm corev1.Conf
 	return cli.Update(context.TODO(), &cm)
 }
 
-func getConfigs(cli client.Client, cm corev1.ConfigMap) ([]*types.FluentBitConfig, error) {
+func getConfigs(cli client.Client, cm corev1.ConfigMap, namespace, ownerType, ownerName string) ([]*types.FluentBitConfig, error) {
 	var confs []*types.FluentBitConfig
-	instances := getInstances(cli, cm)
-	for _, instance := range instances {
-		if instance == "alllog" {
-			continue
-		}
-		conf, err := getConfig(cli, instance, cm)
-		if err != nil {
-			return confs, err
-		}
-		confs = append(confs, conf)
+	name := namespace + "_" + ownerType + "_" + ownerName
+	conf, err := getConfig(cli, name, cm)
+	if err != nil {
+		return confs, err
 	}
+	confs = append(confs, conf)
 	return confs, nil
 }
 
@@ -237,19 +244,7 @@ func getConfig(cli client.Client, name string, cm corev1.ConfigMap) (*types.Flue
 		conf.Time_Key = timeKey
 		conf.Time_Format = timeFormat
 	}
-	instanceFileName := name + ".conf"
-	instanceConf, ok := cm.Data[instanceFileName]
-	if ok {
-		namespace, kind, workloadName, err := getDBPath(instanceConf)
-		if err != nil {
-			return &conf, err
-		}
-		conf.Workload = types.WorkloadConf{
-			Namespace: namespace,
-			Kind:      kind,
-			Name:      workloadName,
-		}
-	}
+	conf.Name = name
 	return &conf, nil
 }
 
@@ -303,11 +298,6 @@ func updateConfig(cli client.Client, conf *types.FluentBitConfig, cm corev1.Conf
 			cm.Data[FluentBitConfigParsersFileName] = newPaConf
 		}
 	}
-	if !reflect.DeepEqual(oldConf.Workload, conf.Workload) {
-		instanceFileName := conf.Name + ".conf"
-		delete(cm.Data, instanceFileName)
-		cm.Data[instanceFileName] = genInstanceFile(conf)
-	}
 	return cli.Update(context.TODO(), &cm)
 }
 
@@ -346,8 +336,8 @@ func updateParserFile(conf *types.FluentBitConfig, oldPaConf, action string) (st
 }
 
 func genInstanceFile(conf *types.FluentBitConfig) string {
-	LogName := conf.Workload.Name + "*_" + conf.Workload.Namespace + "_"
-	DBPath := conf.Workload.Namespace + "_" + conf.Workload.Kind + "_" + conf.Workload.Name
+	LogName := conf.OwnerName + "*_" + conf.Namespace + "_"
+	DBPath := conf.Namespace + "_" + conf.OwnerType + "_" + conf.OwnerName
 	instanceConf := InstanceConfTemp
 	instanceConf = strings.Replace(instanceConf, "InstanceName", conf.Name, -1)
 	instanceConf = strings.Replace(instanceConf, "LogName", LogName, -1)
@@ -400,22 +390,6 @@ func getRegex(paConf, name string) (string, string, string, error) {
 		}
 	}
 	return regex, timeKey, timeFormat, nil
-}
-
-func getDBPath(instanceConf string) (string, string, string, error) {
-	var namespace, kind, name string
-	conf, err := ForMat("INPUT", instanceConf)
-	if err != nil {
-		return namespace, kind, name, err
-	}
-	dbPtah, ok := conf["DB"]
-	if ok {
-		ps := strings.Split(path.Base(dbPtah), "_")
-		namespace = ps[1]
-		kind = ps[2]
-		name = strings.Split(ps[3], ".")[0]
-	}
-	return namespace, kind, name, nil
 }
 
 func ForMat(section, data string) (map[string]string, error) {

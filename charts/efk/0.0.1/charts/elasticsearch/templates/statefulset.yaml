@@ -223,7 +223,7 @@ spec:
                     http "/"
                 else
                     echo 'Waiting for elasticsearch cluster to become cluster to be ready (request params: "{{ .Values.clusterHealthCheckParams }}" )'
-                    if [ http "/_cluster/health?{{ .Values.clusterHealthCheckParams }}" ] || [ http "/_cluster/health?wait_for_status=yellow&timeout=1s" ] ; then
+                    if http "/_cluster/health?{{ .Values.clusterHealthCheckParams }}" || http "/_cluster/health?wait_for_status=yellow&timeout=1s" ; then
                         touch ${START_FILE}
                         exit 0
                     else
