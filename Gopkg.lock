@@ -677,7 +677,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0e81eba94edcb7b0830855ba2fb58636b186a3c0452f6c8516bcc27b7b839b20"
+  digest = "1:42c9d6c0c852343bad9b4d63e5cf13ea8f04b4f41e1d25cc5d2fad90c8ab50bf"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -706,7 +706,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "06eef327d662587e6d3cd29b110e94be8dea86d9"
+  revision = "d04493861ba4790affa1d7679264a99c4c6c5c5d"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -1215,23 +1215,15 @@
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
-    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
-    "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/validation",
-    "k8s.io/apimachinery/pkg/util/wait",
-    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
-    "k8s.io/client-go/tools/cache",
-    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/remotecommand",
-    "k8s.io/client-go/util/workqueue",
-    "k8s.io/klog",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"

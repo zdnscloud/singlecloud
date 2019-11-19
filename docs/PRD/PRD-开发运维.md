@@ -229,7 +229,7 @@ POD数：显示用户空间内使用的pod资源占集群总POD资源的百分�
 
 **app资源的子资源状态**
 
-在app资源列表中，需要显示workload（deployment,statefulset,daemonset）的总数与ready数。例如一个app资源包含一个deployment，2个statefulset，那么app资源显示的子资源总数为3，当一个workload状态变成ready后，app子资源的ready数加1。
+在app资源列表中，需要显示workload（deployment,statefulset,daemonset）的总数与ready数。例如一个app资源包含一个deployment，2个statefulset，那么app资源显示的子资源总数为3，当一个workload所有POD状态变成ready后，app子资源的ready数加1。
 
 **删除**
 
@@ -392,13 +392,15 @@ deployment创建需要支持以下设置：
 
 #### **4.7.4.10**      保密字典
 
-#### **4.7.4.11**    HPA(自动伸缩)
+#### **4.7.4.11**    HPA资源(自动伸缩)
 
 支持两种指标的配置：资源、自定义
 
-按资源自动伸缩，支持CPU与内存，指标可以是值，也可以是使用率，或者是平均值。
+按资源自动伸缩：支持CPU与内存，指标只支持使用率。
 
-按自定义指标伸缩，支持用户的自定义指标，指标可以是值，或者是平均值。
+按自定义指标伸缩：支持用户的自定义指标，指标可以是值，或者是平均值。
+
+对于自定义指标，应用需要提供metrics接口获取指标数据。或者由第三方软件提供指标数据。比如ETL应用程序，可能会由于作业队列长度超过某个阈值而触发自动缩放，比如由linkerd获取的应用http请求数超过某个阈值而触发自动缩放。
 
 ### **4.7.5**    业务数据描述
 

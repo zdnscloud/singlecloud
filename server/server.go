@@ -3,7 +3,7 @@ package server
 import (
 	"fmt"
 	"os"
-	//"time"
+	"time"
 
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
@@ -23,8 +23,8 @@ func NewServer(middlewares ...gin.HandlerFunc) (*Server, error) {
 	gin.DefaultWriter = os.Stdout
 	router := gin.New()
 	router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-		return fmt.Sprintf("[%s] client:%s \"%s %s\" proto:%s status:%d latency:%s agent:%s errMsg:\"%s\"\n",
-			param.TimeStamp.Format("15:04 01/02/06"),
+		return fmt.Sprintf("[%s] client:%s \"%s %s\" %s %d %s %s\n",
+			param.TimeStamp.Format(time.RFC3339),
 			param.ClientIP,
 			param.Method,
 			param.Path,
@@ -32,7 +32,6 @@ func NewServer(middlewares ...gin.HandlerFunc) (*Server, error) {
 			param.StatusCode,
 			param.Latency,
 			param.Request.UserAgent(),
-			param.ErrorMessage,
 		)
 	}))
 	router.Use(static.Serve("/assets", static.LocalFile("/www", false)))
