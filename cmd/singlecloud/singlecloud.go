@@ -45,18 +45,20 @@ func main() {
 	log.InitLogger(log.Debug)
 
 	if showVersion {
-		fmt.Printf("singlecloud %s (build at %s)\n", version, build)
+		log.Infof("singlecloud %s (build at %s)\n", version, build)
 		return
 	}
+
 	if genConfFile {
 		if err := genInitConfig(); err != nil {
-			panic("generate initial configure file failed:" + err.Error())
+			log.Fatalf("generate initial configure file failed:%s", err.Error())
 		}
 		return
 	}
+
 	conf, err := config.LoadConfig(configFile)
 	if err != nil {
-		panic("load configure file failed:" + err.Error())
+		log.Fatalf("load configure file failed:%s", err.Error())
 	}
 
 	if conf.DB.Role == config.Master {
