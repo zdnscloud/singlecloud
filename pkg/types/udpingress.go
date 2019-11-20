@@ -4,14 +4,14 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
-type UdpIngress struct {
+type UDPIngress struct {
 	resource.ResourceBase `json:",inline"`
 	Port                  int    `json:"port,omitempty"`
 	ServiceName           string `json:"serviceName"`
 	ServicePort           int    `json:"servicePort"`
 }
 
-func (u UdpIngress) GetParents() []resource.ResourceKind {
+func (u UDPIngress) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 

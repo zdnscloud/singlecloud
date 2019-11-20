@@ -1,47 +1,36 @@
 {
-    "resourceType": "efk",
-    "collectionName": "efks",
-    "parentResources": ["cluster"],
-
-    "resourceFields": {
-        "ingressDomain": {
-            "type": "string"
-        },
-        "storageClass": {
-            "type": "enum",
-            "validValues": ["cephfs", "lvm"]
-        },
-        "storageSize": {
-            "type": "int"
-        },
-        "esReplicas": {
-            "type": "int"
-        },
-        "redirectUrl": {
-            "type": "string"
-        },
-        "status": {
-            "type": "enum",
-            "validValues": ["create", "succeed"]
-        }
+  "resourceType": "efk",
+  "collectionName": "efks",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "EFK",
+  "resourceFields": {
+    "esReplicas": {
+      "type": "int"
     },
-    "resourceMethods": ["GET"],
-    "collectionMethods": ["GET", "POST"],
-    "postParameters": {
-        "fields": {
-            "ingressDomain": {
-                "type": "string"
-            },
-            "storageClass": {
-                "type": "enum",
-                "validValues": ["cephfs", "lvm"]
-            },
-            "storageSize": {
-                "type": "int"
-            },
-            "esReplicas": {
-                "type": "int"
-            }
-        }
+    "ingressDomain": {
+      "type": "string"
+    },
+    "redirectUrl": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "storageClass": {
+      "type": "string"
+    },
+    "storageSize": {
+      "type": "int"
     }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

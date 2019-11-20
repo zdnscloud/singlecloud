@@ -1,70 +1,89 @@
 {
-    "resourceType": "node",
-    "collectionName": "nodes",
-    "parentResources": ["cluster"],
-
-    "resourceFields": {
-        "name": {
-            "type": "string"
-        },
-        "address": {
-            "type": "string"
-        },
-        "status": {
-            "type": "string"
-        },
-        "roles": {
-            "type": "array",
-            "elemType": "string"
-        },
-        "labels": {
-            "type": "map",
-            "keyType": "string",
-            "valueType": "string"
-        },
-        "annotations": {
-            "type": "map",
-            "keyType": "string",
-            "valueType": "string"
-        },
-        "operatingSystem": {
-            "type": "string"
-        },
-        "operatingSystemImage": {
-            "type": "string"
-        },
-        "dockerVersion": {
-            "type": "string"
-        },
-        "cpu": {
-            "type": "int"
-        },
-        "cpuUsed": {
-            "type": "int"
-        },
-        "cpuUsedRatio": {
-            "type": "string"
-        },
-        "memory": {
-            "type": "int"
-        },
-        "memoryUsed": {
-            "type": "int"
-        },
-        "memoryUsedRatio": {
-            "type": "string"
-        },
-        "pod": {
-            "type": "int"
-        },
-        "podUsed": {
-            "type": "int"
-        },
-        "podUsedRatio": {
-            "type": "string"
-        }
+  "resourceType": "node",
+  "collectionName": "nodes",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "Node",
+  "resourceFields": {
+    "address": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
-
-    "resourceMethods": ["GET"],
-    "collectionMethods": ["GET"]
+    "annotations": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string"
+    },
+    "cpu": {
+      "type": "int"
+    },
+    "cpuUsed": {
+      "type": "int"
+    },
+    "cpuUsedRatio": {
+      "type": "string"
+    },
+    "dockerVersion": {
+      "type": "string"
+    },
+    "labels": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string"
+    },
+    "memory": {
+      "type": "int"
+    },
+    "memoryUsed": {
+      "type": "int"
+    },
+    "memoryUsedRatio": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
+    },
+    "operatingSystem": {
+      "type": "string"
+    },
+    "operatingSystemImage": {
+      "type": "string"
+    },
+    "pod": {
+      "type": "int"
+    },
+    "podUsed": {
+      "type": "int"
+    },
+    "podUsedRatio": {
+      "type": "string"
+    },
+    "roles": {
+      "type": "enum",
+      "validValues": [
+        "controlplane",
+        "etcd",
+        "worker",
+        "edge"
+      ],
+      "description": [
+        "required"
+      ]
+    },
+    "status": {
+      "type": "string"
+    }
+  },
+  "resourceMethods": [
+    "GET"
+  ],
+  "collectionMethods": [
+    "GET"
+  ]
 }
