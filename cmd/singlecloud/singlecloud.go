@@ -99,7 +99,21 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("create server failed:%s", err.Error())
 	}
 
+	watcher := k8seventwatcher.New(eventBus)
+	if err := server.RegisterHandler(watcher); err != nil {
+		log.Fatalf("register k8s event watcher failed:%s", err.Error())
+	}
+
+	shellExecutor := k8sshell.New(eventBus)
+	if err := server.RegisterHandler(shellExecutor); err != nil {
+		log.Fatalf("register shell executor failed:%s", err.Error())
+	}
+
 	agent := clusteragent.New()
+	if err := server.RegisterHandler(agent); err != nil {
+		log.Fatalf("register agent failed:%s", err.Error())
+	}
+
 	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, conf.Chart.Path, version, conf.Chart.Repo, conf.Registry)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
@@ -111,18 +125,6 @@ func runAsMaster(conf *config.SinglecloudConf) {
 
 	if err := server.RegisterHandler(app); err != nil {
 		log.Fatalf("register resource handler failed:%s", err.Error())
-	}
-
-	watcher := k8seventwatcher.New(eventBus)
-	if err := server.RegisterHandler(watcher); err != nil {
-		log.Fatalf("register k8s event watcher failed:%s", err.Error())
-	}
-	if err := server.RegisterHandler(agent); err != nil {
-		log.Fatalf("register agent failed:%s", err.Error())
-	}
-	shellExecutor := k8sshell.New(eventBus)
-	if err := server.RegisterHandler(shellExecutor); err != nil {
-		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
 	if conf.DB.SlaveDBAddr != "" {
