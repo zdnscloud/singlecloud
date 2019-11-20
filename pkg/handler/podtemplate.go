@@ -34,7 +34,7 @@ const (
 	AnnKeyForConfigHashAnnotation        = "zcloud.cn/config-hash"
 	AnnkeyForDeletePVsWhenDeleteWorkload = "zcloud_delete_pvs_when_delete_workload"
 
-	DefaultRequestCPU    = "20m"
+	DefaultRequestCPU    = "10m"
 	DefaultRequestMemory = "20Mi"
 )
 
