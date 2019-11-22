@@ -78,6 +78,50 @@ Zcloud所有资源全部是异步删除，用户列表无状态（用户被删�
 
 对于删除失败的资源，可以再次删除。删除失败当前页面资源下方使用红色小子提示，同时写入Zcloud平台事件。
 
+## 3.2 负载联动
+
+外部负载需求
+
+K8s包含三种类型的服务：ClusterIP、[NodePort](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#nodeport)、[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)。
+
+Ø **ClusterIP**：通过集群的内部 IP 暴露服务，服务只能够在集群内部可以访问。
+
+Ø [**NodePort**](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#nodeport)**：**通过每个 Node 上的 IP 和静态端口暴露服务。NodePort 服务会NAT到 ClusterIP 服务。
+
+Ø [**LoadBalancer**](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)**：**负载局衡器，可以向外部暴露服务。外部的负载均衡器可以路由到 NodePort 服务和 ClusterIP 服务。
+
+以下需求全部是针对[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务提出。
+
+### 3.2.1、新增
+
+#### 3.2.1.1、SLB硬件设备新增
+
+在Zcloud启动时指定SLB硬件设备与连接信息。
+
+#### 3.2.1.2、[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)服务新增
+
+[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被创建时，此事件应及时被监听处理。通过服务的配置信息（VIP，PORT，Endpoint，PATH等），由K8s内部插件主动向外部调用API，创建负载策略。每个VIP支持绑定多个不同端口的服务。
+
+### 3.2.2、删除
+
+当[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被删除时，此事件应及时被监听处理。与此服务相关的所有负载策略一并清除。
+
+### 3.2.3、修改
+
+当[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被修改时，此事件应及时被监听处理。端口变更，实例变化。
+
+### 3.2.4、查看
+
+#### 3.2.4.1、SLB硬件设备
+
+从设备按业务能获取到以下指标：
+
+HTTP的每秒请求包数，服务的网络吞吐量，服务的总连接数，请求命中率。
+
+#### 3.2.4.2、负载策略
+
+按服务显示已经配置的负载策略。Vip，端口，endport，endip等等。
+
 # 4  非功能性需求
 
 ## 4.1界面操作需求
