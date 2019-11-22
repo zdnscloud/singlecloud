@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	asv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
@@ -254,24 +255,7 @@ func k8sHpaToScHpa(k8sHpa *asv2beta2.HorizontalPodAutoscaler) *types.HorizontalP
 	return hpa
 }
 
-func k8sMetricSpecToScResourceMetricSpec(name corev1.ResourceName, averageVal *apiresource.Quantity, utilization *int32) types.ResourceMetricSpec {
-	averageValue, averageUtilization := k8sMetricValueToScMetricValule(averageVal, utilization)
-	return types.ResourceMetricSpec{
-		ResourceName:       types.ResourceName(name),
-		AverageValue:       averageValue,
-		AverageUtilization: averageUtilization,
-	}
-}
-
-func k8sMetricSpecToScCustomMetricSpec(metricName string, averageVal *apiresource.Quantity) types.CustomMetricSpec {
-	averageValue, _ := k8sMetricValueToScMetricValule(averageVal, nil)
-	return types.CustomMetricSpec{
-		MetricName:   metricName,
-		AverageValue: averageValue,
-	}
-}
-
-func k8sMetricValueToScMetricValule(k8sAverageValue *apiresource.Quantity, k8sAverageUtilization *int32) (string, int) {
+func k8sMetricSpecToScResourceMetricSpec(k8sResourceName corev1.ResourceName, k8sAverageValue *apiresource.Quantity, k8sAverageUtilization *int32) types.ResourceMetricSpec {
 	var averageUtilization int
 	if k8sAverageUtilization != nil {
 		averageUtilization = int(*k8sAverageUtilization)
@@ -279,10 +263,31 @@ func k8sMetricValueToScMetricValule(k8sAverageValue *apiresource.Quantity, k8sAv
 
 	var averageValue string
 	if k8sAverageValue != nil {
-		averageValue = k8sAverageValue.String()
+		switch k8sResourceName {
+		case corev1.ResourceCPU:
+			averageValue = strconv.Itoa(int(k8sAverageValue.MilliValue()))
+		case corev1.ResourceMemory:
+			averageValue = strconv.Itoa(int(k8sAverageValue.Value()))
+		}
 	}
 
-	return averageValue, averageUtilization
+	return types.ResourceMetricSpec{
+		ResourceName:       types.ResourceName(k8sResourceName),
+		AverageValue:       averageValue,
+		AverageUtilization: averageUtilization,
+	}
+}
+
+func k8sMetricSpecToScCustomMetricSpec(metricName string, k8sAverageValue *apiresource.Quantity) types.CustomMetricSpec {
+	var averageValue string
+	if k8sAverageValue != nil {
+		averageValue = strconv.Itoa(int(k8sAverageValue.Value()))
+	}
+
+	return types.CustomMetricSpec{
+		MetricName:   metricName,
+		AverageValue: averageValue,
+	}
 }
 
 func (m *HorizontalPodAutoscalerManager) Get(ctx *resource.Context) resource.Resource {
