@@ -546,7 +546,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3215c4903ac61c09f1dd83d9ff4a22445071a042ecbc6db1bd39430d667d8865"
+  digest = "1:0df1c7caf4c6135a0c943dc250e2cc2156e56a4e2b7317a387a667d54fc039a8"
   name = "github.com/zdnscloud/cement"
   packages = [
     "configure",
@@ -570,7 +570,7 @@
     "x509",
   ]
   pruneopts = "UT"
-  revision = "28c1280e43f239c7b6864ec1c19215a86dcae3f8"
+  revision = "e70d68aebdadfacf1a5168fb29b1f5554f977966"
 
 [[projects]]
   branch = "master"
@@ -617,7 +617,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ed8ac81b5d8ba8a0b58e4c3bb80ca4cc1e5a9c03912f745a59a3a7f9a6828163"
+  digest = "1:0d5860a6244227d825d90b4c3140d0c0463574ff8dcf7518f2f3af33c7b72ad5"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -625,11 +625,12 @@
     "error",
     "resource",
     "resource/schema",
+    "resource/schema/resourcedoc",
     "resource/schema/resourcefield",
     "util",
   ]
   pruneopts = "UT"
-  revision = "2fe817f895ecb06a10b7ea56931ed0e87815dedc"
+  revision = "137848a18b9b7e458bf4026d9d38158cdad74af0"
 
 [[projects]]
   branch = "master"
@@ -655,7 +656,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:816c76001e99f07ede87bf7e4ccf45d7a477bc483aaa10b1870dd4f277858da1"
+  digest = "1:1038982fc7ededb2563135eb7863b48510cd8e316e5fe7bcfc73656be09bcf1f"
   name = "github.com/zdnscloud/vanguard"
   packages = [
     "acl",
@@ -673,11 +674,11 @@
     "viewselector",
   ]
   pruneopts = "UT"
-  revision = "c2461ab1c22122d3b6b3aac500f0c690b864f7b9"
+  revision = "e2cf498e111a1a12d95ff1fb0119e87d78e90ad6"
 
 [[projects]]
   branch = "master"
-  digest = "1:8a2fb1f8bf3ce3bd18501d6884676942deb20a86262eb74512764dc1e6fc4b45"
+  digest = "1:42c9d6c0c852343bad9b4d63e5cf13ea8f04b4f41e1d25cc5d2fad90c8ab50bf"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -706,7 +707,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "47788c6767176afe07761b2bb5d7ef7b59488b63"
+  revision = "d04493861ba4790affa1d7679264a99c4c6c5c5d"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -1158,6 +1159,7 @@
     "github.com/gin-gonic/gin",
     "github.com/gorilla/websocket",
     "github.com/kyokomi/emoji",
+    "github.com/zdnscloud/cement/configure",
     "github.com/zdnscloud/cement/fsm",
     "github.com/zdnscloud/cement/log",
     "github.com/zdnscloud/cement/pubsub",

@@ -1,30 +1,31 @@
 {
-    "resourceType": "limitrange",
-    "collectionName": "limitranges",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "max": {"type": "map", "keyType": "resourceName", "valueType": "string"},
-        "min": {"type": "map", "keyType": "resourceName", "valueType": "string"}
+  "resourceType": "limitrange",
+  "collectionName": "limitranges",
+  "parentResources": [
+    "namespace"
+  ],
+  "goStructName": "LimitRange",
+  "resourceFields": {
+    "max": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string"
     },
-
-    "subResources": {
-        "resourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
+    "min": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string"
     },
-
-    "resourceMethods": [ "GET", "DELETE" ],
-    "collectionMethods": [ "GET", "POST"],
-
-    "postParameters": {
-        "fields": {
-            "name": {"type": "string", "required": true},
-            "max": {"type": "map", "keyType": "resourceName", "valueType": "string", "required": true},
-            "min": {"type": "map", "keyType": "resourceName", "valueType": "string", "required": true}
-        },
-
-        "subResources": {
-            "resourceName": { "type": "enum", "validValues": ["cpu", "memory"]}
-        }
+    "name": {
+      "type": "string"
     }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

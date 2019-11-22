@@ -1,11 +1,9 @@
-// Copyright (C) 2010, Kyle Lemons <kyle@kylelemons.net>.  All rights reserved.
-
 package log4go
 
 import (
 	"bytes"
 	"fmt"
-	"io"
+	"time"
 )
 
 const (
@@ -14,13 +12,27 @@ const (
 	FORMAT_ABBREV  = "[%L] %M"
 )
 
+type LogFormater interface {
+	Format(rec *LogRecord) string
+}
+
+type DefaultFormater struct {
+	format string
+}
+
+func NewDefaultFormater(fmt string) LogFormater {
+	return &DefaultFormater{
+		format: fmt,
+	}
+}
+
+var formatCache = &formatCacheType{}
+
 type formatCacheType struct {
 	LastUpdateSeconds    int64
 	shortTime, shortDate string
 	longTime, longDate   string
 }
-
-var formatCache = &formatCacheType{}
 
 // Known format codes:
 // %T - Time (15:04:05 MST)
@@ -32,11 +44,11 @@ var formatCache = &formatCacheType{}
 // %M - Message
 // Ignores unknown formats
 // Recommended: "[%D %T] [%L] (%S) %M"
-func FormatLogRecord(format string, rec *LogRecord) string {
+func (f *DefaultFormater) Format(rec *LogRecord) string {
 	if rec == nil {
 		return "<nil>"
 	}
-	if len(format) == 0 {
+	if len(f.format) == 0 {
 		return ""
 	}
 
@@ -60,7 +72,7 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 	}
 
 	// Split the string into pieces by % signs
-	pieces := bytes.Split([]byte(format), []byte{'%'})
+	pieces := bytes.Split([]byte(f.format), []byte{'%'})
 
 	// Iterate over the pieces, replacing known formats
 	for i, piece := range pieces {
@@ -93,30 +105,28 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 	return out.String()
 }
 
-// This is the standard writer that prints to standard output.
-type FormatLogWriter chan *LogRecord
+var _ LogFormater = &DefaultFormater{}
 
-// This creates a new FormatLogWriter
-func NewFormatLogWriter(out io.Writer, format string) FormatLogWriter {
-	records := make(FormatLogWriter, LogBufferLength)
-	go records.run(out, format)
-	return records
+type ISO3339Formator struct{}
+
+func NewISO3339Formator() *ISO3339Formator {
+	return &ISO3339Formator{}
 }
 
-func (w FormatLogWriter) run(out io.Writer, format string) {
-	for rec := range w {
-		fmt.Fprint(out, FormatLogRecord(format, rec))
+func (f *ISO3339Formator) Format(rec *LogRecord) string {
+	if rec == nil {
+		return "<nil>"
 	}
+	out := bytes.NewBuffer(make([]byte, 0, 64))
+	t := rec.Created.UTC().Format(time.RFC3339)
+
+	out.WriteString(t)
+	out.WriteString(" [")
+	out.WriteString(levelStrings[rec.Level])
+	out.WriteString("] ")
+	out.WriteString(rec.Message)
+	out.WriteByte('\n')
+	return out.String()
 }
 
-// This is the FormatLogWriter's output method.  This will block if the output
-// buffer is full.
-func (w FormatLogWriter) LogWrite(rec *LogRecord) {
-	w <- rec
-}
-
-// Close stops the logger from sending messages to standard output.  Attempts to
-// send log messages to this logger after a Close have undefined behavior.
-func (w FormatLogWriter) Close() {
-	close(w)
-}
+var _ LogFormater = &ISO3339Formator{}

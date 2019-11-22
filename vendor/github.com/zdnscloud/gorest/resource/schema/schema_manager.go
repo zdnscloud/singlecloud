@@ -90,3 +90,45 @@ func (m *SchemaManager) GenerateResourceRoute() resource.ResourceRoute {
 	}
 	return route
 }
+
+func (m *SchemaManager) WriteJsonDocs(v *resource.APIVersion, path string) error {
+	vs := m.getVersionedSchemas(v)
+	if vs == nil {
+		vs = NewVersionedSchemas(v)
+	}
+	for _, schema := range getSchemas(vs) {
+		if err := schema.WriteJsonDoc(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getSchemas(vs *VersionedSchemas) []*Schema {
+	var schemas []*Schema
+	for _, topSchema := range vs.toplevelSchemas {
+		schemas = append(schemas, topSchema)
+		for _, child := range getChild(topSchema) {
+			schemas = append(schemas, child)
+		}
+	}
+	return schemas
+}
+
+func getChild(s *Schema) []*Schema {
+	var schemas []*Schema
+	for _, child := range s.GetChildren() {
+		schemas = append(schemas, child)
+		schemas = append(schemas, getChild(child)...)
+	}
+	return schemas
+}
+
+func isExist(schemass []*Schema, s *Schema) bool {
+	for _, schemas := range schemass {
+		if s.Equal(schemas) {
+			return true
+		}
+	}
+	return false
+}

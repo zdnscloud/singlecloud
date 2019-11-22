@@ -9,14 +9,14 @@ import (
 var stdout io.Writer = os.Stdout
 
 type ConsoleLogWriter struct {
-	format        string
+	formater      LogFormater
 	rec           chan *LogRecord
 	termCloseSync chan struct{}
 }
 
-func NewConsoleLogWriter(fmt string) *ConsoleLogWriter {
+func NewConsoleLogWriter(formater LogFormater) *ConsoleLogWriter {
 	w := &ConsoleLogWriter{
-		format:        fmt,
+		formater:      formater,
 		rec:           make(chan *LogRecord, LogBufferLength),
 		termCloseSync: make(chan struct{}),
 	}
@@ -32,7 +32,7 @@ func (w *ConsoleLogWriter) run(out io.Writer) {
 			return
 		}
 
-		fmt.Fprint(out, FormatLogRecord(w.format, rec))
+		fmt.Fprint(out, w.formater.Format(rec))
 	}
 }
 

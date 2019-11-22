@@ -30,10 +30,10 @@ func InitLogger(conf *config.VanguardConf) error {
 	} else if conf.Logger.GeneralLog.Path == "" {
 		globalLogger = log.NewLog4jConsoleLogger(log.LogLevel(logLevel))
 	} else {
-		globalLogger, err = log.NewLog4jLoggerWithFmt(conf.Logger.GeneralLog.Path,
+		globalLogger, err = log.NewLog4jLogger(conf.Logger.GeneralLog.Path,
 			log.LogLevel(logLevel),
 			conf.Logger.GeneralLog.FileSize,
-			conf.Logger.GeneralLog.Versions, "")
+			conf.Logger.GeneralLog.Versions)
 	}
 	return err
 }
