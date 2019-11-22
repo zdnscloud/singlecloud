@@ -1,55 +1,75 @@
 {
-    "resourceType": "namespace",
-    "collectionName": "namespaces",
-    "parentResources": [ "cluster" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "cpu": { "type": "int" },
-        "cpuUsed": { "type": "int" },
-        "cpuUsedRatio": { "type": "string" },
-        "memory": { "type": "int" },
-        "memoryUsed": { "type": "int" },
-        "memoryUsedRatio": { "type": "string" },
-        "pod": { "type": "int" },
-        "podUsed": { "type": "int" },
-        "podUsedRatio": { "type": "string" },
-
-        "podsUseMostCPU": { "type": "array", "elemType": "podCpuInfo" },
-        "podsUseMostMemory": { "type": "array", "elemType": "podMemoryInfo" }
+  "resourceType": "namespace",
+  "collectionName": "namespaces",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "Namespace",
+  "resourceFields": {
+    "cpu": {
+      "type": "int"
     },
-
-    "subResources": {
-        "podCpuInfo": { 
-            "name": {"type": "string"},
-            "cpuUsed": {"type": "int"}
-        },
-
-        "podMemoryInfo": { 
-            "name": {"type": "string"},
-            "memoryUsed": {"type": "int"}
-        }
+    "cpuUsed": {
+      "type": "int"
     },
-
-    "resourceMethods": [ "GET", "DELETE" ],
-    "collectionMethods": [ "POST", "GET" ],
-
-    "postParameters": {
-        "fields": {
-            "name": {"type": "string", "required": true}
-        }
+    "cpuUsedRatio": {
+      "type": "string"
     },
-
-    "resourceActions":[ 
-        {
-            "name": "searchPod",
-            "input": {
-                "name": {"type": "string"}
-            },
-            "output": {
-                "kind": {"type":"enum", "validValues": ["Deployment", "DaemonSet", "StatefulSet"]},
-                "name": {"type": "string"}
-            }
-        } 
-    ]
+    "memory": {
+      "type": "int"
+    },
+    "memoryUsed": {
+      "type": "int"
+    },
+    "memoryUsedRatio": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "pod": {
+      "type": "int"
+    },
+    "podUsed": {
+      "type": "int"
+    },
+    "podUsedRatio": {
+      "type": "string"
+    },
+    "podsUseMostCPU": {
+      "type": "array",
+      "elemType": "podCpuInfo"
+    },
+    "podsUseMostMemory": {
+      "type": "array",
+      "elemType": "podMemoryInfo"
+    }
+  },
+  "subResources": {
+    "podCpuInfo": {
+      "cpuUsed": {
+        "type": "int"
+      },
+      "name": {
+        "type": "string"
+      }
+    },
+    "podMemoryInfo": {
+      "memoryUsed": {
+        "type": "int"
+      },
+      "name": {
+        "type": "string"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "POST"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

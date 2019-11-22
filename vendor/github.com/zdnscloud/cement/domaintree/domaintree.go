@@ -124,31 +124,15 @@ func (t *DomainTree) Insert(name *g53.Name, data interface{}) (*dt.Node, error) 
 	}
 }
 
-func (t *DomainTree) Delete(name *g53.Name) {
+func (t *DomainTree) Delete(name *g53.Name) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	nodePath := dt.NewNodeChain()
-	node, ret := t.nodes.SearchExt(name, nodePath, nil, nil)
-	if ret == dt.ExactMatch {
-		node.SetData(nil)
-	}
+	return t.nodes.Remove(name)
 }
 
 func (t *DomainTree) ForEach(f func(interface{})) {
 	t.nodes.ForEach(func(n *dt.Node) {
 		f(n.Data())
 	})
-}
-
-func (t *DomainTree) EmptyLeafNodeRatio() int {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-	return t.nodes.EmptyLeafNodeRatio()
-}
-
-func (t *DomainTree) RemoveEmptyLeafNode() {
-	t.lock.Lock()
-	t.nodes = t.nodes.RemoveEmptyLeafNode()
-	t.lock.Unlock()
 }

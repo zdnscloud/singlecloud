@@ -44,10 +44,24 @@ spec:
             name: lib
           - mountPath: /dev
             name: host-dev
+      - name: orphaned-clean
+        image: {{.Image}}
+        command: ["/bin/sh", "-c", "/orphaned-clean"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+          - mountPath: /var/lib
+            name: lib
+          - mountPath: /var/run/docker.sock
+            name: docker
       volumes:
         - name: lib
           hostPath:
             path: /var/lib
+        - name: docker
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
         - name: host-dev
           hostPath:
             path: /dev`

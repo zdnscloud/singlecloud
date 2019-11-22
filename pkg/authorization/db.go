@@ -3,15 +3,16 @@ package authorization
 import (
 	"encoding/json"
 
-	"github.com/zdnscloud/singlecloud/storage"
+	"github.com/zdnscloud/kvzoo"
 )
 
 var (
 	AuthorizerTableName = "authorizer"
 )
 
-func (a *Authorizer) loadUsers(db storage.DB) error {
-	table, err := db.CreateOrGetTable(storage.GenTableName(AuthorizerTableName))
+func (a *Authorizer) loadUsers(db kvzoo.DB) error {
+	tn, _ := kvzoo.TableNameFromSegments(AuthorizerTableName)
+	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
 		return err
 	}

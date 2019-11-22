@@ -8,12 +8,12 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"github.com/zdnscloud/singlecloud/storage"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/randomdata"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 )
 
 const (
@@ -62,10 +62,13 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 	return monitor, nil
 }
 
-func createSysApplication(ctx *restresource.Context, db storage.DB, appManager *ApplicationManager, cluster *zke.Cluster, chartName string, app *types.Application, requiredStorageClass string, appNamePrefix string) *resterr.APIError {
-	tableName := storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace)
+func createSysApplication(ctx *restresource.Context, db kvzoo.DB, appManager *ApplicationManager, cluster *zke.Cluster, chartName string, app *types.Application, requiredStorageClass string, appNamePrefix string) *resterr.APIError {
+	table, _, err := createOrGetAppTable(db, cluster.Name, ZCloudNamespace)
+	if err != nil {
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get %s application from db failed %s", chartName, err.Error()))
+	}
 
-	existApp, err := getApplicationFromDBByChartName(db, tableName, chartName)
+	existApp, err := getApplicationFromTableByChartName(table, chartName)
 	if err != nil {
 		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, chartName, err.Error())
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get %s application from db failed %s", chartName, err.Error()))
@@ -78,14 +81,14 @@ func createSysApplication(ctx *restresource.Context, db storage.DB, appManager *
 		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
 	}
 
-	app.Name = genAppNameIfDuplicate(db, tableName, app.Name, appNamePrefix)
+	app.Name = genAppNameIfDuplicate(table, app.Name, appNamePrefix)
 	app.SetID(app.Name)
 
 	if err := appManager.create(ctx, cluster, ZCloudNamespace, app); err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
 	}
 
-	go ensureApplicationSucceedOrDie(db, cluster, tableName, app.Name)
+	go ensureApplicationSucceedOrDie(table, cluster, app.Name)
 	return nil
 }
 
@@ -112,7 +115,7 @@ func (m *MonitorManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), monitorChartName)
+	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), cluster.Name, monitorChartName)
 	if err != nil {
 		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
 		return nil
@@ -136,13 +139,17 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	return deleteApplicationByChartName(m.clusters.GetDB(), cluster, monitorChartName)
 }
 
-func deleteApplicationByChartName(db storage.DB, cluster *zke.Cluster, chartName string) *resterr.APIError {
+func deleteApplicationByChartName(db kvzoo.DB, cluster *zke.Cluster, chartName string) *resterr.APIError {
 	if cluster == nil {
 		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
-	app, err := getApplicationFromDBByChartName(db, storage.GenTableName(ApplicationTable, cluster.Name, ZCloudNamespace), chartName)
+	table, _, err := createOrGetAppTable(db, cluster.Name, ZCloudNamespace)
 	if err != nil {
-		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get cluster %s application %s from db failed %s", cluster.Name, chartName, err.Error()))
+	}
+
+	app, err := getApplicationFromTableByChartName(table, chartName)
+	if err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get cluster %s application %s from db failed %s", cluster.Name, chartName, err.Error()))
 	}
 	if app == nil {
@@ -150,8 +157,8 @@ func deleteApplicationByChartName(db storage.DB, cluster *zke.Cluster, chartName
 	}
 
 	appName := app.Name
-	if err := deleteApplication(db, cluster.KubeClient, cluster.Name, ZCloudNamespace, appName, true); err != nil {
-		if err == storage.ErrNotFoundResource {
+	if err := deleteApplication(table, cluster.KubeClient, ZCloudNamespace, appName, true); err != nil {
+		if err == kvzoo.ErrNotFound {
 			return resterr.NewAPIError(resterr.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, ZCloudNamespace))
 		} else {
@@ -234,9 +241,9 @@ func genRetrunMonitorFromApplication(cluster string, app *types.Application) (*t
 	return &m, nil
 }
 
-func ensureApplicationSucceedOrDie(db storage.DB, cluster *zke.Cluster, tableName, appName string) {
+func ensureApplicationSucceedOrDie(table kvzoo.Table, cluster *zke.Cluster, appName string) {
 	for i := 0; i < sysApplicationCheckTimes; i++ {
-		sysApp, err := getApplicationFromDB(db, tableName, appName, true)
+		sysApp, err := getApplicationFromDB(table, appName, true)
 		if err != nil {
 			log.Warnf("get system application %s failed %s", appName, err.Error())
 			return
@@ -244,7 +251,7 @@ func ensureApplicationSucceedOrDie(db storage.DB, cluster *zke.Cluster, tableNam
 
 		switch sysApp.Status {
 		case types.AppStatusFailed:
-			if err := deleteApplication(db, cluster.KubeClient, cluster.Name, ZCloudNamespace, appName, true); err != nil {
+			if err := deleteApplication(table, cluster.KubeClient, ZCloudNamespace, appName, true); err != nil {
 				log.Warnf("delete system application %s failed %s", appName, err.Error())
 				return
 			}
@@ -256,8 +263,17 @@ func ensureApplicationSucceedOrDie(db storage.DB, cluster *zke.Cluster, tableNam
 	}
 }
 
-func getApplicationFromDBByChartName(db storage.DB, tableName, chartName string) (*types.Application, error) {
-	apps, err := getApplicationsFromDB(db, tableName)
+func getApplicationFromDBByChartName(db kvzoo.DB, clusterName, chartName string) (*types.Application, error) {
+	table, _, err := createOrGetAppTable(db, clusterName, ZCloudNamespace)
+	if err != nil {
+		return nil, err
+	}
+
+	return getApplicationFromTableByChartName(table, chartName)
+}
+
+func getApplicationFromTableByChartName(table kvzoo.Table, chartName string) (*types.Application, error) {
+	apps, err := getApplicationsFromDB(table)
 	if err != nil {
 		return nil, err
 	}
@@ -270,9 +286,9 @@ func getApplicationFromDBByChartName(db storage.DB, tableName, chartName string)
 	return nil, nil
 }
 
-func genAppNameIfDuplicate(db storage.DB, tableName, appName, appNamePrefex string) string {
+func genAppNameIfDuplicate(table kvzoo.Table, appName, appNamePrefex string) string {
 	for {
-		duplicateApp, _ := getApplicationFromDB(db, tableName, appName, true)
+		duplicateApp, _ := getApplicationFromDB(table, appName, true)
 		if duplicateApp != nil {
 			appName = appNamePrefex + "-" + randomdata.RandString(12)
 		} else {

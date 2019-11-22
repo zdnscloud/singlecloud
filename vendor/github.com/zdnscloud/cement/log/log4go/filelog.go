@@ -19,7 +19,7 @@ type FileLogWriter struct {
 	file     *os.File
 
 	// The logging format
-	format string
+	formater LogFormater
 
 	// Rotate at size
 	maxsize int
@@ -51,7 +51,7 @@ func (w *FileLogWriter) Close() {
 //
 // The standard log-line format is:
 //   [%D %T] [%L] (%S) %M
-func NewFileLogWriter(fname, format string, maxsize, maxfilecount int) (*FileLogWriter, error) {
+func NewFileLogWriter(fname string, formater LogFormater, maxsize, maxfilecount int) (*FileLogWriter, error) {
 	if maxfilecount < 1 {
 		maxfilecount = DefaultFileCount
 	}
@@ -63,7 +63,7 @@ func NewFileLogWriter(fname, format string, maxsize, maxfilecount int) (*FileLog
 	w := &FileLogWriter{
 		rec:          make(chan *LogRecord, LogBufferLength),
 		filename:     fname,
-		format:       format,
+		formater:     formater,
 		maxsize:      maxsize,
 		maxfilecount: maxfilecount,
 	}
@@ -103,7 +103,7 @@ func NewFileLogWriter(fname, format string, maxsize, maxfilecount int) (*FileLog
 					}
 				}
 
-				recordLen, err = fmt.Fprint(w.file, FormatLogRecord(w.format, rec))
+				recordLen, err = fmt.Fprint(w.file, w.formater.Format(rec))
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "format log record failed(%q): %s\n", w.filename, err)
 					return

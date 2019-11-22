@@ -43,13 +43,13 @@ var NULL_NODE *Node
 func init() {
 	if NULL_NODE == nil {
 		NULL_NODE = &Node{
-			parent: NULL_NODE,
-			left:   NULL_NODE,
-			right:  NULL_NODE,
-			color:  BLACK,
-			down:   NULL_NODE,
-			name:   g53.Root,
+			color: BLACK,
+			name:  g53.Root,
 		}
+		NULL_NODE.parent = NULL_NODE
+		NULL_NODE.left = NULL_NODE
+		NULL_NODE.right = NULL_NODE
+		NULL_NODE.down = NULL_NODE
 	}
 }
 

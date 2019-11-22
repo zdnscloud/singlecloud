@@ -11,9 +11,9 @@ import (
 
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/session"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 const (
@@ -32,10 +32,10 @@ type Authenticator struct {
 	lock     sync.Mutex
 	users    map[string]string
 	sessions *session.SessionMgr
-	db       storage.Table
+	db       kvzoo.Table
 }
 
-func NewAuthenticator(db storage.DB) (*Authenticator, error) {
+func NewAuthenticator(db kvzoo.DB) (*Authenticator, error) {
 	auth := &Authenticator{
 		repo:     NewTokenRepo(tokenSecret, tokenValidDuration),
 		sessions: session.New(SessionCookieName),

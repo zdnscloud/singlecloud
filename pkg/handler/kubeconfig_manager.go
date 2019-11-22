@@ -26,7 +26,7 @@ func (m *KubeConfigManager) Get(ctx *restresource.Context) restresource.Resource
 
 	id := ctx.Resource.GetID()
 
-	kubeConfig, err := cluster.GetKubeConfig(id, m.clusters.GetDB())
+	kubeConfig, err := cluster.GetKubeConfig(id, m.clusters.zkeManager.GetDBTable())
 	if err != nil {
 		return nil
 	}
@@ -48,7 +48,7 @@ func (m *KubeConfigManager) List(ctx *restresource.Context) interface{} {
 		return nil
 	}
 
-	kubeConfig, err := cluster.GetKubeConfig(pki.KubeAdminCertName, m.clusters.GetDB())
+	kubeConfig, err := cluster.GetKubeConfig(pki.KubeAdminCertName, m.clusters.zkeManager.GetDBTable())
 	if err != nil {
 		return nil
 	}
