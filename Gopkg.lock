@@ -677,8 +677,8 @@
   revision = "e2cf498e111a1a12d95ff1fb0119e87d78e90ad6"
 
 [[projects]]
-  branch = "master"
-  digest = "1:42c9d6c0c852343bad9b4d63e5cf13ea8f04b4f41e1d25cc5d2fad90c8ab50bf"
+  branch = "add-linkerd"
+  digest = "1:d8e66e3bdbf8c84b2352c0ef5ceab8b5142784871b410d9757061e0262a2105c"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -701,13 +701,15 @@
     "types",
     "zcloud",
     "zcloud/cluster-agent",
+    "zcloud/linkerd",
+    "zcloud/linkerd/pkg/tls",
     "zcloud/node-agent",
     "zcloud/sa",
     "zcloud/storage",
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "d04493861ba4790affa1d7679264a99c4c6c5c5d"
+  revision = "de8d26a7551a2da873a42d02795f7cde9c882bad"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -1206,6 +1208,7 @@
     "helm.sh/helm/pkg/chartutil",
     "helm.sh/helm/pkg/engine",
     "k8s.io/api/apps/v1",
+    "k8s.io/api/autoscaling/v2beta2",
     "k8s.io/api/batch/v1",
     "k8s.io/api/batch/v1beta1",
     "k8s.io/api/core/v1",
@@ -1217,15 +1220,23 @@
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/fields",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
+    "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/validation",
+    "k8s.io/apimachinery/pkg/util/wait",
+    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/cache",
+    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/remotecommand",
+    "k8s.io/client-go/util/workqueue",
+    "k8s.io/klog",
     "k8s.io/metrics/pkg/apis/metrics",
   ]
   solver-name = "gps-cdcl"

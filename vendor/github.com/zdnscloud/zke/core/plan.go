@@ -270,7 +270,6 @@ func (c *Cluster) BuildKubeControllerProcess(prefixPath string) types.Process {
 		"service-cluster-ip-range":         c.Core.KubeController.ServiceClusterIPRange,
 		"terminated-pod-gc-threshold":      "1000",
 		"v":                                "2",
-		"horizontal-pod-autoscaler-downscale-stabilization": "3m",
 	}
 
 	if len(c.ControlPlaneHosts) < 2 {
