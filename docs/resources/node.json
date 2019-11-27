@@ -81,9 +81,20 @@
         }
     },
     "resourceMethods": [
-        "GET"
+        "GET",
+        "POST"
     ],
     "collectionMethods": [
         "GET"
+    ],
+    "resourceActions": [{
+            "name": "cordon"
+        },
+        {
+            "name": "drain"
+        },
+        {
+            "name": "uncordon"
+        }
     ]
 }
