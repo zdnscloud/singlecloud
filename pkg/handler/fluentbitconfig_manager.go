@@ -63,6 +63,7 @@ const (
     {{- if .TimeKey}}
     Time_Key    {{.TimeKey}}
     Time_Format {{.TimeFormat}}
+    Time_Keep   On
     {{- end}}`
 )
 
