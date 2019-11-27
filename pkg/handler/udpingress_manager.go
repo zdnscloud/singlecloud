@@ -38,7 +38,7 @@ func (m *UDPIngressManager) Create(ctx *resource.Context) (resource.Resource, *r
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	ingress := ctx.Resource.(*types.UdpIngress)
+	ingress := ctx.Resource.(*types.UDPIngress)
 	err := createUDPIngress(cluster.KubeClient, namespace, ingress)
 	if err == nil {
 		ingress.SetID(strconv.Itoa(ingress.Port))
@@ -137,14 +137,14 @@ func clearTransportLayerIngress(cli client.Client, namespace string) error {
 	}
 }
 
-func getTransportLayerIngress(cli client.Client, portStr string) ([]*types.UdpIngress, error) {
+func getTransportLayerIngress(cli client.Client, portStr string) ([]*types.UDPIngress, error) {
 	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, NginxUDPConfigMapName)
 	if err != nil {
 		return nil, err
 	}
 
 	cm := k8sConfigMapToSCConfigMap(k8sCM)
-	var ingresses []*types.UdpIngress
+	var ingresses []*types.UDPIngress
 	for _, c := range cm.Configs {
 		serviceAndPort := strings.Split(c.Data, ":")
 		if len(serviceAndPort) != 2 {
@@ -170,7 +170,7 @@ func getTransportLayerIngress(cli client.Client, portStr string) ([]*types.UdpIn
 			return nil, fmt.Errorf("nginx config map %s has invalid service format %s", NginxUDPConfigMapName, serviceAndPort[0])
 		}
 
-		udpIngress := &types.UdpIngress{
+		udpIngress := &types.UDPIngress{
 			Port:        port,
 			ServiceName: namespaceAndService[1],
 			ServicePort: svcPort,
@@ -185,7 +185,7 @@ func getTransportLayerIngress(cli client.Client, portStr string) ([]*types.UdpIn
 	return ingresses, nil
 }
 
-func createUDPIngress(cli client.Client, namespace string, ingress *types.UdpIngress) error {
+func createUDPIngress(cli client.Client, namespace string, ingress *types.UDPIngress) error {
 	k8sCM, err := getConfigMap(cli, NginxIngressNamespace, NginxUDPConfigMapName)
 	if err != nil {
 		return err

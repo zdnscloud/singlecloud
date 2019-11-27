@@ -18,6 +18,10 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
+const (
+	NginxAffinity = "nginx.ingress.kubernetes.io/affinity"
+)
+
 type IngressManager struct {
 	clusters *ClusterManager
 }
@@ -193,6 +197,9 @@ func scIngressTok8sIngress(namespace string, ingress *types.Ingress) (*extv1beta
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ingress.Name,
 			Namespace: namespace,
+			Annotations: map[string]string{
+				NginxAffinity: "cookie",
+			},
 		},
 	}
 	k8sIngress.Spec = extv1beta1.IngressSpec{

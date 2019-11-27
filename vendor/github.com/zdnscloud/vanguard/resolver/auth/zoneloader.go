@@ -32,6 +32,8 @@ func loadZoneFromMaster(origin *g53.Name, view string, masters []string) z.Zone 
 		loadChan := make(chan *g53.RRset)
 		go func() {
 			if err := doAXFR(origin, master, loadChan); err != nil {
+				logger.GetLogger().Error("load zone %s with view %s from master %s failed:%s",
+					origin.String(false), view, master, err.Error())
 				abortChan <- struct{}{}
 			}
 			close(loadChan)

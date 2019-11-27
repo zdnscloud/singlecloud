@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zdnscloud/singlecloud/storage"
+	"github.com/zdnscloud/kvzoo"
 
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
@@ -24,12 +24,7 @@ type clusterState struct {
 	ScVersion        string    `json:"zcloudVersion"`
 }
 
-func getClusterFromDB(clusterID string, db storage.DB) (clusterState, error) {
-	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
-	if err != nil {
-		return clusterState{}, fmt.Errorf("get table failed: %s", err.Error())
-	}
-
+func getClusterFromDB(clusterID string, table kvzoo.Table) (clusterState, error) {
 	tx, err := table.Begin()
 	if err != nil {
 		return clusterState{}, fmt.Errorf("begin transaction failed: %s", err.Error())
@@ -49,12 +44,7 @@ func getClusterFromDB(clusterID string, db storage.DB) (clusterState, error) {
 	return state, nil
 }
 
-func createOrUpdateClusterFromDB(clsuterID string, s clusterState, db storage.DB) error {
-	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
-	if err != nil {
-		return fmt.Errorf("get table failed %s", err.Error())
-	}
-
+func createOrUpdateClusterFromDB(clsuterID string, s clusterState, table kvzoo.Table) error {
 	tx, err := table.Begin()
 	if err != nil {
 		return fmt.Errorf("begin transaction failed %s", err.Error())
@@ -83,12 +73,7 @@ func createOrUpdateClusterFromDB(clsuterID string, s clusterState, db storage.DB
 	return nil
 }
 
-func deleteClusterFromDB(clusterID string, db storage.DB) error {
-	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
-	if err != nil {
-		return fmt.Errorf("get table failed %s", err.Error())
-	}
-
+func deleteClusterFromDB(clusterID string, table kvzoo.Table) error {
 	tx, err := table.Begin()
 	if err != nil {
 		return fmt.Errorf("begin transaction failed %s", err.Error())
@@ -105,13 +90,8 @@ func deleteClusterFromDB(clusterID string, db storage.DB) error {
 	return nil
 }
 
-func getClustersFromDB(db storage.DB) (map[string]clusterState, error) {
+func getClustersFromDB(table kvzoo.Table) (map[string]clusterState, error) {
 	stateMap := make(map[string]clusterState)
-
-	table, err := db.CreateOrGetTable(storage.GenTableName(ZKEManagerDBTable))
-	if err != nil {
-		return stateMap, fmt.Errorf("get table failed %s", err.Error())
-	}
 
 	tx, err := table.Begin()
 	if err != nil {

@@ -1,16 +1,17 @@
 package jwt
 
 import (
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 var (
 	JwtAuthenticatorTableName = "jwt_authenticator"
 )
 
-func (a *Authenticator) loadUsers(db storage.DB) error {
-	table, err := db.CreateOrGetTable(storage.GenTableName(JwtAuthenticatorTableName))
+func (a *Authenticator) loadUsers(db kvzoo.DB) error {
+	tn, _ := kvzoo.TableNameFromSegments(JwtAuthenticatorTableName)
+	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
 		return err
 	}

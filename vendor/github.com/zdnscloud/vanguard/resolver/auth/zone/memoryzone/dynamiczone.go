@@ -3,18 +3,11 @@ package memoryzone
 import (
 	"net"
 	"sync"
-	"time"
 
 	"github.com/zdnscloud/g53"
 	"github.com/zdnscloud/vanguard/acl"
 	"github.com/zdnscloud/vanguard/logger"
 	"github.com/zdnscloud/vanguard/resolver/auth/zone"
-)
-
-const (
-	cmdChanBuffer      = 128
-	emptyNodeWaterMark = 40 // 40%
-	vaccumInterval     = 5 * time.Second
 )
 
 type memoryTx struct {
@@ -59,7 +52,6 @@ func (ctx *emptyZoneFinderCtx) GetAdditional() []*g53.RRset {
 
 type DynamicZone struct {
 	*MemoryZone
-	stopCh  chan struct{}
 	lock    sync.RWMutex
 	masters []string
 	acls    []string
@@ -68,10 +60,8 @@ type DynamicZone struct {
 func NewDynamicZone(origin *g53.Name) *DynamicZone {
 	dz := &DynamicZone{
 		MemoryZone: newMemoryZone(origin),
-		stopCh:     make(chan struct{}),
 		acls:       nil,
 	}
-	go dz.vaccumRoutine()
 	return dz
 }
 
@@ -239,34 +229,6 @@ func (z *DynamicZone) DomainCount() int {
 	return z.MemoryZone.domains.NodeCount()
 }
 
-func (z *DynamicZone) vaccumRoutine() {
-	timer := time.NewTicker(vaccumInterval)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-timer.C:
-		case <-z.stopCh:
-			z.stopCh <- struct{}{}
-			return
-		}
-		z.removeEmptyNodes()
-	}
-}
-
-func (z *DynamicZone) removeEmptyNodes() {
-	z.lock.RLock()
-	if z.MemoryZone.emptyNodeRatio() < emptyNodeWaterMark || z.MemoryZone.isEmpty() {
-		z.lock.RUnlock()
-		return
-	}
-	z.lock.RUnlock()
-
-	z.lock.Lock()
-	z.MemoryZone.removeEmptyNode()
-	z.lock.Unlock()
-}
-
 type dynamicZoneFinderCtx struct {
 	*memoryZoneFinderCtx
 	zone *DynamicZone
@@ -285,10 +247,4 @@ func (ctx *dynamicZoneFinderCtx) GetAdditional() []*g53.RRset {
 		ctx.zone.lock.Unlock()
 	}
 	return rrsets
-}
-
-func (z *DynamicZone) Clean() error {
-	z.stopCh <- struct{}{}
-	<-z.stopCh
-	return nil
 }

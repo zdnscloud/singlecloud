@@ -1,29 +1,33 @@
 {
-    "resourceType": "fluentbitconfig",
-    "collectionName": "fluentbitconfigs",
-    "parentResources": [ "deployment", "daemonset", "statefulset" ],
-
-    "resourceFields": {
-        "regexp": {"type": "string"},
-        "timeKey": {"type": "string"},
-        "timeFormat": {"type": "string"}
+  "resourceType": "fluentbitconfig",
+  "collectionName": "fluentbitconfigs",
+  "parentResources": [
+    "deployment",
+    "daemonset",
+    "statefulset"
+  ],
+  "goStructName": "FluentBitConfig",
+  "resourceFields": {
+    "regexp": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
-
-    "resourceMethods": [ "GET", "PUT", "DELETE" ],
-    "collectionMethods": [ "POST", "GET" ],
-
-    "postParameters": {
-        "fields": {
-            "regexp": {"type": "string"},
-            "timeKey": {"type": "string"},
-            "timeFormat": {"type": "string"}
-        }
+    "timeFormat": {
+      "type": "string"
     },
-    "putParameters": {
-        "fields": {
-            "regexp": {"type": "string"},
-            "timeKey": {"type": "string"},
-            "timeFormat": {"type": "string"}
-        }
+    "timeKey": {
+      "type": "string"
     }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }

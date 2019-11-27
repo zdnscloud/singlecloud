@@ -117,14 +117,14 @@ func scRestartPolicyToK8sRestartPolicy(policy string) (p corev1.RestartPolicy, e
 	return
 }
 
-func scLimitsResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceName, err error) {
+func scResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceName, err error) {
 	switch strings.ToLower(name) {
 	case "cpu":
 		k8sname = corev1.ResourceCPU
 	case "memory":
 		k8sname = corev1.ResourceMemory
 	default:
-		err = fmt.Errorf("container limitrange resoucename %s isn`t supported", name)
+		err = fmt.Errorf("resoucename %s isn`t supported", name)
 	}
 	return
 }
@@ -142,7 +142,7 @@ func scQuotaResourceNameToK8sResourceName(name string) (k8sname corev1.ResourceN
 	case "requests.storage":
 		k8sname = corev1.ResourceRequestsStorage
 	default:
-		err = fmt.Errorf("resoucequota resourcename %s isn`t supported", name)
+		err = fmt.Errorf("resourcename %s isn`t supported", name)
 	}
 	return
 }

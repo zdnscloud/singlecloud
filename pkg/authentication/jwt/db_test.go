@@ -5,17 +5,17 @@ import (
 	"testing"
 
 	ut "github.com/zdnscloud/cement/unittest"
+	"github.com/zdnscloud/kvzoo/backend/bolt"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/storage"
 )
 
 func TestUserDB(t *testing.T) {
 	dbPath := "user.db"
 	ut.WithTempFile(t, dbPath, func(t *testing.T, f *os.File) {
-		db, err := storage.CreateWithPath(f.Name())
-		ut.Assert(t, err == nil, "create db should succeed: %s", err)
+		db, err := bolt.New(f.Name())
+		ut.Assert(t, err == nil, "create db should succeed:%v", err)
 		auth, err := NewAuthenticator(db)
-		ut.Assert(t, err == nil, "load user should succeed")
+		ut.Assert(t, err == nil, "load user should succeed:%v", err)
 		ut.Assert(t, auth.HasUser(types.Administrator), "")
 
 		newUser := &types.User{
