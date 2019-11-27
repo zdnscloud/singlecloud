@@ -1,18 +1,38 @@
 {
-    "resourceType": "persistentvolumeclaim",
-    "collectionName": "persistentvolumeclaims",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "namespace": {"type": "string"},
-        "requestStorageSize": {"type": "string"},
-        "storageClassName": {"type": "string"},
-        "volumeName": {"type": "string"},
-        "actualStorageSize": {"type": "string"},
-        "status": {"type": "enum", "validValues": ["Pending", "Bound", "Lost"]}
+  "resourceType": "persistentvolumeclaim",
+  "collectionName": "persistentvolumeclaims",
+  "parentResources": [
+    "namespace"
+  ],
+  "goStructName": "PersistentVolumeClaim",
+  "resourceFields": {
+    "actualStorageSize": {
+      "type": "string"
     },
-
-    "resourceMethods": [ "GET", "DELETE" ],
-    "collectionMethods": [ "GET" ]
+    "name": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "string"
+    },
+    "requestStorageSize": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "storageClassName": {
+      "type": "string"
+    },
+    "volumeName": {
+      "type": "string"
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET"
+  ]
 }

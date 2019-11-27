@@ -58,6 +58,10 @@
   branch = "master"
 
 [[constraint]]
+  name = "github.com/zdnscloud/iniconfig"
+  branch = "master"
+
+[[override]]
   name = "github.com/zdnscloud/kvzoo"
   branch = "master"
 
@@ -83,5 +87,5 @@
   version = "v10.0.0"
 
 [[constraint]]
-  branch = "master"
+  branch = "add-linkerd"
   name = "github.com/zdnscloud/zke"

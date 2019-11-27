@@ -1,99 +1,126 @@
 {
-    "resourceType": "cronjob",
-    "collectionName": "cronjobs",
-    "parentResources": [ "namespace" ],
-
-    "resourceFields": {
-        "name": {"type": "string"},
-        "schedule": {"type": "string"},
-        "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"]},
-        "containers": {"type": "array", "elemType": "container"},
-        "status": {"type": "cronJobStatus"}
+  "resourceType": "cronjob",
+  "collectionName": "cronjobs",
+  "parentResources": [
+    "namespace"
+  ],
+  "goStructName": "CronJob",
+  "resourceFields": {
+    "containers": {
+      "type": "array",
+      "elemType": "container"
     },
-
-    "subResources": {
-        "container": {
-            "name": {"type": "string"},
-            "image": {"type": "string"},
-            "command": {"type": "array", "elemType": "string"},
-            "args": {"type": "array", "elemType": "string"},
-            "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-            "env": {"type": "array", "elemType": "envVar"},
-            "volumes": {"type": "array", "elemType": "volume"}
-        },
-
-        "volume": {
-            "type": {"type": "enum", "validValues": ["configmap", "secret"]},
-            "name": {"type": "string"},
-            "mountPath": {"type": "string"}
-        },
-
-        "deploymentPort": {
-            "name" : {"type": "string"},
-            "port" : {"type": "int"},
-            "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
-        },
-
-        "envVar": {
-            "name": {"type": "string"},
-            "value": {"type": "string"}
-        },
-
-        "cronJobStatus": {
-            "lastScheduleTime": {"type": "date"},
-            "objectReferences": {"type": "array", "elemType": "objectReference"}
-        },
-
-        "objectReference": {
-            "kind": {"type":"string"},
-            "namespace": {"type": "string"},
-            "name": {"type": "string"},
-            "uid": {"type": "string"},
-            "apiVersion": {"type": "string"},
-            "resourceVersion": {"type": "string"},
-            "fieldPath": {"type": "string"}
-        }
+    "name": {
+      "type": "string"
     },
-
-    "resourceMethods": [ "GET", "DELETE" ],
-    "collectionMethods": [ "GET", "POST"],
-
-    "postParameters": {
-        "fields": {
-            "name": {"type": "string", "required": true},
-            "schedule": {"type": "string", "required": true},
-            "restartPolicy": {"type": "enum", "validValues": ["OnFailure", "Never"], "required": true},
-            "containers": {"type": "array", "elemType": "container", "required": true}
-        },
-
-        "subResources": {
-            "container": {
-                "name": {"type": "string", "required": true},
-                "image": {"type": "string", "required": true},
-                "command": {"type": "array", "elemType": "string"},
-                "args": {"type": "array", "elemType": "string"},
-                "exposedPorts":{"type": "array", "elemType": "deploymentPort"},
-                "env": {"type": "array", "elemType": "envVar"},
-                "volumes": {"type": "array", "elemType": "volume"}
-            },
-
-            "volume": {
-                "type": {"type": "enum", "validValues": ["configmap", "secret"]},
-                "name": {"type": "string"},
-                "mountPath": {"type": "string"}
-            },
-
-            "deploymentPort": {
-                "name" : {"type": "string"},
-                "port" : {"type": "int"},
-                "protocol": {"type": "enum", "validValues": ["tcp", "udp"]}
-            },
-
-            "envVar": {
-                "name": {"type": "string"},
-                "value": {"type": "string"}
-            }
-        }
+    "restartPolicy": {
+      "type": "string"
+    },
+    "schedule": {
+      "type": "string"
+    },
+    "status": {
+      "type": "cronJobStatus"
     }
+  },
+  "subResources": {
+    "container": {
+      "args": {
+        "type": "array",
+        "elemType": "string"
+      },
+      "command": {
+        "type": "array",
+        "elemType": "string"
+      },
+      "env": {
+        "type": "array",
+        "elemType": "envVar"
+      },
+      "exposedPorts": {
+        "type": "array",
+        "elemType": "containerPort"
+      },
+      "image": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "volumes": {
+        "type": "array",
+        "elemType": "volume"
+      }
+    },
+    "containerPort": {
+      "name": {
+        "type": "string"
+      },
+      "port": {
+        "type": "int"
+      },
+      "protocol": {
+        "type": "string"
+      }
+    },
+    "cronJobStatus": {
+      "lastScheduleTime": {
+        "type": "date"
+      },
+      "objectReferences": {
+        "type": "array",
+        "elemType": "objectReference"
+      }
+    },
+    "envVar": {
+      "name": {
+        "type": "string"
+      },
+      "value": {
+        "type": "string"
+      }
+    },
+    "objectReference": {
+      "apiVersion": {
+        "type": "string"
+      },
+      "fieldPath": {
+        "type": "string"
+      },
+      "kind": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "namespace": {
+        "type": "string"
+      },
+      "resourceVersion": {
+        "type": "string"
+      },
+      "uid": {
+        "type": "string"
+      }
+    },
+    "volume": {
+      "mountPath": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }
-

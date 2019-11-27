@@ -52,9 +52,9 @@ type Filter struct {
 
 type Logger map[string]*Filter
 
-func NewDefaultLogger(lvl level, fmt string) Logger {
+func NewDefaultLogger(lvl level, formater LogFormater) Logger {
 	return Logger{
-		"stdout": &Filter{lvl, NewConsoleLogWriter(fmt)},
+		"stdout": &Filter{lvl, NewConsoleLogWriter(formater)},
 	}
 }
 

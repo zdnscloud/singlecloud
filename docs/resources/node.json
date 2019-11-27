@@ -1,40 +1,21 @@
 {
     "resourceType": "node",
     "collectionName": "nodes",
-    "parentResources": ["cluster"],
-
+    "parentResources": [
+        "cluster"
+    ],
+    "goStructName": "Node",
     "resourceFields": {
-        "name": {
-            "type": "string"
-        },
         "address": {
-            "type": "string"
-        },
-        "status": {
-            "type": "string"
-        },
-        "roles": {
-            "type": "array",
-            "elemType": "string"
-        },
-        "labels": {
-            "type": "map",
-            "keyType": "string",
-            "valueType": "string"
+            "type": "string",
+            "description": [
+                "required"
+            ]
         },
         "annotations": {
             "type": "map",
             "keyType": "string",
             "valueType": "string"
-        },
-        "operatingSystem": {
-            "type": "string"
-        },
-        "operatingSystemImage": {
-            "type": "string"
-        },
-        "dockerVersion": {
-            "type": "string"
         },
         "cpu": {
             "type": "int"
@@ -45,6 +26,14 @@
         "cpuUsedRatio": {
             "type": "string"
         },
+        "dockerVersion": {
+            "type": "string"
+        },
+        "labels": {
+            "type": "map",
+            "keyType": "string",
+            "valueType": "string"
+        },
         "memory": {
             "type": "int"
         },
@@ -52,6 +41,18 @@
             "type": "int"
         },
         "memoryUsedRatio": {
+            "type": "string"
+        },
+        "name": {
+            "type": "string",
+            "description": [
+                "required"
+            ]
+        },
+        "operatingSystem": {
+            "type": "string"
+        },
+        "operatingSystemImage": {
             "type": "string"
         },
         "pod": {
@@ -62,20 +63,27 @@
         },
         "podUsedRatio": {
             "type": "string"
+        },
+        "roles": {
+            "type": "enum",
+            "validValues": [
+                "controlplane",
+                "etcd",
+                "worker",
+                "edge"
+            ],
+            "description": [
+                "required"
+            ]
+        },
+        "status": {
+            "type": "string"
         }
     },
-
-    "resourceMethods": ["GET"],
-    "collectionMethods": ["GET"],
-
-    "resourceActions": [{
-            "name": "cordon"
-        },
-        {
-            "name": "drain"
-        },
-        {
-            "name": "uncordon"
-        }
+    "resourceMethods": [
+        "GET"
+    ],
+    "collectionMethods": [
+        "GET"
     ]
 }

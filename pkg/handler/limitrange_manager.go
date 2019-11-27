@@ -156,7 +156,7 @@ func createLimitRange(cli client.Client, namespace string, limitRange *types.Lim
 func scLimitResourceListToK8sResourceList(resourceList map[string]string) (corev1.ResourceList, error) {
 	k8sResourceList := make(map[corev1.ResourceName]apiresource.Quantity)
 	for name, quantity := range resourceList {
-		k8sResourceName, err := scLimitsResourceNameToK8sResourceName(name)
+		k8sResourceName, err := scResourceNameToK8sResourceName(name)
 		if err != nil {
 			return nil, fmt.Errorf("parse resource name %s failed: %s", name, err.Error())
 		}
