@@ -30,28 +30,28 @@ type Application struct {
 	Name                  string          `json:"name"`
 	ChartName             string          `json:"chartName"`
 	ChartVersion          string          `json:"chartVersion"`
-	ChartIcon             string          `json:"chartIcon"`
-	Status                string          `json:"status"`
-	WorkloadCount         int             `json:"workloadCount,omitempty"`
-	ReadyWorkloadCount    int             `json:"readyWorkloadCount,omitempty"`
-	AppResources          AppResources    `json:"appResources,omitempty"`
+	ChartIcon             string          `json:"chartIcon" rest:"description=readonly"`
+	Status                string          `json:"status" rest:"description=readonly"`
+	WorkloadCount         int             `json:"workloadCount,omitempty" rest:"description=readonly"`
+	ReadyWorkloadCount    int             `json:"readyWorkloadCount,omitempty" rest:"description=readonly"`
+	AppResources          AppResources    `json:"appResources,omitempty" rest:"description=readonly"`
 	Configs               json.RawMessage `json:"configs,omitempty"`
-	Manifests             []Manifest      `json:"manifests,omitempty"`
-	SystemChart           bool            `json:"systemChart,omitempty"`
+	Manifests             []Manifest      `json:"manifests,omitempty" rest:"description=readonly"`
+	SystemChart           bool            `json:"systemChart,omitempty" rest:"description=readonly"`
 }
 
 type AppResource struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Link          string `json:"link"`
-	Replicas      int    `json:"replicas,omitempty"`
-	ReadyReplicas int    `json:"readyReplicas,omitempty"`
+	Name          string `json:"name" rest:"description=readonly"`
+	Type          string `json:"type" rest:"description=readonly"`
+	Link          string `json:"link" rest:"description=readonly"`
+	Replicas      int    `json:"replicas,omitempty" rest:"description=readonly"`
+	ReadyReplicas int    `json:"readyReplicas,omitempty" rest:"description=readonly"`
 }
 
 type Manifest struct {
-	File      string `json:"file,omitempty"`
-	Content   string `json:"content,omitempty"`
-	Duplicate bool   `json:"duplicate,omitempty"`
+	File      string `json:"file,omitempty" rest:"description=readonly"`
+	Content   string `json:"content,omitempty" rest:"description=readonly"`
+	Duplicate bool   `json:"duplicate,omitempty" rest:"description=readonly"`
 }
 
 func (a Application) GetParents() []resource.ResourceKind {

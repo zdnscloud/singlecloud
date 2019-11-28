@@ -36,7 +36,7 @@ type UserQuota struct {
 	Memory                string           `json:"memory"`
 	Storage               string           `json:"storage"`
 	RequestType           string           `json:"requestType"`
-	Status                string           `json:"status"`
+	Status                string           `json:"status" rest:"description=readonly"`
 	Purpose               string           `json:"purpose"`
 	Requestor             string           `json:"requestor,omitempty"`
 	Telephone             string           `json:"telephone,omitempty"`

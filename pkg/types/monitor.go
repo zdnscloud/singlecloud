@@ -21,7 +21,7 @@ type Monitor struct {
 	ScrapeInterval        int    `json:"scrapeInterval"`
 	AdminPassword         string `json:"adminPassword"`
 	RedirectUrl           string `json:"redirectUrl"`
-	Status                string `json:"status"`
+	Status                string `json:"status" rest:"description=readonly"`
 }
 
 func (m Monitor) GetParents() []resource.ResourceKind {

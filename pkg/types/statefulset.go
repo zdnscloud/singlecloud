@@ -17,7 +17,7 @@ type StatefulSet struct {
 	Containers            []Container                `json:"containers"`
 	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
 	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
-	Status                WorkloadStatus             `json:"status,omitempty"`
+	Status                WorkloadStatus             `json:"status,omitempty" rest:"description=readonly"`
 	Memo                  string                     `json:"memo,omitempty"`
 }
 

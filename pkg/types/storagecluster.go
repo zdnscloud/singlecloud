@@ -19,39 +19,39 @@ type StorageCluster struct {
 	Name                  string        `json:"-"`
 	StorageType           string        `json:"storageType" rest:"required=true,options=lvm|cephfs"`
 	Hosts                 []string      `json:"hosts" rest:"required=true"`
-	Phase                 string        `json:"phase"`
-	Size                  string        `json:"size"`
-	UsedSize              string        `json:"usedSize"`
-	FreeSize              string        `json:"freeSize"`
-	Nodes                 []StorageNode `json:"nodes"`
-	PVs                   []PV          `json:"pvs"`
+	Phase                 string        `json:"phase" rest:"description=readonly"`
+	Size                  string        `json:"size" rest:"description=readonly"`
+	UsedSize              string        `json:"usedSize" rest:"description=readonly"`
+	FreeSize              string        `json:"freeSize" rest:"description=readonly"`
+	Nodes                 []StorageNode `json:"nodes" rest:"description=readonly"`
+	PVs                   []PV          `json:"pvs" rest:"description=readonly"`
 }
 
 type Storage struct {
-	Name string `json:"name"`
-	PVs  []PV   `json:"pvs"`
+	Name string `json:"name" rest:"description=readonly"`
+	PVs  []PV   `json:"pvs" rest:"description=readonly"`
 }
 
 type PV struct {
-	Name             string       `json:"name"`
-	Size             string       `json:"size"`
-	UsedSize         string       `json:"usedSize"`
-	FreeSize         string       `json:"freeSize"`
-	Pods             []StoragePod `json:"pods"`
+	Name             string       `json:"name" rest:"description=readonly"`
+	Size             string       `json:"size" rest:"description=readonly"`
+	UsedSize         string       `json:"usedSize" rest:"description=readonly"`
+	FreeSize         string       `json:"freeSize" rest:"description=readonly"`
+	Pods             []StoragePod `json:"pods" rest:"description=readonly"`
 	StorageClassName string       `json:"-"`
-	Node             string       `json:"node"`
+	Node             string       `json:"node" rest:"description=readonly"`
 }
 
 type StorageNode struct {
-	Name     string `json:"name"`
-	Size     string `json:"size"`
-	UsedSize string `json:"usedSize"`
-	FreeSize string `json:"freeSize"`
-	Stat     bool   `json:"stat"`
+	Name     string `json:"name" rest:"description=readonly"`
+	Size     string `json:"size" rest:"description=readonly"`
+	UsedSize string `json:"usedSize" rest:"description=readonly"`
+	FreeSize string `json:"freeSize" rest:"description=readonly"`
+	Stat     bool   `json:"stat" rest:"description=readonly"`
 }
 
 type StoragePod struct {
-	Name string `json:"name"`
+	Name string `json:"name" rest:"description=readonly"`
 }
 
 func (s StorageCluster) GetParents() []resource.ResourceKind {

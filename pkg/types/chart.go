@@ -7,15 +7,15 @@ import (
 
 type Chart struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string         `json:"name"`
-	Description           string         `json:"description"`
-	Icon                  string         `json:"icon"`
-	Versions              []ChartVersion `json:"versions"`
+	Name                  string         `json:"name" rest:"description=readonly"`
+	Description           string         `json:"description" rest:"description=readonly"`
+	Icon                  string         `json:"icon" rest:"description=readonly"`
+	Versions              []ChartVersion `json:"versions" rest:"description=readonly"`
 }
 
 type ChartVersion struct {
-	Version string              `json:"version"`
-	Config  charts.ChartConfigs `json:"config,omitempty"`
+	Version string              `json:"version" rest:"description=readonly"`
+	Config  charts.ChartConfigs `json:"config,omitempty" rest:"description=readonly"`
 }
 
 type Charts []*Chart

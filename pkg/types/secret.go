@@ -6,7 +6,7 @@ import (
 
 type Secret struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string       `json:"name"`
+	Name                  string       `json:"name" rest:"description=immutable"`
 	Data                  []SecretData `json:"data"`
 }
 

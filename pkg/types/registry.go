@@ -17,7 +17,7 @@ type Registry struct {
 	StorageSize           int    `json:"storageSize"`
 	AdminPassword         string `json:"adminPassword"`
 	RedirectUrl           string `json:"redirectUrl"`
-	Status                string `json:"status"`
+	Status                string `json:"status" rest:"description=readonly"`
 }
 
 func (r Registry) GetParents() []resource.ResourceKind {
