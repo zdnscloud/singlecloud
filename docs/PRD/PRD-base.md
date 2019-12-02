@@ -309,7 +309,7 @@ creating，updating状态可进行取消操作。
 
 仅creating和updating状态可查看创建/更新日志。日志缓存50条。当创建或更新失败或完成后，日志功能不可用。
 
-#### **4.2.4.10**      全局配置
+#### **4.2.4.7**      全局配置
 
 **功能点描述：** 启用监控、镜像仓库
 
@@ -389,7 +389,7 @@ uncordon：恢复
 
 drain：驱逐所有POD
 
-集群内worker节点需要支持以上三种操作，master节点不支持。用来排查问题，或对节点进行维护。节点维护CPU、MEM时使用。操作逻辑如下：
+集群内worker节点需要支持以上三种操作，master和存储节点不支持。用来排查问题，或对节点进行维护。节点维护CPU、MEM时使用。操作逻辑如下：
 
 cordon后，可以使用uncordon或drain，drain后只能使用uncordon。正常情况下，只有cordon、drain可使用。
 
@@ -561,6 +561,83 @@ namespaces：CPU、MEM、存储
 
 ### **4.6.4**    业务数据描述
 
+## 4.7 系统工具
 
+### 4.7.1    功能概述
 
- 
+系统管理员需要完成工具的初始化。
+
+### **4.7.2**    功能点清单 
+
+#### **4.7.2.1**      镜像仓库
+
+需要输入访问域名，存储大小，用户名默认admin，密码默认zcloud。
+
+#### **4.7.2.2**      监控中心
+
+直接安装即可，用户名默认admin，密码默认zcloud。
+
+#### **4.7.2.3**      日志分析
+
+需要输入访问域名，存储大小。存储大小用户的输入需要在后台做除以3处理。
+
+## 4.8      负载均衡联动
+
+### 4.8.1删除
+
+Zcloud所有资源全部是异步删除，用户列表无状态（用户被删除，下面的资源不删除）。
+
+除了特例外，需要增加状态的资源有：namespaces、node、存储、app资源、k8s资源、资源申请。资源表格增加删除时间列。
+
+以上资源，除了删除中的状态，其他状态都可以删除。
+
+删除中的状态，只能等待资源删除成功或删除失败。
+
+删除成功的资源，在系统内要清理干净。
+
+对于删除失败的资源，可以再次删除。删除失败当前页面资源下方使用红色小子提示，同时写入Zcloud平台事件。
+
+### 4.8.2 负载联动
+
+外部负载需求
+
+K8s包含三种类型的服务：ClusterIP、[NodePort](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#nodeport)、[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)。
+
+Ø **ClusterIP**：通过集群的内部 IP 暴露服务，服务只能够在集群内部可以访问。
+
+Ø [**NodePort**](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#nodeport)**：**通过每个 Node 上的 IP 和静态端口暴露服务。NodePort 服务会NAT到 ClusterIP 服务。
+
+Ø [**LoadBalancer**](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)**：**负载局衡器，可以向外部暴露服务。外部的负载均衡器可以路由到 NodePort 服务和 ClusterIP 服务。
+
+以下需求全部是针对[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务提出。
+
+#### 4.8.2.1、新增
+
+**SLB硬件设备新增**
+
+在Zcloud启动时指定SLB硬件设备与连接信息。
+
+**[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)服务新增**
+
+[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被创建时，此事件应及时被监听处理。通过服务的配置信息（VIP，PORT，Endpoint，PATH等），由K8s内部插件主动向外部调用API，创建负载策略。每个VIP支持绑定多个不同端口的服务。
+
+#### 4.8.2.2、删除
+
+当[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被删除时，此事件应及时被监听处理。与此服务相关的所有负载策略一并清除。
+
+#### 4.8.2.3、修改
+
+当[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被修改时，此事件应及时被监听处理。端口变更，实例变化。
+
+#### 4.8.2.4、查看
+
+**SLB硬件设备**
+
+从设备按业务能获取到以下指标：
+
+HTTP的每秒请求包数，服务的网络吞吐量，服务的总连接数，请求命中率。
+
+**负载策略**
+
+按服务显示已经配置的负载策略。Vip，端口，endport，endip等等。
+
