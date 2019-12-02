@@ -62,8 +62,8 @@ type Cluster struct {
 	//sshkey is necessary for create, but we cat't get it by get or list api due to some security problem(all user can get the cluster sshkey by get or list api), so we do this required check in cluster handler and it's not necessary for update
 	SSHKey              string   `json:"sshKey"`
 	SSHPort             string   `json:"sshPort"`
-	DockerSocket        string   `json:"dockerSocket,omitempty"`
-	KubernetesVersion   string   `json:"kubernetesVersion,omitempty"`
+	DockerSocket        string   `json:"dockerSocket,omitempty" rest:"description=immutable"`
+	KubernetesVersion   string   `json:"kubernetesVersion,omitempty" rest:"description=readonly"`
 	IgnoreDockerVersion bool     `json:"ignoreDockerVersion" rest:"description=immutable"`
 	ClusterCidr         string   `json:"clusterCidr" rest:"description=immutable"`
 	ServiceCidr         string   `json:"serviceCidr" rest:"description=immutable"`
