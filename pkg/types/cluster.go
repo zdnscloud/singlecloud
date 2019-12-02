@@ -39,10 +39,10 @@ const (
 type Cluster struct {
 	resource.ResourceBase `json:",inline"`
 	Nodes                 []Node            `json:"nodes" rest:"required=true"`
-	Network               ClusterNetwork    `json:"network"`
+	Network               ClusterNetwork    `json:"network",rest:"description=immutable"`
 	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
 	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true,minLen=1,maxLen=128"`
-	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128"`
+	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128,description=immutable"`
 	Status                ClusterStatus     `json:"status" rest:"description=readonly"`
 	NodesCount            int               `json:"nodeCount" rest:"description=readonly"`
 	Version               string            `json:"version" rest:"description=readonly"`
@@ -64,13 +64,13 @@ type Cluster struct {
 	SSHPort             string   `json:"sshPort"`
 	DockerSocket        string   `json:"dockerSocket,omitempty"`
 	KubernetesVersion   string   `json:"kubernetesVersion,omitempty"`
-	IgnoreDockerVersion bool     `json:"ignoreDockerVersion"`
-	ClusterCidr         string   `json:"clusterCidr"`
-	ServiceCidr         string   `json:"serviceCidr"`
-	ClusterDomain       string   `json:"clusterDomain" rest:"required=true"`
-	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty"`
-	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS"`
-	DisablePortCheck    bool     `json:"disablePortCheck"`
+	IgnoreDockerVersion bool     `json:"ignoreDockerVersion" rest:"description=immutable"`
+	ClusterCidr         string   `json:"clusterCidr" rest:"description=immutable"`
+	ServiceCidr         string   `json:"serviceCidr" rest:"description=immutable"`
+	ClusterDomain       string   `json:"clusterDomain" rest:"required=true,description=immutable"`
+	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty" rest:"description=immutable"`
+	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS" rest:"description=immutable"`
+	DisablePortCheck    bool     `json:"disablePortCheck" rest:"description=immutable"`
 }
 
 type ClusterNetwork struct {
