@@ -74,8 +74,8 @@ type Cluster struct {
 }
 
 type ClusterNetwork struct {
-	Plugin string `json:"plugin" rest:"options=flannel|calico"`
-	Iface  string `json:"iface"`
+	Plugin string `json:"plugin" rest:"options=flannel|calico,description=immutable"`
+	Iface  string `json:"iface" rest:"description=immutable"`
 }
 
 type PrivateRegistry struct {
