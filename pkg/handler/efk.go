@@ -152,7 +152,7 @@ func genEFKConfigs(cluster *zke.Cluster, efk *types.EFK) ([]byte, error) {
 				StorageClass: efk.StorageClass,
 				Resources: charts.PvcResources{
 					Requests: charts.PvcRequests{
-						Storage: efk.StorageSize,
+						Storage: efk.StorageSize / types.DefaultEFKESReplicas,
 					},
 				},
 			},

@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	defaultEFKESReplicas   = 3
-	defaultEFKStorageClass = "lvm"
-	defaultEFKStorageSize  = 10
+	DefaultEFKESReplicas   = 3
+	DefaultEFKStorageClass = "lvm"
+	DefaultEFKStorageSize  = 10
 )
 
 type EFK struct {
@@ -26,8 +26,8 @@ func (e EFK) GetParents() []resource.ResourceKind {
 
 func (e EFK) CreateDefaultResource() resource.Resource {
 	return &EFK{
-		StorageClass: defaultEFKStorageClass,
-		StorageSize:  defaultEFKStorageSize,
-		ESReplicas:   defaultEFKESReplicas,
+		StorageClass: DefaultEFKStorageClass,
+		StorageSize:  DefaultEFKStorageSize,
+		ESReplicas:   DefaultEFKESReplicas,
 	}
 }
