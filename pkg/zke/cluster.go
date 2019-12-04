@@ -206,6 +206,12 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
+		if state.Created {
+			c.event(UpdateCompletedEvent, mgr, state)
+		} else {
+			c.event(CreateFailedEvent, mgr, state)
+		}
+		return
 	}
 
 	if state.Created {
