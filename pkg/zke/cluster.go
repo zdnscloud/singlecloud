@@ -84,9 +84,17 @@ func (c *Cluster) GetNodeIpsByRole(role types.NodeRole) []string {
 	return ips
 }
 
-func (c *Cluster) Cancel() {
-	c.cancel()
-	c.isCanceled = true
+func (c *Cluster) Cancel() error {
+	status := c.getStatus()
+	if status == types.CSCreating || status == types.CSUpdating {
+		if c.isCanceled {
+			return fmt.Errorf("cluster %s is caceling", c.Name)
+		}
+		c.isCanceled = true
+		c.cancel()
+		return nil
+	}
+	return fmt.Errorf("can't cancel cluster %s on %s status", c.Name, status)
 }
 
 func (c *Cluster) CanUpdate() bool {

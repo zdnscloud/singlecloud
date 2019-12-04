@@ -261,7 +261,9 @@ func (m *ZKEManager) CancelCluster(id string) (interface{}, *resterr.APIError) {
 	if c == nil {
 		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", id))
 	}
-	c.Cancel()
+	if err := c.Cancel(); err != nil {
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, err.Error())
+	}
 	return nil, nil
 }
 
