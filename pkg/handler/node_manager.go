@@ -237,7 +237,7 @@ func (m *NodeManager) Action(ctx *restresource.Context) (interface{}, *resterr.A
 }
 
 func cordonNode(cli client.Client, name string) *resterr.APIError {
-	node, err := getK8sNodeIfNotControlplane(cli, name)
+	node, err := getK8sNodeIfNotControlplaneOrStorage(cli, name)
 	if err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func cordonNode(cli client.Client, name string) *resterr.APIError {
 }
 
 func drainNode(cli client.Client, name string) *resterr.APIError {
-	node, err := getK8sNodeIfNotControlplane(cli, name)
+	node, err := getK8sNodeIfNotControlplaneOrStorage(cli, name)
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func drainNode(cli client.Client, name string) *resterr.APIError {
 }
 
 func uncordonNode(cli client.Client, name string) *resterr.APIError {
-	node, err := getK8sNodeIfNotControlplane(cli, name)
+	node, err := getK8sNodeIfNotControlplaneOrStorage(cli, name)
 	if err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func isNodeDrained(node *corev1.Node) bool {
 	return false
 }
 
-func getK8sNodeIfNotControlplane(cli client.Client, name string) (*corev1.Node, *resterr.APIError) {
+func getK8sNodeIfNotControlplaneOrStorage(cli client.Client, name string) (*corev1.Node, *resterr.APIError) {
 	node, err := getK8SNode(cli, name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -327,17 +327,21 @@ func getK8sNodeIfNotControlplane(cli client.Client, name string) (*corev1.Node, 
 		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, err.Error())
 	}
 
-	if isControlplaneNode(node) {
+	if checkNodeByRole(node, types.RoleControlPlane) {
 		return nil, resterr.NewAPIError(resterr.PermissionDenied, "can not cordon|drain|uncordon a controlplane node")
+	}
+
+	if checkNodeByRole(node, types.RoleStorage) {
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "can not cordon|drain|uncordon a storage node")
 	}
 	return node, nil
 }
 
-func isControlplaneNode(node *corev1.Node) bool {
+func checkNodeByRole(node *corev1.Node, role types.NodeRole) bool {
 	n := types.Node{
 		Roles: getRoleFromLabels(node.Labels),
 	}
-	if n.HasRole(types.RoleControlPlane) {
+	if n.HasRole(role) {
 		return true
 	}
 	return false
