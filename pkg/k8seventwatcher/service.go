@@ -1,14 +1,13 @@
 package k8seventwatcher
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 
+	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/uuid"
-	"github.com/zdnscloud/singlecloud/hack/sockjs"
 )
 
 const (
@@ -17,7 +16,7 @@ const (
 )
 
 func (mgr *WatcherManager) RegisterHandler(router gin.IRoutes) error {
-	eventPath := fmt.Sprintf(WSEventPathTemp, ":cluster") + "/*actions"
+	eventPath := fmt.Sprintf(WSEventPathTemp, ":cluster")
 	router.GET(eventPath, func(c *gin.Context) {
 		mgr.OpenEvent(c.Param("cluster"), c.Request, c.Writer)
 	})
@@ -35,47 +34,40 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 		return
 	}
 
-	Sockjshandler := func(session sockjs.Session) {
-		listener := watcher.AddListener()
-		done := make(chan struct{})
-		go func() {
-			<-session.ClosedNotify()
-			listener.Stop()
-			close(done)
-		}()
-
-		eventCh := listener.EventChannel()
-		for {
-			e, ok := <-eventCh
-			if ok == false {
-				break
-			}
-
-			//event id in k8s may duplicate, generate uuid by ourselve
-			id, _ := uuid.Gen()
-			t := e.LastTimestamp
-			event := map[string]string{
-				"id":        id,
-				"time":      fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second()),
-				"namespace": e.Namespace,
-				"type":      e.Type,
-				"kind":      e.InvolvedObject.Kind,
-				"name":      e.InvolvedObject.Name,
-				"reason":    e.Reason,
-				"message":   e.Message,
-				"source":    e.Source.Component + "," + e.Source.Host,
-			}
-			d, _ := json.Marshal(event)
-			err := session.Send(string(d))
-			if err != nil {
-				log.Warnf("send log failed:%s", err.Error())
-				break
-			}
-		}
-		session.Close(503, "event is terminated")
-		<-done
+	var upgrader = websocket.Upgrader{}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Warnf("cluster %s event websocket upgrade failed %s", clusterID, err.Error())
+		return
 	}
+	defer conn.Close()
 
-	path := fmt.Sprintf(WSEventPathTemp, clusterID)
-	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+	listener := watcher.AddListener()
+
+	eventCh := listener.EventChannel()
+	for {
+		e, ok := <-eventCh
+		if ok == false {
+			break
+		}
+		//event id in k8s may duplicate, generate uuid by ourselve
+		id, _ := uuid.Gen()
+		t := e.LastTimestamp
+		event := map[string]string{
+			"id":        id,
+			"time":      fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second()),
+			"namespace": e.Namespace,
+			"type":      e.Type,
+			"kind":      e.InvolvedObject.Kind,
+			"name":      e.InvolvedObject.Name,
+			"reason":    e.Reason,
+			"message":   e.Message,
+			"source":    e.Source.Component + "," + e.Source.Host,
+		}
+		err := conn.WriteJSON(event)
+		if err != nil {
+			log.Warnf("send log failed:%s", err.Error())
+			break
+		}
+	}
 }
