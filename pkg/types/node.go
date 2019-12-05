@@ -9,6 +9,8 @@ type NodeStatus string
 const (
 	NSReady    NodeStatus = "Ready"
 	NSNotReady NodeStatus = "NotReady"
+	NSCordoned NodeStatus = "Cordoned"
+	NSDrained  NodeStatus = "Drained"
 )
 
 type NodeRole string
@@ -19,6 +21,12 @@ const (
 	RoleWorker       NodeRole = "worker"
 	RoleEdge         NodeRole = "edge"
 	RoleStorage      NodeRole = "storage"
+)
+
+const (
+	NodeCordon   string = "cordon"
+	NodeUnCordon string = "uncordon"
+	NodeDrain    string = "drain"
 )
 
 type Node struct {
@@ -45,6 +53,25 @@ type Node struct {
 
 func (n Node) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
+}
+
+func (n Node) CreateAction(name string) *resource.Action {
+	switch name {
+	case NodeCordon:
+		return &resource.Action{
+			Name: NodeCordon,
+		}
+	case NodeUnCordon:
+		return &resource.Action{
+			Name: NodeUnCordon,
+		}
+	case NodeDrain:
+		return &resource.Action{
+			Name: NodeDrain,
+		}
+	default:
+		return nil
+	}
 }
 
 func (n *Node) HasRole(role NodeRole) bool {

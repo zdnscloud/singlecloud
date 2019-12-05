@@ -88,6 +88,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.InnerService{}, newInnerServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.KubeConfig{}, newKubeConfigManager(a.clusterManager))
+	schemas.MustImport(&Version, types.FluentBitConfig{}, newFluentBitConfigManager(a.clusterManager))
 
 	userQuotaManager, err := newUserQuotaManager(a.clusterManager)
 	if err != nil {
@@ -107,6 +108,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 
 	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.MustImport(&Version, types.User{}, userManager)
+	schemas.MustImport(&Version, types.HorizontalPodAutoscaler{}, newHorizontalPodAutoscalerManager(a.clusterManager))
 	server := gorest.NewAPIServer(schemas)
 	server.Use(a.clusterManager.authorizationHandler())
 	adaptor.RegisterHandler(router, server, schemas.GenerateResourceRoute())

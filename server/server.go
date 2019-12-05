@@ -34,6 +34,7 @@ func NewServer(middlewares ...gin.HandlerFunc) (*Server, error) {
 			param.Request.UserAgent(),
 		)
 	}))
+	router.Use(static.Serve("/assets/helm/icons", static.LocalFile("/helm-icons", false)))
 	router.Use(static.Serve("/assets", static.LocalFile("/www", false)))
 	router.Use(middlewares...)
 	router.NoRoute(func(c *gin.Context) {

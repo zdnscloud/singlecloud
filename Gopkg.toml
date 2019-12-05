@@ -58,6 +58,10 @@
   branch = "master"
 
 [[constraint]]
+  name = "github.com/zdnscloud/iniconfig"
+  branch = "master"
+
+[[override]]
   name = "github.com/zdnscloud/kvzoo"
   branch = "master"
 

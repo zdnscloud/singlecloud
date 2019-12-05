@@ -13,6 +13,18 @@ const (
 	AppStatusSucceed = "succeed"
 )
 
+var (
+	ResourceTypeDeployment  = resource.DefaultKindName(Deployment{})
+	ResourceTypeDaemonSet   = resource.DefaultKindName(DaemonSet{})
+	ResourceTypeStatefulSet = resource.DefaultKindName(StatefulSet{})
+	ResourceTypeJob         = resource.DefaultKindName(Job{})
+	ResourceTypeCronJob     = resource.DefaultKindName(CronJob{})
+	ResourceTypeConfigMap   = resource.DefaultKindName(ConfigMap{})
+	ResourceTypeSecret      = resource.DefaultKindName(Secret{})
+	ResourceTypeService     = resource.DefaultKindName(Service{})
+	ResourceTypeIngress     = resource.DefaultKindName(Ingress{})
+)
+
 type Application struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string          `json:"name"`
@@ -20,16 +32,20 @@ type Application struct {
 	ChartVersion          string          `json:"chartVersion"`
 	ChartIcon             string          `json:"chartIcon"`
 	Status                string          `json:"status"`
-	AppResources          []AppResource   `json:"appResources,omitempty"`
+	WorkloadCount         int             `json:"workloadCount,omitempty"`
+	ReadyWorkloadCount    int             `json:"readyWorkloadCount,omitempty"`
+	AppResources          AppResources    `json:"appResources,omitempty"`
 	Configs               json.RawMessage `json:"configs,omitempty"`
 	Manifests             []Manifest      `json:"manifests,omitempty"`
 	SystemChart           bool            `json:"systemChart,omitempty"`
 }
 
 type AppResource struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-	Link string `json:"link"`
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	Link          string `json:"link"`
+	Replicas      int    `json:"replicas,omitempty"`
+	ReadyReplicas int    `json:"readyReplicas,omitempty"`
 }
 
 type Manifest struct {

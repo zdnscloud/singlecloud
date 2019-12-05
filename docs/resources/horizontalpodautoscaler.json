@@ -1,0 +1,96 @@
+{
+    "resourceType": "horizontalpodautoscaler",
+    "collectionName": "horizontalpodautoscalers",
+    "parentResources": [ "namespace" ],
+
+    "resourceFields": {
+        "name": {"type": "string"},
+        "scaleTargetKind": {"type": "enum", "validValues": ["deployment", "statefulset"]},
+        "scaleTargetName": {"type": "string"},
+        "minReplicas": {"type": "int"},
+        "maxReplicas": {"type": "int"},
+        "resourceMetrics": {"type": "array", "elemType": "resourceMetricSpec"},
+        "customMetrics": {"type": "array", "elemType": "customMetricSpec"},
+        "status": {"type": "horizontalPodAutoscalerStatus"}
+    },
+
+    "subResources": {
+        "resourceMetricSpec": {
+            "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
+            "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
+            "averageValue": {"type": "string"},
+            "averageUtilization": {"type": "int"}
+        },
+
+        "customMetricSpec": {
+            "metricName": {"type": "string"},
+            "averageValue": {"type": "string"}
+        },
+
+        "horizontalPodAutoscalerStatus": {
+            "currentReplicas": {"type": "int"},
+            "desiredReplicas": {"type": "int"},
+            "currentMetrics": {"type": "metricStatus"}
+        },
+
+        "metricStatus": {
+            "resourceMetrics": {"type": "array", "elemType": "resourceMetricSpec"},
+            "customMetrics": {"type": "array", "elemType": "customMetricSpec"}
+        }
+    },
+
+    "resourceMethods": [ "GET", "DELETE", "PUT" ],
+    "collectionMethods": [ "GET", "POST"],
+
+    "postParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "scaleTargetKind": {"type": "enum", "required": true, "validValues": ["deployment", "statefulset"]},
+            "scaleTargetName": {"type": "string", "required": true},
+            "minReplicas": {"type": "int", "required": true},
+            "maxReplicas": {"type": "int", "required": true},
+            "resourceMetrics": {"type": "array", "elemType": "resourceMetricSpec"},
+            "customMetrics": {"type": "array", "elemType": "customMetricSpec"}
+        },
+
+        "subResources": {
+            "resourceMetricSpec": {
+                "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
+                "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
+                "averageValue": {"type": "string"},
+                "averageUtilization": {"type": "int"}
+            },
+
+            "customMetricSpec": {
+                "metricName": {"type": "string"},
+                "averageValue": {"type": "string"}
+            }
+        }
+    },
+
+    "putParameters": {
+        "fields": {
+            "name": {"type": "string", "required": true},
+            "scaleTargetKind": {"type": "enum", "required": true, "validValues": ["deployment", "statefulset"]},
+            "scaleTargetName": {"type": "string", "required": true},
+            "minReplicas": {"type": "int"},
+            "maxReplicas": {"type": "int", "required": true},
+            "resourceMetrics": {"type": "array", "elemType": "resourceMetricSpec"},
+            "customMetrics": {"type": "array", "elemType": "customMetricSpec"}
+        },
+
+        "subResources": {
+            "resourceMetricSpec": {
+                "resourceName": {"type": "enum", "validValues": ["cpu", "memory"]},
+                "targetType": {"type": "enum", "validValues": ["Utilization", "AverageValue"]},
+                "averageValue": {"type": "string"},
+                "averageUtilization": {"type": "int"}
+            },
+
+            "customMetricSpec": {
+                "metricName": {"type": "string"},
+                "averageValue": {"type": "string"}
+            }
+        }
+    }
+}

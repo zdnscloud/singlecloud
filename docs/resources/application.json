@@ -29,11 +29,17 @@
     "name": {
       "type": "string"
     },
+    "readyWorkloadCount": {
+      "type": "int"
+    },
     "status": {
       "type": "string"
     },
     "systemChart": {
       "type": "bool"
+    },
+    "workloadCount": {
+      "type": "int"
     }
   },
   "subResources": {
@@ -43,6 +49,12 @@
       },
       "name": {
         "type": "string"
+      },
+      "readyReplicas": {
+        "type": "int"
+      },
+      "replicas": {
+        "type": "int"
       },
       "type": {
         "type": "string"

@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/zdnscloud/cement/log"
@@ -32,6 +33,9 @@ const (
 	AnnKeyForReloadWhenConfigChange      = "zcloud.cn/update-on-config-change"
 	AnnKeyForConfigHashAnnotation        = "zcloud.cn/config-hash"
 	AnnkeyForDeletePVsWhenDeleteWorkload = "zcloud_delete_pvs_when_delete_workload"
+
+	DefaultRequestCPU    = "10m"
+	DefaultRequestMemory = "20Mi"
 )
 
 func createPodTempateSpec(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {
@@ -359,6 +363,12 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 			VolumeMounts: mounts,
 			Ports:        ports,
 			Env:          env,
+			Resources: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    apiresource.MustParse(DefaultRequestCPU),
+					corev1.ResourceMemory: apiresource.MustParse(DefaultRequestMemory),
+				},
+			},
 		})
 	}
 

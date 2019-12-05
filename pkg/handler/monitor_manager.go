@@ -85,7 +85,7 @@ func createSysApplication(ctx *restresource.Context, db kvzoo.DB, appManager *Ap
 	app.SetID(app.Name)
 
 	if err := appManager.create(ctx, cluster, ZCloudNamespace, app); err != nil {
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create monitor application failed %s", err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create %s application failed %s", chartName, err.Error()))
 	}
 
 	go ensureApplicationSucceedOrDie(table, cluster, app.Name)

@@ -40,5 +40,6 @@ func Resources() []resource.ResourceKind {
 		Registry{},
 		EFK{},
 		User{},
+		FluentBitConfig{},
 	}
 }

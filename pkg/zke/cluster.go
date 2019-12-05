@@ -155,7 +155,7 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 		}
 	}()
 
-	logger, logCh := log.NewLog4jBufLogger(MaxZKELogLines, log.Info)
+	logger, logCh := log.NewISO3339Log4jBufLogger(MaxZKELogLines, log.Info)
 	defer logger.Close()
 	c.logCh = logCh
 
@@ -189,7 +189,7 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 		}
 	}()
 
-	logger, logCh := log.NewLog4jBufLogger(MaxZKELogLines, log.Info)
+	logger, logCh := log.NewISO3339Log4jBufLogger(MaxZKELogLines, log.Info)
 	defer logger.Close()
 	c.logCh = logCh
 
@@ -234,7 +234,7 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 		}
 	}()
 
-	logger, logCh := log.NewLog4jBufLogger(MaxZKELogLines, log.Info)
+	logger, logCh := log.NewISO3339Log4jBufLogger(MaxZKELogLines, log.Info)
 	defer logger.Close()
 	c.logCh = logCh
 

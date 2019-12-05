@@ -1,0 +1,33 @@
+{
+  "resourceType": "fluentbitconfig",
+  "collectionName": "fluentbitconfigs",
+  "parentResources": [
+    "deployment",
+    "daemonset",
+    "statefulset"
+  ],
+  "goStructName": "FluentBitConfig",
+  "resourceFields": {
+    "regexp": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
+    },
+    "timeFormat": {
+      "type": "string"
+    },
+    "timeKey": {
+      "type": "string"
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
+}
