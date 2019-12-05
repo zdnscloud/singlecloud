@@ -153,13 +153,23 @@
 
 #### 4.2.4.1 资源概览
 
-为用户提供所选中的用户空间资源使用情况。CPU，内存，workload，svc，ingress，pvc。
+为用户提供所选中的用户空间资源使用情况。CPU，内存，deployment，statefulset，daemonset，svc。
+
+deployment，statefulset，daemonset，svc：以上四个资源需要展示正常与异常的数量。
+
+deployment，statefulset，daemonset正常：ready的POD数与总POD数一致，则视为正常。
+
+deployment，statefulset，daemonset异常：ready的POD数少于总POD数。
+
+svc正常：svc的endpoint状态有一个是ready
+
+svc正常：svc的endpoint状态没有任何一个是ready
 
 并且能通过CPU与内存两个指标，定位用户空间内最耗资源的实例。
 
-CPU：计算用户空间内已使用CPU的总和，并与集群总体CPU资源做百分比。显示top5的POD，显示内容为pod名称，workload名称，CPU使用。按CPU由高到低排序。workload名称具有跳转到详情的功能。
+CPU/MEM：显示top5的POD，显示内容为pod名称，workload名称，CPU使用。按CPU由高到低排序。workload名称具有跳转到详情的功能。
 
-MEM：计算用户空间内已使用MEM的总和，并与集群总体MEM资源做百分比。显示top5的POD，显示内容为pod名称，workload名称，MEM使用。按MEM由高到低排序。workload名称具有跳转到详情的功能。
+CPU/MEM：显示1个小时内namespaces的三个数据指标，请求量、使用量、CPU/MEM总量，5秒一个采样点。
 
 #### 4.2.4.2 服务网格
 
