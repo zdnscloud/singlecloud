@@ -10,6 +10,7 @@ type ResourceBase struct {
 	Type              string                            `json:"type,omitempty"`
 	Links             map[ResourceLinkType]ResourceLink `json:"links,omitempty"`
 	CreationTimestamp ISOTime                           `json:"creationTimestamp,omitempty"`
+	DeletionTimestamp ISOTime                           `json:"deletionTimestamp,omitempty"`
 
 	action *Action  `json:"-"`
 	parent Resource `json:"-"`
@@ -52,6 +53,14 @@ func (r *ResourceBase) GetCreationTimestamp() time.Time {
 
 func (r *ResourceBase) SetCreationTimestamp(timestamp time.Time) {
 	r.CreationTimestamp = ISOTime(timestamp)
+}
+
+func (r *ResourceBase) GetDeletionTimestamp() time.Time {
+	return time.Time(r.DeletionTimestamp)
+}
+
+func (r *ResourceBase) SetDeletionTimestamp(timestamp time.Time) {
+	r.DeletionTimestamp = ISOTime(timestamp)
 }
 
 func (r *ResourceBase) GetParent() Resource {

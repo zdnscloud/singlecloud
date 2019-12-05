@@ -13,7 +13,7 @@ func GuessPluralName(name string) string {
 		return name
 	}
 
-	if strings.HasSuffix(name, "s") || strings.HasSuffix(name, "ch") || strings.HasSuffix(name, "x") {
+	if strings.HasSuffix(name, "s") || strings.HasSuffix(name, "ch") || strings.HasSuffix(name, "x") || strings.HasSuffix(name, "zh") || strings.HasSuffix(name, "sh") {
 		return name + "es"
 	}
 
