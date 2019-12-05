@@ -216,11 +216,7 @@ func (m *ZKEManager) List() []*Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	var clusters []*Cluster
-	for _, c := range m.clusters {
-		clusters = append(clusters, c)
-	}
-	return clusters
+	return m.clusters
 }
 
 func (m *ZKEManager) Delete(id string) *resterr.APIError {
@@ -248,6 +244,16 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 	if state.Created {
 		close(toDelete.stopCh)
 		m.PubEventCh <- DeleteCluster{Cluster: toDelete}
+	}
+	tm := time.Now()
+	for _, c := range m.clusters {
+		if c.Name == id {
+			c.DeleteTime = tm
+		}
+	}
+	state.DeleteTime = tm
+	if err := createOrUpdateClusterFromDB(id, state, m.dbTable); err != nil {
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 	go toDelete.Destroy(context.TODO(), m)
 	return nil

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
@@ -193,6 +194,7 @@ func genRetrunRegistryFromApplication(cluster string, app *types.Application) (*
 		Status:        app.Status,
 	}
 	r.SetID(registryAppNamePrefix)
-	r.CreationTimestamp = app.CreationTimestamp
+	r.SetCreationTimestamp(time.Time(app.CreationTimestamp))
+	r.SetDeletionTimestamp(time.Time(app.DeletionTimestamp))
 	return &r, nil
 }

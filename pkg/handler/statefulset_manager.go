@@ -258,6 +258,7 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 	}
 	statefulset.SetID(k8sStatefulSet.Name)
 	statefulset.SetCreationTimestamp(k8sStatefulSet.CreationTimestamp.Time)
+	statefulset.SetDeletionTimestamp(k8sStatefulSet.DeletionTimestamp.Time)
 	statefulset.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sStatefulSet.Spec.Template.Annotations)
 	return statefulset
 }

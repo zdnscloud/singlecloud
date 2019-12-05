@@ -32,6 +32,7 @@ var (
 type User struct {
 	Projects          []types.Project   `json:"projects,omitempty"`
 	CreationTimestamp resttypes.ISOTime `json:"creationTimestamp,omitempty"`
+	DeletionTimestamp resttypes.ISOTime `json:"deletionTimestamp,omitempty"`
 }
 
 type Authorizer struct {
@@ -117,6 +118,7 @@ func (a *Authorizer) GetUser(userName string) *types.User {
 		}
 		user.SetID(userName)
 		user.SetCreationTimestamp(time.Time(user_.CreationTimestamp))
+		user.SetDeletionTimestamp(time.Time(user_.DeletionTimestamp))
 		return user
 	} else {
 		return nil
@@ -134,6 +136,7 @@ func (a *Authorizer) ListUser() []*types.User {
 		}
 		user.SetID(name)
 		user.SetCreationTimestamp(time.Time(user_.CreationTimestamp))
+		user.SetDeletionTimestamp(time.Time(user_.DeletionTimestamp))
 		users = append(users, user)
 	}
 	return users
@@ -143,7 +146,12 @@ func (a *Authorizer) DeleteUser(user string) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	if _, ok := a.users[user]; ok {
+	if user_, ok := a.users[user]; ok {
+		user_.DeletionTimestamp = resttypes.ISOTime(time.Now())
+		a.users[user] = user_
+		if err := a.updateUser(user, user_); err != nil {
+			return err
+		}
 		if err := a.deleteUser(user); err != nil {
 			return err
 		}

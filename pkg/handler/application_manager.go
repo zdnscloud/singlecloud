@@ -616,6 +616,7 @@ func updateAppStatusToDeleteFromDB(table kvzoo.Table, name string, isSystemChart
 	}
 
 	app.Status = types.AppStatusDelete
+	app.SetDeletionTimestamp(time.Now())
 	value, err := json.Marshal(app)
 	if err != nil {
 		return nil, err

@@ -125,5 +125,6 @@ func k8sPVToSCPV(k8sPersistentVolume *corev1.PersistentVolume) *types.Persistent
 	}
 	pv.SetID(k8sPersistentVolume.Name)
 	pv.SetCreationTimestamp(k8sPersistentVolume.CreationTimestamp.Time)
+	pv.SetDeletionTimestamp(k8sPersistentVolume.DeletionTimestamp.Time)
 	return pv
 }

@@ -36,6 +36,7 @@ func (m *KubeConfigManager) Get(ctx *restresource.Context) restresource.Resource
 	}
 	k.SetID(id)
 	k.SetCreationTimestamp(cluster.CreateTime)
+	k.SetDeletionTimestamp(cluster.DeleteTime)
 	return k
 }
 
@@ -58,5 +59,6 @@ func (m *KubeConfigManager) List(ctx *restresource.Context) interface{} {
 	}
 	k.SetID(k.User)
 	k.SetCreationTimestamp(cluster.CreateTime)
+	k.SetDeletionTimestamp(cluster.DeleteTime)
 	return []*types.KubeConfig{k}
 }

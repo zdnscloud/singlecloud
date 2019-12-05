@@ -241,6 +241,7 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cl
 	}
 	storagecluster.SetID(k8sStorageCluster.Name)
 	storagecluster.SetCreationTimestamp(k8sStorageCluster.CreationTimestamp.Time)
+	storagecluster.SetDeletionTimestamp(k8sStorageCluster.DeletionTimestamp.Time)
 	return storagecluster
 }
 

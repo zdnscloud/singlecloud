@@ -173,6 +173,7 @@ func k8sResourceQuotaToSCResourceQuota(k8sResourceQuota *corev1.ResourceQuota) *
 	}
 	resourceQuota.SetID(k8sResourceQuota.Name)
 	resourceQuota.SetCreationTimestamp(k8sResourceQuota.CreationTimestamp.Time)
+	resourceQuota.SetDeletionTimestamp(k8sResourceQuota.DeletionTimestamp.Time)
 	return resourceQuota
 }
 

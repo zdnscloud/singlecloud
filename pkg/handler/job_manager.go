@@ -190,6 +190,7 @@ func k8sJobToSCJob(k8sJob *batchv1.Job) *types.Job {
 	}
 	job.SetID(k8sJob.Name)
 	job.SetCreationTimestamp(k8sJob.CreationTimestamp.Time)
+	job.SetDeletionTimestamp(k8sJob.DeletionTimestamp.Time)
 	return job
 }
 

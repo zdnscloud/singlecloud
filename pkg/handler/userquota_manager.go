@@ -232,6 +232,10 @@ func (m *UserQuotaManager) Delete(ctx *resource.Context) *resterror.APIError {
 		}
 	}
 
+	if err := updateDeletionTimeFromDB(quota, tx); err != nil {
+		return resterror.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("update user quota deletion time failed: %v", err.Error()))
+	}
 	if err := tx.Delete(userQuota.GetID()); err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete user quota failed: %v", err.Error()))
@@ -504,5 +508,25 @@ func checkUserQuotaParamsValid(quota *types.UserQuota) error {
 		return fmt.Errorf("storage %s is invalid: %s", quota.Storage, err.Error())
 	}
 
+	return nil
+}
+
+func updateDeletionTimeFromDB(userQuota *types.UserQuota, tx kvzoo.Transaction) error {
+	userQuota.SetDeletionTimestamp(time.Now())
+	value, err := json.Marshal(userQuota)
+	if err != nil {
+		return resterror.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("marshal user quota to storage value failed: %s", err.Error()))
+	}
+
+	if err := tx.Update(userQuota.GetID(), value); err != nil {
+		return resterror.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("update user %s quota with namespace %s failed %s", userQuota.UserName, userQuota.Namespace, err.Error()))
+	}
+
+	if err := tx.Commit(); err != nil {
+		return resterror.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("commit user_resource_quota table failed: %s", err.Error()))
+	}
 	return nil
 }

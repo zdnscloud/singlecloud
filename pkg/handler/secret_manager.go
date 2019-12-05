@@ -204,5 +204,6 @@ func k8sSecretToSCSecret(k8sSecret *corev1.Secret) *types.Secret {
 	}
 	secret.SetID(k8sSecret.Name)
 	secret.SetCreationTimestamp(k8sSecret.CreationTimestamp.Time)
+	secret.SetDeletionTimestamp(k8sSecret.DeletionTimestamp.Time)
 	return secret
 }

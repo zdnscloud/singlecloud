@@ -253,6 +253,7 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	}
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetCreationTimestamp(k8sDaemonSet.CreationTimestamp.Time)
+	daemonSet.SetDeletionTimestamp(k8sDaemonSet.DeletionTimestamp.Time)
 	daemonSet.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDaemonSet.Spec.Template.Annotations)
 	return daemonSet, nil
 }

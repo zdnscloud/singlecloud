@@ -131,5 +131,6 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 	}
 	pvc.SetID(k8sPersistentVolumeClaim.Name)
 	pvc.SetCreationTimestamp(k8sPersistentVolumeClaim.CreationTimestamp.Time)
+	pvc.SetDeletionTimestamp(k8sPersistentVolumeClaim.DeletionTimestamp.Time)
 	return pvc
 }

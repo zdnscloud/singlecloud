@@ -53,6 +53,7 @@ func k8sStorageClassToScStorageClass(k8sStorageClass *storagev1.StorageClass) *t
 	}
 	storageClass.SetID(k8sStorageClass.Name)
 	storageClass.SetCreationTimestamp(k8sStorageClass.CreationTimestamp.Time)
+	storageClass.SetDeletionTimestamp(k8sStorageClass.DeletionTimestamp.Time)
 	return storageClass
 }
 
