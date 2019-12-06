@@ -245,12 +245,9 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 		close(toDelete.stopCh)
 		m.PubEventCh <- DeleteCluster{Cluster: toDelete}
 	}
+
 	tm := time.Now()
-	for _, c := range m.clusters {
-		if c.Name == id {
-			c.DeleteTime = tm
-		}
-	}
+	toDelete.DeleteTime = tm
 	state.DeleteTime = tm
 	if err := createOrUpdateClusterFromDB(id, state, m.dbTable); err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
