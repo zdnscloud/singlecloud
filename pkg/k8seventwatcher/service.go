@@ -34,8 +34,7 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 		return
 	}
 
-	var upgrader = websocket.Upgrader{}
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := websocket.Upgrade(w, r, nil, 4096, 4096)
 	if err != nil {
 		log.Warnf("cluster %s event websocket upgrade failed %s", clusterID, err.Error())
 		return

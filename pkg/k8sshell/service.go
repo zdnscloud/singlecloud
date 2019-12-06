@@ -51,7 +51,6 @@ type ShellConn struct {
 }
 
 func newShellConn(r *http.Request, w http.ResponseWriter) (*ShellConn, error) {
-	// var upgrader = websocket.Upgrader{}
 	conn, err := websocket.Upgrade(w, r, nil, 4096, 4096)
 	if err != nil {
 		return nil, err

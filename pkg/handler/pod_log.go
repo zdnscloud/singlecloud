@@ -73,17 +73,16 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 		return
 	}
 
-	var upgrader = websocket.Upgrader{}
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := websocket.Upgrade(w, r, nil, 4096, 4096)
 	if err != nil {
-		log.Warnf("pod %s-%s-%s-%s log websocket upgrade failed %s", clusterID, namespace, pod, container, err)
+		log.Warnf("pod %s-%s-%s-%s log websocket upgrade failed %s", clusterID, namespace, pod, container, err.Error())
 		return
 	}
 	defer conn.Close()
 
 	readCloser, err := m.openPodLog(cluster, namespace, pod, container)
 	if err != nil {
-		log.Warnf("openPodLog %s-%s-%s-%s failed %s", clusterID, namespace, pod, container, err)
+		log.Warnf("openPodLog %s-%s-%s-%s failed %s", clusterID, namespace, pod, container, err.Error())
 		return
 	}
 
@@ -91,7 +90,7 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 	for s.Scan() {
 		err := conn.WriteMessage(websocket.TextMessage, s.Bytes())
 		if err != nil {
-			log.Warnf("send log failed:%s", err.Error())
+			log.Warnf("send %s-%s-%s-%s log failed:%s", clusterID, namespace, pod, container, err.Error())
 			break
 		}
 	}

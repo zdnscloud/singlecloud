@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/zdnscloud/kvzoo"
-	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
+	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
@@ -33,7 +33,7 @@ type Cluster struct {
 	stopCh     chan struct{}
 	config     *zketypes.ZKEConfig
 	logCh      chan string
-	logSession sockjs.Session
+	logSession *websocket.Conn
 	cancel     context.CancelFunc
 	isCanceled bool
 	lock       sync.Mutex
