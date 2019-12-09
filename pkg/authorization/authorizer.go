@@ -147,11 +147,6 @@ func (a *Authorizer) DeleteUser(user string) error {
 	defer a.lock.Unlock()
 
 	if user_, ok := a.users[user]; ok {
-		user_.DeletionTimestamp = resttypes.ISOTime(time.Now())
-		a.users[user] = user_
-		if err := a.updateUser(user, user_); err != nil {
-			return err
-		}
 		if err := a.deleteUser(user); err != nil {
 			return err
 		}
