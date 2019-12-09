@@ -7,19 +7,34 @@
   "goStructName": "PersistentVolume",
   "resourceFields": {
     "claimRef": {
-      "type": "claimRef"
+      "type": "claimRef",
+      "description": [
+        "readonly"
+      ]
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "storageClassName": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "storageSize": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "subResources": {

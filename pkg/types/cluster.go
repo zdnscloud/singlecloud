@@ -36,7 +36,7 @@ const (
 type Cluster struct {
 	resource.ResourceBase `json:",inline"`
 	Nodes                 []Node            `json:"nodes" rest:"required=true"`
-	Network               ClusterNetwork    `json:"network",rest:"description=immutable"`
+	Network               ClusterNetwork    `json:"network" rest:"description=immutable"`
 	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
 	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true,minLen=1,maxLen=128"`
 	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128,description=immutable"`
@@ -71,8 +71,8 @@ type Cluster struct {
 }
 
 type ClusterNetwork struct {
-	Plugin string `json:"plugin" rest:"options=flannel|calico,description=immutable"`
-	Iface  string `json:"iface" rest:"description=immutable"`
+	Plugin string `json:"plugin" rest:"options=flannel|calico"`
+	Iface  string `json:"iface"`
 }
 
 type PrivateRegistry struct {

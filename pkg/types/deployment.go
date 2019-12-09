@@ -90,26 +90,26 @@ func (d Deployment) CreateAction(name string) *resource.Action {
 }
 
 type WorkloadStatus struct {
-	ObservedGeneration  int                 `json:"observedGeneration,omitempty" rest:"description=readonly"`
-	Replicas            int                 `json:"replicas,omitempty" rest:"description=readonly"`
-	ReadyReplicas       int                 `json:"readyReplicas,omitempty" rest:"description=readonly"`
-	UpdatedReplicas     int                 `json:"updatedReplicas,omitempty" rest:"description=readonly"`
-	AvailableReplicas   int                 `json:"availableReplicas,omitempty" rest:"description=readonly"`
-	UnavailableReplicas int                 `json:"unavailableReplicas,omitempty" rest:"description=readonly"`
-	CurrentReplicas     int                 `json:"currentReplicas,omitempty" rest:"description=readonly"`
-	CurrentRevision     string              `json:"currentRevision,omitempty" rest:"description=readonly"`
-	UpdateRevision      string              `json:"updateRevision,omitempty" rest:"description=readonly"`
-	CollisionCount      int                 `json:"collisionCount,omitempty" rest:"description=readonly"`
-	Conditions          []WorkloadCondition `json:"conditions,omitempty" rest:"description=readonly"`
+	ObservedGeneration  int                 `json:"observedGeneration,omitempty"`
+	Replicas            int                 `json:"replicas,omitempty"`
+	ReadyReplicas       int                 `json:"readyReplicas,omitempty"`
+	UpdatedReplicas     int                 `json:"updatedReplicas,omitempty"`
+	AvailableReplicas   int                 `json:"availableReplicas,omitempty"`
+	UnavailableReplicas int                 `json:"unavailableReplicas,omitempty"`
+	CurrentReplicas     int                 `json:"currentReplicas,omitempty"`
+	CurrentRevision     string              `json:"currentRevision,omitempty"`
+	UpdateRevision      string              `json:"updateRevision,omitempty"`
+	CollisionCount      int                 `json:"collisionCount,omitempty"`
+	Conditions          []WorkloadCondition `json:"conditions,omitempty"`
 }
 
 type WorkloadCondition struct {
-	Type               string           `json:"type,omitempty" rest:"description=readonly"`
-	Status             string           `json:"status,omitempty" rest:"description=readonly"`
-	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty" rest:"description=readonly"`
-	LastUpdateTime     resource.ISOTime `json:"lastUpdateTime,omitempty" rest:"description=readonly"`
-	Reason             string           `json:"reason,omitempty" rest:"description=readonly"`
-	Message            string           `json:"message,omitempty" rest:"description=readonly"`
+	Type               string           `json:"type,omitempty"`
+	Status             string           `json:"status,omitempty"`
+	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty"`
+	LastUpdateTime     resource.ISOTime `json:"lastUpdateTime,omitempty"`
+	Reason             string           `json:"reason,omitempty"`
+	Message            string           `json:"message,omitempty"`
 }
 
 type VersionHistory struct {

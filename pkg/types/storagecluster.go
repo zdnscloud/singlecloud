@@ -28,30 +28,30 @@ type StorageCluster struct {
 }
 
 type Storage struct {
-	Name string `json:"name" rest:"description=readonly"`
-	PVs  []PV   `json:"pvs" rest:"description=readonly"`
+	Name string `json:"name"`
+	PVs  []PV   `json:"pvs"`
 }
 
 type PV struct {
-	Name             string       `json:"name" rest:"description=readonly"`
-	Size             string       `json:"size" rest:"description=readonly"`
-	UsedSize         string       `json:"usedSize" rest:"description=readonly"`
-	FreeSize         string       `json:"freeSize" rest:"description=readonly"`
-	Pods             []StoragePod `json:"pods" rest:"description=readonly"`
+	Name             string       `json:"name"`
+	Size             string       `json:"size"`
+	UsedSize         string       `json:"usedSize"`
+	FreeSize         string       `json:"freeSize"`
+	Pods             []StoragePod `json:"pods"`
 	StorageClassName string       `json:"-"`
-	Node             string       `json:"node" rest:"description=readonly"`
+	Node             string       `json:"node"`
 }
 
 type StorageNode struct {
-	Name     string `json:"name" rest:"description=readonly"`
-	Size     string `json:"size" rest:"description=readonly"`
-	UsedSize string `json:"usedSize" rest:"description=readonly"`
-	FreeSize string `json:"freeSize" rest:"description=readonly"`
-	Stat     bool   `json:"stat" rest:"description=readonly"`
+	Name     string `json:"name"`
+	Size     string `json:"size"`
+	UsedSize string `json:"usedSize"`
+	FreeSize string `json:"freeSize"`
+	Stat     bool   `json:"stat"`
 }
 
 type StoragePod struct {
-	Name string `json:"name" rest:"description=readonly"`
+	Name string `json:"name"`
 }
 
 func (s StorageCluster) GetParents() []resource.ResourceKind {

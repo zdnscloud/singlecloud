@@ -15,16 +15,16 @@ type DaemonSet struct {
 }
 
 type DaemonSetStatus struct {
-	CurrentNumberScheduled int                 `json:"currentNumberScheduled,omitempty" rest:"description=readonly"`
-	NumberMisscheduled     int                 `json:"numberMisscheduled,omitempty" rest:"description=readonly"`
-	DesiredNumberScheduled int                 `json:"desiredNumberScheduled,omitempty" rest:"description=readonly"`
-	NumberReady            int                 `json:"numberReady,omitempty" rest:"description=readonly"`
-	ObservedGeneration     int                 `json:"observedGeneration,omitempty" rest:"description=readonly"`
-	UpdatedNumberScheduled int                 `json:"updatedNumberScheduled,omitempty" rest:"description=readonly"`
-	NumberAvailable        int                 `json:"numberAvailable,omitempty" rest:"description=readonly"`
-	NumberUnavailable      int                 `json:"numberUnavailable,omitempty" rest:"description=readonly"`
-	CollisionCount         int                 `json:"collisionCount,omitempty" rest:"description=readonly"`
-	Conditions             []WorkloadCondition `json:"conditions,omitempty" rest:"description=readonly"`
+	CurrentNumberScheduled int                 `json:"currentNumberScheduled,omitempty"`
+	NumberMisscheduled     int                 `json:"numberMisscheduled,omitempty"`
+	DesiredNumberScheduled int                 `json:"desiredNumberScheduled,omitempty"`
+	NumberReady            int                 `json:"numberReady,omitempty"`
+	ObservedGeneration     int                 `json:"observedGeneration,omitempty"`
+	UpdatedNumberScheduled int                 `json:"updatedNumberScheduled,omitempty"`
+	NumberAvailable        int                 `json:"numberAvailable,omitempty"`
+	NumberUnavailable      int                 `json:"numberUnavailable,omitempty"`
+	CollisionCount         int                 `json:"collisionCount,omitempty"`
+	Conditions             []WorkloadCondition `json:"conditions,omitempty"`
 }
 
 func (d DaemonSet) GetParents() []resource.ResourceKind {

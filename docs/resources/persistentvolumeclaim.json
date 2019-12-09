@@ -7,25 +7,46 @@
   "goStructName": "PersistentVolumeClaim",
   "resourceFields": {
     "actualStorageSize": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "namespace": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "requestStorageSize": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "storageClassName": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "volumeName": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "resourceMethods": [

@@ -7,42 +7,78 @@
   "goStructName": "Namespace",
   "resourceFields": {
     "cpu": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
     },
     "cpuUsed": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
     },
     "cpuUsedRatio": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "memory": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
     },
     "memoryUsed": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
     },
     "memoryUsedRatio": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
     "pod": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
     },
     "podUsed": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
     },
     "podUsedRatio": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "podsUseMostCPU": {
       "type": "array",
-      "elemType": "podCpuInfo"
+      "elemType": "podCpuInfo",
+      "description": [
+        "readonly"
+      ]
     },
     "podsUseMostMemory": {
       "type": "array",
-      "elemType": "podMemoryInfo"
+      "elemType": "podMemoryInfo",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "subResources": {

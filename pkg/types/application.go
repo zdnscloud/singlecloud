@@ -41,17 +41,17 @@ type Application struct {
 }
 
 type AppResource struct {
-	Name          string `json:"name" rest:"description=readonly"`
-	Type          string `json:"type" rest:"description=readonly"`
-	Link          string `json:"link" rest:"description=readonly"`
-	Replicas      int    `json:"replicas,omitempty" rest:"description=readonly"`
-	ReadyReplicas int    `json:"readyReplicas,omitempty" rest:"description=readonly"`
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	Link          string `json:"link"`
+	Replicas      int    `json:"replicas,omitempty"`
+	ReadyReplicas int    `json:"readyReplicas,omitempty"`
 }
 
 type Manifest struct {
-	File      string `json:"file,omitempty" rest:"description=readonly"`
-	Content   string `json:"content,omitempty" rest:"description=readonly"`
-	Duplicate bool   `json:"duplicate,omitempty" rest:"description=readonly"`
+	File      string `json:"file,omitempty"`
+	Content   string `json:"content,omitempty"`
+	Duplicate bool   `json:"duplicate,omitempty"`
 }
 
 func (a Application) GetParents() []resource.ResourceKind {

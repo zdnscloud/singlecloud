@@ -6,48 +6,48 @@ import (
 
 type Pod struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string      `json:"name,omitempty" rest:"description=readonly"`
-	NodeName              string      `json:"nodeName,omitempty" rest:"description=readonly"`
-	State                 string      `json:"state" rest:"description=readonly"`
-	Containers            []Container `json:"containers" rest:"description=readonly"`
-	Status                PodStatus   `json:"status" rest:"description=readonly"`
+	Name                  string      `json:"name,omitempty"`
+	NodeName              string      `json:"nodeName,omitempty"`
+	State                 string      `json:"state"`
+	Containers            []Container `json:"containers"`
+	Status                PodStatus   `json:"status"`
 }
 
 type PodStatus struct {
-	Phase             string            `json:"phase,omitempty" rest:"description=readonly"`
-	StartTime         resource.ISOTime  `json:"startTime,omitempty" rest:"description=readonly"`
-	HostIP            string            `json:"hostIP,omitempty" rest:"description=readonly"`
-	PodIP             string            `json:"podIP,omitempty" rest:"description=readonly"`
-	PodConditions     []PodCondition    `json:"podConditions,omitempty" rest:"description=readonly"`
-	ContainerStatuses []ContainerStatus `json:"containerStatuses,omitempty" rest:"description=readonly"`
+	Phase             string            `json:"phase,omitempty"`
+	StartTime         resource.ISOTime  `json:"startTime,omitempty"`
+	HostIP            string            `json:"hostIP,omitempty"`
+	PodIP             string            `json:"podIP,omitempty"`
+	PodConditions     []PodCondition    `json:"podConditions,omitempty"`
+	ContainerStatuses []ContainerStatus `json:"containerStatuses,omitempty"`
 }
 
 type PodCondition struct {
-	Type               string           `json:"type,omitempty" rest:"description=readonly"`
-	Status             string           `json:"status,omitempty" rest:"description=readonly"`
-	LastProbeTime      resource.ISOTime `json:"lastProbeTime,omitempty" rest:"description=readonly"`
-	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty" rest:"description=readonly"`
+	Type               string           `json:"type,omitempty"`
+	Status             string           `json:"status,omitempty"`
+	LastProbeTime      resource.ISOTime `json:"lastProbeTime,omitempty"`
+	LastTransitionTime resource.ISOTime `json:"lastTransitionTime,omitempty"`
 }
 
 type ContainerStatus struct {
-	Name         string          `json:"name,omitempty" rest:"description=readonly"`
-	Ready        bool            `json:"ready,omitempty" rest:"description=readonly"`
-	RestartCount int32           `json:"restartCount" rest:"description=readonly"`
-	Image        string          `json:"image,omitempty" rest:"description=readonly"`
-	ImageID      string          `json:"imageID,omitempty" rest:"description=readonly"`
-	ContainerID  string          `json:"containerID,omitempty" rest:"description=readonly"`
-	LastState    *ContainerState `json:"lastState,omitempty" rest:"description=readonly"`
-	State        *ContainerState `json:"state,omitempty" rest:"description=readonly"`
+	Name         string          `json:"name,omitempty"`
+	Ready        bool            `json:"ready,omitempty"`
+	RestartCount int32           `json:"restartCount"`
+	Image        string          `json:"image,omitempty"`
+	ImageID      string          `json:"imageID,omitempty"`
+	ContainerID  string          `json:"containerID,omitempty"`
+	LastState    *ContainerState `json:"lastState,omitempty"`
+	State        *ContainerState `json:"state,omitempty"`
 }
 
 type ContainerState struct {
-	Type        string           `json:"type,omitempty" rest:"description=readonly"`
-	ContainerID string           `json:"containerID,omitempty" rest:"description=readonly"`
-	ExitCode    int32            `json:"exitCode,omitempty" rest:"description=readonly"`
-	Reason      string           `json:"reason,omitempty" rest:"description=readonly"`
-	Message     string           `json:"message,omitempty" rest:"description=readonly"`
-	StartedAt   resource.ISOTime `json:"startedAt,omitempty" rest:"description=readonly"`
-	FinishedAt  resource.ISOTime `json:"finishedAt,omitempty" rest:"description=readonly"`
+	Type        string           `json:"type,omitempty"`
+	ContainerID string           `json:"containerID,omitempty"`
+	ExitCode    int32            `json:"exitCode,omitempty"`
+	Reason      string           `json:"reason,omitempty"`
+	Message     string           `json:"message,omitempty"`
+	StartedAt   resource.ISOTime `json:"startedAt,omitempty"`
+	FinishedAt  resource.ISOTime `json:"finishedAt,omitempty"`
 }
 
 const (

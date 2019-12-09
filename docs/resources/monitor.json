@@ -7,32 +7,56 @@
   "goStructName": "Monitor",
   "resourceFields": {
     "adminPassword": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
     "ingressDomain": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
     "prometheusRetention": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "immutable"
+      ]
     },
     "redirectUrl": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "scrapeInterval": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "immutable"
+      ]
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "storageClass": {
       "type": "enum",
       "validValues": [
         "lvm",
         "cephfs"
+      ],
+      "description": [
+        "immutable"
       ]
     },
     "storageSize": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "immutable"
+      ]
     }
   },
   "resourceMethods": [

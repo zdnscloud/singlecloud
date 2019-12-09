@@ -14,9 +14,9 @@ type PersistentVolume struct {
 }
 
 type ClaimRef struct {
-	Kind      string `json:"string" rest:"description=readonly"`
-	Name      string `json:"name" rest:"description=readonly"`
-	Namespace string `json:"namespace" rest:"description=readonly"`
+	Kind      string `json:"string"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
 func (pv PersistentVolume) GetParents() []resource.ResourceKind {

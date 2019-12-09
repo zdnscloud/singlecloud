@@ -27,13 +27,13 @@ type Namespace struct {
 }
 
 type PodCpuInfo struct {
-	Name    string `json:"name" rest:"description=readonly"`
-	CpuUsed int64  `json:"cpuUsed" rest:"description=readonly"`
+	Name    string `json:"name"`
+	CpuUsed int64  `json:"cpuUsed"`
 }
 
 type PodMemoryInfo struct {
-	Name       string `json:"name" rest:"description=readonly"`
-	MemoryUsed int64  `json:"memoryUsed" rest:"description=readonly"`
+	Name       string `json:"name"`
+	MemoryUsed int64  `json:"memoryUsed"`
 }
 
 func (n Namespace) GetParents() []resource.ResourceKind {
