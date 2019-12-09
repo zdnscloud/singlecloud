@@ -27,23 +27,23 @@ func TestClusterDB(t *testing.T) {
 		ut.Assert(t, err == nil, "create db table should succeed: %s", err)
 
 		newClusterState := clusterState{
-			FullState:    &core.FullState{},
-			ZKEConfig:    &zketypes.ZKEConfig{},
-			CreateTime:   time.Now(),
-			IsUnvailable: false,
-			ScVersion:    "v1.0",
+			FullState:  &core.FullState{},
+			ZKEConfig:  &zketypes.ZKEConfig{},
+			CreateTime: time.Now(),
+			Created:    false,
+			ScVersion:  "v1.0",
 		}
 
 		err = createOrUpdateClusterFromDB(clusterName, newClusterState, table)
 		ut.Assert(t, err == nil, "create cluster from db should succeed: %s", err)
 
-		newClusterState.IsUnvailable = true
+		newClusterState.Created = true
 		err = createOrUpdateClusterFromDB(clusterName, newClusterState, table)
 		ut.Assert(t, err == nil, "update cluster from db should succeed: %s", err)
 
 		state, err := getClusterFromDB(clusterName, table)
 		ut.Assert(t, err == nil, "get cluster from db should succeed: %s", err)
-		ut.Assert(t, state.IsUnvailable == newClusterState.IsUnvailable, "after update cluster, it's IsUnvaliable field should equal the value get from db")
+		ut.Assert(t, state.Created == newClusterState.Created, "after update cluster, it's created field should equal the value get from db")
 
 		states, err := getClustersFromDB(table)
 		ut.Assert(t, err == nil, "get clusters from db should succeed: %s", err)

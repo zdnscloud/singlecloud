@@ -309,7 +309,7 @@ creating，updating状态可进行取消操作。
 
 仅creating和updating状态可查看创建/更新日志。日志缓存50条。当创建或更新失败或完成后，日志功能不可用。
 
-#### **4.2.4.10**      全局配置
+#### **4.2.4.7**      全局配置
 
 **功能点描述：** 启用监控、镜像仓库
 
@@ -389,7 +389,7 @@ uncordon：恢复
 
 drain：驱逐所有POD
 
-集群内worker节点需要支持以上三种操作，master节点不支持。用来排查问题，或对节点进行维护。节点维护CPU、MEM时使用。操作逻辑如下：
+集群内worker节点需要支持以上三种操作，master和存储节点不支持。用来排查问题，或对节点进行维护。节点维护CPU、MEM时使用。操作逻辑如下：
 
 cordon后，可以使用uncordon或drain，drain后只能使用uncordon。正常情况下，只有cordon、drain可使用。
 
@@ -519,9 +519,9 @@ POD IP：分为列表页与详情页两层。
 
 ### 4.6.1    功能概述
 
-记录Zcloud平台发生的事件，事件分类如下：k8s事件、Zcloud事件、资源预警。
+记录Zcloud平台发生的事件，事件分类如下：操作预警、资源预警。
 
-某一类型可以选择忽略，或者恢复。UI铃铛要显示总条数，忽略的类型不计数。
+某一条事件可以选择忽略，已处理。UI铃铛要显示总条数，已处理和忽略的事件不计数。
 
 ### **4.6.2**    功能点清单 
 
@@ -531,15 +531,23 @@ POD IP：分为列表页与详情页两层。
 
 3、资源预警
 
+事件级别分为高中低
+
+高：资源预警
+
+中：Zcloud操作事件
+
+低：k8s事件
+
 ### **4.6.3**    功能详细描述
 
 #### **4.6.3.1**      k8s事件
 
-能实时展示k8s所有事件，并可以根据条件进行过滤。当产生Node not ready时写入铃铛
+k8s发生应用事件，仅展示权限内的，不包含集群的事件。产生事件的资源有，集群，节点，storageclass，ns，workload，pod，pvc
 
-#### **4.6.3.2**      singlecloud事件
+#### **4.6.3.2**      zcloud事件
 
-用户的操作的集群的创建、编辑、删除，节点的新增、删除、维护，存储的新建，删除，编辑，以上动作如果发生失败，需要记录失败事件并注明原因。通过铃铛页面进行展示。只记录异步错误
+用户的操作的集群的创建、编辑、删除，节点的新增、删除、维护，存储的新建，删除，编辑，以上动作如果发生失败，需要记录失败事件并注明原因。通过铃铛页面进行展示。
 
 #### 4.6.3.3 预警
 
@@ -553,7 +561,13 @@ node：CPU、MEM、系统盘、IP网络
 
 namespaces：CPU、MEM、存储
 
-目前支持设置邮件告警。Zcloud提供预警查看功能。
+workload：存储
+
+用户空间指标：用户空间所有POD使用CPU、MEM、存储的量占用户申请资源的百分比。若用户空间没有申请资源，则按集群总量资源量计算。
+
+应用指标：用户权限内的POD使用的pvc存储量，占POD申请PVC总大小的百分比。
+
+预警方式：目前只支持邮件。Zcloud提供预警查看功能。
 
 2、通知
 
@@ -561,6 +575,83 @@ namespaces：CPU、MEM、存储
 
 ### **4.6.4**    业务数据描述
 
+## 4.7 系统工具
 
+### 4.7.1    功能概述
 
- 
+系统管理员需要完成工具的初始化。
+
+### **4.7.2**    功能点清单 
+
+#### **4.7.2.1**      镜像仓库
+
+需要输入访问域名，存储大小，用户名默认admin，密码默认zcloud。
+
+#### **4.7.2.2**      监控中心
+
+直接安装即可，用户名默认admin，密码默认zcloud。
+
+#### **4.7.2.3**      日志分析
+
+需要输入访问域名，存储大小。存储大小用户的输入需要在后台做除以3处理。
+
+## 4.8      负载均衡联动
+
+### 4.8.1删除
+
+Zcloud所有资源全部是异步删除，用户列表无状态（用户被删除，下面的资源不删除）。
+
+除了特例外，需要增加状态的资源有：namespaces、node、存储、app资源、k8s资源、资源申请。资源表格增加删除时间列。
+
+以上资源，除了删除中的状态，其他状态都可以删除。
+
+删除中的状态，只能等待资源删除成功或删除失败。
+
+删除成功的资源，在系统内要清理干净。
+
+对于删除失败的资源，可以再次删除。删除失败当前页面资源下方使用红色小子提示，同时写入Zcloud平台事件。
+
+### 4.8.2 负载联动
+
+外部负载需求
+
+K8s包含三种类型的服务：ClusterIP、[NodePort](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#nodeport)、[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)。
+
+Ø **ClusterIP**：通过集群的内部 IP 暴露服务，服务只能够在集群内部可以访问。
+
+Ø [**NodePort**](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#nodeport)**：**通过每个 Node 上的 IP 和静态端口暴露服务。NodePort 服务会NAT到 ClusterIP 服务。
+
+Ø [**LoadBalancer**](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)**：**负载局衡器，可以向外部暴露服务。外部的负载均衡器可以路由到 NodePort 服务和 ClusterIP 服务。
+
+以下需求全部是针对[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务提出。
+
+#### 4.8.2.1、新增
+
+**SLB硬件设备新增**
+
+在Zcloud启动时指定SLB硬件设备与连接信息。
+
+**[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)服务新增**
+
+[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被创建时，此事件应及时被监听处理。通过服务的配置信息（VIP，PORT，Endpoint，PATH等），由K8s内部插件主动向外部调用API，创建负载策略。每个VIP支持绑定多个不同端口的服务。
+
+#### 4.8.2.2、删除
+
+当[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被删除时，此事件应及时被监听处理。与此服务相关的所有负载策略一并清除。
+
+#### 4.8.2.3、修改
+
+当[LoadBalancer](https://v1-16.docs.kubernetes.io/zh/docs/concepts/services-networking/service/#loadbalancer)类型的服务被修改时，此事件应及时被监听处理。端口变更，实例变化。
+
+#### 4.8.2.4、查看
+
+**SLB硬件设备**
+
+从设备按业务能获取到以下指标：
+
+HTTP的每秒请求包数，服务的网络吞吐量，服务的总连接数，请求命中率。
+
+**负载策略**
+
+按服务显示已经配置的负载策略。Vip，端口，endport，endip等等。
+

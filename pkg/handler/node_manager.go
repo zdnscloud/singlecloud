@@ -3,9 +3,11 @@ package handler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
@@ -13,8 +15,13 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
+	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+)
+
+const (
+	nodeDrainedNoExecuteTaintKey = "node.zcloud.cn/unexecutable"
 )
 
 type NodeManager struct {
@@ -118,7 +125,11 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 	osImage := nodeInfo.OSImage
 	dockderVersion := nodeInfo.ContainerRuntimeVersion
 	nodeStatus := types.NSReady
-	if helper.IsNodeReady(k8sNode) == false {
+	if isNodeDrained(k8sNode) {
+		nodeStatus = types.NSDrained
+	} else if isNodeCordoned(k8sNode) {
+		nodeStatus = types.NSCordoned
+	} else if !helper.IsNodeReady(k8sNode) {
 		nodeStatus = types.NSNotReady
 	}
 
@@ -199,4 +210,139 @@ func getRoleFromLabels(labels map[string]string) []types.NodeRole {
 		}
 	}
 	return roles
+}
+
+func (m *NodeManager) Action(ctx *restresource.Context) (interface{}, *resterr.APIError) {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can call node action api")
+	}
+
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
+	}
+	action := ctx.Resource.GetAction()
+	node := ctx.Resource.GetID()
+
+	switch action.Name {
+	case types.NodeCordon:
+		return nil, cordonNode(cluster.KubeClient, node)
+	case types.NodeUnCordon:
+		return nil, uncordonNode(cluster.KubeClient, node)
+	case types.NodeDrain:
+		return nil, drainNode(cluster.KubeClient, node)
+	default:
+		return nil, nil
+	}
+}
+
+func cordonNode(cli client.Client, name string) *resterr.APIError {
+	node, err := getK8sNodeIfNotControlplaneOrStorage(cli, name)
+	if err != nil {
+		return err
+	}
+
+	if isNodeCordoned(node) || isNodeDrained(node) {
+		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("node %s is already cordoned or drained", name))
+	}
+
+	node.Spec.Unschedulable = true
+	if err := cli.Update(context.TODO(), node); err != nil {
+		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+	}
+	return nil
+}
+
+func drainNode(cli client.Client, name string) *resterr.APIError {
+	node, err := getK8sNodeIfNotControlplaneOrStorage(cli, name)
+	if err != nil {
+		return err
+	}
+
+	if isNodeDrained(node) {
+		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("node %s is already drained", name))
+	}
+
+	node.Spec.Taints = append(node.Spec.Taints, corev1.Taint{
+		Key:    nodeDrainedNoExecuteTaintKey,
+		Effect: corev1.TaintEffectNoExecute,
+		TimeAdded: &metav1.Time{
+			Time: time.Now(),
+		},
+	})
+
+	node.Spec.Unschedulable = true
+	if err := cli.Update(context.TODO(), node); err != nil {
+		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+	}
+	return nil
+}
+
+func uncordonNode(cli client.Client, name string) *resterr.APIError {
+	node, err := getK8sNodeIfNotControlplaneOrStorage(cli, name)
+	if err != nil {
+		return err
+	}
+
+	if isNodeDrained(node) {
+		for i, t := range node.Spec.Taints {
+			if t.Key == nodeDrainedNoExecuteTaintKey {
+				node.Spec.Taints = append(node.Spec.Taints[:i], node.Spec.Taints[i+1:]...)
+				break
+			}
+		}
+	}
+
+	if isNodeCordoned(node) {
+		node.Spec.Unschedulable = false
+	} else {
+		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("node %s isn't cordoned", name))
+	}
+
+	if err := cli.Update(context.TODO(), node); err != nil {
+		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+	}
+	return nil
+}
+
+func isNodeCordoned(node *corev1.Node) bool {
+	return node.Spec.Unschedulable
+}
+
+func isNodeDrained(node *corev1.Node) bool {
+	for _, t := range node.Spec.Taints {
+		if t.Key == nodeDrainedNoExecuteTaintKey {
+			return true
+		}
+	}
+	return false
+}
+
+func getK8sNodeIfNotControlplaneOrStorage(cli client.Client, name string) (*corev1.Node, *resterr.APIError) {
+	node, err := getK8SNode(cli, name)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("node %s desn't exist", name))
+		}
+		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, err.Error())
+	}
+
+	if checkNodeByRole(node, types.RoleControlPlane) {
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "can not cordon|drain|uncordon a controlplane node")
+	}
+
+	if checkNodeByRole(node, types.RoleStorage) {
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "can not cordon|drain|uncordon a storage node")
+	}
+	return node, nil
+}
+
+func checkNodeByRole(node *corev1.Node, role types.NodeRole) bool {
+	n := types.Node{
+		Roles: getRoleFromLabels(node.Labels),
+	}
+	if n.HasRole(role) {
+		return true
+	}
+	return false
 }

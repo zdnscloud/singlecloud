@@ -1,89 +1,100 @@
 {
-  "resourceType": "node",
-  "collectionName": "nodes",
-  "parentResources": [
-    "cluster"
-  ],
-  "goStructName": "Node",
-  "resourceFields": {
-    "address": {
-      "type": "string",
-      "description": [
-        "required"
-      ]
+    "resourceType": "node",
+    "collectionName": "nodes",
+    "parentResources": [
+        "cluster"
+    ],
+    "goStructName": "Node",
+    "resourceFields": {
+        "address": {
+            "type": "string",
+            "description": [
+                "required"
+            ]
+        },
+        "annotations": {
+            "type": "map",
+            "keyType": "string",
+            "valueType": "string"
+        },
+        "cpu": {
+            "type": "int"
+        },
+        "cpuUsed": {
+            "type": "int"
+        },
+        "cpuUsedRatio": {
+            "type": "string"
+        },
+        "dockerVersion": {
+            "type": "string"
+        },
+        "labels": {
+            "type": "map",
+            "keyType": "string",
+            "valueType": "string"
+        },
+        "memory": {
+            "type": "int"
+        },
+        "memoryUsed": {
+            "type": "int"
+        },
+        "memoryUsedRatio": {
+            "type": "string"
+        },
+        "name": {
+            "type": "string",
+            "description": [
+                "required"
+            ]
+        },
+        "operatingSystem": {
+            "type": "string"
+        },
+        "operatingSystemImage": {
+            "type": "string"
+        },
+        "pod": {
+            "type": "int"
+        },
+        "podUsed": {
+            "type": "int"
+        },
+        "podUsedRatio": {
+            "type": "string"
+        },
+        "roles": {
+            "type": "enum",
+            "validValues": [
+                "controlplane",
+                "etcd",
+                "worker",
+                "edge"
+            ],
+            "description": [
+                "required"
+            ]
+        },
+        "status": {
+            "type": "string"
+        }
     },
-    "annotations": {
-      "type": "map",
-      "keyType": "string",
-      "valueType": "string"
-    },
-    "cpu": {
-      "type": "int"
-    },
-    "cpuUsed": {
-      "type": "int"
-    },
-    "cpuUsedRatio": {
-      "type": "string"
-    },
-    "dockerVersion": {
-      "type": "string"
-    },
-    "labels": {
-      "type": "map",
-      "keyType": "string",
-      "valueType": "string"
-    },
-    "memory": {
-      "type": "int"
-    },
-    "memoryUsed": {
-      "type": "int"
-    },
-    "memoryUsedRatio": {
-      "type": "string"
-    },
-    "name": {
-      "type": "string",
-      "description": [
-        "required"
-      ]
-    },
-    "operatingSystem": {
-      "type": "string"
-    },
-    "operatingSystemImage": {
-      "type": "string"
-    },
-    "pod": {
-      "type": "int"
-    },
-    "podUsed": {
-      "type": "int"
-    },
-    "podUsedRatio": {
-      "type": "string"
-    },
-    "roles": {
-      "type": "enum",
-      "validValues": [
-        "controlplane",
-        "etcd",
-        "worker",
-        "edge"
-      ],
-      "description": [
-        "required"
-      ]
-    },
-    "status": {
-      "type": "string"
-    }
-  },
-  "resourceMethods": [
-    "GET"
-  ],
-  "collectionMethods": [
-    "GET"
-  ]
+    "resourceMethods": [
+        "GET",
+        "POST"
+    ],
+    "collectionMethods": [
+        "GET"
+    ],
+    "resourceActions": [{
+            "name": "cordon"
+        },
+        {
+            "name": "drain"
+        },
+        {
+            "name": "uncordon"
+        }
+    ]
 }
