@@ -7,7 +7,10 @@
   "goStructName": "StorageCluster",
   "resourceFields": {
     "freeSize": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "hosts": {
       "type": "array",
@@ -18,17 +21,29 @@
     },
     "nodes": {
       "type": "array",
-      "elemType": "storageNode"
+      "elemType": "storageNode",
+      "description": [
+        "readonly"
+      ]
     },
     "phase": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "pvs": {
       "type": "array",
-      "elemType": "pV"
+      "elemType": "pV",
+      "description": [
+        "readonly"
+      ]
     },
     "size": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "storageType": {
       "type": "enum",
@@ -41,7 +56,10 @@
       ]
     },
     "usedSize": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "subResources": {

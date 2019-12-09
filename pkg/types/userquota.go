@@ -28,20 +28,20 @@ type Rejection struct {
 
 type UserQuota struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string           `json:"name,omitempty"`
+	Name                  string           `json:"name,omitempty" rest:"description=immutable"`
 	ClusterName           string           `json:"clusterName,omitempty"`
 	Namespace             string           `json:"namespace"`
-	UserName              string           `json:"userName"`
+	UserName              string           `json:"userName" rest:"description=readonly"`
 	CPU                   string           `json:"cpu"`
 	Memory                string           `json:"memory"`
 	Storage               string           `json:"storage"`
-	RequestType           string           `json:"requestType"`
-	Status                string           `json:"status"`
+	RequestType           string           `json:"requestType" rest:"description=readonly"`
+	Status                string           `json:"status" rest:"description=readonly"`
 	Purpose               string           `json:"purpose"`
 	Requestor             string           `json:"requestor,omitempty"`
 	Telephone             string           `json:"telephone,omitempty"`
 	RejectionReason       string           `json:"rejectionReason,omitempty"`
-	ResponseTimestamp     resource.ISOTime `json:"responseTimestamp,omitempty"`
+	ResponseTimestamp     resource.ISOTime `json:"responseTimestamp,omitempty" rest:"description=readonly"`
 }
 
 func (uq UserQuota) CreateAction(name string) *resource.Action {

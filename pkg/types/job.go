@@ -9,7 +9,7 @@ type Job struct {
 	Name                  string      `json:"name,omitempty"`
 	RestartPolicy         string      `json:"restartPolicy,omitempty"`
 	Containers            []Container `json:"containers"`
-	Status                JobStatus   `json:"status"`
+	Status                JobStatus   `json:"status" rest:"description=readonly"`
 }
 
 type JobStatus struct {

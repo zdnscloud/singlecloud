@@ -10,20 +10,20 @@ const (
 
 type Namespace struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string `json:"name,omitempty"`
+	Name                  string `json:"name,omitempty" rest:"description=immutable"`
 
-	Cpu             int64  `json:"cpu"`
-	CpuUsed         int64  `json:"cpuUsed"`
-	CpuUsedRatio    string `json:"cpuUsedRatio"`
-	Memory          int64  `json:"memory"`
-	MemoryUsed      int64  `json:"memoryUsed"`
-	MemoryUsedRatio string `json:"memoryUsedRatio"`
-	Pod             int64  `json:"pod"`
-	PodUsed         int64  `json:"podUsed"`
-	PodUsedRatio    string `json:"podUsedRatio"`
+	Cpu             int64  `json:"cpu" rest:"description=readonly"`
+	CpuUsed         int64  `json:"cpuUsed" rest:"description=readonly"`
+	CpuUsedRatio    string `json:"cpuUsedRatio" rest:"description=readonly"`
+	Memory          int64  `json:"memory" rest:"description=readonly"`
+	MemoryUsed      int64  `json:"memoryUsed" rest:"description=readonly"`
+	MemoryUsedRatio string `json:"memoryUsedRatio" rest:"description=readonly"`
+	Pod             int64  `json:"pod" rest:"description=readonly"`
+	PodUsed         int64  `json:"podUsed" rest:"description=readonly"`
+	PodUsedRatio    string `json:"podUsedRatio" rest:"description=readonly"`
 
-	PodsUseMostCPU    []*PodCpuInfo    `json:"podsUseMostCPU,omitempty"`
-	PodsUseMostMemory []*PodMemoryInfo `json:"podsUseMostMemory,omitempty"`
+	PodsUseMostCPU    []*PodCpuInfo    `json:"podsUseMostCPU,omitempty" rest:"description=readonly"`
+	PodsUseMostMemory []*PodMemoryInfo `json:"podsUseMostMemory,omitempty" rest:"description=readonly"`
 }
 
 type PodCpuInfo struct {

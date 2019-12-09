@@ -6,13 +6,13 @@ import (
 
 type PersistentVolumeClaim struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string `json:"name"`
-	Namespace             string `json:"namespace"`
-	RequestStorageSize    string `json:"requestStorageSize"`
-	StorageClassName      string `json:"storageClassName"`
-	VolumeName            string `json:"volumeName"`
-	ActualStorageSize     string `json:"actualStorageSize"`
-	Status                string `json:"status"`
+	Name                  string `json:"name" rest:"description=readonly"`
+	Namespace             string `json:"namespace" rest:"description=readonly"`
+	RequestStorageSize    string `json:"requestStorageSize" rest:"description=readonly"`
+	StorageClassName      string `json:"storageClassName" rest:"description=readonly"`
+	VolumeName            string `json:"volumeName" rest:"description=readonly"`
+	ActualStorageSize     string `json:"actualStorageSize" rest:"description=readonly"`
+	Status                string `json:"status" rest:"description=readonly"`
 }
 
 func (pvc PersistentVolumeClaim) GetParents() []resource.ResourceKind {

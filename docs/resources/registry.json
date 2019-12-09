@@ -7,26 +7,44 @@
   "goStructName": "Registry",
   "resourceFields": {
     "adminPassword": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
     "ingressDomain": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
     "redirectUrl": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "storageClass": {
       "type": "enum",
       "validValues": [
         "lvm",
         "cephfs"
+      ],
+      "description": [
+        "immutable"
       ]
     },
     "storageSize": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "immutable"
+      ]
     }
   },
   "resourceMethods": [

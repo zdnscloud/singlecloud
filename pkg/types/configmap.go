@@ -13,7 +13,7 @@ type Config struct {
 //not support binary
 type ConfigMap struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string   `json:"name"`
+	Name                  string   `json:"name" rest:"description=immutable"`
 	Configs               []Config `json:"configs,omitempty"`
 }
 

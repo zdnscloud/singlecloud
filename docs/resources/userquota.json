@@ -13,7 +13,10 @@
       "type": "string"
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
     "namespace": {
       "type": "string"
@@ -25,16 +28,25 @@
       "type": "string"
     },
     "requestType": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "requestor": {
       "type": "string"
     },
     "responseTimestamp": {
-      "type": "date"
+      "type": "date",
+      "description": [
+        "readonly"
+      ]
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "storage": {
       "type": "string"
@@ -43,7 +55,10 @@
       "type": "string"
     },
     "userName": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "resourceMethods": [

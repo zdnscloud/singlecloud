@@ -8,13 +8,24 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	gok8sconfig "github.com/zdnscloud/gok8s/client/config"
-	"github.com/zdnscloud/gok8s/helper"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	zkecmd "github.com/zdnscloud/zke/cmd"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 	zketypes "github.com/zdnscloud/zke/types"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+)
+
+const (
+	zcloudProxyReplicas   = 1
+	zcloudProxyDeployName = "zcloud-proxy"
+	zcloudProxyImage      = "zdnscloud/zcloud-proxy:v1.0.1"
+	zcloudProxyNamespace  = "zcloud"
 )
 
 func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger) (*core.FullState, *rest.Config, client.Client, error) {
@@ -37,7 +48,7 @@ func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.F
 		return newState, k8sConfig, kubeClient, err
 	}
 
-	if err := deployZcloudProxy(kubeClient, config.ClusterName, config.SingleCloudAddress); err != nil {
+	if err := createOrUpdateZcloudProxy(kubeClient, config.ClusterName, config.SingleCloudAddress); err != nil {
 		return newState, k8sConfig, kubeClient, err
 	}
 
@@ -92,8 +103,14 @@ func genZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 	return config
 }
 
-func genZKEConfigForUpdateNodes(config *zketypes.ZKEConfig, sc *types.Cluster) *zketypes.ZKEConfig {
+func genZKEConfigForUpdate(config *zketypes.ZKEConfig, sc *types.Cluster) *zketypes.ZKEConfig {
 	newConfig := config.DeepCopy()
+	newConfig.Option.SSHUser = sc.SSHUser
+	newConfig.Option.SSHPort = sc.SSHPort
+	if sc.SSHKey != "" {
+		newConfig.Option.SSHKey = sc.SSHKey
+	}
+	newConfig.SingleCloudAddress = sc.SingleCloudAddress
 	newConfig.Nodes = []zketypes.ZKEConfigNode{}
 	for _, node := range sc.Nodes {
 		n := zketypes.ZKEConfigNode{
@@ -108,40 +125,48 @@ func genZKEConfigForUpdateNodes(config *zketypes.ZKEConfig, sc *types.Cluster) *
 	return newConfig
 }
 
-func genZcloudProxyDeployYaml(clusterName string, scAddress string) string {
-	return `
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: zcloud-proxy
-  namespace: zcloud
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: zcloud-proxy
-  template:
-    metadata:
-      labels:
-        app: zcloud-proxy
-    spec:
-      containers:
-      - args:
-        - -server
-        - "` + scAddress + `"
-        - -cluster
-        - "` + clusterName + `"
-        command:
-        - agent
-        image: zdnscloud/zcloud-proxy:v1.0.1
-        imagePullPolicy: IfNotPresent
-        name: zcloud-proxy
-      dnsPolicy: ClusterFirst
-      restartPolicy: Always
-      securityContext: {}`
+func createOrUpdateZcloudProxy(cli client.Client, clusterName, scAddress string) error {
+	deploy := appsv1.Deployment{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{zcloudProxyNamespace, zcloudProxyDeployName}, &deploy)
+	if apierrors.IsNotFound(err) {
+		return cli.Create(context.TODO(), genZcloudProxyDeploy(clusterName, scAddress))
+	}
+	return cli.Update(context.TODO(), genZcloudProxyDeploy(clusterName, scAddress))
 }
 
-func deployZcloudProxy(cli client.Client, clusterName, scAddress string) error {
-	yaml := genZcloudProxyDeployYaml(clusterName, scAddress)
-	return helper.CreateResourceFromYaml(cli, yaml)
+func genZcloudProxyDeploy(clusterName, scAddress string) *appsv1.Deployment {
+	replicas := int32(zcloudProxyReplicas)
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      zcloudProxyDeployName,
+			Namespace: zcloudProxyNamespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": zcloudProxyDeployName,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": zcloudProxyDeployName,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						corev1.Container{
+							Name:    zcloudProxyDeployName,
+							Image:   zcloudProxyImage,
+							Command: []string{"agent"},
+							Args:    []string{"-server", scAddress, "-cluster", clusterName},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyAlways,
+					DNSPolicy:     corev1.DNSClusterFirst,
+				},
+			},
+		},
+	}
 }

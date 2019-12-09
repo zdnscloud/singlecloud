@@ -10,7 +10,7 @@ type CronJob struct {
 	Schedule              string        `json:"schedule,omitempty"`
 	RestartPolicy         string        `json:"restartPolicy,omitempty"`
 	Containers            []Container   `json:"containers"`
-	Status                CronJobStatus `json:"status"`
+	Status                CronJobStatus `json:"status" rest:"description=readonly"`
 }
 
 type CronJobStatus struct {

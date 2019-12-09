@@ -12,12 +12,12 @@ const (
 
 type Registry struct {
 	resource.ResourceBase `json:",inline"`
-	IngressDomain         string `json:"ingressDomain"`
-	StorageClass          string `json:"storageClass" rest:"options=lvm|cephfs"`
-	StorageSize           int    `json:"storageSize"`
-	AdminPassword         string `json:"adminPassword"`
-	RedirectUrl           string `json:"redirectUrl"`
-	Status                string `json:"status"`
+	IngressDomain         string `json:"ingressDomain" rest:"description=immutable"`
+	StorageClass          string `json:"storageClass" rest:"options=lvm|cephfs,description=immutable"`
+	StorageSize           int    `json:"storageSize" rest:"description=immutable"`
+	AdminPassword         string `json:"adminPassword" rest:"description=immutable"`
+	RedirectUrl           string `json:"redirectUrl" rest:"description=readonly"`
+	Status                string `json:"status" rest:"description=readonly"`
 }
 
 func (r Registry) GetParents() []resource.ResourceKind {

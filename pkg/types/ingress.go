@@ -13,7 +13,7 @@ type IngressRule struct {
 
 type Ingress struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string        `json:"name"`
+	Name                  string        `json:"name" rest:"description=immutable"`
 	Rules                 []IngressRule `json:"rules"`
 }
 

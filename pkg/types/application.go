@@ -30,14 +30,14 @@ type Application struct {
 	Name                  string          `json:"name"`
 	ChartName             string          `json:"chartName"`
 	ChartVersion          string          `json:"chartVersion"`
-	ChartIcon             string          `json:"chartIcon"`
-	Status                string          `json:"status"`
-	WorkloadCount         int             `json:"workloadCount,omitempty"`
-	ReadyWorkloadCount    int             `json:"readyWorkloadCount,omitempty"`
-	AppResources          AppResources    `json:"appResources,omitempty"`
+	ChartIcon             string          `json:"chartIcon" rest:"description=readonly"`
+	Status                string          `json:"status" rest:"description=readonly"`
+	WorkloadCount         int             `json:"workloadCount,omitempty" rest:"description=readonly"`
+	ReadyWorkloadCount    int             `json:"readyWorkloadCount,omitempty" rest:"description=readonly"`
+	AppResources          AppResources    `json:"appResources,omitempty" rest:"description=readonly"`
 	Configs               json.RawMessage `json:"configs,omitempty"`
-	Manifests             []Manifest      `json:"manifests,omitempty"`
-	SystemChart           bool            `json:"systemChart,omitempty"`
+	Manifests             []Manifest      `json:"manifests,omitempty" rest:"description=readonly"`
+	SystemChart           bool            `json:"systemChart,omitempty" rest:"description=readonly"`
 }
 
 type AppResource struct {

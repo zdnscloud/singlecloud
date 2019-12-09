@@ -11,7 +11,10 @@
       "elemType": "config"
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     }
   },
   "subResources": {

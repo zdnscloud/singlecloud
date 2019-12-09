@@ -1,231 +1,342 @@
 {
-    "resourceType": "cluster",
-    "collectionName": "clusters",
-    "goStructName": "Cluster",
-    "resourceFields": {
-        "clusterCidr": {
-            "type": "string"
-        },
-        "clusterDNSServiceIP": {
-            "type": "string"
-        },
-        "clusterDomain": {
-            "type": "string",
-            "description": [
-                "required"
-            ]
-        },
-        "clusterUpstreamDNS": {
-            "type": "array",
-            "elemType": "string"
-        },
-        "cpu": {
-            "type": "int"
-        },
-        "cpuUsed": {
-            "type": "int"
-        },
-        "cpuUsedRatio": {
-            "type": "string"
-        },
-        "disablePortCheck": {
-            "type": "bool"
-        },
-        "dockerSocket": {
-            "type": "string"
-        },
-        "ignoreDockerVersion": {
-            "type": "bool"
-        },
-        "kubernetesVersion": {
-            "type": "string"
-        },
-        "memory": {
-            "type": "int"
-        },
-        "memoryUsed": {
-            "type": "int"
-        },
-        "memoryUsedRatio": {
-            "type": "string"
-        },
-        "name": {
-            "type": "string",
-            "description": [
-                "required"
-            ]
-        },
-        "network": {
-            "type": "clusterNetwork"
-        },
-        "nodeCount": {
-            "type": "int"
-        },
-        "nodes": {
-            "type": "array",
-            "elemType": "node",
-            "description": [
-                "required"
-            ]
-        },
-        "pod": {
-            "type": "int"
-        },
-        "podUsed": {
-            "type": "int"
-        },
-        "podUsedRatio": {
-            "type": "string"
-        },
-        "privateRegistrys": {
-            "type": "array",
-            "elemType": "privateRegistry"
-        },
-        "serviceCidr": {
-            "type": "string"
-        },
-        "singleCloudAddress": {
-            "type": "string",
-            "description": [
-                "required"
-            ]
-        },
-        "sshKey": {
-            "type": "string"
-        },
-        "sshPort": {
-            "type": "string"
-        },
-        "sshUser": {
-            "type": "string",
-            "description": [
-                "required"
-            ]
-        },
-        "status": {
-            "type": "string"
-        },
-        "version": {
-            "type": "string"
-        },
-        "zcloudVersion": {
-            "type": "string"
-        }
+  "resourceType": "cluster",
+  "collectionName": "clusters",
+  "goStructName": "Cluster",
+  "resourceFields": {
+    "clusterCidr": {
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
-    "subResources": {
-        "clusterNetwork": {
-            "iface": {
-                "type": "string"
-            },
-            "plugin": {
-                "type": "enum",
-                "validValues": [
-                    "flannel",
-                    "calico"
-                ]
-            }
-        },
-        "node": {
-            "address": {
-                "type": "string",
-                "description": [
-                    "required"
-                ]
-            },
-            "annotations": {
-                "type": "map",
-                "keyType": "string",
-                "valueType": "string"
-            },
-            "cpu": {
-                "type": "int"
-            },
-            "cpuUsed": {
-                "type": "int"
-            },
-            "cpuUsedRatio": {
-                "type": "string"
-            },
-            "dockerVersion": {
-                "type": "string"
-            },
-            "labels": {
-                "type": "map",
-                "keyType": "string",
-                "valueType": "string"
-            },
-            "memory": {
-                "type": "int"
-            },
-            "memoryUsed": {
-                "type": "int"
-            },
-            "memoryUsedRatio": {
-                "type": "string"
-            },
-            "name": {
-                "type": "string",
-                "description": [
-                    "required"
-                ]
-            },
-            "operatingSystem": {
-                "type": "string"
-            },
-            "operatingSystemImage": {
-                "type": "string"
-            },
-            "pod": {
-                "type": "int"
-            },
-            "podUsed": {
-                "type": "int"
-            },
-            "podUsedRatio": {
-                "type": "string"
-            },
-            "roles": {
-                "type": "enum",
-                "validValues": [
-                    "controlplane",
-                    "etcd",
-                    "worker",
-                    "edge"
-                ],
-                "description": [
-                    "required"
-                ]
-            },
-            "status": {
-                "type": "string"
-            }
-        },
-        "privateRegistry": {
-            "caCert": {
-                "type": "string"
-            },
-            "password": {
-                "type": "string"
-            },
-            "url": {
-                "type": "string"
-            },
-            "user": {
-                "type": "string"
-            }
-        }
+    "clusterDNSServiceIP": {
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
-    "resourceMethods": [
-        "GET",
-        "DELETE",
-        "PUT",
-        "POST"
-    ],
-    "collectionMethods": [
-        "GET",
-        "POST"
-    ],
-    "resourceActions": [{
-        "name": "cancel"
-    }]
+    "clusterDomain": {
+      "type": "string",
+      "description": [
+        "required",
+        "immutable"
+      ]
+    },
+    "clusterUpstreamDNS": {
+      "type": "array",
+      "elemType": "string",
+      "description": [
+        "immutable"
+      ]
+    },
+    "cpu": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "cpuUsed": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "cpuUsedRatio": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "disablePortCheck": {
+      "type": "bool",
+      "description": [
+        "immutable"
+      ]
+    },
+    "dockerSocket": {
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
+    },
+    "ignoreDockerVersion": {
+      "type": "bool",
+      "description": [
+        "immutable"
+      ]
+    },
+    "kubernetesVersion": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "memory": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "memoryUsed": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "memoryUsedRatio": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": [
+        "required",
+        "immutable"
+      ]
+    },
+    "network": {
+      "type": "clusterNetwork",
+      "description": [
+        "immutable"
+      ]
+    },
+    "nodeCount": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "nodes": {
+      "type": "array",
+      "elemType": "node",
+      "description": [
+        "required"
+      ]
+    },
+    "pod": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "podUsed": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "podUsedRatio": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "privateRegistrys": {
+      "type": "array",
+      "elemType": "privateRegistry"
+    },
+    "serviceCidr": {
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
+    },
+    "singleCloudAddress": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
+    },
+    "sshKey": {
+      "type": "string"
+    },
+    "sshPort": {
+      "type": "string"
+    },
+    "sshUser": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "version": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "zcloudVersion": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    }
+  },
+  "subResources": {
+    "clusterNetwork": {
+      "iface": {
+        "type": "string"
+      },
+      "plugin": {
+        "type": "enum",
+        "validValues": [
+          "flannel",
+          "calico"
+        ]
+      }
+    },
+    "node": {
+      "address": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "annotations": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "cpu": {
+        "type": "int",
+        "description": [
+          "readonly"
+        ]
+      },
+      "cpuUsed": {
+        "type": "int",
+        "description": [
+          "readonly"
+        ]
+      },
+      "cpuUsedRatio": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "dockerVersion": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "labels": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "memory": {
+        "type": "int",
+        "description": [
+          "readonly"
+        ]
+      },
+      "memoryUsed": {
+        "type": "int",
+        "description": [
+          "readonly"
+        ]
+      },
+      "memoryUsedRatio": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "name": {
+        "type": "string",
+        "description": [
+          "required",
+          "immutable"
+        ]
+      },
+      "operatingSystem": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "operatingSystemImage": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "pod": {
+        "type": "int",
+        "description": [
+          "readonly"
+        ]
+      },
+      "podUsed": {
+        "type": "int",
+        "description": [
+          "readonly"
+        ]
+      },
+      "podUsedRatio": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "roles": {
+        "type": "enum",
+        "validValues": [
+          "controlplane",
+          "etcd",
+          "worker",
+          "edge"
+        ],
+        "description": [
+          "required"
+        ]
+      },
+      "status": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      }
+    },
+    "privateRegistry": {
+      "caCert": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string"
+      },
+      "url": {
+        "type": "string"
+      },
+      "user": {
+        "type": "string"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT",
+    "POST"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
 }
