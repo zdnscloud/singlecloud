@@ -197,6 +197,9 @@ func updateStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager
 	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
 		return errors.New("storagecluster in Creating or Updating, not allowed update")
 	}
+	if k8sStorageCluster.GetDeletionTimestamp() != nil {
+		return errors.New("storagecluster in Deleting, not allowed update")
+	}
 	if storagecluster.StorageType != k8sStorageCluster.Spec.StorageType {
 		return errors.New("storagecluster type can not be modify")
 	}
@@ -241,7 +244,9 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cl
 	}
 	storagecluster.SetID(k8sStorageCluster.Name)
 	storagecluster.SetCreationTimestamp(k8sStorageCluster.CreationTimestamp.Time)
-	storagecluster.SetDeletionTimestamp(k8sStorageCluster.DeletionTimestamp.Time)
+	if k8sStorageCluster.GetDeletionTimestamp() != nil {
+		storagecluster.SetDeletionTimestamp(k8sStorageCluster.DeletionTimestamp.Time)
+	}
 	return storagecluster
 }
 

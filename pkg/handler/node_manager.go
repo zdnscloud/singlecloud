@@ -155,7 +155,9 @@ func k8sNodeToSCNode(k8sNode *corev1.Node, nodeMetrics map[string]metricsapi.Nod
 	}
 	node.SetID(node.Name)
 	node.SetCreationTimestamp(k8sNode.CreationTimestamp.Time)
-	node.SetDeletionTimestamp(k8sNode.DeletionTimestamp.Time)
+	if k8sNode.GetDeletionTimestamp() != nil {
+		node.SetDeletionTimestamp(k8sNode.DeletionTimestamp.Time)
+	}
 	return node
 }
 

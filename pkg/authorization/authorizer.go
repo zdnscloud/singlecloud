@@ -146,7 +146,7 @@ func (a *Authorizer) DeleteUser(user string) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	if user_, ok := a.users[user]; ok {
+	if _, ok := a.users[user]; ok {
 		if err := a.deleteUser(user); err != nil {
 			return err
 		}

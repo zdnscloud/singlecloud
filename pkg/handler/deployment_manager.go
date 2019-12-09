@@ -259,7 +259,9 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	}
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)
-	deploy.SetDeletionTimestamp(k8sDeploy.DeletionTimestamp.Time)
+	if k8sDeploy.GetDeletionTimestamp() != nil {
+		deploy.SetDeletionTimestamp(k8sDeploy.DeletionTimestamp.Time)
+	}
 	deploy.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDeploy.Spec.Template.Annotations)
 	return deploy, nil
 }

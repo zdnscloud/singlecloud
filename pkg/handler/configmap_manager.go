@@ -204,6 +204,8 @@ func k8sConfigMapToSCConfigMap(k8sConfigMap *corev1.ConfigMap) *types.ConfigMap 
 	}
 	cm.SetID(k8sConfigMap.Name)
 	cm.SetCreationTimestamp(k8sConfigMap.CreationTimestamp.Time)
-	cm.SetDeletionTimestamp(k8sConfigMap.DeletionTimestamp.Time)
+	if k8sConfigMap.GetDeletionTimestamp() != nil {
+		cm.SetDeletionTimestamp(k8sConfigMap.DeletionTimestamp.Time)
+	}
 	return cm
 }

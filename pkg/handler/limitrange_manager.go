@@ -192,7 +192,9 @@ func k8sLimitRangeToSCLimitRange(k8sLimitRange *corev1.LimitRange) *types.LimitR
 
 	limitRange.SetID(k8sLimitRange.Name)
 	limitRange.SetCreationTimestamp(k8sLimitRange.CreationTimestamp.Time)
-	limitRange.SetDeletionTimestamp(k8sLimitRange.DeletionTimestamp.Time)
+	if k8sLimitRange.GetDeletionTimestamp() != nil {
+		limitRange.SetDeletionTimestamp(k8sLimitRange.DeletionTimestamp.Time)
+	}
 	return limitRange
 }
 
