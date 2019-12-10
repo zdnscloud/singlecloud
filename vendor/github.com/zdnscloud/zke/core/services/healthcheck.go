@@ -108,6 +108,8 @@ func getHealthz(client *http.Client, serviceName, hostAddress, url string) error
 	if err != nil {
 		return fmt.Errorf("Failed to check %s for service [%s] on host [%s]: %v", url, serviceName, hostAddress, err)
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		statusBody, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("Service [%s] is not healthy on host [%s]. Response code: [%d], response body: %s", serviceName, hostAddress, resp.StatusCode, statusBody)
