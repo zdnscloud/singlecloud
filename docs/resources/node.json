@@ -1,100 +1,136 @@
 {
-    "resourceType": "node",
-    "collectionName": "nodes",
-    "parentResources": [
-        "cluster"
-    ],
-    "goStructName": "Node",
-    "resourceFields": {
-        "address": {
-            "type": "string",
-            "description": [
-                "required"
-            ]
-        },
-        "annotations": {
-            "type": "map",
-            "keyType": "string",
-            "valueType": "string"
-        },
-        "cpu": {
-            "type": "int"
-        },
-        "cpuUsed": {
-            "type": "int"
-        },
-        "cpuUsedRatio": {
-            "type": "string"
-        },
-        "dockerVersion": {
-            "type": "string"
-        },
-        "labels": {
-            "type": "map",
-            "keyType": "string",
-            "valueType": "string"
-        },
-        "memory": {
-            "type": "int"
-        },
-        "memoryUsed": {
-            "type": "int"
-        },
-        "memoryUsedRatio": {
-            "type": "string"
-        },
-        "name": {
-            "type": "string",
-            "description": [
-                "required"
-            ]
-        },
-        "operatingSystem": {
-            "type": "string"
-        },
-        "operatingSystemImage": {
-            "type": "string"
-        },
-        "pod": {
-            "type": "int"
-        },
-        "podUsed": {
-            "type": "int"
-        },
-        "podUsedRatio": {
-            "type": "string"
-        },
-        "roles": {
-            "type": "enum",
-            "validValues": [
-                "controlplane",
-                "etcd",
-                "worker",
-                "edge"
-            ],
-            "description": [
-                "required"
-            ]
-        },
-        "status": {
-            "type": "string"
-        }
+  "resourceType": "node",
+  "collectionName": "nodes",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "Node",
+  "resourceFields": {
+    "address": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
-    "resourceMethods": [
-        "GET",
-        "POST"
-    ],
-    "collectionMethods": [
-        "GET"
-    ],
-    "resourceActions": [{
-            "name": "cordon"
-        },
-        {
-            "name": "drain"
-        },
-        {
-            "name": "uncordon"
-        }
-    ]
+    "annotations": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "cpu": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "cpuUsed": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "cpuUsedRatio": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "dockerVersion": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "labels": {
+      "type": "map",
+      "keyType": "string",
+      "valueType": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "memory": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "memoryUsed": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "memoryUsedRatio": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": [
+        "required",
+        "immutable"
+      ]
+    },
+    "operatingSystem": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "operatingSystemImage": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "pod": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "podUsed": {
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
+    },
+    "podUsedRatio": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "roles": {
+      "type": "enum",
+      "validValues": [
+        "controlplane",
+        "etcd",
+        "worker",
+        "edge"
+      ],
+      "description": [
+        "required"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "POST"
+  ],
+  "collectionMethods": [
+    "GET"
+  ]
 }

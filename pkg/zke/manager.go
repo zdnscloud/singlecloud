@@ -131,6 +131,7 @@ func (m *ZKEManager) Import(ctx *restsource.Context) (interface{}, *resterr.APIE
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 	m.add(cluster)
+	m.SendEvent(AddCluster{Cluster: cluster})
 	return nil, nil
 }
 
@@ -287,6 +288,7 @@ func (m *ZKEManager) loadDB() error {
 				continue
 			}
 			m.add(cluster)
+			m.SendEvent(AddCluster{Cluster: cluster})
 		} else {
 			cluster := newCluster(k, types.CSCreateFailed)
 			cluster.config = v.ZKEConfig

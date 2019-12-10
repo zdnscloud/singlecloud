@@ -15,7 +15,10 @@
       "type": "string"
     },
     "status": {
-      "type": "resourceQuotaStatus"
+      "type": "resourceQuotaStatus",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "subResources": {

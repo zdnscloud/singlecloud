@@ -19,12 +19,12 @@ type StorageCluster struct {
 	Name                  string        `json:"-"`
 	StorageType           string        `json:"storageType" rest:"required=true,options=lvm|cephfs"`
 	Hosts                 []string      `json:"hosts" rest:"required=true"`
-	Phase                 string        `json:"phase"`
-	Size                  string        `json:"size"`
-	UsedSize              string        `json:"usedSize"`
-	FreeSize              string        `json:"freeSize"`
-	Nodes                 []StorageNode `json:"nodes"`
-	PVs                   []PV          `json:"pvs"`
+	Phase                 string        `json:"phase" rest:"description=readonly"`
+	Size                  string        `json:"size" rest:"description=readonly"`
+	UsedSize              string        `json:"usedSize" rest:"description=readonly"`
+	FreeSize              string        `json:"freeSize" rest:"description=readonly"`
+	Nodes                 []StorageNode `json:"nodes" rest:"description=readonly"`
+	PVs                   []PV          `json:"pvs" rest:"description=readonly"`
 }
 
 type Storage struct {

@@ -50,12 +50,12 @@ type AdvancedOptions struct {
 
 type Deployment struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string                     `json:"name,omitempty"`
+	Name                  string                     `json:"name,omitempty" rest:"description=immutable"`
 	Replicas              int                        `json:"replicas" rest:"min=0,max=50"`
 	Containers            []Container                `json:"containers"`
-	AdvancedOptions       AdvancedOptions            `json:"advancedOptions"`
+	AdvancedOptions       AdvancedOptions            `json:"advancedOptions" rest:"description=immutable"`
 	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
-	Status                WorkloadStatus             `json:"status,omitempty"`
+	Status                WorkloadStatus             `json:"status,omitempty" rest:"description=readonly"`
 	Memo                  string                     `json:"memo,omitempty"`
 }
 

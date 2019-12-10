@@ -153,13 +153,23 @@
 
 #### 4.2.4.1 资源概览
 
-为用户提供所选中的用户空间资源使用情况。CPU，内存，workload，svc，ingress，pvc。
+为用户提供所选中的用户空间资源使用情况。CPU，内存，deployment，statefulset，daemonset，svc。
+
+deployment，statefulset，daemonset，svc：以上四个资源需要展示正常与异常的数量。
+
+deployment，statefulset，daemonset正常：ready的POD数与总POD数一致，则视为正常。
+
+deployment，statefulset，daemonset异常：ready的POD数少于总POD数。
+
+svc正常：svc的endpoint状态有一个是ready
+
+svc正常：svc的endpoint状态没有任何一个是ready
 
 并且能通过CPU与内存两个指标，定位用户空间内最耗资源的实例。
 
-CPU：计算用户空间内已使用CPU的总和，并与集群总体CPU资源做百分比。显示top5的POD，显示内容为pod名称，workload名称，CPU使用。按CPU由高到低排序。workload名称具有跳转到详情的功能。
+CPU/MEM：显示top5的POD，显示内容为pod名称，workload名称，CPU使用。按CPU由高到低排序。workload名称具有跳转到详情的功能。
 
-MEM：计算用户空间内已使用MEM的总和，并与集群总体MEM资源做百分比。显示top5的POD，显示内容为pod名称，workload名称，MEM使用。按MEM由高到低排序。workload名称具有跳转到详情的功能。
+CPU/MEM：显示1个小时内namespaces的三个数据指标，请求量、使用量、CPU/MEM总量，5秒一个采样点。
 
 #### 4.2.4.2 服务网格
 
@@ -543,9 +553,9 @@ chart资源没有父资源，也没有子资源。chart本身是独立的。
 
 ### 4.10.1    功能概述
 
-记录Zcloud平台发生的事件，事件分类如下：k8s事件、Zcloud事件、资源预警。
+记录Zcloud平台发生的事件，事件分类如下：操作预警、资源预警。
 
-某一类型可以选择忽略，或者恢复。UI铃铛要显示总条数，忽略的类型不计数。
+打开铃铛后，事件全部为已读状态，显示最近的100条。需要区分显示已读和未读的消息。未读消息数字最多显示99。
 
 ### **4.10.2**    功能点清单 
 
@@ -555,15 +565,29 @@ chart资源没有父资源，也没有子资源。chart本身是独立的。
 
 3、资源预警
 
+事件级别分为高中低
+
+高：资源预警
+
+中：Zcloud操作事件
+
+低：k8s事件
+
 ### **4.10.3**    功能详细描述
 
 #### **4.10.3.1**      k8s事件
 
-k8s发生应用事件，仅展示权限内的。  沿用现有的k8s事件展示，支持条件过滤。
+k8s发生应用事件，仅展示权限内的，不包含集群的事件。产生事件的资源有，ns，workload，pod，pvc
 
 #### 4.10.3.2    zcloud事件
 
-删除、创建、修改失败，需要记录，在铃铛页面进行展示。
+集群：创建失败、编辑失败、删除失败
+
+存储：新建失败，删除失败，编辑失败
+
+workload：新建失败，删除失败，编辑失败
+
+以上动作如果发生失败，需要记录失败事件并注明原因。通过铃铛页面进行展示。
 
 #### 4.10.3.3 预警
 
@@ -575,7 +599,11 @@ namespaces：CPU、MEM、存储
 
 workload：存储
 
-目前支持设置邮件告警。Zcloud提供预警查看功能。
+用户空间指标：用户空间所有POD使用CPU、MEM、存储的量占用户申请资源的百分比。若用户空间没有申请资源，则按集群总量资源量计算。
+
+应用指标：用户权限内的POD使用的pvc存储量，占POD申请PVC总大小的百分比。
+
+预警方式：目前只支持邮件。Zcloud提供预警查看功能。
 
 2、通知
 

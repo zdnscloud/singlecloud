@@ -16,13 +16,22 @@
       "type": "string"
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "storageClass": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
     "storageSize": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "immutable"
+      ]
     }
   },
   "resourceMethods": [

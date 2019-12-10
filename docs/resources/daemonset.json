@@ -7,7 +7,10 @@
   "goStructName": "DaemonSet",
   "resourceFields": {
     "advancedOptions": {
-      "type": "advancedOptions"
+      "type": "advancedOptions",
+      "description": [
+        "immutable"
+      ]
     },
     "containers": {
       "type": "array",
@@ -17,14 +20,20 @@
       "type": "string"
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "immutable"
+      ]
     },
     "persistentVolumes": {
       "type": "array",
       "elemType": "persistentVolumeTemplate"
     },
     "status": {
-      "type": "daemonSetStatus"
+      "type": "daemonSetStatus",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "subResources": {

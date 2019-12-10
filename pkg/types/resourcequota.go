@@ -8,7 +8,7 @@ type ResourceQuota struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string              `json:"name,omitempty"`
 	Limits                map[string]string   `json:"limits,omitempty"`
-	Status                ResourceQuotaStatus `json:"status,omitempty"`
+	Status                ResourceQuotaStatus `json:"status,omitempty" rest:"description=readonly"`
 }
 
 type ResourceQuotaStatus struct {

@@ -8,10 +8,16 @@
   "resourceFields": {
     "appResources": {
       "type": "array",
-      "elemType": "appResource"
+      "elemType": "appResource",
+      "description": [
+        "readonly"
+      ]
     },
     "chartIcon": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "chartName": {
       "type": "string"
@@ -24,22 +30,37 @@
     },
     "manifests": {
       "type": "array",
-      "elemType": "manifest"
+      "elemType": "manifest",
+      "description": [
+        "readonly"
+      ]
     },
     "name": {
       "type": "string"
     },
     "readyWorkloadCount": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
     },
     "status": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
     },
     "systemChart": {
-      "type": "bool"
+      "type": "bool",
+      "description": [
+        "readonly"
+      ]
     },
     "workloadCount": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "subResources": {

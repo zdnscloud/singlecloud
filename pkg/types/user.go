@@ -22,7 +22,7 @@ type ResetPassword struct {
 
 type User struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string    `json:"name" rest:"required=true"`
+	Name                  string    `json:"name" rest:"description=immutable"`
 	Password              string    `json:"password,omitempty"`
 	Projects              []Project `json:"projects"`
 }

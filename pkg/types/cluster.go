@@ -36,38 +36,38 @@ const (
 type Cluster struct {
 	resource.ResourceBase `json:",inline"`
 	Nodes                 []Node            `json:"nodes" rest:"required=true"`
-	Network               ClusterNetwork    `json:"network"`
+	Network               ClusterNetwork    `json:"network" rest:"description=immutable"`
 	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
 	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true,minLen=1,maxLen=128"`
-	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128"`
-	Status                ClusterStatus     `json:"status"`
-	NodesCount            int               `json:"nodeCount"`
-	Version               string            `json:"version"`
-	ScVersion             string            `json:"zcloudVersion"`
+	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128,description=immutable"`
+	Status                ClusterStatus     `json:"status" rest:"description=readonly"`
+	NodesCount            int               `json:"nodeCount" rest:"description=readonly"`
+	Version               string            `json:"version" rest:"description=readonly"`
+	ScVersion             string            `json:"zcloudVersion" rest:"description=readonly"`
 
-	Cpu             int64  `json:"cpu"`
-	CpuUsed         int64  `json:"cpuUsed"`
-	CpuUsedRatio    string `json:"cpuUsedRatio"`
-	Memory          int64  `json:"memory"`
-	MemoryUsed      int64  `json:"memoryUsed"`
-	MemoryUsedRatio string `json:"memoryUsedRatio"`
-	Pod             int64  `json:"pod"`
-	PodUsed         int64  `json:"podUsed"`
-	PodUsedRatio    string `json:"podUsedRatio"`
+	Cpu             int64  `json:"cpu" rest:"description=readonly"`
+	CpuUsed         int64  `json:"cpuUsed" rest:"description=readonly"`
+	CpuUsedRatio    string `json:"cpuUsedRatio" rest:"description=readonly"`
+	Memory          int64  `json:"memory" rest:"description=readonly"`
+	MemoryUsed      int64  `json:"memoryUsed" rest:"description=readonly"`
+	MemoryUsedRatio string `json:"memoryUsedRatio" rest:"description=readonly"`
+	Pod             int64  `json:"pod" rest:"description=readonly"`
+	PodUsed         int64  `json:"podUsed" rest:"description=readonly"`
+	PodUsedRatio    string `json:"podUsedRatio" rest:"description=readonly"`
 
 	SSHUser string `json:"sshUser" rest:"required=true,minLen=1,maxLen=128"`
 	//sshkey is necessary for create, but we cat't get it by get or list api due to some security problem(all user can get the cluster sshkey by get or list api), so we do this required check in cluster handler and it's not necessary for update
 	SSHKey              string   `json:"sshKey"`
 	SSHPort             string   `json:"sshPort"`
-	DockerSocket        string   `json:"dockerSocket,omitempty"`
-	KubernetesVersion   string   `json:"kubernetesVersion,omitempty"`
-	IgnoreDockerVersion bool     `json:"ignoreDockerVersion"`
-	ClusterCidr         string   `json:"clusterCidr"`
-	ServiceCidr         string   `json:"serviceCidr"`
-	ClusterDomain       string   `json:"clusterDomain" rest:"required=true"`
-	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty"`
-	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS"`
-	DisablePortCheck    bool     `json:"disablePortCheck"`
+	DockerSocket        string   `json:"dockerSocket,omitempty" rest:"description=immutable"`
+	KubernetesVersion   string   `json:"kubernetesVersion,omitempty" rest:"description=readonly"`
+	IgnoreDockerVersion bool     `json:"ignoreDockerVersion" rest:"description=immutable"`
+	ClusterCidr         string   `json:"clusterCidr" rest:"description=immutable"`
+	ServiceCidr         string   `json:"serviceCidr" rest:"description=immutable"`
+	ClusterDomain       string   `json:"clusterDomain" rest:"required=true,description=immutable"`
+	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty" rest:"description=immutable"`
+	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS" rest:"description=immutable"`
+	DisablePortCheck    bool     `json:"disablePortCheck" rest:"description=immutable"`
 }
 
 type ClusterNetwork struct {

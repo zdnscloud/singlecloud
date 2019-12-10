@@ -14,14 +14,14 @@ const (
 
 type Monitor struct {
 	resource.ResourceBase `json:",inline"`
-	IngressDomain         string `json:"ingressDomain"`
-	StorageClass          string `json:"storageClass" rest:"options=lvm|cephfs"`
-	StorageSize           int    `json:"storageSize"`
-	PrometheusRetention   int    `json:"prometheusRetention"`
-	ScrapeInterval        int    `json:"scrapeInterval"`
-	AdminPassword         string `json:"adminPassword"`
-	RedirectUrl           string `json:"redirectUrl"`
-	Status                string `json:"status"`
+	IngressDomain         string `json:"ingressDomain" rest:"description=immutable"`
+	StorageClass          string `json:"storageClass" rest:"options=lvm|cephfs,description=immutable"`
+	StorageSize           int    `json:"storageSize" rest:"description=immutable"`
+	PrometheusRetention   int    `json:"prometheusRetention" rest:"description=immutable"`
+	ScrapeInterval        int    `json:"scrapeInterval" rest:"description=immutable"`
+	AdminPassword         string `json:"adminPassword" rest:"description=immutable"`
+	RedirectUrl           string `json:"redirectUrl" rest:"description=readonly"`
+	Status                string `json:"status" rest:"description=readonly"`
 }
 
 func (m Monitor) GetParents() []resource.ResourceKind {
