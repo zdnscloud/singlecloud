@@ -613,7 +613,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7a2ccd12c9aa659e18c96b2a48d5e4bff7f02be2350fc6448d79ad363473cec9"
+  digest = "1:a75a6644b64ef806325694044b32243a86cc43093bb33c96f7342e85670934ae"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -632,7 +632,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "0f4b3df670cc875718875cf1f38bab129285e666"
+  revision = "180915767ead92935d37fd79a4e970203d83b308"
 
 [[projects]]
   branch = "master"
@@ -643,7 +643,7 @@
   revision = "89eeea17b1b41d16b8ec2cda9783ad2a34a404b9"
 
 [[projects]]
-  branch = "ctx-filter"
+  branch = "master"
   digest = "1:b0c0a12e1fdd9b966af5393a16b9c19615e27f985b4222b255345213d9162cf1"
   name = "github.com/zdnscloud/gorest"
   packages = [
