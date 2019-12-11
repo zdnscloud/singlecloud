@@ -81,8 +81,8 @@
             	"link": {"type": "string"}
             	"replicas": {"type": "int"},
             	"readyReplicas": {"type": "int"},
-                "creationTimestamp": {"type": "date"},
-                "exists": {"type": "bool"}
+            	"creationTimestamp": {"type": "date"},
+            	"exists": {"type": "bool"}
         	 } 
 		}
    		
@@ -133,7 +133,7 @@
     * 从k8s获取application的appResources信息
 
       * 如果获取某个appResources失败，则log错误, 设置link为空
-      * 如果可以获取，设置exists为true，如果appResource是workload，根据replicas和readyReplicas信息，计算appplication的readyWorkloadCount个数 
+      * 如果可以获取，设置exists为true，设置creationTimestamp，如果appResource是workload，根据replicas和readyReplicas信息，计算appplication的readyWorkloadCount个数 
         
 ## 未来工作
 * 支持资源排序创建
