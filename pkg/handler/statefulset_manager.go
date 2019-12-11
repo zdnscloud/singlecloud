@@ -98,7 +98,7 @@ func (m *StatefulSetManager) Update(ctx *resource.Context) (resource.Resource, *
 	statefulSet := ctx.Resource.(*types.StatefulSet)
 	k8sStatefulSet, err := getStatefulSet(cluster.KubeClient, namespace, statefulSet.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("statefulset %s desn't exist", namespace))
 		} else {
 			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
@@ -130,7 +130,7 @@ func (m *StatefulSetManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	k8sStatefulSet, err := getStatefulSet(cluster.KubeClient, namespace, statefulset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("statefulset in namespace %s is non-exist", namespace))
 		} else {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
@@ -272,7 +272,7 @@ func (m *StatefulSetManager) getStatefulSetHistory(ctx *resource.Context) (inter
 	statefulset := ctx.Resource.(*types.StatefulSet)
 	_, controllerRevisions, err := getStatefulSetAndControllerRevisions(cluster.KubeClient, namespace, statefulset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("statefulset %s with namespace %s doesn't exist", statefulset.GetID(), namespace))
 		} else {
@@ -333,7 +333,7 @@ func (m *StatefulSetManager) rollback(ctx *resource.Context) *resterror.APIError
 
 	k8sStatefulSet, controllerRevisions, err := getStatefulSetAndControllerRevisions(cluster.KubeClient, namespace, statefulset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("statefulset %s with namespace %s desn't exist", statefulset.GetID(), namespace))
 		} else {
@@ -375,7 +375,7 @@ func (m *StatefulSetManager) setPodCount(ctx *resource.Context) (interface{}, *r
 	statefulset := ctx.Resource.(*types.StatefulSet)
 	k8sStatefulSet, err := getStatefulSet(cluster.KubeClient, namespace, statefulset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("statefulset %s is non-exist", statefulset.GetID()))
 		} else {
 			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
