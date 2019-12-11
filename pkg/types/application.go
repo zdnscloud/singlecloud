@@ -41,11 +41,13 @@ type Application struct {
 }
 
 type AppResource struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Link          string `json:"link"`
-	Replicas      int    `json:"replicas,omitempty"`
-	ReadyReplicas int    `json:"readyReplicas,omitempty"`
+	Name              string           `json:"name"`
+	Type              string           `json:"type"`
+	Link              string           `json:"link,omitempty"`
+	Replicas          int              `json:"replicas,omitempty"`
+	ReadyReplicas     int              `json:"readyReplicas,omitempty"`
+	Exists            bool             `json:"exists,omitempty"`
+	CreationTimestamp resource.ISOTime `json:"creationTimestamp,omitempty"`
 }
 
 type Manifest struct {

@@ -65,6 +65,12 @@
   },
   "subResources": {
     "appResource": {
+      "creationTimestamp": {
+        "type": "date"
+      },
+      "exists": {
+        "type": "bool"
+      },
       "link": {
         "type": "string"
       },
