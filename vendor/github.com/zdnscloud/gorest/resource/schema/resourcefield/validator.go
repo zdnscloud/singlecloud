@@ -237,7 +237,7 @@ func buildValidator(fieldType reflect.Type, restTags []string) (Validator, error
 
 	kind := util.Inspect(fieldType)
 	switch kind {
-	case util.Int, util.Uint:
+	case util.Int, util.Uint, util.IntSlice, util.UintSlice:
 		if isDomainCheck || isOptionCheck || isStringLenCheck {
 			return nil, fmt.Errorf("domain, length range and option check only apply for string field")
 		}
