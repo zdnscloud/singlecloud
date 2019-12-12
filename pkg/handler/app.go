@@ -121,6 +121,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 const (
 	WSPrefix         = "/apis/ws.zcloud.cn/v1"
 	WSPodLogPathTemp = WSPrefix + "/clusters/%s/namespaces/%s/pods/%s/containers/%s/log"
+	WSTapPathTemp    = WSPrefix + "/clusters/%s/namespaces/%s/tap"
 )
 
 func (a *App) registerWSHandler(router gin.IRoutes) {
@@ -132,5 +133,10 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 	zkeLogPath := fmt.Sprintf(zke.WSZKELogPathTemp, ":cluster") + "/*actions"
 	router.GET(zkeLogPath, func(c *gin.Context) {
 		a.clusterManager.zkeManager.OpenLog(c.Param("cluster"), c.Request, c.Writer)
+	})
+
+	tapPath := fmt.Sprintf(WSTapPathTemp, ":cluster", ":namespace")
+	router.GET(tapPath, func(c *gin.Context) {
+		a.clusterManager.Tap(c.Param("cluster"), c.Param("namespace"), c.Query("resource_type"), c.Query("resource_name"), c.Query("to_resource_type"), c.Query("to_resource_name"), c.Query("method"), c.Query("path"), c.Request, c.Writer)
 	})
 }
