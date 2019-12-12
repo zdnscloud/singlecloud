@@ -51,11 +51,9 @@ func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, 
 	}
 
 	url.Path = fmt.Sprintf(TapApiURLPath, ns, kind, name)
-	fmt.Printf("url: %s\n", url.String())
 	Sockjshandler := func(session sockjs.Session) {
 		resp, err := sm.HandleRequest(cluster.KubeHttpClient, url, req)
 		if err != nil {
-			fmt.Printf("request get err: %v\n", err.Error())
 			session.Close(503, err.Error())
 			return
 		}
