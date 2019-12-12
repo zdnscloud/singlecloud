@@ -91,12 +91,16 @@ func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, 
 }
 
 func buildTapRequest(namespace, kind, name, toKind, toName, method, path string) (*pb.TapByResourceRequest, error) {
+	if kind == "" || name == "" {
+		return nil, fmt.Errorf("resource_type and resource_name must not be empty")
+	}
+
 	if slice.SliceIndex(ValidTapResourceTypes, kind) == -1 {
 		return nil, fmt.Errorf("tap unsupported resource_type %s", kind)
 	}
 
 	matches := []*pb.TapByResourceRequest_Match{}
-	if toKind != "" {
+	if toKind != "" && toName != "" {
 		if slice.SliceIndex(ValidTapResourceTypes, toKind) == -1 {
 			return nil, fmt.Errorf("tap unsupported to_resource_type %s", toKind)
 		}
