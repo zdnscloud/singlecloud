@@ -20,6 +20,7 @@ type clusterState struct {
 	*core.FullState  `json:",inline"`
 	*types.ZKEConfig `json:",inline"`
 	CreateTime       time.Time `json:"createTime"`
+	DeleteTime       time.Time `json:"deleteTime"`
 	Created          bool      `json:"created"`
 	ScVersion        string    `json:"zcloudVersion"`
 }

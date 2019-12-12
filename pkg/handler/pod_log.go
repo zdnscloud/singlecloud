@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -11,8 +10,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/singlecloud/hack/sockjs"
 )
 
 var (
@@ -74,32 +73,25 @@ func (m *ClusterManager) OpenPodLog(clusterID, namespace, pod, container string,
 		return
 	}
 
-	Sockjshandler := func(session sockjs.Session) {
-		readCloser, err := m.openPodLog(cluster, namespace, pod, container)
-		if err != nil {
-			session.Close(503, err.Error())
-			return
-		}
+	conn, err := websocket.Upgrade(w, r, nil, 4096, 4096)
+	if err != nil {
+		log.Warnf("pod %s-%s-%s-%s log websocket upgrade failed %s", clusterID, namespace, pod, container, err.Error())
+		return
+	}
+	defer conn.Close()
 
-		done := make(chan struct{})
-		go func() {
-			<-session.ClosedNotify()
-			readCloser.Close()
-			close(done)
-		}()
-
-		s := bufio.NewScanner(readCloser)
-		for s.Scan() {
-			err := session.Send(string(s.Bytes()))
-			if err != nil {
-				log.Warnf("send log failed:%s", err.Error())
-				break
-			}
-		}
-		session.Close(503, "log is terminated")
-		<-done
+	readCloser, err := m.openPodLog(cluster, namespace, pod, container)
+	if err != nil {
+		log.Warnf("openPodLog %s-%s-%s-%s failed %s", clusterID, namespace, pod, container, err.Error())
+		return
 	}
 
-	path := fmt.Sprintf(WSPodLogPathTemp, clusterID, namespace, pod, container)
-	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+	s := bufio.NewScanner(readCloser)
+	for s.Scan() {
+		err := conn.WriteMessage(websocket.TextMessage, s.Bytes())
+		if err != nil {
+			log.Warnf("send %s-%s-%s-%s log failed:%s", clusterID, namespace, pod, container, err.Error())
+			break
+		}
+	}
 }

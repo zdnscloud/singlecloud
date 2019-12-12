@@ -3,20 +3,20 @@ package handler
 import (
 	"bufio"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/gorilla/websocket"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
 	sm "github.com/zdnscloud/servicemesh"
 	pb "github.com/zdnscloud/servicemesh/public"
-	"github.com/zdnscloud/singlecloud/hack/sockjs"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -51,50 +51,43 @@ func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, 
 	}
 
 	url.Path = fmt.Sprintf(TapApiURLPath, ns, kind, name)
-	Sockjshandler := func(session sockjs.Session) {
-		resp, err := sm.HandleRequest(cluster.KubeHttpClient, url, req)
-		if err != nil {
-			session.Close(503, err.Error())
-			return
-		}
-
-		done := make(chan struct{})
-		go func() {
-			<-session.ClosedNotify()
-			resp.Body.Close()
-			close(done)
-		}()
-
-		reader := bufio.NewReader(resp.Body)
-		for {
-			event := pb.TapEvent{}
-			err := sm.FromByteStreamToProtocolBuffers(reader, &event)
-			if err == io.EOF {
-				break
-			}
-
-			if err != nil {
-				log.Warnf("receive tap response failed:%s", err.Error())
-				break
-			}
-
-			tap, err := readerTapEvent(&event)
-			if err != nil {
-				log.Warnf("reader tap response failed:%s", err.Error())
-				break
-			}
-
-			if err := session.Send(tap); err != nil {
-				log.Warnf("send tap failed:%s", err.Error())
-				break
-			}
-		}
-		session.Close(503, "tap is terminated")
-		<-done
+	resp, err := sm.HandleRequest(cluster.KubeHttpClient, url, req)
+	if err != nil {
+		log.Warnf("handle tap request failed: %s", err.Error())
+		return
 	}
 
-	tapPath := fmt.Sprintf(WSTapPathTemp, clusterID, ns, kind, name)
-	sockjs.NewHandler(tapPath, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+	conn, err := websocket.Upgrade(w, r, nil, 4096, 4096)
+	if err != nil {
+		log.Warnf("open websocket for tap failed: %s", err.Error())
+		return
+	}
+
+	defer func() {
+		resp.Body.Close()
+		conn.Close()
+	}()
+
+	reader := bufio.NewReader(resp.Body)
+	for {
+		event := pb.TapEvent{}
+		err := sm.FromByteStreamToProtocolBuffers(reader, &event)
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			log.Warnf("get tap response failed:%s", err.Error())
+			break
+		}
+
+		if err := conn.WriteJSON(pbTapEventToScTap(&event)); err != nil {
+			if isBrokenPipeErr(err) == false {
+				log.Warnf("send tap response to websocket failed:%s", err.Error())
+			}
+			break
+		}
+	}
 }
 
 func buildTapRequest(namespace, kind, name, toKind, toName, method, path string) (*pb.TapByResourceRequest, error) {
@@ -164,8 +157,8 @@ func buildTapRequest(namespace, kind, name, toKind, toName, method, path string)
 	}, nil
 }
 
-func readerTapEvent(pbEvent *pb.TapEvent) (string, error) {
-	tap := types.Tap{
+func pbTapEventToScTap(pbEvent *pb.TapEvent) *types.Tap {
+	return &types.Tap{
 		Source:          getTcpAddr(pbEvent.GetSource()),
 		SourceMeta:      types.EndpointMeta{Labels: pbEvent.GetSourceMeta().GetLabels()},
 		Destination:     getTcpAddr(pbEvent.GetDestination()),
@@ -178,9 +171,6 @@ func readerTapEvent(pbEvent *pb.TapEvent) (string, error) {
 			ResponseEnd:  pbRespEndToScRespEnd(pbEvent),
 		},
 	}
-
-	data, err := json.Marshal(&tap)
-	return string(data), err
 }
 
 func getTcpAddr(pbTcpAddr *pb.TcpAddress) types.TcpAddress {
@@ -311,4 +301,9 @@ func pbEosToInt(pbEos *pb.Eos) int {
 	}
 
 	return 0
+}
+
+func isBrokenPipeErr(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "broken pipe") ||
+		strings.Contains(strings.ToLower(err.Error()), "connection reset by peer")
 }

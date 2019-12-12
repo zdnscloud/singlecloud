@@ -1,11 +1,10 @@
 package zke
 
 import (
-	"fmt"
 	"net/http"
 
+	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/singlecloud/hack/sockjs"
 )
 
 const (
@@ -31,38 +30,30 @@ func (m *ZKEManager) OpenLog(clusterID string, r *http.Request, w http.ResponseW
 func (c *Cluster) openLog(r *http.Request, w http.ResponseWriter) {
 	if c.logSession != nil {
 		c.lock.Lock()
-		c.logSession.Close(503, "new connection is opened")
+		c.logSession.Close()
 		c.lock.Unlock()
 	}
 
-	Sockjshandler := func(session sockjs.Session) {
-		done := make(chan struct{})
-		c.lock.Lock()
-		c.logSession = session
-		c.lock.Unlock()
-		go func() {
-			<-session.ClosedNotify()
-			close(done)
-		}()
+	conn, err := websocket.Upgrade(w, r, nil, 4096, 4096)
+	if err != nil {
+		log.Warnf("cluster %s console log websocket upgrade failed %s", c.Name, err.Error())
+	}
+	defer conn.Close()
 
-		for {
-			logString, ok := <-c.logCh
-			if !ok {
-				break
-			}
+	c.lock.Lock()
+	c.logSession = conn
+	c.lock.Unlock()
 
-			err := session.Send(logString)
-			if err != nil {
-				log.Warnf("send log failed:%s", err.Error())
-				break
-			}
+	for {
+		logString, ok := <-c.logCh
+		if !ok {
+			break
 		}
-		c.lock.Lock()
-		session.Close(503, "log is terminated")
-		c.lock.Unlock()
-		<-done
-	}
 
-	path := fmt.Sprintf(WSZKELogPathTemp, c.Name)
-	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+		err := conn.WriteMessage(websocket.TextMessage, []byte(logString))
+		if err != nil {
+			log.Warnf("send cluster %s console log failed:%s", c.Name, err.Error())
+			break
+		}
+	}
 }

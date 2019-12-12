@@ -234,6 +234,9 @@ func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {
 	}
 	ingress.SetID(k8sIngress.Name)
 	ingress.SetCreationTimestamp(k8sIngress.CreationTimestamp.Time)
+	if k8sIngress.GetDeletionTimestamp() != nil {
+		ingress.SetDeletionTimestamp(k8sIngress.DeletionTimestamp.Time)
+	}
 	return ingress
 }
 

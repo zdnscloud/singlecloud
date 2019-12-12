@@ -96,7 +96,7 @@ func (m *ResourceQuotaManager) Delete(ctx *resource.Context) *resterror.APIError
 	namespace := ctx.Resource.GetParent().GetID()
 	resourceQuota := ctx.Resource.(*types.ResourceQuota)
 	if err := deleteResourceQuota(cluster.KubeClient, namespace, resourceQuota.GetID()); err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("resourceQuota %s with namespace %s desn't exist", resourceQuota.GetID(), namespace))
 		} else {
@@ -173,6 +173,9 @@ func k8sResourceQuotaToSCResourceQuota(k8sResourceQuota *corev1.ResourceQuota) *
 	}
 	resourceQuota.SetID(k8sResourceQuota.Name)
 	resourceQuota.SetCreationTimestamp(k8sResourceQuota.CreationTimestamp.Time)
+	if k8sResourceQuota.GetDeletionTimestamp() != nil {
+		resourceQuota.SetDeletionTimestamp(k8sResourceQuota.DeletionTimestamp.Time)
+	}
 	return resourceQuota
 }
 

@@ -194,6 +194,9 @@ func k8sNamespaceToSCNamespace(k8sNamespace *corev1.Namespace) *types.Namespace 
 	}
 	ns.SetID(k8sNamespace.Name)
 	ns.SetCreationTimestamp(k8sNamespace.CreationTimestamp.Time)
+	if k8sNamespace.GetDeletionTimestamp() != nil {
+		ns.SetDeletionTimestamp(k8sNamespace.DeletionTimestamp.Time)
+	}
 	return ns
 }
 

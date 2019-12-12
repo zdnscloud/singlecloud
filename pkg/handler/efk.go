@@ -118,7 +118,8 @@ func genEFKFromApp(ctx *restresource.Context, cluster string, app *types.Applica
 		Status:        app.Status,
 	}
 	efk.SetID(efkAppNamePrefix)
-	efk.CreationTimestamp = app.CreationTimestamp
+	efk.SetCreationTimestamp(time.Time(app.CreationTimestamp))
+	efk.SetDeletionTimestamp(time.Time(app.DeletionTimestamp))
 	return &efk, nil
 }
 

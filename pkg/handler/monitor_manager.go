@@ -237,7 +237,8 @@ func genRetrunMonitorFromApplication(cluster string, app *types.Application) (*t
 		Status:              app.Status,
 	}
 	m.SetID(monitorAppNamePrefix)
-	m.CreationTimestamp = app.CreationTimestamp
+	m.SetCreationTimestamp(time.Time(app.CreationTimestamp))
+	m.SetDeletionTimestamp(time.Time(app.DeletionTimestamp))
 	return &m, nil
 }
 

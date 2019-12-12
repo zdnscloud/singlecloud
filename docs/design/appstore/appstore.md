@@ -80,7 +80,9 @@
             	"type": {"type": "enum", "validValues": ["deployment", "daemonset", "statefulset", "configmap", "secret", "service", "ingress", "cronjob", "job"]},
             	"link": {"type": "string"}
             	"replicas": {"type": "int"},
-            	"readyReplicas": {"type": "int"}
+            	"readyReplicas": {"type": "int"},
+            	"creationTimestamp": {"type": "date"},
+            	"exists": {"type": "bool"}
         	 } 
 		}
    		
@@ -88,6 +90,7 @@
 * appResources字段表示chart创建的所有资源， 目前支持类型定义在appResource.type的validValues中
 * status表示当前application的状态，由于一个chart需要创建的资源可能会很多，所以创建和删除是异步操作，所有状态定义在status的validValues中
 * appResource.replicas 表示workload设置的replicas值，appResource.readyReplicas表示workload的pods已经ready的个数。
+* appResource.exists表示资源是否可以从k8s获取到
 * 支持的操作及业务逻辑
   * create
     * 检查namespace是否存在
@@ -127,7 +130,10 @@
      
   * get
     * 从数据库中获取application纪录，如果是系统application纪录则返回空且log无权限错误
-    * 从k8s获取application的appResources信息，如果获取某个appResources失败，则log错误并返回空，如果appResource是workload，根据replicas和readyReplicas信息，计算appplication的readyWorkloadCount个数 
+    * 从k8s获取application的appResources信息
+
+      * 如果获取某个appResources失败，则log错误, 设置link为空
+      * 如果可以获取，设置exists为true，设置creationTimestamp，如果appResource是workload，根据replicas和readyReplicas信息，计算appplication的readyWorkloadCount个数 
         
 ## 未来工作
 * 支持资源排序创建

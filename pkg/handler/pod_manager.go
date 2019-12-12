@@ -256,6 +256,9 @@ func k8sPodToSCPod(k8sPod *corev1.Pod) *types.Pod {
 	}
 	pod.SetID(k8sPod.Name)
 	pod.SetCreationTimestamp(k8sPod.CreationTimestamp.Time)
+	if k8sPod.GetDeletionTimestamp() != nil {
+		pod.SetDeletionTimestamp(k8sPod.DeletionTimestamp.Time)
+	}
 	return pod
 }
 

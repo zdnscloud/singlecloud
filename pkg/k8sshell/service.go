@@ -7,9 +7,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/exec"
-	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"k8s.io/client-go/tools/remotecommand"
 )
@@ -24,12 +24,12 @@ const (
 )
 
 func (mgr *ExecutorManager) RegisterHandler(router gin.IRoutes) error {
-	clusterShellPath := fmt.Sprintf(WSClusterShellPathTemp, ":cluster") + "/*actions"
+	clusterShellPath := fmt.Sprintf(WSClusterShellPathTemp, ":cluster")
 	router.GET(clusterShellPath, func(c *gin.Context) {
 		mgr.OpenClusterConsole(c.Param("cluster"), c.Request, c.Writer)
 	})
 
-	containerShellPath := fmt.Sprintf(WSContainerShellPathTemp, ":cluster", ":namespace", ":pod", ":container") + "/*actions"
+	containerShellPath := fmt.Sprintf(WSContainerShellPathTemp, ":cluster", ":namespace", ":pod", ":container")
 	router.GET(containerShellPath, func(c *gin.Context) {
 		mgr.OpenContainerConsole(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
 	})
@@ -46,26 +46,29 @@ var _ io.ReadWriter = &ShellConn{}
 var _ remotecommand.TerminalSizeQueue = &ShellConn{}
 
 type ShellConn struct {
-	conn     sockjs.Session
+	conn     *websocket.Conn
 	sizeChan chan *remotecommand.TerminalSize
 }
 
-func newShellConn(session sockjs.Session) *ShellConn {
-	return &ShellConn{
-		conn:     session,
-		sizeChan: make(chan *remotecommand.TerminalSize),
+func newShellConn(r *http.Request, w http.ResponseWriter) (*ShellConn, error) {
+	conn, err := websocket.Upgrade(w, r, nil, 4096, 4096)
+	if err != nil {
+		return nil, err
 	}
+	return &ShellConn{
+		conn:     conn,
+		sizeChan: make(chan *remotecommand.TerminalSize),
+	}, nil
 }
 
 func (t *ShellConn) Read(p []byte) (int, error) {
-	var reply string
 	var msg map[string]uint16
-	reply, err := t.conn.Recv()
+	_, reply, err := t.conn.ReadMessage()
 	if err != nil {
 		return 0, err
 	}
-	if err := json.Unmarshal([]byte(reply), &msg); err != nil {
-		return copy(p, reply), nil
+	if err := json.Unmarshal(reply, &msg); err != nil {
+		return copy(p, string(reply)), nil
 	} else {
 		t.sizeChan <- &remotecommand.TerminalSize{
 			msg["cols"],
@@ -76,7 +79,7 @@ func (t *ShellConn) Read(p []byte) (int, error) {
 }
 
 func (t *ShellConn) Write(p []byte) (int, error) {
-	return len(p), t.conn.Send(string(p))
+	return len(p), t.conn.WriteMessage(websocket.TextMessage, p)
 }
 
 func (t *ShellConn) Next() *remotecommand.TerminalSize {
@@ -93,26 +96,25 @@ func (mgr *ExecutorManager) OpenClusterConsole(clusterID string, r *http.Request
 		return
 	}
 
-	Sockjshandler := func(session sockjs.Session) {
-		cmd := exec.Cmd{
-			Path: BashPath,
-		}
-
-		pod := exec.Pod{
-			Namespace: handler.ZCloudNamespace,
-			Name:      ClusterShellPodName,
-			Container: ClusterShellContainerName,
-		}
-
-		stream := newShellConn(session)
-		err := executor.Exec(pod, cmd, stream)
-		if err != nil {
-			log.Errorf("execute cmd failed %s", err.Error())
-		}
+	cmd := exec.Cmd{
+		Path: BashPath,
 	}
 
-	path := fmt.Sprintf(WSClusterShellPathTemp, clusterID)
-	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+	pod := exec.Pod{
+		Namespace: handler.ZCloudNamespace,
+		Name:      ClusterShellPodName,
+		Container: ClusterShellContainerName,
+	}
+
+	stream, err := newShellConn(r, w)
+	if err != nil {
+		log.Warnf("new cluster %s console conn failed %s", clusterID, err.Error())
+	}
+	defer stream.conn.Close()
+
+	if err := executor.Exec(pod, cmd, stream); err != nil {
+		log.Errorf("execute cmd failed %s", err.Error())
+	}
 }
 
 func (mgr *ExecutorManager) OpenContainerConsole(clusterID, namespace, pod, container string, r *http.Request, w http.ResponseWriter) {
@@ -125,19 +127,19 @@ func (mgr *ExecutorManager) OpenContainerConsole(clusterID, namespace, pod, cont
 		return
 	}
 
-	Sockjshandler := func(session sockjs.Session) {
-		pod := exec.Pod{
-			Namespace: namespace,
-			Name:      pod,
-			Container: container,
-		}
-
-		stream := newShellConn(session)
-		if err := executor.Exec(pod, exec.Cmd{Path: ShPath}, stream); err != nil {
-			log.Errorf("execute bash failed %s", err.Error())
-		}
+	k8sPod := exec.Pod{
+		Namespace: namespace,
+		Name:      pod,
+		Container: container,
 	}
 
-	path := fmt.Sprintf(WSContainerShellPathTemp, clusterID, namespace, pod, container)
-	sockjs.NewHandler(path, sockjs.DefaultOptions, Sockjshandler).ServeHTTP(w, r)
+	stream, err := newShellConn(r, w)
+	if err != nil {
+		log.Warnf("new container %s-%s-%s-%s console failed %s", clusterID, namespace, pod, container, err.Error())
+	}
+	defer stream.conn.Close()
+
+	if err := executor.Exec(k8sPod, exec.Cmd{Path: ShPath}, stream); err != nil {
+		log.Errorf("execute bash failed %s", err.Error())
+	}
 }

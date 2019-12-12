@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/zdnscloud/kvzoo"
-	"github.com/zdnscloud/singlecloud/hack/sockjs"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
+	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
@@ -24,13 +24,14 @@ import (
 type Cluster struct {
 	Name           string
 	CreateTime     time.Time
+	DeleteTime     time.Time
 	KubeClient     client.Client
 	Cache          cache.Cache
 	K8sConfig      *rest.Config
 	stopCh         chan struct{}
 	config         *zketypes.ZKEConfig
 	logCh          chan string
-	logSession     sockjs.Session
+	logSession     *websocket.Conn
 	cancel         context.CancelFunc
 	isCanceled     bool
 	lock           sync.Mutex
@@ -308,6 +309,7 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 
 	sc.SetID(c.Name)
 	sc.SetCreationTimestamp(c.CreateTime)
+	sc.SetDeletionTimestamp(c.DeleteTime)
 	sc.Status = c.getStatus()
 	return sc
 }

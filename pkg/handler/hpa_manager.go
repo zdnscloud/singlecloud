@@ -252,6 +252,9 @@ func k8sHpaToScHpa(k8sHpa *asv2beta2.HorizontalPodAutoscaler) *types.HorizontalP
 	}
 	hpa.SetID(k8sHpa.Name)
 	hpa.SetCreationTimestamp(k8sHpa.CreationTimestamp.Time)
+	if k8sHpa.GetDeletionTimestamp() != nil {
+		hpa.SetDeletionTimestamp(k8sHpa.DeletionTimestamp.Time)
+	}
 	return hpa
 }
 

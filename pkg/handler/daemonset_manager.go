@@ -107,7 +107,7 @@ func (m *DaemonSetManager) Update(ctx *resource.Context) (resource.Resource, *re
 	daemonSet := ctx.Resource.(*types.DaemonSet)
 	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("daemonset %s desn't exist", namespace))
 		} else {
 			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get daemonset failed %s", err.Error()))
@@ -139,7 +139,7 @@ func (m *DaemonSetManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	k8sDaemonSet, err := getDaemonSet(cluster.KubeClient, namespace, daemonSet.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("daemonset %s with namespace %s desn't exist", daemonSet.GetID(), namespace))
 		} else {
@@ -253,6 +253,9 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	}
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetCreationTimestamp(k8sDaemonSet.CreationTimestamp.Time)
+	if k8sDaemonSet.GetDeletionTimestamp() != nil {
+		daemonSet.SetDeletionTimestamp(k8sDaemonSet.DeletionTimestamp.Time)
+	}
 	daemonSet.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDaemonSet.Spec.Template.Annotations)
 	return daemonSet, nil
 }
@@ -267,7 +270,7 @@ func (m *DaemonSetManager) getDaemonsetHistory(ctx *resource.Context) (interface
 	daemonset := ctx.Resource.(*types.DaemonSet)
 	_, controllerRevisions, err := getDaemonSetAndControllerRevisions(cluster.KubeClient, namespace, daemonset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("daemonset %s with namespace %s desn't exist", daemonset.GetID(), namespace))
 		} else {
@@ -329,7 +332,7 @@ func (m *DaemonSetManager) rollback(ctx *resource.Context) *resterror.APIError {
 
 	k8sDaemonSet, controllerRevisions, err := getDaemonSetAndControllerRevisions(cluster.KubeClient, namespace, daemonset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("daemonset %s with namespace %s desn't exist", daemonset.GetID(), namespace))
 		} else {
