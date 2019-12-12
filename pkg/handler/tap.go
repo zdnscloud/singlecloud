@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"net/url"
 
-	//"github.com/golang/protobuf/ptypes/duration"
+	"github.com/golang/protobuf/ptypes/duration"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	TapApiURLPath = "/apis/tap.linkerd.io/v1alpha1/watch/namespaces/%s/%s/%s/tap"
+	TapApiURLPath = "/apis/tap.linkerd.io/v1alpha1/watch/namespaces/%s/%ss/%s/tap"
 	DefaultMaxRps = 100.0
 )
 
@@ -51,9 +51,11 @@ func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, 
 	}
 
 	url.Path = fmt.Sprintf(TapApiURLPath, ns, kind, name)
+	fmt.Printf("url: %s\n", url.String())
 	Sockjshandler := func(session sockjs.Session) {
 		resp, err := sm.HandleRequest(cluster.KubeHttpClient, url, req)
 		if err != nil {
+			fmt.Printf("request get err: %v\n", err.Error())
 			session.Close(503, err.Error())
 			return
 		}
@@ -98,13 +100,13 @@ func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, 
 }
 
 func buildTapRequest(namespace, kind, name, toKind, toName, method, path string) (*pb.TapByResourceRequest, error) {
-	if slice.SliceIndex(ValidTapResourceTypes, kind) != -1 {
+	if slice.SliceIndex(ValidTapResourceTypes, kind) == -1 {
 		return nil, fmt.Errorf("tap unsupported resource_type %s", kind)
 	}
 
 	matches := []*pb.TapByResourceRequest_Match{}
 	if toKind != "" {
-		if slice.SliceIndex(ValidTapResourceTypes, toKind) != -1 {
+		if slice.SliceIndex(ValidTapResourceTypes, toKind) == -1 {
 			return nil, fmt.Errorf("tap unsupported to_resource_type %s", toKind)
 		}
 
@@ -271,25 +273,19 @@ func pbRespInitToScRespInit(pbEvent *pb.TapEvent) types.HttpResponseInit {
 	}
 
 	return types.HttpResponseInit{
-		Id: pbHttpStreamIdToScHttpStreamId(pbRespInit.GetId()),
-		//SinceRequestInit: pbDurationToScDuration(pbRespInit.GetSinceRequestInit()),
-		SinceRequestInit: types.Duration{
-			Seconds: int(pbRespInit.GetSinceRequestInit().GetSeconds()),
-			Nanos:   int(pbRespInit.GetSinceRequestInit().GetNanos()),
-		},
-		HttpStatus: int(pbRespInit.GetHttpStatus()),
-		Headers:    pbHeadersToScHeaders(pbRespInit.GetHeaders()),
+		Id:               pbHttpStreamIdToScHttpStreamId(pbRespInit.GetId()),
+		SinceRequestInit: pbDurationToScDuration(pbRespInit.GetSinceRequestInit()),
+		HttpStatus:       int(pbRespInit.GetHttpStatus()),
+		Headers:          pbHeadersToScHeaders(pbRespInit.GetHeaders()),
 	}
 }
 
-/*
 func pbDurationToScDuration(pbDuration *duration.Duration) types.Duration {
 	return types.Duration{
 		Seconds: int(pbDuration.GetSeconds()),
 		Nanos:   int(pbDuration.GetNanos()),
 	}
 }
-*/
 
 func pbRespEndToScRespEnd(pbEvent *pb.TapEvent) types.HttpResponseEnd {
 	pbRespEnd := pbEvent.GetHttp().GetResponseEnd()
@@ -298,20 +294,12 @@ func pbRespEndToScRespEnd(pbEvent *pb.TapEvent) types.HttpResponseEnd {
 	}
 
 	return types.HttpResponseEnd{
-		Id: pbHttpStreamIdToScHttpStreamId(pbRespEnd.GetId()),
-		//SinceRequestInit:  pbDurationToScDuration(pbRespEnd.GetSinceRequestInit()),
-		SinceRequestInit: types.Duration{
-			Seconds: int(pbRespEnd.GetSinceRequestInit().GetSeconds()),
-			Nanos:   int(pbRespEnd.GetSinceRequestInit().GetNanos()),
-		},
-		//SinceResponseInit: pbDurationToScDuration(pbRespEnd.GetSinceResponseInit()),
-		SinceResponseInit: types.Duration{
-			Seconds: int(pbRespEnd.GetSinceResponseInit().GetSeconds()),
-			Nanos:   int(pbRespEnd.GetSinceResponseInit().GetNanos()),
-		},
-		ResponseBytes: int(pbRespEnd.GetResponseBytes()),
-		Eos:           pbEosToInt(pbRespEnd.GetEos()),
-		Trailers:      pbHeadersToScHeaders(pbRespEnd.GetTrailers()),
+		Id:                pbHttpStreamIdToScHttpStreamId(pbRespEnd.GetId()),
+		SinceRequestInit:  pbDurationToScDuration(pbRespEnd.GetSinceRequestInit()),
+		SinceResponseInit: pbDurationToScDuration(pbRespEnd.GetSinceResponseInit()),
+		ResponseBytes:     int(pbRespEnd.GetResponseBytes()),
+		Eos:               pbEosToInt(pbRespEnd.GetEos()),
+		Trailers:          pbHeadersToScHeaders(pbRespEnd.GetTrailers()),
 	}
 }
 
