@@ -644,7 +644,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b0c0a12e1fdd9b966af5393a16b9c19615e27f985b4222b255345213d9162cf1"
+  digest = "1:68387b2bae0cdf5c42495433aacb6e279f266c5f75331817271e796d11fd59ad"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -657,7 +657,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "7ed8b865e78cd4a338afdd8febb57f239d7f48bf"
+  revision = "c7f936a419734620f45c1ba8f27cb16a34169de1"
 
 [[projects]]
   branch = "master"
