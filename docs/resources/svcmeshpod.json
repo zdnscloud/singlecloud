@@ -1,0 +1,138 @@
+{
+  "resourceType": "svcmeshpod",
+  "collectionName": "svcmeshpods",
+  "parentResources": [
+    "svcmeshworkload"
+  ],
+  "goStructName": "SvcMeshPod",
+  "resourceFields": {
+    "inbound": {
+      "type": "array",
+      "elemType": "stat"
+    },
+    "outbound": {
+      "type": "array",
+      "elemType": "stat"
+    },
+    "stat": {
+      "type": "stat"
+    }
+  },
+  "subResources": {
+    "basicStat": {
+      "actualFailureCount": {
+        "type": "int"
+      },
+      "actualSuccessCount": {
+        "type": "int"
+      },
+      "failureCount": {
+        "type": "int"
+      },
+      "latencyMsP50": {
+        "type": "int"
+      },
+      "latencyMsP95": {
+        "type": "int"
+      },
+      "latencyMsP99": {
+        "type": "int"
+      },
+      "successCount": {
+        "type": "int"
+      }
+    },
+    "containerError": {
+      "container": {
+        "type": "string"
+      },
+      "image": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string"
+      }
+    },
+    "podError": {
+      "errors": {
+        "type": "array",
+        "elemType": "containerError"
+      },
+      "podName": {
+        "type": "string"
+      }
+    },
+    "resource": {
+      "name": {
+        "type": "string"
+      },
+      "namespace": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      }
+    },
+    "stat": {
+      "basicStat": {
+        "type": "basicStat"
+      },
+      "failedPodCount": {
+        "type": "int"
+      },
+      "meshedPodCount": {
+        "type": "int"
+      },
+      "podErrors": {
+        "type": "array",
+        "elemType": "podError"
+      },
+      "resource": {
+        "type": "resource"
+      },
+      "runningPodCount": {
+        "type": "int"
+      },
+      "status": {
+        "type": "string"
+      },
+      "tcpStat": {
+        "type": "tcpStat"
+      },
+      "timeWindow": {
+        "type": "string"
+      },
+      "trafficSplitStat": {
+        "type": "trafficSplitStat"
+      }
+    },
+    "tcpStat": {
+      "openConnections": {
+        "type": "int"
+      },
+      "readBytesTotal": {
+        "type": "int"
+      },
+      "writeBytesTotal": {
+        "type": "int"
+      }
+    },
+    "trafficSplitStat": {
+      "apex": {
+        "type": "string"
+      },
+      "leaf": {
+        "type": "string"
+      },
+      "weight": {
+        "type": "string"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET"
+  ]
+}
