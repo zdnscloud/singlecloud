@@ -244,7 +244,7 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 
 	if state.Created {
 		close(toDelete.stopCh)
-		m.PubEventCh <- DeleteCluster{Cluster: toDelete}
+		m.SendEvent(DeleteCluster{Cluster: toDelete})
 	}
 
 	tm := time.Now()

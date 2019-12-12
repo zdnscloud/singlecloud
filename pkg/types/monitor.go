@@ -14,8 +14,8 @@ const (
 
 type Monitor struct {
 	resource.ResourceBase `json:",inline"`
-	IngressDomain         string `json:"ingressDomain" rest:"description=immutable"`
-	StorageClass          string `json:"storageClass" rest:"options=lvm|cephfs,description=immutable"`
+	IngressDomain         string `json:"ingressDomain" rest:"description=immutable,isDomain=true"`
+	StorageClass          string `json:"storageClass" rest:"options=lvm|cephfs,description=immutable,isDomain=true"`
 	StorageSize           int    `json:"storageSize" rest:"description=immutable"`
 	PrometheusRetention   int    `json:"prometheusRetention" rest:"description=immutable"`
 	ScrapeInterval        int    `json:"scrapeInterval" rest:"description=immutable"`

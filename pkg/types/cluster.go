@@ -64,7 +64,7 @@ type Cluster struct {
 	IgnoreDockerVersion bool     `json:"ignoreDockerVersion" rest:"description=immutable"`
 	ClusterCidr         string   `json:"clusterCidr" rest:"description=immutable"`
 	ServiceCidr         string   `json:"serviceCidr" rest:"description=immutable"`
-	ClusterDomain       string   `json:"clusterDomain" rest:"required=true,description=immutable"`
+	ClusterDomain       string   `json:"clusterDomain" rest:"required=true,description=immutable,isDomain=true"`
 	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty" rest:"description=immutable"`
 	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS" rest:"description=immutable"`
 	DisablePortCheck    bool     `json:"disablePortCheck" rest:"description=immutable"`
