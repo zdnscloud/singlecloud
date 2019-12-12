@@ -1,0 +1,62 @@
+{
+    "url": "/apis/ws.zcloud.cn/v1/clusters/:cluster/namespaces/:namespace/tap?resource_type=&resource_name=&to_resource_type=&to_resource_name=&method=&path=",
+
+    "resourceFields": {
+        "source": {"type": "tcpAddress"},
+        "sourceMeta": {"type": "endpointMeta"},
+        "destination": {"type": "tcpAddress"},
+        "destinationMeta": {"type": "endpointMeta"},
+        "routeMeta": {"type": "endpointMeta"},
+        "proxyDirection": {"type": "string"},
+        "event": {"type": "event"}
+    },
+
+    "subResources": {
+        "tcpAddress": {
+            "ip": {"type": "string"},
+            "port": {"type": "int"}
+        },
+        "endpointMeta": {
+            "labels": {"type": "map", "keyType": "string", "valueType": "string"}
+        },
+        "event": {
+            "requestInit": {"type": "httpRequestInit"},
+            "responseInit": {"type": "httpResponseInit"},
+            "responseEnd": {"type": "httpResponseEnd"}
+        },
+        "httpRequestInit": {
+            "id": {"type": "httpStreamId"},
+            "method": {"type": "string"},
+            "scheme": {"type": "string"},
+            "authority": {"type": "string"},
+            "path": {"type": "string"},
+            "headers": {"type": "array", "elemType": "header"}
+        },
+        "httpStreamId": {
+            "base": {"type": "string"},
+            "stream": {"type": "string"}
+        },
+        "header": {
+            "name": {"type": "string"},
+            "value": {"type": "string"}
+        },
+        "httpResponseInit": {
+            "id": {"type": "httpStreamId"},
+            "sinceRequestInit": {"type": "duration"},
+            "httpStatus": {"type": "int"},
+            "headers": {"type": "array", "elemType": "header"}
+        },
+        "duration": {
+            "seconds": {"type": "int"},
+            "nanos": {"type": "int"}
+        },
+        "httpResponseEnd": {
+            "id": {"type": "httpStreamId"},
+            "sinceRequestInit": {"type": "duration"},
+            "sinceResponseInit": {"type": "duration"},
+            "responseBytes": {"type": "int"},
+            "eos": {"type": "int"},
+            "trailers": {"type": "array", "elemType": "header"}
+        }
+    }
+}
