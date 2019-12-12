@@ -374,12 +374,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:d62282425ffb75047679d7e2c3b980eea7f82c05ef5fb9142ee617ebac6e7432"
+  digest = "1:29895093e370d9da5fd1c9ab12a5855ccb568f28766e0c3ff159c4b0f09aa127"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
   pruneopts = "UT"
-  revision = "88ba11cfdc67c7588b30042edf244b2875f892b6"
-  version = "v0.0.10"
+  revision = "31745d66dd679ac0ac4f8d3ecff168fce6170c6a"
+  version = "v0.0.11"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -613,7 +613,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7a2ccd12c9aa659e18c96b2a48d5e4bff7f02be2350fc6448d79ad363473cec9"
+  digest = "1:a75a6644b64ef806325694044b32243a86cc43093bb33c96f7342e85670934ae"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -632,7 +632,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "0f4b3df670cc875718875cf1f38bab129285e666"
+  revision = "180915767ead92935d37fd79a4e970203d83b308"
 
 [[projects]]
   branch = "master"
@@ -644,7 +644,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0d5860a6244227d825d90b4c3140d0c0463574ff8dcf7518f2f3af33c7b72ad5"
+  digest = "1:b0c0a12e1fdd9b966af5393a16b9c19615e27f985b4222b255345213d9162cf1"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -657,7 +657,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "137848a18b9b7e458bf4026d9d38158cdad74af0"
+  revision = "b6ae660a60664ce736ad4c8393657f0785242226"
 
 [[projects]]
   branch = "master"
@@ -665,7 +665,7 @@
   name = "github.com/zdnscloud/immense"
   packages = ["pkg/apis/zcloud/v1"]
   pruneopts = "UT"
-  revision = "408d3a64979397d0fb0e0e8c387b48c4cecac104"
+  revision = "db3368eb756dd441e4817297cdb508ea5736bbac"
 
 [[projects]]
   branch = "master"
@@ -691,6 +691,19 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:88eaf21f8c64374047e07d6811cc705f858861391f926d4db1d603e9376a48c3"
+  name = "github.com/zdnscloud/servicemesh"
+  packages = [
+    ".",
+    "public",
+    "public/config",
+    "public/healthcheck",
+  ]
+  pruneopts = "UT"
+  revision = "0f3403ce956f50e64e6631540209b89cbcd6fb9c"
+
+[[projects]]
+  branch = "master"
   digest = "1:500c221725ad2b58d5a9309ef8ee45fec834ab3e8c55eeeb8a8ed739e4e8b929"
   name = "github.com/zdnscloud/vanguard"
   packages = [
@@ -713,7 +726,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9a7b97ef4d7a7222b904cc46a6268ebb4dbf936a9274f9b1be0caa5f47ad42aa"
+  digest = "1:70ff8c00b1392737f820a82bc72f91a4c5a954fbf38a67cf4ab6bc7011f100cd"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -744,7 +757,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "460f362c44a0369b42c5b0f88b8c2378909fe516"
+  revision = "f21bae630cff4200226bcc881a988c902b733c69"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -769,7 +782,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:334389cf7ddd0f9a7b64dab90203a17e161cd425264cd830fa05f35d6080c603"
+  digest = "1:3ff283a70dbbcf0f967ea2f1be883c224119610fbd9a40150bd1b280dd1e6988"
   name = "golang.org/x/crypto"
   packages = [
     "chacha20",
@@ -784,7 +797,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "86a70503ff7e82ffc18c7b0de83db35da4791e6a"
+  revision = "e9b2fee46413994441b28dfca259d911d963dfed"
 
 [[projects]]
   branch = "master"
@@ -803,7 +816,7 @@
     "trace",
   ]
   pruneopts = "UT"
-  revision = "5ee1b9f4859acd2e99987ef94ec7a58427c53bef"
+  revision = "c0dbc17a35534bf2e581d7a942408dc936316da4"
 
 [[projects]]
   branch = "master"
@@ -818,7 +831,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:73eaec097280ac58e7dcf99d8a03f1d9e64139870340f6c711804a090afa33f1"
+  digest = "1:d64bdbbc412a0f740a9116c0aa53be94c804e24a6fd9c44de36e3063ec98e5a2"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -826,7 +839,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "6d18c012aee9febd81bbf9806760c8c4480e870d"
+  revision = "ac6580df4449443a05718fd7858c1f91ad5f8d20"
 
 [[projects]]
   digest = "1:8d8faad6b12a3a4c819a3f9618cb6ee1fa1cfc33253abeeea8b55336721e3405"
@@ -883,7 +896,7 @@
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = "UT"
-  revision = "3fa9dbf08042c806feeb0b21b23e07587714c143"
+  revision = "0243a4be9c8f1264d238fdc2895620b4d9baf9e1"
 
 [[projects]]
   digest = "1:b59ce3ddb11daeeccccc9cb3183b58ebf8e9a779f1c853308cd91612e817a301"
@@ -1232,6 +1245,8 @@
     "github.com/zdnscloud/kvzoo/backend/bolt",
     "github.com/zdnscloud/kvzoo/client",
     "github.com/zdnscloud/kvzoo/server",
+    "github.com/zdnscloud/servicemesh",
+    "github.com/zdnscloud/servicemesh/public",
     "github.com/zdnscloud/vanguard/httpcmd",
     "github.com/zdnscloud/vanguard/resolver/auth",
     "github.com/zdnscloud/vanguard/server",
