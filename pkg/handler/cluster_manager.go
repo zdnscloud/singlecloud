@@ -21,27 +21,30 @@ import (
 )
 
 const (
-	ZCloudNamespace = "zcloud"
-	ZCloudAdmin     = "zcloud-cluster-admin"
-	ZCloudReadonly  = "zcloud-cluster-readonly"
+	ZCloudNamespace        = "zcloud"
+	ZCloudAdmin            = "zcloud-cluster-admin"
+	ZCloudReadonly         = "zcloud-cluster-readonly"
+	zcloudEventBufferCount = 10
 )
 
 type ClusterManager struct {
-	eventBus      *pubsub.PubSub
-	authorizer    *authorization.Authorizer
-	authenticator *authentication.Authenticator
-	zkeManager    *zke.ZKEManager
-	db            kvzoo.DB
-	Agent         *clusteragent.AgentManager
+	eventBus         *pubsub.PubSub
+	authorizer       *authorization.Authorizer
+	authenticator    *authentication.Authenticator
+	zkeManager       *zke.ZKEManager
+	db               kvzoo.DB
+	Agent            *clusteragent.AgentManager
+	zcloudPubEventCh chan interface{}
 }
 
 func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db kvzoo.DB, scVersion string) (*ClusterManager, error) {
 	clusterMgr := &ClusterManager{
-		authorizer:    authorizer,
-		authenticator: authenticator,
-		eventBus:      eventBus,
-		db:            db,
-		Agent:         agent,
+		authorizer:       authorizer,
+		authenticator:    authenticator,
+		eventBus:         eventBus,
+		db:               db,
+		Agent:            agent,
+		zcloudPubEventCh: make(chan interface{}, zcloudEventBufferCount),
 	}
 	storageNodeListener := &StorageNodeListener{
 		clusters: clusterMgr,
@@ -53,6 +56,7 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 	}
 	clusterMgr.zkeManager = zkeMgr
 	go clusterMgr.eventLoop()
+	go clusterMgr.zcloudEventLoop()
 	return clusterMgr, nil
 }
 
@@ -241,6 +245,17 @@ func (m *ClusterManager) eventLoop() {
 		obj := <-m.zkeManager.PubEventCh
 		m.eventBus.Pub(obj, eventbus.ClusterEvent)
 	}
+}
+
+func (m *ClusterManager) zcloudEventLoop() {
+	for {
+		obj := <-m.zcloudPubEventCh
+		m.eventBus.Pub(obj, eventbus.ZcloudEvent)
+	}
+}
+
+func (m *ClusterManager) SendZcloudEvent(e interface{}) {
+	m.zcloudPubEventCh <- e
 }
 
 type StorageNodeListener struct {

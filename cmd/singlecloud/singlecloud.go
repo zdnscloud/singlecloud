@@ -13,6 +13,7 @@ import (
 	"github.com/zdnscloud/kvzoo/client"
 	dbserver "github.com/zdnscloud/kvzoo/server"
 	"github.com/zdnscloud/singlecloud/config"
+	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
@@ -101,6 +102,11 @@ func runAsMaster(conf *config.SinglecloudConf) {
 
 	watcher := k8seventwatcher.New(eventBus)
 	if err := server.RegisterHandler(watcher); err != nil {
+		log.Fatalf("register k8s event watcher failed:%s", err.Error())
+	}
+
+	alarm := alarm.New(eventBus)
+	if err := server.RegisterHandler(alarm); err != nil {
 		log.Fatalf("register k8s event watcher failed:%s", err.Error())
 	}
 

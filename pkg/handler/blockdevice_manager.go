@@ -5,6 +5,7 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resource "github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,14 @@ func (m *BlockDeviceManager) List(ctx *resource.Context) interface{} {
 	if cluster == nil {
 		return nil
 	}
+	alarm := alarm.Alarm{
+		Namespace: "zcloud",
+		Kind:      "log",
+		Name:      "blockdevices",
+		Reason:    "reson by",
+		Message:   "xxxxxxxxxxxxxxxxxxxx",
+	}
+	m.clusters.SendZcloudEvent(alarm)
 
 	resp, err := getBlockDevices(cluster.Name, cluster.KubeClient, m.clusters.Agent)
 	if err != nil {
