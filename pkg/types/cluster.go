@@ -38,8 +38,8 @@ type Cluster struct {
 	Nodes                 []Node            `json:"nodes" rest:"required=true"`
 	Network               ClusterNetwork    `json:"network" rest:"description=immutable"`
 	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
-	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true,minLen=1,maxLen=128"`
-	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128,description=immutable"`
+	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true"`
+	Name                  string            `json:"name" rest:"required=true,isDomain=true,description=immutable"`
 	Status                ClusterStatus     `json:"status" rest:"description=readonly"`
 	NodesCount            int               `json:"nodeCount" rest:"description=readonly"`
 	Version               string            `json:"version" rest:"description=readonly"`
