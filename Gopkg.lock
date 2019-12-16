@@ -715,8 +715,8 @@
   revision = "d7bf8860bb4015c0f822bbe1a3a7579f55f7cfc8"
 
 [[projects]]
-  branch = "master"
-  digest = "1:70ff8c00b1392737f820a82bc72f91a4c5a954fbf38a67cf4ab6bc7011f100cd"
+  branch = "storage-deleting"
+  digest = "1:9401a3d1349c0b2a064ea39f239f061f10c3cbdbd48fb7e79f1ed1d1259917b8"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -747,7 +747,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "f21bae630cff4200226bcc881a988c902b733c69"
+  revision = "5686e34e4c62add7d4493c4db8b1bb902956e7b1"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
