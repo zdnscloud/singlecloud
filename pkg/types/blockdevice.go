@@ -8,12 +8,12 @@ type BlockDevice struct {
 	resource.ResourceBase `json:",inline"`
 	NodeName              string `json:"nodeName"`
 	BlockDevices          []Dev  `json:"blockDevices"`
+	UsedBy                string `json:"usedby"`
 }
 
 type Dev struct {
-	Name   string `json:"name"`
-	Size   string `json:"size"`
-	UsedBy string `json:"-"`
+	Name string `json:"name"`
+	Size string `json:"size"`
 }
 
 func (b BlockDevice) GetParents() []resource.ResourceKind {
