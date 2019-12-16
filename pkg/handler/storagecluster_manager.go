@@ -24,6 +24,7 @@ import (
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/common"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -299,10 +300,12 @@ func checkFinalizers(cli client.Client, name string) error {
 		return err
 	}
 	metaObj := obj.(metav1.Object)
-	if len(metaObj.GetFinalizers()) > 0 {
+	finalizers := metaObj.GetFinalizers()
+	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.ClusterPrestopHookFinalizer) == 0) {
+		return nil
+	} else {
 		return errors.New(fmt.Sprintf("The storagecluster %s is used by some pods, you should stop those pods first", name))
 	}
-	return nil
 }
 
 func sToi(size string) int64 {
