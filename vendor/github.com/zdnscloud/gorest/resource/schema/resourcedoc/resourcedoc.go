@@ -16,6 +16,7 @@ import (
 
 const (
 	requiredTag    = "required"
+	isDomainTag    = "isDomain"
 	optionsTag     = "options="
 	descriptionTag = "description="
 	docFileSuffix  = ".json"
@@ -159,6 +160,9 @@ func parseTag(tag reflect.StructTag, isOptions bool) []string {
 			}
 			if strings.HasPrefix(t, descriptionTag) {
 				tags = append(tags, strings.TrimPrefix(t, descriptionTag))
+			}
+			if strings.HasPrefix(t, isDomainTag) {
+				tags = append(tags, isDomainTag)
 			}
 		}
 	}
