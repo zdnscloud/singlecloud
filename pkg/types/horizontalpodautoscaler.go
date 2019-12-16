@@ -26,8 +26,8 @@ const (
 )
 
 type ResourceMetricSpec struct {
-	ResourceName       ResourceName     `json:"resourceName,omitempty"`
-	TargetType         MetricTargetType `json:"targetType,omitempty"`
+	ResourceName       ResourceName     `json:"resourceName,omitempty" rest:"options=cpu|memory"`
+	TargetType         MetricTargetType `json:"targetType,omitempty" rest:"options=Utilization|AverageValue"`
 	AverageValue       string           `json:"averageValue,omitempty"`
 	AverageUtilization int              `json:"averageUtilization,omitempty"`
 }
@@ -50,9 +50,9 @@ type MetricStatus struct {
 
 type HorizontalPodAutoscaler struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string                        `json:"name" rest:"description=immutable"`
+	Name                  string                        `json:"name" rest:"required=true,isDomain=true,description=immutable"`
 	ScaleTargetKind       ScaleTargetKind               `json:"scaleTargetKind" rest:"required=true,options=deployment|statefulset"`
-	ScaleTargetName       string                        `json:"scaleTargetName" rest:"required=true"`
+	ScaleTargetName       string                        `json:"scaleTargetName" rest:"required=true,isDomain=true"`
 	MinReplicas           int                           `json:"minReplicas"`
 	MaxReplicas           int                           `json:"maxReplicas" rest:"required=true"`
 	ResourceMetrics       []ResourceMetricSpec          `json:"resourceMetrics,omitempty"`

@@ -27,9 +27,9 @@ var (
 
 type Application struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string          `json:"name"`
-	ChartName             string          `json:"chartName"`
-	ChartVersion          string          `json:"chartVersion"`
+	Name                  string          `json:"name" rest:"required=true,isDomain=true"`
+	ChartName             string          `json:"chartName" rest:"required=true"`
+	ChartVersion          string          `json:"chartVersion" rest:"required=true"`
 	ChartIcon             string          `json:"chartIcon" rest:"description=readonly"`
 	Status                string          `json:"status" rest:"description=readonly"`
 	WorkloadCount         int             `json:"workloadCount,omitempty" rest:"description=readonly"`

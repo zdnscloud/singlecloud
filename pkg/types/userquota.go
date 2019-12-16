@@ -19,7 +19,7 @@ const (
 )
 
 type ClusterInfo struct {
-	ClusterName string `json:"clusterName"`
+	ClusterName string `json:"clusterName" rest:"required=true,isDomain=true"`
 }
 
 type Rejection struct {
@@ -28,9 +28,9 @@ type Rejection struct {
 
 type UserQuota struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string           `json:"name,omitempty" rest:"description=immutable"`
-	ClusterName           string           `json:"clusterName,omitempty"`
-	Namespace             string           `json:"namespace"`
+	Name                  string           `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	ClusterName           string           `json:"clusterName,omitempty" rest:"isDomain=true"`
+	Namespace             string           `json:"namespace" rest:"required=true,isDomain=true"`
 	UserName              string           `json:"userName" rest:"description=readonly"`
 	CPU                   string           `json:"cpu"`
 	Memory                string           `json:"memory"`

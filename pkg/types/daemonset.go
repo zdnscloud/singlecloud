@@ -6,10 +6,10 @@ import (
 
 type DaemonSet struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string                     `json:"name,omitempty" rest:"description=immutable"`
-	Containers            []Container                `json:"containers,omitempty"`
+	Name                  string                     `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	Containers            []Container                `json:"containers" rest:"required=true"`
 	AdvancedOptions       AdvancedOptions            `json:"advancedOptions,omitempty" rest:"description=immutable"`
-	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes,omitempty"`
 	Status                DaemonSetStatus            `json:"status,omitempty" rest:"description=readonly"`
 	Memo                  string                     `json:"memo,omitempty"`
 }
