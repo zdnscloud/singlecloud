@@ -162,8 +162,8 @@ func deleteStorageCluster(cli client.Client, name string) error {
 	if err != nil {
 		return err
 	}
-	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
-		return errors.New("storagecluster in Creating or Updating, not allowed delete")
+	if k8sStorageCluster.Status.Phase == storagev1.Creating || k8sStorageCluster.Status.Phase == storagev1.Updating || k8sStorageCluster.Status.Phase == storagev1.Deleting {
+		return errors.New("storagecluster in Creating, Updating or Deleting, not allowed delete")
 	}
 
 	if err := checkFinalizers(cli, name); err != nil {
@@ -195,8 +195,8 @@ func updateStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager
 	if err != nil {
 		return err
 	}
-	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
-		return errors.New("storagecluster in Creating or Updating, not allowed update")
+	if k8sStorageCluster.Status.Phase == storagev1.Creating || k8sStorageCluster.Status.Phase == storagev1.Updating ||k8sStorageCluster.Status.Phase == storagev1.Deleting {
+		return errors.New("storagecluster in Creating, Updating or Deleting, not allowed update")
 	}
 	if k8sStorageCluster.GetDeletionTimestamp() != nil {
 		return errors.New("storagecluster in Deleting, not allowed update")
