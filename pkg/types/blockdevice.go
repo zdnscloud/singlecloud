@@ -8,7 +8,6 @@ type BlockDevice struct {
 	resource.ResourceBase `json:",inline"`
 	NodeName              string `json:"nodeName"`
 	BlockDevices          []Dev  `json:"blockDevices"`
-	UsedBy                string `json:"usedby"`
 }
 
 type Dev struct {
