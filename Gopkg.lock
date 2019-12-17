@@ -661,11 +661,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4eebad89a7f61caf5d2ef2b53d53092e33fd17f155d6c12dac81f7ffd0ee32a4"
+  digest = "1:4a41bcc46ad4254c4d47e0e4182aa4dc0618e1f385933e43c510e42cf584eaf9"
   name = "github.com/zdnscloud/immense"
-  packages = ["pkg/apis/zcloud/v1"]
+  packages = [
+    "pkg/apis/zcloud/v1",
+    "pkg/common",
+  ]
   pruneopts = "UT"
-  revision = "408d3a64979397d0fb0e0e8c387b48c4cecac104"
+  revision = "d123db3cf85294cbf8b28673779308f3b1c74e4f"
 
 [[projects]]
   branch = "master"
@@ -713,7 +716,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:aa7de002620b3ba245a5e4d4a6eb4ce378073dff0a06bafe270144ab70c63b9e"
+  digest = "1:9401a3d1349c0b2a064ea39f239f061f10c3cbdbd48fb7e79f1ed1d1259917b8"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -744,7 +747,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "4c4caeee9dc2692eea845e2bacdd2a7a6ab751e9"
+  revision = "5686e34e4c62add7d4493c4db8b1bb902956e7b1"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
@@ -1227,6 +1230,7 @@
     "github.com/zdnscloud/gorest/resource/schema/resourcefield",
     "github.com/zdnscloud/gorest/util",
     "github.com/zdnscloud/immense/pkg/apis/zcloud/v1",
+    "github.com/zdnscloud/immense/pkg/common",
     "github.com/zdnscloud/iniconfig",
     "github.com/zdnscloud/kvzoo",
     "github.com/zdnscloud/kvzoo/backend/bolt",
