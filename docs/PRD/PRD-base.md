@@ -569,7 +569,7 @@ node：CPU、MEM、系统盘、IP网络
 
 namespaces：CPU、MEM、存储
 
-workload：存储
+POD：存储
 
 用户空间指标：用户空间所有POD使用CPU、MEM、存储的量占用户申请资源的百分比。若用户空间没有申请资源，则按集群总量资源量计算。
 
