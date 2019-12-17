@@ -660,7 +660,7 @@
   revision = "bc8845f42cdcf787c3c3c4658ea276d440e477b7"
 
 [[projects]]
-  branch = "add-deleting"
+  branch = "master"
   digest = "1:4a41bcc46ad4254c4d47e0e4182aa4dc0618e1f385933e43c510e42cf584eaf9"
   name = "github.com/zdnscloud/immense"
   packages = [
@@ -668,7 +668,7 @@
     "pkg/common",
   ]
   pruneopts = "UT"
-  revision = "61ae06ae8be663a7d6306626afaddd49a8925b4d"
+  revision = "d123db3cf85294cbf8b28673779308f3b1c74e4f"
 
 [[projects]]
   branch = "master"
@@ -715,7 +715,7 @@
   revision = "d7bf8860bb4015c0f822bbe1a3a7579f55f7cfc8"
 
 [[projects]]
-  branch = "storage-deleting"
+  branch = "master"
   digest = "1:9401a3d1349c0b2a064ea39f239f061f10c3cbdbd48fb7e79f1ed1d1259917b8"
   name = "github.com/zdnscloud/zke"
   packages = [

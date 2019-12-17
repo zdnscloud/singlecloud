@@ -55,7 +55,7 @@
 
 [[constraint]]
   name = "github.com/zdnscloud/immense"
-  branch = "add-deleting"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/zdnscloud/iniconfig"
@@ -87,5 +87,5 @@
   version = "v10.0.0"
 
 [[constraint]]
-  branch = "storage-deleting"
+  branch = "master"
   name = "github.com/zdnscloud/zke"
