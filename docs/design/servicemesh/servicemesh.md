@@ -14,7 +14,7 @@ singlecloud集成linkerd资源调用接口，通过cluster agent从linkerd publi
 
 * svcmeshworkload的destinations为该workload流量下一跳的workload数组，只有获取svcmeshworkloadgroups才返回
 * 流量统计信息stat中Resource为stat所属的资源，TimeWindow为统计时长, Status为pod状态，MeshedPodCount为被linkerd injected的pod个数
-* inbound/outbound为stat数组，为入／出该资源的的所有资源的Stat 
+* inbound/outbound为stat数组，为入／出该资源的的所有资源的stat，stat的ID为inbound/outbound的资源ID
 * 获取svcmeshworkload时，svcmeshpod信息中只返回stat
 
 #### svcmeshworkloadgroup
@@ -29,7 +29,7 @@ singlecloud集成linkerd资源调用接口，通过cluster agent从linkerd publi
     * 检查内存中namespace下是否有pods和workload对应关系，没有则直接返回
     * 获取namespace下所有pods的edges信息，edge信息是记录有流量的一对pods，即源pod和目的pod信息
     * 根据pods的edges信息，以及pods与workload对应关系，使用图算法计算出有流量关系的所有workload的图，然后获取图中所有workload的流量统计信息stat
-    * 每个svcmeshworkload的id为workload前缀加workload名字，svcmeshworkloadgroup的id为随机生成的uuid
+    * svcmeshworkloadgroup的id为组内所有workload的name数组的hash值，每个svcmeshworkload的id为workload前缀加workload名字
       * deployment前缀： dpm-
       * daemonset前缀： dms-
       * statefulset前缀： sts-
