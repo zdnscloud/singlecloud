@@ -115,7 +115,9 @@ func (s *Schema) validateAndFillResource(r resource.Resource, method, action str
 			r.SetAction(action_)
 		}
 	} else if method == http.MethodPost || method == http.MethodPut {
-		//fields could be nil, when no any rest rag is specified in struct field
+		if body != nil {
+			json.Unmarshal(body, r)
+		}
 		if s.fields != nil {
 			objMap := make(map[string]interface{})
 			if body != nil {
@@ -123,15 +125,7 @@ func (s *Schema) validateAndFillResource(r resource.Resource, method, action str
 					return goresterr.NewAPIError(goresterr.InvalidBodyContent, fmt.Sprintf("request body isn't a string map:%s", err.Error()))
 				}
 			}
-			if err := s.fields.CheckRequired(objMap); err != nil {
-				return goresterr.NewAPIError(goresterr.InvalidBodyContent, err.Error())
-			}
-		}
-		if body != nil {
-			json.Unmarshal(body, r)
-		}
-		if s.fields != nil {
-			if err := s.fields.Validate(r); err != nil {
+			if err := s.fields.Validate(r, objMap); err != nil {
 				return goresterr.NewAPIError(goresterr.InvalidBodyContent, err.Error())
 			}
 		}
