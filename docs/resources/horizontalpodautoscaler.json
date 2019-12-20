@@ -57,6 +57,11 @@
       "averageValue": {
         "type": "string"
       },
+      "labels": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "string"
+      },
       "metricName": {
         "type": "string"
       }
