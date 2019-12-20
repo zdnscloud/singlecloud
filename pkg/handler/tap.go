@@ -119,7 +119,7 @@ func buildTapRequest(namespace, kind, name, toKind, toName, method, path string)
 	}
 
 	if method != "" {
-		if slice.SliceIndex(ValidTapMethods, method) != -1 {
+		if slice.SliceIndex(ValidTapMethods, method) == -1 {
 			return nil, fmt.Errorf("tap unsupported method: %s", method)
 		}
 
