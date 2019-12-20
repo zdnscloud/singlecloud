@@ -3,11 +3,13 @@ package alarm
 import (
 	"container/list"
 	"sync"
+
+	"github.com/zdnscloud/cement/pubsub"
 )
 
 const (
 	EventType    AlarmType = "Event"
-	ZcloudType   AlarmType = "ZcloudEvent"
+	ZcloudType   AlarmType = "ZcloudAlarm"
 	ResourceType AlarmType = "Resource"
 )
 
@@ -44,10 +46,11 @@ type Alarm struct {
 	Acknowledged bool
 }
 
-type ZcloudEvent struct {
-	Namespace string
-	Kind      string
-	Name      string
-	Reason    string
-	Message   string
+type ZcloudAlarm struct {
+	namespace string
+	kind      string
+	name      string
+	reason    string
+	message   string
+	eventBus  *pubsub.PubSub
 }

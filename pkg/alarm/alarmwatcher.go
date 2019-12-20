@@ -9,7 +9,7 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 )
 
-func NewAlarmWatcher(cache cache.Cache, size uint, ZcloudEventCh <-chan interface{}) (*AlarmWatcher, error) {
+func NewAlarmWatcher(cache cache.Cache, size uint, ZcloudAlarmCh <-chan interface{}) (*AlarmWatcher, error) {
 	stop := make(chan struct{})
 	aw := &AlarmWatcher{
 		eventID:       1,
@@ -17,10 +17,9 @@ func NewAlarmWatcher(cache cache.Cache, size uint, ZcloudEventCh <-chan interfac
 		alarmList:     list.New(),
 		stopCh:        stop,
 		ackCh:         make(chan int),
-		zcloudEventCh: ZcloudEventCh,
+		zcloudEventCh: ZcloudAlarmCh,
 	}
 	aw.cond = sync.NewCond(&aw.lock)
-
 	go publishK8sEvent(aw, cache, stop)
 	go publishZloudEvent(aw, stop)
 	return aw, nil

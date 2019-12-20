@@ -7,7 +7,6 @@ import (
 	resource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -28,14 +27,8 @@ func (m *BlockDeviceManager) List(ctx *resource.Context) interface{} {
 	if cluster == nil {
 		return nil
 	}
-	event := alarm.ZcloudEvent{
-		Namespace: "zcloud",
-		Kind:      "log",
-		Name:      "blockdevices",
-		Reason:    "reson by",
-		Message:   "xxxxxxxxxxxxxxxxxxxx",
-	}
-	m.clusters.eventBus.Pub(event, eventbus.ZcloudEvent)
+	event := alarm.NewZcloudAlarm(m.clusters.eventBus)
+	event.Namespace("zcloud").Kind("pod").Name("csi-cephfsplugin-4h7qc").Message("MountVolume.SetUp failed for volume ceph-csi-config : configmaps ceph-csi-config not found").Reason("FailedMount").Pub()
 
 	resp, err := getBlockDevices(cluster.Name, cluster.KubeClient, m.clusters.Agent)
 	if err != nil {

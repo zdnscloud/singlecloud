@@ -23,7 +23,7 @@ func New(eventBus *pubsub.PubSub) *WatcherManager {
 	mgr := &WatcherManager{
 		watchers:       make(map[string]*AlarmWatcher),
 		clusterEventCh: eventBus.Sub(eventbus.ClusterEvent),
-		zcloudEventCh:  eventBus.Sub(eventbus.ZcloudEvent),
+		zcloudEventCh:  eventBus.Sub(eventbus.AlarmEvent),
 	}
 	go mgr.eventLoop()
 	return mgr
