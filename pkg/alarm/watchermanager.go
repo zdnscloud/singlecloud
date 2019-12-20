@@ -4,34 +4,33 @@ import (
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
-
 	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
+var eventBus *pubsub.PubSub
+
 const MaxEventCount = 100
 
 type WatcherManager struct {
-	lock           sync.Mutex
-	watchers       map[string]*AlarmWatcher
-	clusterEventCh <-chan interface{}
-	zcloudEventCh  <-chan interface{}
+	lock     sync.Mutex
+	watchers map[string]*AlarmWatcher
 }
 
-func New(eventBus *pubsub.PubSub) *WatcherManager {
+func New(eBus *pubsub.PubSub) *WatcherManager {
 	mgr := &WatcherManager{
-		watchers:       make(map[string]*AlarmWatcher),
-		clusterEventCh: eventBus.Sub(eventbus.ClusterEvent),
-		zcloudEventCh:  eventBus.Sub(eventbus.AlarmEvent),
+		watchers: make(map[string]*AlarmWatcher),
 	}
+	eventBus = eBus
 	go mgr.eventLoop()
 	return mgr
 }
 
 func (mgr *WatcherManager) eventLoop() {
+	clusterEventCh := eventBus.Sub(eventbus.ClusterEvent)
 	for {
-		event := <-mgr.clusterEventCh
+		event := <-clusterEventCh
 		switch e := event.(type) {
 		case zke.AddCluster:
 			cluster := e.Cluster
@@ -40,7 +39,7 @@ func (mgr *WatcherManager) eventLoop() {
 			if ok {
 				log.Warnf("event watcher detect duplicate cluster %s", cluster.Name)
 			} else {
-				watcher, err := NewAlarmWatcher(cluster.Cache, MaxEventCount, mgr.zcloudEventCh)
+				watcher, err := NewAlarmWatcher(cluster.Cache, MaxEventCount)
 				if err != nil {
 					log.Warnf("create event watcher for cluster %s failed: %s", cluster.Name, err.Error())
 				} else {

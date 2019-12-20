@@ -27,9 +27,13 @@ func (m *BlockDeviceManager) List(ctx *resource.Context) interface{} {
 	if cluster == nil {
 		return nil
 	}
-	event := alarm.NewZcloudAlarm(m.clusters.eventBus)
-	event.Namespace("zcloud").Kind("pod").Name("csi-cephfsplugin-4h7qc").Message("MountVolume.SetUp failed for volume ceph-csi-config : configmaps ceph-csi-config not found").Reason("FailedMount").Pub()
-
+	alarm.NewAlarm().
+		Namespace("zcloud").
+		Kind("pod").
+		Name("csi-cephfsplugin-4h7qc").
+		Message("MountVolume.SetUp failed for volume ceph-csi-config : configmaps ceph-csi-config not found").
+		Reason("FailedMount").
+		Publish()
 	resp, err := getBlockDevices(cluster.Name, cluster.KubeClient, m.clusters.Agent)
 	if err != nil {
 		log.Warnf("get blockdevices info failed:%s", err.Error())

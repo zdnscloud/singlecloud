@@ -2,6 +2,7 @@ package alarm
 
 import (
 	"container/list"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -9,19 +10,35 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 )
 
-func NewAlarmWatcher(cache cache.Cache, size uint, ZcloudAlarmCh <-chan interface{}) (*AlarmWatcher, error) {
+type AlarmWatcher struct {
+	eventID     uint64
+	maxSize     uint
+	lock        sync.RWMutex
+	cond        *sync.Cond
+	alarmList   *list.List
+	stopCh      chan struct{}
+	unAckNumber int
+	ackCh       chan int
+}
+
+type AlarmListener struct {
+	lastID  uint64
+	stopCh  chan struct{}
+	alarmCh chan Alarm
+}
+
+func NewAlarmWatcher(cache cache.Cache, size uint) (*AlarmWatcher, error) {
 	stop := make(chan struct{})
 	aw := &AlarmWatcher{
-		eventID:       1,
-		maxSize:       size,
-		alarmList:     list.New(),
-		stopCh:        stop,
-		ackCh:         make(chan int),
-		zcloudEventCh: ZcloudAlarmCh,
+		eventID:   1,
+		maxSize:   size,
+		alarmList: list.New(),
+		stopCh:    stop,
+		ackCh:     make(chan int),
 	}
 	aw.cond = sync.NewCond(&aw.lock)
 	go publishK8sEvent(aw, cache, stop)
-	go publishZloudEvent(aw, stop)
+	go publishAlarmEvent(aw, stop)
 	return aw, nil
 }
 
@@ -29,36 +46,14 @@ func (aw *AlarmWatcher) Stop() {
 	close(aw.stopCh)
 }
 
-func (aw *AlarmWatcher) Add(alarm *Alarm) {
-	aw.lock.Lock()
-	var repeat bool
-	elem := aw.alarmList.Back()
-	if elem != nil {
-		lastone := elem.Value.(*Alarm)
-		if lastone.Namespace == alarm.Namespace && lastone.Kind == alarm.Kind && lastone.Message == alarm.Message && lastone.Name == alarm.Name {
-			repeat = true
-		}
-	}
+func (al *AlarmListener) AlarmChannel() <-chan Alarm {
+	return al.alarmCh
+}
 
-	if !repeat {
-		alarm.ID = atomic.AddUint64(&aw.eventID, 1)
-		uid, _ := uuid.Gen()
-		alarm.UUID = uid
-		aw.alarmList.PushBack(alarm)
-		addUnAck := true
-		if uint(aw.alarmList.Len()) > aw.maxSize {
-			elem := aw.alarmList.Front()
-			if elem.Value.(*Alarm).Acknowledged == false {
-				addUnAck = false
-			}
-			aw.alarmList.Remove(elem)
-		}
-		if addUnAck {
-			aw.unAckNumber += 1
-		}
-	}
-	aw.cond.Broadcast()
-	aw.lock.Unlock()
+func (al *AlarmListener) Stop() {
+	al.stopCh <- struct{}{}
+	<-al.stopCh
+	close(al.alarmCh)
 }
 
 func (aw *AlarmWatcher) AddListener() *AlarmListener {
@@ -92,6 +87,7 @@ func (aw *AlarmWatcher) publishEvent(al *AlarmListener) {
 
 		al.lastID = lastID
 		for i := 0; i < c; i++ {
+			fmt.Println("====", *events[i])
 			select {
 			case <-al.stopCh:
 				al.stopCh <- struct{}{}
@@ -166,12 +162,34 @@ func (aw *AlarmWatcher) getAlarmsFromElem(elem *list.Element, events []*Alarm) (
 	return startID + uint64(ec-1), ec
 }
 
-func (al *AlarmListener) Stop() {
-	al.stopCh <- struct{}{}
-	<-al.stopCh
-	close(al.alarmCh)
-}
+func (aw *AlarmWatcher) Add(alarm *Alarm) {
+	aw.lock.Lock()
+	var repeat bool
+	elem := aw.alarmList.Back()
+	if elem != nil {
+		lastone := elem.Value.(*Alarm)
+		if lastone.Namespace == alarm.Namespace && lastone.Kind == alarm.Kind && lastone.Message == alarm.Message && lastone.Name == alarm.Name {
+			repeat = true
+		}
+	}
 
-func (al *AlarmListener) AlarmChannel() <-chan Alarm {
-	return al.alarmCh
+	if !repeat {
+		alarm.ID = atomic.AddUint64(&aw.eventID, 1)
+		uid, _ := uuid.Gen()
+		alarm.UUID = uid
+		aw.alarmList.PushBack(alarm)
+		addUnAck := true
+		if uint(aw.alarmList.Len()) > aw.maxSize {
+			elem := aw.alarmList.Front()
+			if !elem.Value.(*Alarm).Acknowledged {
+				addUnAck = false
+			}
+			aw.alarmList.Remove(elem)
+		}
+		if addUnAck {
+			aw.unAckNumber += 1
+		}
+	}
+	aw.cond.Broadcast()
+	aw.lock.Unlock()
 }

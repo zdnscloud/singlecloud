@@ -86,7 +86,7 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 			break
 		}
 		//event id in k8s may duplicate, generate uuid by ourselve
-		err := conn.WriteJSON(e)
+		err = conn.WriteJSON(e)
 		if err != nil {
 			log.Warnf("send log failed:%s", err.Error())
 			break
