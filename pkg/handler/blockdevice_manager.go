@@ -45,7 +45,8 @@ func getBlockDevices(cluster string, cli client.Client, agent *clusteragent.Agen
 }
 
 func getAllDevices(cluster string, agent *clusteragent.AgentManager) ([]types.ClusterAgentBlockDevice, error) {
-	url := "/apis/agent.zcloud.cn/v1/blockdevices"
+	//url := "/apis/agent.zcloud.cn/v1/blockdevices"
+	url := "/blockdevices"
 	res := make([]types.ClusterAgentBlockDevice, 0)
 	if err := agent.ListResource(cluster, url, &res); err != nil {
 		return res, err

@@ -91,5 +91,5 @@
   version = "v10.0.0"
 
 [[constraint]]
-  branch = "master"
+  branch = "add-servicemesh"
   name = "github.com/zdnscloud/zke"
