@@ -29,6 +29,7 @@ import (
 	"github.com/zdnscloud/gorest/resource/schema/resourcefield"
 	restutil "github.com/zdnscloud/gorest/util"
 	"github.com/zdnscloud/kvzoo"
+	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -48,8 +49,11 @@ const (
 	notesFileSuffix  = "NOTES.txt"
 	ApplicationTable = "application"
 
-	crdCheckTimes    = 20
-	crdCheckInterval = 5 * time.Second
+	crdCheckTimes        = 20
+	crdCheckInterval     = 5 * time.Second
+	createFailedReason   = "create failed"
+	updateDBFailedReason = "update database failed"
+	deleteFailedReason   = "delete failed"
 )
 
 type ApplicationManager struct {
@@ -95,7 +99,7 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 	namespace := ctx.Resource.GetParent().GetID()
 	app := ctx.Resource.(*types.Application)
 	app.SetID(app.Name)
-	if err := m.create(ctx, cluster, namespace, app); err != nil {
+	if err := m.createApplication(ctx, cluster, namespace, app); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource,
 				fmt.Sprintf("duplicate chart %s with name %s", app.ChartName, app.Name))
@@ -107,7 +111,7 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 	return genReturnApplication(app), nil
 }
 
-func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
+func (m *ApplicationManager) createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
 	if hasNamespace(cluster.KubeClient, namespace) == false {
 		return fmt.Errorf("namespace %s is not found", namespace)
 	}
@@ -155,8 +159,24 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
 
-	go createApplication(table, cluster.KubeClient, isAdminUser, namespace, genUrlPrefix(ctx, cluster.Name), app, crdManifests)
+	go func() {
+		if err := asyncCreateApplication(table, cluster.KubeClient, isAdminUser, namespace,
+			genUrlPrefix(ctx, cluster.Name), app, crdManifests); err != nil {
+			log.Warnf("create application failed: %s", err.Error())
+			publishApplicationEvent(namespace, app.Name, createFailedReason, err.Error())
+		}
+	}()
 	return nil
+}
+
+func publishApplicationEvent(namespace, name, reason, msg string) {
+	alarm.NewAlarm().
+		Namespace(namespace).
+		Kind("application").
+		Name(name).
+		Reason(reason).
+		Message(msg).
+		Publish()
 }
 
 func createOrGetAppTable(db kvzoo.DB, clusterName, namespace string) (kvzoo.Table, kvzoo.TableName, error) {
@@ -283,30 +303,31 @@ func addOrUpdateApplicationToDB(table kvzoo.Table, app *types.Application, isCre
 	return tx.Commit()
 }
 
-func createApplication(table kvzoo.Table, cli client.Client, isAdmin bool, namespace, urlPrefix string, app *types.Application, crdManifests []types.Manifest) {
+func asyncCreateApplication(table kvzoo.Table, cli client.Client, isAdmin bool, namespace, urlPrefix string, app *types.Application, crdManifests []types.Manifest) error {
 	if err := preInstallChartCRDs(cli, crdManifests); err != nil {
-		log.Warnf("create application %s crds failed: %s", app.Name, err.Error())
-		updateAppStatusToFailed(table, app)
-		return
+		updateAppStatusToFailed(table, namespace, app)
+		return fmt.Errorf("create application %s crds failed: %s", app.Name, err.Error())
 	}
 
 	if err := createAppResources(cli, isAdmin, namespace, urlPrefix, app); err != nil {
-		log.Warnf("create application %s resources failed: %s", app.Name, err.Error())
-		updateAppStatusToFailed(table, app)
-		return
+		updateAppStatusToFailed(table, namespace, app)
+		return fmt.Errorf("create application %s resources failed: %s", app.Name, err.Error())
 	}
 
 	app.Status = types.AppStatusSucceed
 	if err := updateApplicationToDB(table, app); err != nil {
-		log.Warnf("update application %s status to succeed failed: %s", app.Name, err.Error())
-		updateAppStatusToFailed(table, app)
+		updateAppStatusToFailed(table, namespace, app)
+		return fmt.Errorf("update application %s status to succeed failed: %s", app.Name, err.Error())
 	}
+
+	return nil
 }
 
-func updateAppStatusToFailed(table kvzoo.Table, app *types.Application) {
+func updateAppStatusToFailed(table kvzoo.Table, namespace string, app *types.Application) {
 	app.Status = types.AppStatusFailed
 	if err := updateApplicationToDB(table, app); err != nil {
 		log.Warnf("update application %s status to failed get error: %s", app.Name, err.Error())
+		publishApplicationEvent(namespace, app.Name, updateDBFailedReason, err.Error())
 	}
 }
 
@@ -584,17 +605,25 @@ func deleteApplication(table kvzoo.Table, cli client.Client, namespace, appName 
 	}
 
 	go func() {
-		if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
-			log.Warnf("delete application %s resources failed: %s", app.Name, err.Error())
-			updateAppStatusToFailed(table, app)
-			return
-		}
-
-		if err := deleteApplicationFromDB(table, app.GetID()); err != nil {
-			log.Warnf("delete application %s from db failed: %s", app.Name, err.Error())
-			updateAppStatusToFailed(table, app)
+		if err := asyncDeleteApplication(table, cli, namespace, app); err != nil {
+			log.Warnf("delete application failed: %s", err.Error())
+			publishApplicationEvent(namespace, appName, deleteFailedReason, err.Error())
 		}
 	}()
+
+	return nil
+}
+
+func asyncDeleteApplication(table kvzoo.Table, cli client.Client, namespace string, app *types.Application) error {
+	if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
+		updateAppStatusToFailed(table, namespace, app)
+		return fmt.Errorf("delete application %s resources failed: %s", app.Name, err.Error())
+	}
+
+	if err := deleteApplicationFromDB(table, app.GetID()); err != nil {
+		updateAppStatusToFailed(table, namespace, app)
+		return fmt.Errorf("delete application %s from db failed: %s", app.Name, err.Error())
+	}
 
 	return nil
 }

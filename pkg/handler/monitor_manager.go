@@ -84,7 +84,7 @@ func createSysApplication(ctx *restresource.Context, db kvzoo.DB, appManager *Ap
 	app.Name = genAppNameIfDuplicate(table, app.Name, appNamePrefix)
 	app.SetID(app.Name)
 
-	if err := appManager.create(ctx, cluster, ZCloudNamespace, app); err != nil {
+	if err := appManager.createApplication(ctx, cluster, ZCloudNamespace, app); err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create %s application failed %s", chartName, err.Error()))
 	}
 
