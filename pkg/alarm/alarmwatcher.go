@@ -2,9 +2,10 @@ package alarm
 
 import (
 	"container/list"
-	"fmt"
 	"sync"
+	"sync/atomic"
 
+	"github.com/zdnscloud/cement/uuid"
 	"github.com/zdnscloud/gok8s/cache"
 )
 
@@ -31,15 +32,34 @@ func (aw *AlarmWatcher) Stop() {
 
 func (aw *AlarmWatcher) Add(alarm *Alarm) {
 	aw.lock.Lock()
-	aw.alarmList.PushBack(alarm)
-	if uint(aw.alarmList.Len()) > aw.maxSize {
-		elem := aw.alarmList.Front()
-		aw.alarmList.Remove(elem)
+	var repeat bool
+	elem := aw.alarmList.Back()
+	if elem != nil {
+		lastone := elem.Value.(*Alarm)
+		if lastone.Namespace == alarm.Namespace && lastone.Kind == alarm.Kind && lastone.Message == alarm.Message && lastone.Name == alarm.Name {
+			repeat = true
+		}
 	}
-	fmt.Println("in one messgae, before", aw.unAckNumber, "atfer ", aw.unAckNumber+1)
-	aw.unAckNumber += 1
-	aw.lock.Unlock()
+
+	if !repeat {
+		alarm.ID = atomic.AddUint64(&aw.eventID, 1)
+		uid, _ := uuid.Gen()
+		alarm.UUID = uid
+		aw.alarmList.PushBack(alarm)
+		addUnAck := true
+		if uint(aw.alarmList.Len()) > aw.maxSize {
+			elem := aw.alarmList.Front()
+			if elem.Value.(*Alarm).Acknowledged == false {
+				addUnAck = false
+			}
+			aw.alarmList.Remove(elem)
+		}
+		if addUnAck {
+			aw.unAckNumber += 1
+		}
+	}
 	aw.cond.Broadcast()
+	aw.lock.Unlock()
 }
 
 func (aw *AlarmWatcher) AddListener() *AlarmListener {
@@ -54,8 +74,7 @@ func (aw *AlarmWatcher) AddListener() *AlarmListener {
 }
 
 func (aw *AlarmWatcher) publishEvent(al *AlarmListener) {
-	batchSize := aw.maxSize / 4
-	events := make([]*Alarm, batchSize)
+	events := make([]*Alarm, aw.maxSize)
 	for {
 		lastID, c := aw.getAlarmsAfterID(al.lastID, events)
 		select {
@@ -79,10 +98,8 @@ func (aw *AlarmWatcher) publishEvent(al *AlarmListener) {
 				al.stopCh <- struct{}{}
 				return
 			case al.alarmCh <- *events[i]:
-				fmt.Println("!!!!!send msg to resv", events[i])
 				if !events[i].Acknowledged {
 					events[i].Acknowledged = true
-					fmt.Println("out one messgae, before", aw.unAckNumber, "atfer ", aw.unAckNumber-1)
 					aw.unAckNumber -= 1
 				}
 			}

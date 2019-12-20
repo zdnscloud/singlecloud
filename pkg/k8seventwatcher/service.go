@@ -19,7 +19,6 @@ const (
 func (mgr *WatcherManager) RegisterHandler(router gin.IRoutes) error {
 	eventPath := fmt.Sprintf(WSEventPathTemp, ":cluster")
 	router.GET(eventPath, func(c *gin.Context) {
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!")
 		fmt.Println(c.Request.Context().Value(types.CurrentUserKey))
 		mgr.OpenEvent(c.Param("cluster"), c.Request, c.Writer)
 	})

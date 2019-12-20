@@ -7,7 +7,7 @@ import (
 
 const (
 	EventType    AlarmType = "Event"
-	ZcloudType   AlarmType = "Zcloud"
+	ZcloudType   AlarmType = "ZcloudEvent"
 	ResourceType AlarmType = "Resource"
 )
 
@@ -32,7 +32,7 @@ type AlarmListener struct {
 }
 
 type Alarm struct {
-	ID           uint64 `json:"-"`
+	ID           uint64
 	UUID         string
 	Time         string
 	Type         AlarmType
@@ -42,4 +42,12 @@ type Alarm struct {
 	Reason       string
 	Message      string
 	Acknowledged bool
+}
+
+type ZcloudEvent struct {
+	Namespace string
+	Kind      string
+	Name      string
+	Reason    string
+	Message   string
 }

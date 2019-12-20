@@ -85,7 +85,6 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 		if ok == false {
 			break
 		}
-		fmt.Println("=====in gin", e)
 		//event id in k8s may duplicate, generate uuid by ourselve
 		err := conn.WriteJSON(e)
 		if err != nil {

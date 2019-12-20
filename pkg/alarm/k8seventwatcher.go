@@ -2,9 +2,7 @@ package alarm
 
 import (
 	"fmt"
-	"sync/atomic"
 
-	"github.com/zdnscloud/cement/uuid"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/controller"
 	"github.com/zdnscloud/gok8s/event"
@@ -23,7 +21,7 @@ func publishK8sEvent(aw *AlarmWatcher, cache cache.Cache, stop chan struct{}) {
 func (aw *AlarmWatcher) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	if event, ok := e.Object.(*corev1.Event); ok {
 		if checkEventTypeAndKind(event) {
-			aw.Add(aw.k8sEventToAlarm(event))
+			aw.Add(k8sEventToAlarm(event))
 		}
 	}
 
@@ -33,7 +31,7 @@ func (aw *AlarmWatcher) OnCreate(e event.CreateEvent) (handler.Result, error) {
 func (aw *AlarmWatcher) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	if event, ok := e.ObjectNew.(*corev1.Event); ok {
 		if checkEventTypeAndKind(event) {
-			aw.Add(aw.k8sEventToAlarm(event))
+			aw.Add(k8sEventToAlarm(event))
 		}
 	}
 
@@ -59,13 +57,9 @@ func checkEventTypeAndKind(event *corev1.Event) bool {
 	return check
 }
 
-func (aw *AlarmWatcher) k8sEventToAlarm(event *corev1.Event) *Alarm {
-	id := atomic.AddUint64(&aw.eventID, 1)
-	uid, _ := uuid.Gen()
+func k8sEventToAlarm(event *corev1.Event) *Alarm {
 	t := event.LastTimestamp
 	return &Alarm{
-		ID:        id,
-		UUID:      uid,
 		Time:      fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second()),
 		Type:      EventType,
 		Namespace: event.Namespace,

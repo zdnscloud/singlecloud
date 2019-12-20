@@ -10,7 +10,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
-const MaxEventCount = 4096
+const MaxEventCount = 100
 
 type WatcherManager struct {
 	lock           sync.Mutex
