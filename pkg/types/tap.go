@@ -24,9 +24,9 @@ type EndpointMeta struct {
 }
 
 type Event struct {
-	RequestInit  HttpRequestInit  `json:requestInit,omitempty"`
-	ResponseInit HttpResponseInit `json:responseInit,omitempty"`
-	ResponseEnd  HttpResponseEnd  `json:responseEnd,omitempty"`
+	RequestInit  HttpRequestInit  `json:"requestInit,omitempty"`
+	ResponseInit HttpResponseInit `json:"responseInit,omitempty"`
+	ResponseEnd  HttpResponseEnd  `json:"responseEnd,omitempty"`
 }
 
 type HttpRequestInit struct {
