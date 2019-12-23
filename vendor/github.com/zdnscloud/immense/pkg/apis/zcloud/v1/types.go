@@ -33,14 +33,25 @@ type Dev struct {
 // ClusterStatus defines the observed state of Cluster
 // +k8s:openapi-gen=true
 type ClusterStatus struct {
-	Phase    string     `json:"phase,omitempty"`
-	Message  string     `json:"message,omitempty"`
-	Config   []HostInfo `json:"config"`
+	Phase    StatusPhase `json:"phase,omitempty"`
+	Message  string      `json:"message,omitempty"`
+	Config   []HostInfo  `json:"config"`
 	Capacity `json:"capacity,omitempty"`
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
 }
+
+type StatusPhase string
+
+const (
+	Creating StatusPhase = "Creating"
+	Running  StatusPhase = "Running"
+	Updating StatusPhase = "Updating"
+	Deleting StatusPhase = "Deleting"
+	Warnning StatusPhase = "Warnning"
+	Failed   StatusPhase = "Failed"
+)
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
