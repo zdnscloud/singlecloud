@@ -9,27 +9,46 @@
     "name": {
       "type": "string",
       "description": [
+        "required",
+        "isDomain",
         "immutable"
       ]
     },
     "rules": {
       "type": "array",
-      "elemType": "ingressRule"
+      "elemType": "ingressRule",
+      "description": [
+        "required"
+      ]
     }
   },
   "subResources": {
     "ingressRule": {
       "host": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "required",
+          "isDomain"
+        ]
       },
       "path": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "required"
+        ]
       },
       "serviceName": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "required",
+          "isDomain"
+        ]
       },
       "servicePort": {
-        "type": "int"
+        "type": "int",
+        "description": [
+          "required"
+        ]
       }
     }
   },

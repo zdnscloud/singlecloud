@@ -8,11 +8,16 @@
   "resourceFields": {
     "configs": {
       "type": "array",
-      "elemType": "config"
+      "elemType": "config",
+      "description": [
+        "required"
+      ]
     },
     "name": {
       "type": "string",
       "description": [
+        "required",
+        "isDomain",
         "immutable"
       ]
     }
@@ -20,10 +25,17 @@
   "subResources": {
     "config": {
       "data": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "required"
+        ]
       },
       "name": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "required",
+          "isDomain"
+        ]
       }
     }
   },

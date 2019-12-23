@@ -10,7 +10,10 @@
       "type": "int"
     },
     "ingressDomain": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "isDomain"
+      ]
     },
     "redirectUrl": {
       "type": "string"
