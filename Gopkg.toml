@@ -34,7 +34,7 @@
   name = "github.com/zdnscloud/cement"
 
 [[constraint]]
-  branch = "fix-non-required-validation"
+  branch = "master"
   name = "github.com/zdnscloud/gorest"
 
 [[constraint]]

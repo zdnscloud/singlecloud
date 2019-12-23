@@ -643,8 +643,8 @@
   revision = "89eeea17b1b41d16b8ec2cda9783ad2a34a404b9"
 
 [[projects]]
-  branch = "fix-non-required-validation"
-  digest = "1:120949b0178b883838d36565e6d07d94677d189214b2ffe5b2791e9781810484"
+  branch = "master"
+  digest = "1:941010f8d592929ef2a2873448298a47887d54caa23476b5ecaa10ed6b65c0a4"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -658,7 +658,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "fc1a11e10b88441e3e3f992194b18b3af756a4ca"
+  revision = "d67df9d6b64cd18a3269499172dd2564eb396d78"
 
 [[projects]]
   branch = "master"
