@@ -15,10 +15,10 @@ const (
 	WSUnAckPathTemp = WSPrefix + "/clusters/%s/unack"
 )
 
-func (mgr *WatcherManager) RegisterHandler(router gin.IRoutes) error {
+func (mgr *AlarmManager) RegisterHandler(router gin.IRoutes) error {
 	eventPath := fmt.Sprintf(WSEventPathTemp, ":cluster")
 	router.GET(eventPath, func(c *gin.Context) {
-		mgr.OpenEvent(c.Param("cluster"), c.Request, c.Writer)
+		mgr.OpenAlarm(c.Param("cluster"), c.Request, c.Writer)
 	})
 
 	unAckPath := fmt.Sprintf(WSUnAckPathTemp, ":cluster")
@@ -29,9 +29,9 @@ func (mgr *WatcherManager) RegisterHandler(router gin.IRoutes) error {
 	return nil
 }
 
-func (mgr *WatcherManager) OpenUnAck(clusterID string, r *http.Request, w http.ResponseWriter) {
+func (mgr *AlarmManager) OpenUnAck(clusterID string, r *http.Request, w http.ResponseWriter) {
 	mgr.lock.Lock()
-	watcher, ok := mgr.watchers[clusterID]
+	cache, ok := mgr.caches[clusterID]
 	mgr.lock.Unlock()
 
 	if ok == false {
@@ -46,9 +46,9 @@ func (mgr *WatcherManager) OpenUnAck(clusterID string, r *http.Request, w http.R
 	}
 	defer conn.Close()
 
-	ackCh := watcher.AckChannel()
+	ackCh := cache.AckChannel()
 	for {
-		err := conn.WriteJSON(watcher.unAckNumber)
+		err := conn.WriteJSON(cache.unAckNumber)
 		if err != nil {
 			log.Warnf("send log failed:%s", err.Error())
 			break
@@ -60,9 +60,9 @@ func (mgr *WatcherManager) OpenUnAck(clusterID string, r *http.Request, w http.R
 	}
 }
 
-func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.ResponseWriter) {
+func (mgr *AlarmManager) OpenAlarm(clusterID string, r *http.Request, w http.ResponseWriter) {
 	mgr.lock.Lock()
-	watcher, ok := mgr.watchers[clusterID]
+	cache, ok := mgr.caches[clusterID]
 	mgr.lock.Unlock()
 
 	if ok == false {
@@ -77,7 +77,7 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 	}
 	defer conn.Close()
 
-	listener := watcher.AddListener()
+	listener := cache.AddListener()
 
 	alarmCh := listener.AlarmChannel()
 	for {
@@ -85,7 +85,6 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 		if ok == false {
 			break
 		}
-		//event id in k8s may duplicate, generate uuid by ourselve
 		err = conn.WriteJSON(e)
 		if err != nil {
 			log.Warnf("send log failed:%s", err.Error())

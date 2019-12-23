@@ -12,13 +12,13 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func publishK8sEvent(aw *AlarmWatcher, cache cache.Cache, stop chan struct{}) {
+func publishK8sEvent(aw *AlarmCache, cache cache.Cache, stop chan struct{}) {
 	ctrl := controller.New("eventWatcher", cache, scheme.Scheme)
 	ctrl.Watch(&corev1.Event{})
 	go ctrl.Start(stop, aw, predicate.NewIgnoreUnchangedUpdate())
 }
 
-func (aw *AlarmWatcher) OnCreate(e event.CreateEvent) (handler.Result, error) {
+func (aw *AlarmCache) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	if event, ok := e.Object.(*corev1.Event); ok {
 		if checkEventTypeAndKind(event) {
 			aw.Add(k8sEventToAlarm(event))
@@ -28,7 +28,7 @@ func (aw *AlarmWatcher) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
-func (aw *AlarmWatcher) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
+func (aw *AlarmCache) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	if event, ok := e.ObjectNew.(*corev1.Event); ok {
 		if checkEventTypeAndKind(event) {
 			aw.Add(k8sEventToAlarm(event))
@@ -38,11 +38,11 @@ func (aw *AlarmWatcher) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
-func (aw *AlarmWatcher) OnDelete(e event.DeleteEvent) (handler.Result, error) {
+func (aw *AlarmCache) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
-func (aw *AlarmWatcher) OnGeneric(e event.GenericEvent) (handler.Result, error) {
+func (aw *AlarmCache) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 

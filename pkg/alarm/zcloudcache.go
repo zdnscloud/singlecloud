@@ -4,7 +4,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 )
 
-func publishAlarmEvent(aw *AlarmWatcher, stop chan struct{}) {
+func publishAlarmEvent(aw *AlarmCache, stop chan struct{}) {
 	alarmEventCh := eventBus.Sub(eventbus.AlarmEvent)
 	for {
 		select {

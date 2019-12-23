@@ -1,11 +1,11 @@
 package alarm
 
-func (aw *AlarmWatcher) AckChannel() <-chan int {
+func (aw *AlarmCache) AckChannel() <-chan int {
 	go aw.publishAck()
 	return aw.ackCh
 }
 
-func (aw *AlarmWatcher) publishAck() {
+func (aw *AlarmCache) publishAck() {
 	num := aw.unAckNumber
 	for {
 		if aw.unAckNumber == 0 {

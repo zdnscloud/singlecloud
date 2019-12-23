@@ -31,7 +31,7 @@ type AlarmEvent struct {
 	Alarm
 }
 
-func NewAlarm() *AlarmEvent {
+func New() *AlarmEvent {
 	t := time.Now()
 	time := fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second())
 	return &AlarmEvent{Alarm{Time: time}}

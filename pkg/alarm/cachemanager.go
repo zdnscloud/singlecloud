@@ -13,21 +13,21 @@ var eventBus *pubsub.PubSub
 
 const MaxEventCount = 100
 
-type WatcherManager struct {
-	lock     sync.Mutex
-	watchers map[string]*AlarmWatcher
+type AlarmManager struct {
+	lock   sync.Mutex
+	caches map[string]*AlarmCache
 }
 
-func New(eBus *pubsub.PubSub) *WatcherManager {
-	mgr := &WatcherManager{
-		watchers: make(map[string]*AlarmWatcher),
+func NewAlarmManager(eBus *pubsub.PubSub) *AlarmManager {
+	mgr := &AlarmManager{
+		caches: make(map[string]*AlarmCache),
 	}
 	eventBus = eBus
 	go mgr.eventLoop()
 	return mgr
 }
 
-func (mgr *WatcherManager) eventLoop() {
+func (mgr *AlarmManager) eventLoop() {
 	clusterEventCh := eventBus.Sub(eventbus.ClusterEvent)
 	for {
 		event := <-clusterEventCh
@@ -35,25 +35,25 @@ func (mgr *WatcherManager) eventLoop() {
 		case zke.AddCluster:
 			cluster := e.Cluster
 			mgr.lock.Lock()
-			_, ok := mgr.watchers[cluster.Name]
+			_, ok := mgr.caches[cluster.Name]
 			if ok {
 				log.Warnf("event watcher detect duplicate cluster %s", cluster.Name)
 			} else {
-				watcher, err := NewAlarmWatcher(cluster.Cache, MaxEventCount)
+				cache, err := NewAlarmCache(cluster.Cache, MaxEventCount)
 				if err != nil {
 					log.Warnf("create event watcher for cluster %s failed: %s", cluster.Name, err.Error())
 				} else {
-					mgr.watchers[cluster.Name] = watcher
+					mgr.caches[cluster.Name] = cache
 				}
 			}
 			mgr.lock.Unlock()
 		case zke.DeleteCluster:
 			cluster := e.Cluster
 			mgr.lock.Lock()
-			watcher, ok := mgr.watchers[cluster.Name]
+			cache, ok := mgr.caches[cluster.Name]
 			if ok {
-				watcher.Stop()
-				delete(mgr.watchers, cluster.Name)
+				cache.Stop()
+				delete(mgr.caches, cluster.Name)
 			} else {
 				log.Warnf("event watcher unknown cluster %s", cluster.Name)
 			}

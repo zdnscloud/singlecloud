@@ -10,7 +10,7 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 )
 
-type AlarmWatcher struct {
+type AlarmCache struct {
 	eventID     uint64
 	maxSize     uint
 	lock        sync.RWMutex
@@ -27,9 +27,9 @@ type AlarmListener struct {
 	alarmCh chan Alarm
 }
 
-func NewAlarmWatcher(cache cache.Cache, size uint) (*AlarmWatcher, error) {
+func NewAlarmCache(cache cache.Cache, size uint) (*AlarmCache, error) {
 	stop := make(chan struct{})
-	aw := &AlarmWatcher{
+	aw := &AlarmCache{
 		eventID:   1,
 		maxSize:   size,
 		alarmList: list.New(),
@@ -42,7 +42,7 @@ func NewAlarmWatcher(cache cache.Cache, size uint) (*AlarmWatcher, error) {
 	return aw, nil
 }
 
-func (aw *AlarmWatcher) Stop() {
+func (aw *AlarmCache) Stop() {
 	close(aw.stopCh)
 }
 
@@ -56,7 +56,7 @@ func (al *AlarmListener) Stop() {
 	close(al.alarmCh)
 }
 
-func (aw *AlarmWatcher) AddListener() *AlarmListener {
+func (aw *AlarmCache) AddListener() *AlarmListener {
 	al := &AlarmListener{
 		lastID:  0,
 		stopCh:  make(chan struct{}),
@@ -67,7 +67,7 @@ func (aw *AlarmWatcher) AddListener() *AlarmListener {
 	return al
 }
 
-func (aw *AlarmWatcher) publishEvent(al *AlarmListener) {
+func (aw *AlarmCache) publishEvent(al *AlarmListener) {
 	events := make([]*Alarm, aw.maxSize)
 	for {
 		lastID, c := aw.getAlarmsAfterID(al.lastID, events)
@@ -102,7 +102,7 @@ func (aw *AlarmWatcher) publishEvent(al *AlarmListener) {
 	}
 }
 
-func (aw *AlarmWatcher) getAlarmsAfterID(id uint64, events []*Alarm) (uint64, int) {
+func (aw *AlarmCache) getAlarmsAfterID(id uint64, events []*Alarm) (uint64, int) {
 	aw.lock.RLock()
 	defer aw.lock.RUnlock()
 
@@ -133,7 +133,7 @@ func (aw *AlarmWatcher) getAlarmsAfterID(id uint64, events []*Alarm) (uint64, in
 	}
 }
 
-func (aw *AlarmWatcher) getAlarmsFromOutdated(id uint64, events []*Alarm) (uint64, int) {
+func (aw *AlarmCache) getAlarmsFromOutdated(id uint64, events []*Alarm) (uint64, int) {
 	elem := aw.alarmList.Front()
 	for elem.Value.(*Alarm).ID <= id {
 		elem = elem.Next()
@@ -141,7 +141,7 @@ func (aw *AlarmWatcher) getAlarmsFromOutdated(id uint64, events []*Alarm) (uint6
 	return aw.getAlarmsFromElem(elem, events)
 }
 
-func (aw *AlarmWatcher) getAlarmsFromLatest(id uint64, events []*Alarm) (uint64, int) {
+func (aw *AlarmCache) getAlarmsFromLatest(id uint64, events []*Alarm) (uint64, int) {
 	elem := aw.alarmList.Back()
 	for elem.Value.(*Alarm).ID > id {
 		elem = elem.Prev()
@@ -150,7 +150,7 @@ func (aw *AlarmWatcher) getAlarmsFromLatest(id uint64, events []*Alarm) (uint64,
 	return aw.getAlarmsFromElem(elem, events)
 }
 
-func (aw *AlarmWatcher) getAlarmsFromElem(elem *list.Element, events []*Alarm) (uint64, int) {
+func (aw *AlarmCache) getAlarmsFromElem(elem *list.Element, events []*Alarm) (uint64, int) {
 	ec := 0
 	batch := len(events)
 	startID := elem.Value.(*Alarm).ID
@@ -162,7 +162,7 @@ func (aw *AlarmWatcher) getAlarmsFromElem(elem *list.Element, events []*Alarm) (
 	return startID + uint64(ec-1), ec
 }
 
-func (aw *AlarmWatcher) Add(alarm *Alarm) {
+func (aw *AlarmCache) Add(alarm *Alarm) {
 	aw.lock.Lock()
 	var repeat bool
 	elem := aw.alarmList.Back()
