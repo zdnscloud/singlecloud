@@ -16,12 +16,12 @@ const (
 
 type ClusterThreshold struct {
 	resource.ResourceBase `json:",inline"`
-	Cpu                   int `json:"cpu,omitempty" rest:"min=0,max=100"`
-	Memory                int `json:"memory,omitempty" rest:"min=0,max=100"`
-	Storage               int `json:"storage,omitempty" rest:"min=0,max=100"`
-	PodCount              int `json:"podCount,omitempty" rest:"min=0,max=100"`
-	NodeCpu               int `json:"nodeCpu,omitempty" rest:"min=0,max=100"`
-	NodeMemory            int `json:"nodeMemory,omitempty" rest:"min=0,max=100"`
+	Cpu                   int `json:"cpu,omitempty" rest:"min=0,max=99"`
+	Memory                int `json:"memory,omitempty" rest:"min=0,max=99"`
+	Storage               int `json:"storage,omitempty" rest:"min=0,max=99"`
+	PodCount              int `json:"podCount,omitempty" rest:"min=0,max=99"`
+	NodeCpu               int `json:"nodeCpu,omitempty" rest:"min=0,max=99"`
+	NodeMemory            int `json:"nodeMemory,omitempty" rest:"min=0,max=99"`
 }
 
 func (t ClusterThreshold) GetParents() []resource.ResourceKind {

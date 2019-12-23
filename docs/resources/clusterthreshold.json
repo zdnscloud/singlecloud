@@ -1,0 +1,37 @@
+{
+  "resourceType": "clusterthreshold",
+  "collectionName": "clusterthresholds",
+  "parentResources": [
+    "cluster"
+  ],
+  "goStructName": "ClusterThreshold",
+  "resourceFields": {
+    "cpu": {
+      "type": "int"
+    },
+    "memory": {
+      "type": "int"
+    },
+    "nodeCpu": {
+      "type": "int"
+    },
+    "nodeMemory": {
+      "type": "int"
+    },
+    "podCount": {
+      "type": "int"
+    },
+    "storage": {
+      "type": "int"
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
+}
