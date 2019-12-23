@@ -42,8 +42,6 @@ func SendMail(cli client.Client, alarm *Alarm) {
 	d := gomail.NewDialer(mailConn["host"], port, mailConn["user"], mailConn["pass"])
 	if err := d.DialAndSend(m); err != nil {
 		log.Warnf("Send mail to %s failed:%s", mailTo, err.Error())
-	} else {
-		log.Infof("Send mail to %s success", mailTo)
 	}
 	return
 }
