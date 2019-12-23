@@ -62,7 +62,7 @@ func k8sEventToAlarm(event *corev1.Event) *Alarm {
 	return &Alarm{
 		Time:      fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second()),
 		Type:      EventType,
-		Namespace: event.Namespace,
+		Namespace: event.InvolvedObject.Namespace,
 		Kind:      event.InvolvedObject.Kind,
 		Name:      event.InvolvedObject.Name,
 		Reason:    event.Reason,

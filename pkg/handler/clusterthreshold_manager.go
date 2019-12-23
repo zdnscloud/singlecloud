@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -24,6 +25,8 @@ const (
 	PodStorageConfigName                  = "podStorage"
 	NodeCpuConfigName                     = "nodeCpu"
 	NodeMemoryConfigName                  = "nodeMemory"
+	MailFromConfigName                    = "mailFrom"
+	MailToConfigName                      = "mailTo"
 )
 
 type ClusterThresholdManager struct {
@@ -160,6 +163,12 @@ func updateClusterThreshold(cli client.Client, threshold *types.ClusterThreshold
 			data = strconv.Itoa(threshold.NodeCpu)
 		case NodeMemoryConfigName:
 			data = strconv.Itoa(threshold.NodeMemory)
+		case MailFromConfigName:
+			tmp, _ := json.Marshal(threshold.MailFrom)
+			data = string(tmp)
+		case MailToConfigName:
+			tmp, _ := json.Marshal(threshold.MailTo)
+			data = string(tmp)
 		}
 		cfgs = append(cfgs, types.Config{
 			Name: cfg.Name,
@@ -171,6 +180,8 @@ func updateClusterThreshold(cli client.Client, threshold *types.ClusterThreshold
 }
 
 func clusterThresholdToConfigmap(threshold *types.ClusterThreshold) *types.ConfigMap {
+	mailFrom, _ := json.Marshal(threshold.MailFrom)
+	mailTo, _ := json.Marshal(threshold.MailTo)
 	return &types.ConfigMap{
 		Name: ClusterThresholdConfigmapName,
 		Configs: []types.Config{
@@ -198,6 +209,14 @@ func clusterThresholdToConfigmap(threshold *types.ClusterThreshold) *types.Confi
 				Name: NodeMemoryConfigName,
 				Data: strconv.Itoa(threshold.NodeMemory),
 			},
+			types.Config{
+				Name: MailFromConfigName,
+				Data: string(mailFrom),
+			},
+			types.Config{
+				Name: MailToConfigName,
+				Data: string(mailTo),
+			},
 		},
 	}
 }
@@ -224,6 +243,14 @@ func configMapToClusterThreshold(cm *types.ConfigMap) *types.ClusterThreshold {
 		case NodeMemoryConfigName:
 			nodeMemory, _ := strconv.Atoi(cfg.Data)
 			threshold.NodeMemory = nodeMemory
+		case MailFromConfigName:
+			var mailFrom types.Mail
+			json.Unmarshal([]byte(cfg.Data), &mailFrom)
+			threshold.MailFrom = mailFrom
+		case MailToConfigName:
+			var mailTo []string
+			json.Unmarshal([]byte(cfg.Data), &mailTo)
+			threshold.MailTo = mailTo
 		}
 	}
 	return &threshold

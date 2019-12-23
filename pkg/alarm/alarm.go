@@ -15,16 +15,17 @@ const (
 type AlarmType string
 
 type Alarm struct {
-	ID           uint64
-	UUID         string
-	Time         string
-	Type         AlarmType
-	Namespace    string
-	Kind         string
-	Name         string
-	Reason       string
-	Message      string
-	Acknowledged bool
+	ID           uint64    `json:"-"`
+	UUID         string    `json:"-"`
+	Time         string    `json:"time,omitempty"`
+	Cluster      string    `json:"cluster,omitempty"`
+	Type         AlarmType `json:"type,omitempty"`
+	Namespace    string    `json:"namespace,omitempty"`
+	Kind         string    `json:"kind,omitempty"`
+	Name         string    `json:"name,omitempty"`
+	Reason       string    `json:"reason,omitempty"`
+	Message      string    `json:"message,omitempty"`
+	Acknowledged bool      `json:"acknowledged,omitempty"`
 }
 
 type AlarmEvent struct {

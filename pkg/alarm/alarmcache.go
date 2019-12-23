@@ -2,15 +2,17 @@ package alarm
 
 import (
 	"container/list"
-	"fmt"
 	"sync"
 	"sync/atomic"
 
+	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/cement/uuid"
 	"github.com/zdnscloud/gok8s/cache"
+	"github.com/zdnscloud/gok8s/client"
 )
 
 type AlarmCache struct {
+	clusterName string
 	eventID     uint64
 	maxSize     uint
 	lock        sync.RWMutex
@@ -19,6 +21,7 @@ type AlarmCache struct {
 	stopCh      chan struct{}
 	unAckNumber int
 	ackCh       chan int
+	cli         client.Client
 }
 
 type AlarmListener struct {
@@ -27,14 +30,16 @@ type AlarmListener struct {
 	alarmCh chan Alarm
 }
 
-func NewAlarmCache(cache cache.Cache, size uint) (*AlarmCache, error) {
+func NewAlarmCache(cache cache.Cache, cli client.Client, size uint, name string) (*AlarmCache, error) {
 	stop := make(chan struct{})
 	aw := &AlarmCache{
-		eventID:   1,
-		maxSize:   size,
-		alarmList: list.New(),
-		stopCh:    stop,
-		ackCh:     make(chan int),
+		clusterName: name,
+		eventID:     1,
+		maxSize:     size,
+		alarmList:   list.New(),
+		stopCh:      stop,
+		ackCh:       make(chan int),
+		cli:         cli,
 	}
 	aw.cond = sync.NewCond(&aw.lock)
 	go publishK8sEvent(aw, cache, stop)
@@ -87,7 +92,6 @@ func (aw *AlarmCache) publishEvent(al *AlarmListener) {
 
 		al.lastID = lastID
 		for i := 0; i < c; i++ {
-			fmt.Println("====", *events[i])
 			select {
 			case <-al.stopCh:
 				al.stopCh <- struct{}{}
@@ -177,10 +181,16 @@ func (aw *AlarmCache) Add(alarm *Alarm) {
 		alarm.ID = atomic.AddUint64(&aw.eventID, 1)
 		uid, _ := uuid.Gen()
 		alarm.UUID = uid
+		alarm.Cluster = aw.clusterName
+		if slice.SliceIndex(ClusterKinds, alarm.Kind) == -1 {
+			alarm.Namespace = ""
+		}
 		aw.alarmList.PushBack(alarm)
+		SendMail(aw.cli, alarm)
 		addUnAck := true
 		if uint(aw.alarmList.Len()) > aw.maxSize {
 			elem := aw.alarmList.Front()
+
 			if !elem.Value.(*Alarm).Acknowledged {
 				addUnAck = false
 			}

@@ -39,7 +39,7 @@ func (mgr *AlarmManager) eventLoop() {
 			if ok {
 				log.Warnf("event watcher detect duplicate cluster %s", cluster.Name)
 			} else {
-				cache, err := NewAlarmCache(cluster.Cache, MaxEventCount)
+				cache, err := NewAlarmCache(cluster.Cache, cluster.KubeClient, MaxEventCount, cluster.Name)
 				if err != nil {
 					log.Warnf("create event watcher for cluster %s failed: %s", cluster.Name, err.Error())
 				} else {

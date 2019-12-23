@@ -9,6 +9,10 @@
     "cpu": {
       "type": "int"
     },
+    "mailTo": {
+      "type": "array",
+      "elemType": "string"
+    },
     "memory": {
       "type": "int"
     },

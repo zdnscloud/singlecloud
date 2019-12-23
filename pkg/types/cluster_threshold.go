@@ -16,12 +16,21 @@ const (
 
 type ClusterThreshold struct {
 	resource.ResourceBase `json:",inline"`
-	Cpu                   int `json:"cpu,omitempty" rest:"min=0,max=99"`
-	Memory                int `json:"memory,omitempty" rest:"min=0,max=99"`
-	Storage               int `json:"storage,omitempty" rest:"min=0,max=99"`
-	PodCount              int `json:"podCount,omitempty" rest:"min=0,max=99"`
-	NodeCpu               int `json:"nodeCpu,omitempty" rest:"min=0,max=99"`
-	NodeMemory            int `json:"nodeMemory,omitempty" rest:"min=0,max=99"`
+	Cpu                   int      `json:"cpu,omitempty" rest:"min=0,max=99"`
+	Memory                int      `json:"memory,omitempty" rest:"min=0,max=99"`
+	Storage               int      `json:"storage,omitempty" rest:"min=0,max=99"`
+	PodCount              int      `json:"podCount,omitempty" rest:"min=0,max=99"`
+	NodeCpu               int      `json:"nodeCpu,omitempty" rest:"min=0,max=99"`
+	NodeMemory            int      `json:"nodeMemory,omitempty" rest:"min=0,max=99"`
+	MailFrom              Mail     `json:"mailFrom,omitempty"`
+	MailTo                []string `json:"mailTo,omitempty"`
+}
+
+type Mail struct {
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
+	Host     string `json:"host,omitempty"`
+	Port     string `json:"port,omitempty"`
 }
 
 func (t ClusterThreshold) GetParents() []resource.ResourceKind {

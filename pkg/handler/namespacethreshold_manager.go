@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -147,6 +148,9 @@ func updateNamespaceThreshold(cli client.Client, threshold *types.NamespaceThres
 			data = strconv.Itoa(threshold.Storage)
 		case PodStorageConfigName:
 			data = strconv.Itoa(threshold.PodStorage)
+		case MailToConfigName:
+			tmp, _ := json.Marshal(threshold.MailTo)
+			data = string(tmp)
 		}
 		cfgs = append(cfgs, types.Config{
 			Name: cfg.Name,
@@ -158,6 +162,7 @@ func updateNamespaceThreshold(cli client.Client, threshold *types.NamespaceThres
 }
 
 func namespaceThresholdToConfigmap(threshold *types.NamespaceThreshold, name string) *types.ConfigMap {
+	mailTo, _ := json.Marshal(threshold.MailTo)
 	return &types.ConfigMap{
 		Name: name,
 		Configs: []types.Config{
@@ -176,6 +181,10 @@ func namespaceThresholdToConfigmap(threshold *types.NamespaceThreshold, name str
 			types.Config{
 				Name: PodStorageConfigName,
 				Data: strconv.Itoa(threshold.PodStorage),
+			},
+			types.Config{
+				Name: MailToConfigName,
+				Data: string(mailTo),
 			},
 		},
 	}
@@ -197,6 +206,10 @@ func configMapToNamespaceThreshold(cm *types.ConfigMap) *types.NamespaceThreshol
 		case PodStorageConfigName:
 			podStorage, _ := strconv.Atoi(cfg.Data)
 			threshold.PodStorage = podStorage
+		case MailToConfigName:
+			var mailTo []string
+			json.Unmarshal([]byte(cfg.Data), &mailTo)
+			threshold.MailTo = mailTo
 		}
 	}
 	return &threshold
