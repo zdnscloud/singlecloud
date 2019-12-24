@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -78,6 +79,11 @@ func (m PersistentVolumeClaimManager) Delete(ctx *resource.Context) *resterror.A
 
 	namespace := ctx.Resource.GetParent().GetID()
 	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
+
+	if err := isUsed(cluster.KubeClient, namespace, pvc.GetID()); err != nil {
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete persistentvolumeclaim failed %s", err.Error()))
+	}
+
 	err := deletePersistentVolumeClaim(cluster.KubeClient, namespace, pvc.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -144,15 +150,18 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 func genUseInfoForPVCs(cli client.Client, namespace string, pvcs []*types.PersistentVolumeClaim) error {
 	vas := k8sstorage.VolumeAttachmentList{}
 	if err := cli.List(context.TODO(), nil, &vas); err != nil {
+		return err
 	}
 	pods, err := getPods(cli, namespace, labels.Everything())
 	if err != nil {
+		return err
 	}
 	for _, pvc := range pvcs {
 		if pvc.Status != "Bound" {
 			return nil
 		}
 		if err := genUseInfoForPVC(cli, pvc, pods, vas); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -178,6 +187,30 @@ func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods 
 					pvc.Pods = append(pvc.Pods, p.Name)
 				}
 			}
+		}
+	}
+	return nil
+}
+
+func isUsed(cli client.Client, namespace, name string) error {
+	k8sPvc, err := getPersistentVolumeClaim(cli, namespace, name)
+	if err != nil {
+		return err
+	}
+	pv, err := getPersistentVolume(cli, k8sPvc.Spec.VolumeName)
+	if err != nil {
+		return err
+	}
+	vas := k8sstorage.VolumeAttachmentList{}
+	if err := cli.List(context.TODO(), nil, &vas); err != nil {
+		return err
+	}
+	for _, va := range vas.Items {
+		if *va.Spec.Source.PersistentVolumeName == pv.Name {
+			if va.Status.Attached {
+				return errors.New(fmt.Sprintf("the pvc %s is in used, can not delete it", name))
+			}
+			return nil
 		}
 	}
 	return nil
