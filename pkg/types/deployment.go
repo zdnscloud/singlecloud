@@ -46,6 +46,7 @@ type AdvancedOptions struct {
 	ExposedMetric               ExposedMetric `json:"exposedMetric"`
 	ReloadWhenConfigChange      bool          `json:"reloadWhenConfigChange"`
 	DeletePVsWhenDeleteWorkload bool          `json:"deletePVsWhenDeleteWorkload"`
+	InjectServiceMesh           bool          `json:"injectServiceMesh"`
 }
 
 type Deployment struct {

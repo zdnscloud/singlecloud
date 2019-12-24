@@ -11,6 +11,8 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -100,7 +102,7 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 	namespace := ctx.Resource.GetParent().GetID()
 	app := ctx.Resource.(*types.Application)
 	app.SetID(app.Name)
-	if err := m.create(ctx, cluster, namespace, app); err != nil {
+	if err := m.create(ctx, cluster, namespace, app, false); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource,
 				fmt.Sprintf("duplicate chart %s with name %s", app.ChartName, app.Name))
@@ -112,7 +114,7 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 	return genReturnApplication(app), nil
 }
 
-func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application) error {
+func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application, system bool) error {
 	if hasNamespace(cluster.KubeClient, namespace) == false {
 		return fmt.Errorf("namespace %s is not found", namespace)
 	}
@@ -123,10 +125,8 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		return fmt.Errorf("load chart %s with version %s info failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	isAdminUser := isAdmin(getCurrentUser(ctx))
-	app.SystemChart = slice.SliceIndex(info.Keywords, KeywordZcloudSystem) != -1
-	if isAdminUser == false && app.SystemChart {
-		return fmt.Errorf("user %s no authority to create application with chart %s", getCurrentUser(ctx), app.ChartName)
+	if app.SystemChart = slice.SliceIndex(info.Keywords, KeywordZcloudSystem) != -1; app.SystemChart != system {
+		return fmt.Errorf("can`t use application interface create systemchart application with chart %s", app.ChartName)
 	}
 
 	if clusterVersion, err := cluster.KubeClient.ServerVersion(); err != nil {
@@ -160,7 +160,8 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
 
-	go createApplication(table, cluster.KubeClient, isAdminUser, namespace, genUrlPrefix(ctx, cluster.Name), app, crdManifests)
+	go createApplication(table, cluster.KubeClient, isAdmin(getCurrentUser(ctx)), namespace,
+		genUrlPrefix(ctx, cluster.Name), app, crdManifests)
 	return nil
 }
 
@@ -317,21 +318,13 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 			}
 
 			gvk := obj.GetObjectKind().GroupVersionKind()
-			metaObj, err := meta.Accessor(obj)
+			metaObj, err := runtimeObjectToMetaObject(obj, namespace, isAdmin)
 			if err != nil {
-				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
+				return fmt.Errorf("runtime object to meta object with chart file %s failed: %s", manifest.File, err.Error())
 			}
 
-			ns := metaObj.GetNamespace()
-			if ns != "" {
-				if isAdmin == false {
-					return fmt.Errorf("chart file %s should not has namespace", manifest.File)
-				}
-			} else {
-				ns = namespace
-				metaObj.SetNamespace(namespace)
-			}
-
+			typ := strings.ToLower(gvk.Kind)
+			injectServiceMeshToWorkload(typ, app, obj)
 			if err := cli.Create(ctx, obj); err != nil {
 				if apierrors.IsAlreadyExists(err) {
 					app.Manifests[i].Duplicate = true
@@ -339,7 +332,6 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				return fmt.Errorf("create resource with file %s failed: %s", manifest.File, err.Error())
 			}
 
-			typ := strings.ToLower(gvk.Kind)
 			if slice.SliceIndex(AppSupportResourceTypes, typ) != -1 {
 				if slice.SliceIndex(AppSupportWorkloadTypes, typ) != -1 {
 					app.WorkloadCount += 1
@@ -347,7 +339,7 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 				app.AppResources = append(app.AppResources, types.AppResource{
 					Name: metaObj.GetName(),
 					Type: typ,
-					Link: path.Join(urlPrefix, ns, restutil.GuessPluralName(typ), metaObj.GetName()),
+					Link: path.Join(urlPrefix, metaObj.GetNamespace(), restutil.GuessPluralName(typ), metaObj.GetName()),
 				})
 			}
 			return nil
@@ -358,6 +350,92 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 
 	sort.Sort(app.AppResources)
 	return nil
+}
+
+func runtimeObjectToMetaObject(obj runtime.Object, namespace string, isAdmin bool) (metav1.Object, error) {
+	metaObj, err := meta.Accessor(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	if metaObj.GetNamespace() != "" {
+		if isAdmin == false {
+			return nil, fmt.Errorf("chart file should not has namespace")
+		}
+	} else {
+		metaObj.SetNamespace(namespace)
+	}
+
+	return metaObj, nil
+}
+
+func injectServiceMeshToWorkload(typ string, app *types.Application, obj runtime.Object) {
+	if slice.SliceIndex(AppSupportWorkloadTypes, typ) == -1 || app.InjectServiceMesh == false {
+		return
+	}
+
+	switch obj.(type) {
+	case *appsv1.Deployment:
+		deploy := obj.(*appsv1.Deployment)
+		if deploy.Spec.Template.Annotations == nil {
+			deploy.Spec.Template.Annotations = make(map[string]string)
+		}
+		deploy.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *appsv1beta1.Deployment:
+		deploy := obj.(*appsv1beta1.Deployment)
+		if deploy.Spec.Template.Annotations == nil {
+			deploy.Spec.Template.Annotations = make(map[string]string)
+		}
+		deploy.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *appsv1beta2.Deployment:
+		deploy := obj.(*appsv1beta2.Deployment)
+		if deploy.Spec.Template.Annotations == nil {
+			deploy.Spec.Template.Annotations = make(map[string]string)
+		}
+		deploy.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *extv1beta1.Deployment:
+		deploy := obj.(*extv1beta1.Deployment)
+		if deploy.Spec.Template.Annotations == nil {
+			deploy.Spec.Template.Annotations = make(map[string]string)
+		}
+		deploy.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *appsv1.DaemonSet:
+		ds := obj.(*appsv1.DaemonSet)
+		if ds.Spec.Template.Annotations == nil {
+			ds.Spec.Template.Annotations = make(map[string]string)
+		}
+		ds.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *appsv1beta2.DaemonSet:
+		ds := obj.(*appsv1beta2.DaemonSet)
+		if ds.Spec.Template.Annotations == nil {
+			ds.Spec.Template.Annotations = make(map[string]string)
+		}
+		ds.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *extv1beta1.DaemonSet:
+		ds := obj.(*extv1beta1.DaemonSet)
+		if ds.Spec.Template.Annotations == nil {
+			ds.Spec.Template.Annotations = make(map[string]string)
+		}
+		ds.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *appsv1.StatefulSet:
+		sts := obj.(*appsv1.StatefulSet)
+		if sts.Spec.Template.Annotations == nil {
+			sts.Spec.Template.Annotations = make(map[string]string)
+		}
+		sts.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *appsv1beta1.StatefulSet:
+		sts := obj.(*appsv1beta1.StatefulSet)
+		if sts.Spec.Template.Annotations == nil {
+			sts.Spec.Template.Annotations = make(map[string]string)
+		}
+		sts.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	case *appsv1beta2.StatefulSet:
+		sts := obj.(*appsv1beta2.StatefulSet)
+		if sts.Spec.Template.Annotations == nil {
+			sts.Spec.Template.Annotations = make(map[string]string)
+		}
+		sts.Spec.Template.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
+	}
 }
 
 func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
@@ -521,17 +599,17 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	return genReturnApplication(app)
 }
 
-func getApplicationFromDB(table kvzoo.Table, appName string, isSystemChart bool) (*types.Application, error) {
+func getApplicationFromDB(table kvzoo.Table, appName string, system bool) (*types.Application, error) {
 	tx, err := table.Begin()
 	if err != nil {
 		return nil, err
 	}
 
 	defer tx.Commit()
-	return getApplicationFromDBTx(tx, appName, isSystemChart)
+	return getApplicationFromDBTx(tx, appName, system)
 }
 
-func getApplicationFromDBTx(tx kvzoo.Transaction, appName string, isSystemChart bool) (*types.Application, error) {
+func getApplicationFromDBTx(tx kvzoo.Transaction, appName string, system bool) (*types.Application, error) {
 	value, err := tx.Get(appName)
 	if err != nil {
 		return nil, err
@@ -542,8 +620,7 @@ func getApplicationFromDBTx(tx kvzoo.Transaction, appName string, isSystemChart 
 		return nil, err
 	}
 
-	//all user can`t access system chart, system chart operate is another logic
-	if app.SystemChart != isSystemChart {
+	if app.SystemChart != system {
 		return nil, fmt.Errorf("user no authority to access application %s", appName)
 	}
 
@@ -577,8 +654,8 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 	return nil
 }
 
-func deleteApplication(table kvzoo.Table, cli client.Client, namespace, appName string, isSystemChart bool) error {
-	app, err := updateAppStatusToDeleteFromDB(table, appName, isSystemChart)
+func deleteApplication(table kvzoo.Table, cli client.Client, namespace, appName string, system bool) error {
+	app, err := updateAppStatusToDeleteFromDB(table, appName, system)
 	if err != nil {
 		return err
 	}
@@ -599,14 +676,14 @@ func deleteApplication(table kvzoo.Table, cli client.Client, namespace, appName 
 	return nil
 }
 
-func updateAppStatusToDeleteFromDB(table kvzoo.Table, name string, isSystemChart bool) (*types.Application, error) {
+func updateAppStatusToDeleteFromDB(table kvzoo.Table, name string, system bool) (*types.Application, error) {
 	tx, err := table.Begin()
 	if err != nil {
 		return nil, err
 	}
 
 	defer tx.Rollback()
-	app, err := getApplicationFromDBTx(tx, name, isSystemChart)
+	app, err := getApplicationFromDBTx(tx, name, system)
 	if err != nil {
 		return nil, err
 	}
@@ -636,13 +713,9 @@ func deleteAppResources(cli client.Client, namespace string, manifests []types.M
 		}
 
 		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
-			metaObj, err := meta.Accessor(obj)
+			_, err := runtimeObjectToMetaObject(obj, namespace, true)
 			if err != nil {
 				return fmt.Errorf("runtime object to meta object with file %s failed: %s", manifest.File, err.Error())
-			}
-
-			if metaObj.GetNamespace() == "" {
-				metaObj.SetNamespace(namespace)
 			}
 
 			if err := cli.Delete(ctx, obj, client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil {

@@ -33,6 +33,7 @@ const (
 	AnnKeyForReloadWhenConfigChange      = "zcloud.cn/update-on-config-change"
 	AnnKeyForConfigHashAnnotation        = "zcloud.cn/config-hash"
 	AnnkeyForDeletePVsWhenDeleteWorkload = "zcloud_delete_pvs_when_delete_workload"
+	AnnKeyForInjectServiceMesh           = "linkerd.io/inject"
 
 	DefaultRequestCPU    = "10m"
 	DefaultRequestMemory = "20Mi"
@@ -491,6 +492,10 @@ func createPodTempateObjectMeta(name, namespace string, cli client.Client, advan
 			}
 			meta.Annotations[AnnKeyForConfigHashAnnotation] = hash
 		}
+	}
+
+	if advancedOpts.InjectServiceMesh {
+		meta.Annotations[AnnKeyForInjectServiceMesh] = "enabled"
 	}
 
 	return meta, nil
