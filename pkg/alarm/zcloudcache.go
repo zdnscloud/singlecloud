@@ -4,21 +4,16 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 )
 
-func publishAlarmEvent(aw *AlarmCache, stop chan struct{}) {
+func publishAlarmEvent(ac *AlarmCache, stop chan struct{}) {
 	alarmEventCh := eventBus.Sub(eventbus.AlarmEvent)
 	for {
 		select {
 		case <-stop:
 			return
-		default:
-		}
-		event := <-alarmEventCh
-		switch event.(type) {
-		case *Alarm:
+		case event := <-alarmEventCh:
 			alarm := event.(*Alarm)
 			alarm.Type = ZcloudType
-			aw.Add(alarm)
-		default:
+			ac.Add(alarm)
 		}
 	}
 }

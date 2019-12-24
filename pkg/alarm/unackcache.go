@@ -1,27 +1,27 @@
 package alarm
 
-func (aw *AlarmCache) AckChannel() <-chan int {
-	go aw.publishAck()
-	return aw.ackCh
+func (ac *AlarmCache) AckChannel() <-chan int {
+	go ac.publishAck()
+	return ac.ackCh
 }
 
-func (aw *AlarmCache) publishAck() {
-	num := aw.unAckNumber
+func (ac *AlarmCache) publishAck() {
+	num := ac.unAckNumber
 	for {
-		if aw.unAckNumber == 0 {
-			aw.lock.Lock()
-			aw.cond.Wait()
-			aw.lock.Unlock()
+		if ac.unAckNumber == 0 {
+			ac.lock.Lock()
+			ac.cond.Wait()
+			ac.lock.Unlock()
 			continue
 		}
 		select {
-		case <-aw.stopCh:
-			aw.stopCh <- struct{}{}
+		case <-ac.stopCh:
+			ac.stopCh <- struct{}{}
 			return
 		default:
-			if num != aw.unAckNumber {
-				aw.ackCh <- 1
-				num = aw.unAckNumber
+			if num != ac.unAckNumber {
+				ac.ackCh <- 1
+				num = ac.unAckNumber
 			}
 		}
 	}

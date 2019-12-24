@@ -2,8 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
@@ -11,7 +15,6 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -110,12 +113,25 @@ func (m *ClusterThresholdManager) List(ctx *resource.Context) interface{} {
 	if cluster == nil {
 		return nil
 	}
+	threshold, err := getClusterThreshold(cluster.KubeClient, ClusterThresholdConfigmapName)
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			log.Warnf("list thresholds failed:%s", err.Error())
+		}
+		return nil
+	}
 
-	return getClusterThresholds(cluster.KubeClient)
+	return []*types.ClusterThreshold{threshold}
 }
 
 func createClusterThreshold(cli client.Client, threshold *types.ClusterThreshold) error {
-	sccm := clusterThresholdToConfigmap(threshold)
+	if !checkPort(threshold.MailFrom.Port) {
+		return errors.New("port must be numer")
+	}
+	sccm, err := clusterThresholdToConfigmap(threshold)
+	if err != nil {
+		return err
+	}
 	return createConfigMap(cli, ThresholdConfigmapNamespace, sccm)
 }
 
@@ -125,63 +141,36 @@ func getClusterThreshold(cli client.Client, name string) (*types.ClusterThreshol
 		return nil, err
 	}
 	sccm := k8sConfigMapToSCConfigMap(cm)
-	threshold := configMapToClusterThreshold(sccm)
+	threshold, err := configMapToClusterThreshold(sccm)
+	if err != nil {
+		return nil, err
+	}
 	threshold.SetID(sccm.Name)
 	threshold.SetCreationTimestamp(cm.CreationTimestamp.Time)
 	return threshold, nil
 }
 
-func getClusterThresholds(cli client.Client) []*types.ClusterThreshold {
-	var thresholds []*types.ClusterThreshold
-	threshold, err := getClusterThreshold(cli, ClusterThresholdConfigmapName)
-	if err != nil {
-		return nil
-	}
-	thresholds = append(thresholds, threshold)
-	return thresholds
-}
-
 func updateClusterThreshold(cli client.Client, threshold *types.ClusterThreshold) error {
-	cm, err := getConfigMap(cli, ThresholdConfigmapNamespace, threshold.GetID())
+	if !checkPort(threshold.MailFrom.Port) {
+		return errors.New("port must be numer")
+	}
+	sccm, err := clusterThresholdToConfigmap(threshold)
 	if err != nil {
 		return err
 	}
-	sccm := k8sConfigMapToSCConfigMap(cm)
-	cfgs := make([]types.Config, 0)
-	for _, cfg := range sccm.Configs {
-		var data string
-		switch cfg.Name {
-		case CpuConfigName:
-			data = strconv.Itoa(threshold.Cpu)
-		case MemoryConfigName:
-			data = strconv.Itoa(threshold.Memory)
-		case StorageConfigName:
-			data = strconv.Itoa(threshold.Storage)
-		case PodCountConfigName:
-			data = strconv.Itoa(threshold.PodCount)
-		case NodeCpuConfigName:
-			data = strconv.Itoa(threshold.NodeCpu)
-		case NodeMemoryConfigName:
-			data = strconv.Itoa(threshold.NodeMemory)
-		case MailFromConfigName:
-			tmp, _ := json.Marshal(threshold.MailFrom)
-			data = string(tmp)
-		case MailToConfigName:
-			tmp, _ := json.Marshal(threshold.MailTo)
-			data = string(tmp)
-		}
-		cfgs = append(cfgs, types.Config{
-			Name: cfg.Name,
-			Data: data,
-		})
-	}
-	sccm.Configs = cfgs
+	sccm.SetID(sccm.Name)
 	return updateConfigMap(cli, ThresholdConfigmapNamespace, sccm)
 }
 
-func clusterThresholdToConfigmap(threshold *types.ClusterThreshold) *types.ConfigMap {
-	mailFrom, _ := json.Marshal(threshold.MailFrom)
-	mailTo, _ := json.Marshal(threshold.MailTo)
+func clusterThresholdToConfigmap(threshold *types.ClusterThreshold) (*types.ConfigMap, error) {
+	mailFrom, err := json.Marshal(threshold.MailFrom)
+	if err != nil {
+		return nil, err
+	}
+	mailTo, err := json.Marshal(threshold.MailTo)
+	if err != nil {
+		return nil, err
+	}
 	return &types.ConfigMap{
 		Name: ClusterThresholdConfigmapName,
 		Configs: []types.Config{
@@ -218,40 +207,68 @@ func clusterThresholdToConfigmap(threshold *types.ClusterThreshold) *types.Confi
 				Data: string(mailTo),
 			},
 		},
-	}
+	}, nil
 }
 
-func configMapToClusterThreshold(cm *types.ConfigMap) *types.ClusterThreshold {
+func configMapToClusterThreshold(cm *types.ConfigMap) (*types.ClusterThreshold, error) {
 	var threshold types.ClusterThreshold
 	for _, cfg := range cm.Configs {
 		switch cfg.Name {
 		case CpuConfigName:
-			cpu, _ := strconv.Atoi(cfg.Data)
+			cpu, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.Cpu = cpu
 		case MemoryConfigName:
-			memory, _ := strconv.Atoi(cfg.Data)
+			memory, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.Memory = memory
 		case StorageConfigName:
-			storage, _ := strconv.Atoi(cfg.Data)
+			storage, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.Storage = storage
 		case PodCountConfigName:
-			podcount, _ := strconv.Atoi(cfg.Data)
+			podcount, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.PodCount = podcount
 		case NodeCpuConfigName:
-			nodeCpu, _ := strconv.Atoi(cfg.Data)
+			nodeCpu, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.NodeCpu = nodeCpu
 		case NodeMemoryConfigName:
-			nodeMemory, _ := strconv.Atoi(cfg.Data)
+			nodeMemory, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.NodeMemory = nodeMemory
 		case MailFromConfigName:
 			var mailFrom types.Mail
-			json.Unmarshal([]byte(cfg.Data), &mailFrom)
+			if err := json.Unmarshal([]byte(cfg.Data), &mailFrom); err != nil {
+				return nil, err
+			}
 			threshold.MailFrom = mailFrom
 		case MailToConfigName:
 			var mailTo []string
-			json.Unmarshal([]byte(cfg.Data), &mailTo)
+			if err := json.Unmarshal([]byte(cfg.Data), &mailTo); err != nil {
+				return nil, err
+			}
 			threshold.MailTo = mailTo
 		}
 	}
-	return &threshold
+	return &threshold, nil
+}
+
+func checkPort(port string) bool {
+	pattern := "^(\\d+)$"
+	result, _ := regexp.MatchString(pattern, port)
+	return result
 }

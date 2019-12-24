@@ -172,7 +172,7 @@ func (m *ApplicationManager) createApplication(ctx *resource.Context, cluster *z
 func publishApplicationEvent(namespace, name, reason, msg string) {
 	alarm.New().
 		Namespace(namespace).
-		Kind("application").
+		Kind("Application").
 		Name(name).
 		Reason(reason).
 		Message(msg).

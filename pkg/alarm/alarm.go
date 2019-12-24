@@ -16,7 +16,6 @@ type AlarmType string
 
 type Alarm struct {
 	ID           uint64    `json:"-"`
-	UUID         string    `json:"-"`
 	Time         string    `json:"time,omitempty"`
 	Cluster      string    `json:"cluster,omitempty"`
 	Type         AlarmType `json:"type,omitempty"`

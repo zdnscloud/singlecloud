@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/zdnscloud/cement/slice"
-	"github.com/zdnscloud/cement/uuid"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 )
@@ -32,7 +31,7 @@ type AlarmListener struct {
 
 func NewAlarmCache(cache cache.Cache, cli client.Client, size uint, name string) (*AlarmCache, error) {
 	stop := make(chan struct{})
-	aw := &AlarmCache{
+	ac := &AlarmCache{
 		clusterName: name,
 		eventID:     1,
 		maxSize:     size,
@@ -41,14 +40,14 @@ func NewAlarmCache(cache cache.Cache, cli client.Client, size uint, name string)
 		ackCh:       make(chan int),
 		cli:         cli,
 	}
-	aw.cond = sync.NewCond(&aw.lock)
-	go publishK8sEvent(aw, cache, stop)
-	go publishAlarmEvent(aw, stop)
-	return aw, nil
+	ac.cond = sync.NewCond(&ac.lock)
+	go publishK8sEvent(ac, cache, stop)
+	go publishAlarmEvent(ac, stop)
+	return ac, nil
 }
 
-func (aw *AlarmCache) Stop() {
-	close(aw.stopCh)
+func (ac *AlarmCache) Stop() {
+	close(ac.stopCh)
 }
 
 func (al *AlarmListener) AlarmChannel() <-chan Alarm {
@@ -61,21 +60,21 @@ func (al *AlarmListener) Stop() {
 	close(al.alarmCh)
 }
 
-func (aw *AlarmCache) AddListener() *AlarmListener {
+func (ac *AlarmCache) AddListener() *AlarmListener {
 	al := &AlarmListener{
 		lastID:  0,
 		stopCh:  make(chan struct{}),
 		alarmCh: make(chan Alarm),
 	}
 
-	go aw.publishEvent(al)
+	go ac.publishEvent(al)
 	return al
 }
 
-func (aw *AlarmCache) publishEvent(al *AlarmListener) {
-	events := make([]*Alarm, aw.maxSize)
+func (ac *AlarmCache) publishEvent(al *AlarmListener) {
+	events := make([]*Alarm, ac.maxSize)
 	for {
-		lastID, c := aw.getAlarmsAfterID(al.lastID, events)
+		lastID, c := ac.getAlarmsAfterID(al.lastID, events)
 		select {
 		case <-al.stopCh:
 			al.stopCh <- struct{}{}
@@ -84,9 +83,9 @@ func (aw *AlarmCache) publishEvent(al *AlarmListener) {
 		}
 
 		if c == 0 {
-			aw.lock.Lock()
-			aw.cond.Wait()
-			aw.lock.Unlock()
+			ac.lock.Lock()
+			ac.cond.Wait()
+			ac.lock.Unlock()
 			continue
 		}
 
@@ -99,28 +98,28 @@ func (aw *AlarmCache) publishEvent(al *AlarmListener) {
 			case al.alarmCh <- *events[i]:
 				if !events[i].Acknowledged {
 					events[i].Acknowledged = true
-					aw.unAckNumber -= 1
+					ac.unAckNumber -= 1
 				}
 			}
 		}
 	}
 }
 
-func (aw *AlarmCache) getAlarmsAfterID(id uint64, events []*Alarm) (uint64, int) {
-	aw.lock.RLock()
-	defer aw.lock.RUnlock()
+func (ac *AlarmCache) getAlarmsAfterID(id uint64, events []*Alarm) (uint64, int) {
+	ac.lock.RLock()
+	defer ac.lock.RUnlock()
 
-	elem := aw.alarmList.Front()
+	elem := ac.alarmList.Front()
 	if elem == nil {
 		return 0, 0
 	}
 
 	begID := elem.Value.(*Alarm).ID
 	if id < begID {
-		return aw.getAlarmsFromOutdated(id, events)
+		return ac.getAlarmsFromOutdated(id, events)
 	}
 
-	elem = aw.alarmList.Back()
+	elem = ac.alarmList.Back()
 	if elem == nil {
 		return 0, 0
 	}
@@ -131,30 +130,30 @@ func (aw *AlarmCache) getAlarmsAfterID(id uint64, events []*Alarm) (uint64, int)
 	}
 
 	if id-begID < endID-id {
-		return aw.getAlarmsFromOutdated(id, events)
+		return ac.getAlarmsFromOutdated(id, events)
 	} else {
-		return aw.getAlarmsFromLatest(id, events)
+		return ac.getAlarmsFromLatest(id, events)
 	}
 }
 
-func (aw *AlarmCache) getAlarmsFromOutdated(id uint64, events []*Alarm) (uint64, int) {
-	elem := aw.alarmList.Front()
+func (ac *AlarmCache) getAlarmsFromOutdated(id uint64, events []*Alarm) (uint64, int) {
+	elem := ac.alarmList.Front()
 	for elem.Value.(*Alarm).ID <= id {
 		elem = elem.Next()
 	}
-	return aw.getAlarmsFromElem(elem, events)
+	return ac.getAlarmsFromElem(elem, events)
 }
 
-func (aw *AlarmCache) getAlarmsFromLatest(id uint64, events []*Alarm) (uint64, int) {
-	elem := aw.alarmList.Back()
+func (ac *AlarmCache) getAlarmsFromLatest(id uint64, events []*Alarm) (uint64, int) {
+	elem := ac.alarmList.Back()
 	for elem.Value.(*Alarm).ID > id {
 		elem = elem.Prev()
 	}
 	elem = elem.Next()
-	return aw.getAlarmsFromElem(elem, events)
+	return ac.getAlarmsFromElem(elem, events)
 }
 
-func (aw *AlarmCache) getAlarmsFromElem(elem *list.Element, events []*Alarm) (uint64, int) {
+func (ac *AlarmCache) getAlarmsFromElem(elem *list.Element, events []*Alarm) (uint64, int) {
 	ec := 0
 	batch := len(events)
 	startID := elem.Value.(*Alarm).ID
@@ -166,40 +165,39 @@ func (aw *AlarmCache) getAlarmsFromElem(elem *list.Element, events []*Alarm) (ui
 	return startID + uint64(ec-1), ec
 }
 
-func (aw *AlarmCache) Add(alarm *Alarm) {
-	aw.lock.Lock()
-	var repeat bool
-	elem := aw.alarmList.Back()
-	if elem != nil {
-		lastone := elem.Value.(*Alarm)
-		if lastone.Namespace == alarm.Namespace && lastone.Kind == alarm.Kind && lastone.Message == alarm.Message && lastone.Name == alarm.Name {
-			repeat = true
+func (ac *AlarmCache) Add(alarm *Alarm) {
+	ac.lock.Lock()
+	defer ac.lock.Unlock()
+	if elem := ac.alarmList.Back(); elem != nil {
+		if isRepeat(elem.Value.(*Alarm), alarm) {
+			return
 		}
 	}
 
-	if !repeat {
-		alarm.ID = atomic.AddUint64(&aw.eventID, 1)
-		uid, _ := uuid.Gen()
-		alarm.UUID = uid
-		alarm.Cluster = aw.clusterName
-		if slice.SliceIndex(ClusterKinds, alarm.Kind) == -1 {
-			alarm.Namespace = ""
-		}
-		aw.alarmList.PushBack(alarm)
-		SendMail(aw.cli, alarm)
-		addUnAck := true
-		if uint(aw.alarmList.Len()) > aw.maxSize {
-			elem := aw.alarmList.Front()
-
-			if !elem.Value.(*Alarm).Acknowledged {
-				addUnAck = false
-			}
-			aw.alarmList.Remove(elem)
-		}
-		if addUnAck {
-			aw.unAckNumber += 1
-		}
+	alarm.ID = atomic.AddUint64(&ac.eventID, 1)
+	alarm.Cluster = ac.clusterName
+	if slice.SliceIndex(ClusterKinds, alarm.Kind) == -1 {
+		alarm.Namespace = ""
 	}
-	aw.cond.Broadcast()
-	aw.lock.Unlock()
+	ac.alarmList.PushBack(alarm)
+	SendMail(ac.cli, alarm)
+	addUnAck := true
+	if uint(ac.alarmList.Len()) > ac.maxSize {
+		elem := ac.alarmList.Front()
+		if !elem.Value.(*Alarm).Acknowledged {
+			addUnAck = false
+		}
+		ac.alarmList.Remove(elem)
+	}
+	if addUnAck {
+		ac.unAckNumber += 1
+	}
+	ac.cond.Broadcast()
+}
+
+func isRepeat(lastAlarm, newAlarm *Alarm) bool {
+	if lastAlarm.Namespace == newAlarm.Namespace && lastAlarm.Kind == newAlarm.Kind && lastAlarm.Message == newAlarm.Message && lastAlarm.Name == newAlarm.Name {
+		return true
+	}
+	return false
 }

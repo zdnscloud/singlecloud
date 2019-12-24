@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"strconv"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type NamespaceThresholdManager struct {
@@ -67,7 +68,6 @@ func (m *NamespaceThresholdManager) Update(ctx *resource.Context) (resource.Reso
 		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	//namespace := ctx.Resource.GetParent().GetID()
 	threshold := ctx.Resource.(*types.NamespaceThreshold)
 	if err := updateNamespaceThreshold(cluster.KubeClient, threshold); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update threshold failed %s", err.Error()))
@@ -82,7 +82,6 @@ func (m *NamespaceThresholdManager) Get(ctx *restresource.Context) restresource.
 		return nil
 	}
 
-	//namespace := ctx.Resource.GetParent().GetID()
 	threshold := ctx.Resource.(*types.NamespaceThreshold)
 	threshold, err := getNamespaceThreshold(cluster.KubeClient, threshold.GetID())
 	if err != nil {
@@ -101,11 +100,21 @@ func (m *NamespaceThresholdManager) List(ctx *resource.Context) interface{} {
 	}
 	namespace := ctx.Resource.GetParent().GetID()
 	name := NamespaceThresholdConfigmapNamePrefix + namespace
-	return getNamespaceThresholds(cluster.KubeClient, name)
+	threshold, err := getNamespaceThreshold(cluster.KubeClient, name)
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			log.Warnf("list thresholds failed:%s", err.Error())
+		}
+		return nil
+	}
+	return []*types.NamespaceThreshold{threshold}
 }
 
 func createNamespaceThreshold(cli client.Client, name string, threshold *types.NamespaceThreshold) error {
-	sccm := namespaceThresholdToConfigmap(threshold, name)
+	sccm, err := namespaceThresholdToConfigmap(threshold, name)
+	if err != nil {
+		return err
+	}
 	return createConfigMap(cli, ThresholdConfigmapNamespace, sccm)
 }
 
@@ -115,54 +124,29 @@ func getNamespaceThreshold(cli client.Client, name string) (*types.NamespaceThre
 		return nil, err
 	}
 	sccm := k8sConfigMapToSCConfigMap(cm)
-	threshold := configMapToNamespaceThreshold(sccm)
+	threshold, err := configMapToNamespaceThreshold(sccm)
+	if err != nil {
+		return nil, err
+	}
 	threshold.SetID(sccm.Name)
 	threshold.SetCreationTimestamp(cm.CreationTimestamp.Time)
 	return threshold, nil
 }
 
-func getNamespaceThresholds(cli client.Client, name string) []*types.NamespaceThreshold {
-	var thresholds []*types.NamespaceThreshold
-	threshold, err := getNamespaceThreshold(cli, name)
-	if err != nil {
-		return nil
-	}
-	thresholds = append(thresholds, threshold)
-	return thresholds
-}
 func updateNamespaceThreshold(cli client.Client, threshold *types.NamespaceThreshold) error {
-	cm, err := getConfigMap(cli, ThresholdConfigmapNamespace, threshold.GetID())
+	sccm, err := namespaceThresholdToConfigmap(threshold, threshold.GetID())
 	if err != nil {
 		return err
 	}
-	sccm := k8sConfigMapToSCConfigMap(cm)
-	cfgs := make([]types.Config, 0)
-	for _, cfg := range sccm.Configs {
-		var data string
-		switch cfg.Name {
-		case CpuConfigName:
-			data = strconv.Itoa(threshold.Cpu)
-		case MemoryConfigName:
-			data = strconv.Itoa(threshold.Memory)
-		case StorageConfigName:
-			data = strconv.Itoa(threshold.Storage)
-		case PodStorageConfigName:
-			data = strconv.Itoa(threshold.PodStorage)
-		case MailToConfigName:
-			tmp, _ := json.Marshal(threshold.MailTo)
-			data = string(tmp)
-		}
-		cfgs = append(cfgs, types.Config{
-			Name: cfg.Name,
-			Data: data,
-		})
-	}
-	sccm.Configs = cfgs
+	sccm.SetID(sccm.Name)
 	return updateConfigMap(cli, ThresholdConfigmapNamespace, sccm)
 }
 
-func namespaceThresholdToConfigmap(threshold *types.NamespaceThreshold, name string) *types.ConfigMap {
-	mailTo, _ := json.Marshal(threshold.MailTo)
+func namespaceThresholdToConfigmap(threshold *types.NamespaceThreshold, name string) (*types.ConfigMap, error) {
+	mailTo, err := json.Marshal(threshold.MailTo)
+	if err != nil {
+		return nil, err
+	}
 	return &types.ConfigMap{
 		Name: name,
 		Configs: []types.Config{
@@ -187,30 +171,44 @@ func namespaceThresholdToConfigmap(threshold *types.NamespaceThreshold, name str
 				Data: string(mailTo),
 			},
 		},
-	}
+	}, nil
 }
 
-func configMapToNamespaceThreshold(cm *types.ConfigMap) *types.NamespaceThreshold {
+func configMapToNamespaceThreshold(cm *types.ConfigMap) (*types.NamespaceThreshold, error) {
 	var threshold types.NamespaceThreshold
 	for _, cfg := range cm.Configs {
 		switch cfg.Name {
 		case CpuConfigName:
-			cpu, _ := strconv.Atoi(cfg.Data)
+			cpu, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.Cpu = cpu
 		case MemoryConfigName:
-			memory, _ := strconv.Atoi(cfg.Data)
+			memory, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.Memory = memory
 		case StorageConfigName:
-			storage, _ := strconv.Atoi(cfg.Data)
+			storage, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.Storage = storage
 		case PodStorageConfigName:
-			podStorage, _ := strconv.Atoi(cfg.Data)
+			podStorage, err := strconv.Atoi(cfg.Data)
+			if err != nil {
+				return nil, err
+			}
 			threshold.PodStorage = podStorage
 		case MailToConfigName:
 			var mailTo []string
-			json.Unmarshal([]byte(cfg.Data), &mailTo)
+			if err := json.Unmarshal([]byte(cfg.Data), &mailTo); err != nil {
+				return nil, err
+			}
 			threshold.MailTo = mailTo
 		}
 	}
-	return &threshold
+	return &threshold, nil
 }
