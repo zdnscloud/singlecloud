@@ -47,6 +47,9 @@
       "exposedMetric": {
         "type": "exposedMetric"
       },
+      "injectServiceMesh": {
+        "type": "bool"
+      },
       "reloadWhenConfigChange": {
         "type": "bool"
       }

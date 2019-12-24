@@ -28,6 +28,9 @@
     "configs": {
       "type": "json"
     },
+    "injectServiceMesh": {
+      "type": "bool"
+    },
     "manifests": {
       "type": "array",
       "elemType": "manifest",
