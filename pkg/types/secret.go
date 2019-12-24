@@ -11,7 +11,7 @@ type Secret struct {
 }
 
 type SecretData struct {
-	Key   string `json:"key" rest:"required=true,isDomain=true"`
+	Key   string `json:"key" rest:"required=true"`
 	Value string `json:"value" rest:"required=true"`
 }
 

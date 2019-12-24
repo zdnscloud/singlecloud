@@ -110,7 +110,8 @@ func (m *StatefulSetManager) Update(ctx *resource.Context) (resource.Resource, *
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update statefulset failed %s", err.Error()))
 	}
 
-	k8sStatefulSet.Spec.Template.Spec = k8sPodSpec
+	k8sStatefulSet.Spec.Template.Spec.Containers = k8sPodSpec.Containers
+	k8sStatefulSet.Spec.Template.Spec.Volumes = k8sPodSpec.Volumes
 	k8sStatefulSet.Annotations[ChangeCauseAnnotation] = statefulSet.Memo
 	if err := cluster.KubeClient.Update(context.TODO(), k8sStatefulSet); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update statefulset failed %s", err.Error()))

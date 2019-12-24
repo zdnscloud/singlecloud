@@ -139,7 +139,8 @@ func (m *DeploymentManager) Update(ctx *resource.Context) (resource.Resource, *r
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
 	}
 
-	k8sDeploy.Spec.Template.Spec = k8sPodSpec
+	k8sDeploy.Spec.Template.Spec.Containers = k8sPodSpec.Containers
+	k8sDeploy.Spec.Template.Spec.Volumes = k8sPodSpec.Volumes
 	k8sDeploy.Annotations[ChangeCauseAnnotation] = deploy.Memo
 	if err := cluster.KubeClient.Update(context.TODO(), k8sDeploy); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))

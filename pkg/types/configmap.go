@@ -5,7 +5,7 @@ import (
 )
 
 type Config struct {
-	Name string `json:"name" rest:"required=true,isDomain=true"`
+	Name string `json:"name" rest:"required=true"`
 	Data string `json:"data" rest:"required=true"`
 }
 
