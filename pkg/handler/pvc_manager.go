@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	k8sstorage "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
@@ -42,6 +44,9 @@ func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) interface{} {
 	var pvcs []*types.PersistentVolumeClaim
 	for _, item := range k8sPersistentVolumeClaims.Items {
 		pvcs = append(pvcs, k8sPVCToSCPVC(&item))
+	}
+	if err := genUseInfoForPVCs(cluster.KubeClient, namespace, pvcs); err != nil {
+		return nil
 	}
 	return pvcs
 }
@@ -122,7 +127,6 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 
 	pvc := &types.PersistentVolumeClaim{
 		Name:               k8sPersistentVolumeClaim.Name,
-		Namespace:          k8sPersistentVolumeClaim.Namespace,
 		RequestStorageSize: requestStorage,
 		StorageClassName:   storageClassName,
 		VolumeName:         k8sPersistentVolumeClaim.Spec.VolumeName,
@@ -135,4 +139,46 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 		pvc.SetDeletionTimestamp(k8sPersistentVolumeClaim.DeletionTimestamp.Time)
 	}
 	return pvc
+}
+
+func genUseInfoForPVCs(cli client.Client, namespace string, pvcs []*types.PersistentVolumeClaim) error {
+	vas := k8sstorage.VolumeAttachmentList{}
+	if err := cli.List(context.TODO(), nil, &vas); err != nil {
+	}
+	pods, err := getPods(cli, namespace, labels.Everything())
+	if err != nil {
+	}
+	for _, pvc := range pvcs {
+		if pvc.Status != "Bound" {
+			return nil
+		}
+		if err := genUseInfoForPVC(cli, pvc, pods, vas); err != nil {
+		}
+	}
+	return nil
+}
+
+func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods *corev1.PodList, vas k8sstorage.VolumeAttachmentList) error {
+	pv, err := getPersistentVolume(cli, pvc.VolumeName)
+	if err != nil {
+		return err
+	}
+	for _, va := range vas.Items {
+		if *va.Spec.Source.PersistentVolumeName == pv.Name {
+			pvc.Used = va.Status.Attached
+			if pvc.Used && pvc.StorageClassName == "lvm" {
+				pvc.Node = va.Spec.NodeName
+			}
+		}
+	}
+	if pvc.Used {
+		for _, p := range pods.Items {
+			for _, volume := range p.Spec.Volumes {
+				if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvc.Name {
+					pvc.Pods = append(pvc.Pods, p.Name)
+				}
+			}
+		}
+	}
+	return nil
 }
