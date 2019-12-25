@@ -1,9 +1,15 @@
 package helper
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
+
+	"github.com/zdnscloud/gok8s/cache"
 )
 
 //copy code from k8s.io/kubernetes/pkg/printers
@@ -74,4 +80,32 @@ func GetPodState(pod *corev1.Pod) string {
 	}
 
 	return reason
+}
+
+func GetPodOwner(c cache.Cache, pod *corev1.Pod) (string, string, error) {
+	if len(pod.OwnerReferences) != 1 {
+		return "", "", fmt.Errorf("pod no owner refernces")
+	}
+
+	owner := pod.OwnerReferences[0]
+	if owner.Kind != "ReplicaSet" {
+		return strings.ToLower(owner.Kind), owner.Name, nil
+	}
+
+	var k8srs appsv1.ReplicaSet
+	err := c.Get(context.TODO(), k8stypes.NamespacedName{pod.Namespace, owner.Name}, &k8srs)
+	if err != nil {
+		return "", "", fmt.Errorf("get replicaset failed:%s", err.Error())
+	}
+
+	if len(k8srs.OwnerReferences) != 1 {
+		return "", "", fmt.Errorf("replicaset OwnerReferences is strange:%v", k8srs.OwnerReferences)
+	}
+
+	owner = k8srs.OwnerReferences[0]
+	if owner.Kind != "Deployment" {
+		return "", "", fmt.Errorf("replicaset parent is not deployment but %v", owner.Kind)
+	}
+
+	return strings.ToLower(owner.Kind), owner.Name, nil
 }

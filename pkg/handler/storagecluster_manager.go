@@ -234,7 +234,7 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cl
 		Name:        k8sStorageCluster.Name,
 		StorageType: k8sStorageCluster.Spec.StorageType,
 		Hosts:       k8sStorageCluster.Spec.Hosts,
-		Phase:       k8sStorageCluster.Status.Phase,
+		Phase:       string(k8sStorageCluster.Status.Phase),
 		Size:        tSize,
 		UsedSize:    uSize,
 		FreeSize:    fSize,

@@ -334,12 +334,12 @@
   version = "v0.3.8"
 
 [[projects]]
-  digest = "1:beb5b4f42a25056f0aa291b5eadd21e2f2903a05d15dfe7caf7eaee7e12fa972"
+  digest = "1:7cd2924a44ecf80a319cfa2378529fabd348d011b739fb4eccc565f65e3296c4"
   name = "github.com/json-iterator/go"
   packages = ["."]
   pruneopts = "UT"
-  revision = "03217c3e97663914aec3faafde50d081f197a0a2"
-  version = "v1.1.8"
+  revision = "acfec88f7a0d5140ace3dcdbee10184e3684a9e1"
+  version = "v1.1.9"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -374,12 +374,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:d62282425ffb75047679d7e2c3b980eea7f82c05ef5fb9142ee617ebac6e7432"
+  digest = "1:29895093e370d9da5fd1c9ab12a5855ccb568f28766e0c3ff159c4b0f09aa127"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
   pruneopts = "UT"
-  revision = "88ba11cfdc67c7588b30042edf244b2875f892b6"
-  version = "v0.0.10"
+  revision = "31745d66dd679ac0ac4f8d3ecff168fce6170c6a"
+  version = "v0.0.11"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -485,12 +485,12 @@
   version = "v0.9.4"
 
 [[projects]]
-  branch = "master"
   digest = "1:982be0b5396e16a663697899ce69cc7b1e71ddcae4153af157578d4dc9bc3f88"
   name = "github.com/prometheus/client_model"
   packages = ["go"]
   pruneopts = "UT"
   revision = "d1d2010b5beead3fa1c5f271a5cf626e40b3ad6e"
+  version = "v0.1.0"
 
 [[projects]]
   digest = "1:f119e3205d3a1f0f19dbd7038eb37528e2c6f0933269dc344e305951fb87d632"
@@ -613,7 +613,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7a2ccd12c9aa659e18c96b2a48d5e4bff7f02be2350fc6448d79ad363473cec9"
+  digest = "1:2652b7ef83a9ccf3ddb3e1b57c2e74da8d2dc67073176846e9b3b169316f7a1b"
   name = "github.com/zdnscloud/gok8s"
   packages = [
     "cache",
@@ -632,7 +632,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "0f4b3df670cc875718875cf1f38bab129285e666"
+  revision = "517c0e8a9eeeb1b687c13b718693e674f1796070"
 
 [[projects]]
   branch = "master"
@@ -644,7 +644,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0d5860a6244227d825d90b4c3140d0c0463574ff8dcf7518f2f3af33c7b72ad5"
+  digest = "1:941010f8d592929ef2a2873448298a47887d54caa23476b5ecaa10ed6b65c0a4"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -654,18 +654,19 @@
     "resource/schema",
     "resource/schema/resourcedoc",
     "resource/schema/resourcefield",
+    "resource/schema/resourcefield/validator",
     "util",
   ]
   pruneopts = "UT"
-  revision = "137848a18b9b7e458bf4026d9d38158cdad74af0"
+  revision = "d67df9d6b64cd18a3269499172dd2564eb396d78"
 
 [[projects]]
   branch = "master"
-  digest = "1:4eebad89a7f61caf5d2ef2b53d53092e33fd17f155d6c12dac81f7ffd0ee32a4"
+  digest = "1:2acaae9b07303e00609a515ef14d7031268e453a22cc1d01ce2e692665ae4790"
   name = "github.com/zdnscloud/immense"
   packages = ["pkg/apis/zcloud/v1"]
   pruneopts = "UT"
-  revision = "408d3a64979397d0fb0e0e8c387b48c4cecac104"
+  revision = "e95fae7ebb2a35585ba34353ccf315a8b6fb3178"
 
 [[projects]]
   branch = "master"
@@ -769,7 +770,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:334389cf7ddd0f9a7b64dab90203a17e161cd425264cd830fa05f35d6080c603"
+  digest = "1:3ff283a70dbbcf0f967ea2f1be883c224119610fbd9a40150bd1b280dd1e6988"
   name = "golang.org/x/crypto"
   packages = [
     "chacha20",
@@ -784,7 +785,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "86a70503ff7e82ffc18c7b0de83db35da4791e6a"
+  revision = "becbf705a91575484002d598f87d74f0002801e7"
 
 [[projects]]
   branch = "master"
@@ -803,7 +804,7 @@
     "trace",
   ]
   pruneopts = "UT"
-  revision = "5ee1b9f4859acd2e99987ef94ec7a58427c53bef"
+  revision = "c0dbc17a35534bf2e581d7a942408dc936316da4"
 
 [[projects]]
   branch = "master"
@@ -818,7 +819,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:73eaec097280ac58e7dcf99d8a03f1d9e64139870340f6c711804a090afa33f1"
+  digest = "1:117c16569c92bfb59b280e46c3a6d1e4f62ae35097cefa7fe06f01cf6283e504"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -826,7 +827,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "6d18c012aee9febd81bbf9806760c8c4480e870d"
+  revision = "c709ea063b76879dc9915358f55d4d77c16ab6d5"
 
 [[projects]]
   digest = "1:8d8faad6b12a3a4c819a3f9618cb6ee1fa1cfc33253abeeea8b55336721e3405"
@@ -883,13 +884,14 @@
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = "UT"
-  revision = "3fa9dbf08042c806feeb0b21b23e07587714c143"
+  revision = "3caeed10a8bf5b67c6007d5b0a7016f367cedbad"
 
 [[projects]]
-  digest = "1:b59ce3ddb11daeeccccc9cb3183b58ebf8e9a779f1c853308cd91612e817a301"
+  digest = "1:3fe55026bb11519b45c0fc9d848fd779028b868dc62f5563c518cf850c7421d5"
   name = "google.golang.org/grpc"
   packages = [
     ".",
+    "attributes",
     "backoff",
     "balancer",
     "balancer/base",
@@ -926,16 +928,32 @@
     "tap",
   ]
   pruneopts = "UT"
-  revision = "1a3960e4bd028ac0cec0a2afd27d7d8e67c11514"
-  version = "v1.25.1"
+  revision = "f5b0812e6fe574d90da76b205e9eb51f6ddb1919"
+  version = "v1.26.0"
 
 [[projects]]
-  digest = "1:2db5a1f3b009007bce11fc8bd83e69a70f3f8cd84afd85b2f873fc2baedd7b6a"
+  branch = "v3"
+  digest = "1:7388652e2215a3f45d341d58766ed58317971030eb1cbd75f005f96ace8e9196"
+  name = "gopkg.in/alexcesaro/quotedprintable.v3"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2caba252f4dc53eaf6b553000885530023f54623"
+
+[[projects]]
+  digest = "1:0e49ce3bb641491517ba5035619be50aa07619814665c9761d0decb48f35ea94"
   name = "gopkg.in/go-playground/validator.v9"
   packages = ["."]
   pruneopts = "UT"
-  revision = "bde478f9466b5371375581708adf1b77acd08b72"
-  version = "v9.30.2"
+  revision = "21c910fc6d9c3556c28252b04beb17de0c2d40ec"
+  version = "v9.31.0"
+
+[[projects]]
+  branch = "v2"
+  digest = "1:e096ada745e034a059752c202717baee0379b69db9473a90f59d103c973384cf"
+  name = "gopkg.in/gomail.v2"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "81ebce5c23dfd25c6c67194b37d3dd3f338c98b1"
 
 [[projects]]
   digest = "1:2d1fbdc6777e5408cabeb02bf336305e724b925ff4546ded0fa8715a7267922a"
@@ -1241,6 +1259,7 @@
     "github.com/zdnscloud/zke/core/pki",
     "github.com/zdnscloud/zke/types",
     "github.com/zsais/go-gin-prometheus",
+    "gopkg.in/gomail.v2",
     "gopkg.in/yaml.v2",
     "helm.sh/helm/pkg/chart/loader",
     "helm.sh/helm/pkg/chartutil",

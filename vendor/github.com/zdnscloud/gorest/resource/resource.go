@@ -31,6 +31,9 @@ type Resource interface {
 	GetCreationTimestamp() time.Time
 	SetCreationTimestamp(time.Time)
 
+	GetDeletionTimestamp() time.Time
+	SetDeletionTimestamp(time.Time)
+
 	GetSchema() Schema
 	SetSchema(Schema)
 
