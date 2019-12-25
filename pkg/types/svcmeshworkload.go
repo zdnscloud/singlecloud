@@ -6,6 +6,7 @@ import (
 
 type SvcMeshWorkload struct {
 	resource.ResourceBase `json:",inline"`
+	GroupID               string      `json:"groupId,omitempty"`
 	Destinations          []string    `json:"destinations,omitempty"`
 	Stat                  Stat        `json:"stat,omitempty"`
 	Inbound               Stats       `json:"inbound,omitempty"`
@@ -14,7 +15,7 @@ type SvcMeshWorkload struct {
 }
 
 func (w SvcMeshWorkload) GetParents() []resource.ResourceKind {
-	return []resource.ResourceKind{SvcMeshWorkloadGroup{}}
+	return []resource.ResourceKind{Namespace{}}
 }
 
 type SvcMeshWorkloads []*SvcMeshWorkload

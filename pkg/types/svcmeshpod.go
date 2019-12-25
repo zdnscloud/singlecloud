@@ -26,8 +26,9 @@ type Resource struct {
 type Stats []Stat
 
 type Stat struct {
-	Id              string           `json:"id,omitempty"`
-	WorkloadId      string           `json:"workloadId,omitempty"`
+	ID              string           `json:"id,omitempty"`
+	WorkloadID      string           `json:"workloadId,omitempty"`
+	Link            string           `json:"link,omitempty"`
 	Resource        Resource         `json:"resource,omitempty"`
 	TimeWindow      string           `json:"timeWindow,omitempty"`
 	Status          string           `json:"status,omitempty"`

@@ -89,7 +89,6 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.KubeConfig{}, newKubeConfigManager(a.clusterManager))
 	schemas.MustImport(&Version, types.FluentBitConfig{}, newFluentBitConfigManager(a.clusterManager))
-	schemas.MustImport(&Version, types.SvcMeshWorkloadGroup{}, newSvcMeshWorkloadGroupManager(a.clusterManager))
 	schemas.MustImport(&Version, types.SvcMeshWorkload{}, newSvcMeshWorkloadManager(a.clusterManager))
 	schemas.MustImport(&Version, types.SvcMeshPod{}, newSvcMeshPodManager(a.clusterManager))
 
