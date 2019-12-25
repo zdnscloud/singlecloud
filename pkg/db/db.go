@@ -51,7 +51,7 @@ func RunAsMaster(conf *config.SinglecloudConf, stopCh chan struct{}) (kvzoo.DB, 
 		db.Stop()
 	}()
 
-	if err := checkDBVersion(dbClient); err != nil {
+	if err := checkDBVersion(dbClient, conf.DB.Version); err != nil {
 		return nil, err
 	}
 
@@ -64,7 +64,7 @@ func RunAsMaster(conf *config.SinglecloudConf, stopCh chan struct{}) (kvzoo.DB, 
 	return dbClient, nil
 }
 
-func checkDBVersion(db kvzoo.DB) error {
+func checkDBVersion(db kvzoo.DB, version string) error {
 	tn, _ := kvzoo.TableNameFromSegments(DBVerisonTable)
 	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
@@ -83,23 +83,23 @@ func checkDBVersion(db kvzoo.DB) error {
 	}
 
 	if len(values) == 0 {
-		version := &Version{Version: DBVerison}
-		value, err := json.Marshal(version)
+		v := &Version{Version: version}
+		value, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("marshal db version failed: %s", err.Error())
 		}
 
-		if err := tx.Add(version.Version, value); err != nil {
+		if err := tx.Add(v.Version, value); err != nil {
 			return fmt.Errorf("add version to db failed: %s", err.Error())
 		}
 
-		log.Debugf("init db version with %s", DBVerison)
+		log.Debugf("init db version with %s", version)
 		return tx.Commit()
 	}
 
-	for version := range values {
-		if version != DBVerison {
-			return fmt.Errorf("invalid db version %s, current db version is %s", version, DBVerison)
+	for v := range values {
+		if v != version {
+			return fmt.Errorf("invalid db version %s, current db version is %s", v, version)
 		}
 	}
 

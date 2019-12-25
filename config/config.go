@@ -33,6 +33,7 @@ type DBConf struct {
 	Port        int    `yaml:"port"`
 	Role        DBRole `yaml:"role"`
 	SlaveDBAddr string `yaml:"slave_db_addr"`
+	Version     string `yaml:"version"`
 }
 
 type ChartConf struct {
