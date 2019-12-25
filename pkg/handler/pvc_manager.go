@@ -52,25 +52,6 @@ func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) interface{} {
 	return pvcs
 }
 
-func (m PersistentVolumeClaimManager) Get(ctx *resource.Context) resource.Resource {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	if cluster == nil {
-		return nil
-	}
-
-	namespace := ctx.Resource.GetParent().GetID()
-	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
-	k8sPersistentVolumeClaim, err := getPersistentVolumeClaim(cluster.KubeClient, namespace, pvc.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get persistentvolumeclaim info failed:%s", err.Error())
-		}
-		return nil
-	}
-
-	return k8sPVCToSCPVC(k8sPersistentVolumeClaim)
-}
-
 func (m PersistentVolumeClaimManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
@@ -185,7 +166,11 @@ func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods 
 			for _, volume := range p.Spec.Volumes {
 				if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvc.Name {
 					pvc.Pods = append(pvc.Pods, p.Name)
+					break
 				}
+			}
+			if pvc.StorageClassName == "lvm" && len(pvc.Pods) > 0 {
+				break
 			}
 		}
 	}
@@ -196,6 +181,9 @@ func isUsed(cli client.Client, namespace, name string) error {
 	k8sPvc, err := getPersistentVolumeClaim(cli, namespace, name)
 	if err != nil {
 		return err
+	}
+	if string(k8sPvc.Status.Phase) != "Bound" {
+		return nil
 	}
 	pv, err := getPersistentVolume(cli, k8sPvc.Spec.VolumeName)
 	if err != nil {
