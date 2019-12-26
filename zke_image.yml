@@ -1,0 +1,24 @@
+v1.13.10:
+  etcd: zdnscloud/coreos-etcd:v3.3.10
+  kubernetes: zdnscloud/hyperkube:v1.13.10
+  alpine: zdnscloud/zke-tools:v0.1.40
+  nginx_proxy: zdnscloud/zke-tools:v0.1.40
+  cert_downloader: zdnscloud/zke-tools:v0.1.40
+  kubernetes_services_sidecar: zdnscloud/zke-tools:v0.1.40
+  flannel: zdnscloud/coreos-flannel:v0.10.0
+  flannel_cni: zdnscloud/coreos-flannel-cni:v0.3.0
+  flannel_sidecar: zdnscloud/flannel-directrouting:v0.0.1
+  calico_node: zdnscloud/calico-node:v3.4.0
+  calico_cni: zdnscloud/calico-cni:v3.4.0
+  calico_ctl: zdnscloud/calico-ctl:v2.0.0
+  pod_infra_container: zdnscloud/pause-amd64:3.1
+  ingress: zdnscloud/nginx-ingress-controller:0.23.0
+  ingress_backend: zdnscloud/nginx-ingress-controller-defaultbackend:1.4
+  coredns: zdnscloud/coredns:1.2.6
+  coredns_autoscaler: zdnscloud/cluster-proportional-autoscaler-amd64:1.0.0
+  cluster_agent: zdnscloud/cluster-agent:v3.1.4
+  node_agent: zdnscloud/node-agent:v1.3.1
+  metrics_server: zdnscloud/metrics-server-amd64:v0.3.3
+  zke_remover: zdnscloud/zke-remove:v0.7
+  storage_operator: zdnscloud/storage-operator:v3.5.7
+  zcloud_shell: zdnscloud/kubectl:v1.13.10
