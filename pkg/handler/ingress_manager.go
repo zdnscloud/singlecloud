@@ -242,7 +242,7 @@ func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {
 
 	if bss, ok := k8sIngress.ObjectMeta.Annotations[NginxProxyBodySize]; ok {
 		l := len(bss)
-		if l > 2 {
+		if l > 1 {
 			bs, err := strconv.Atoi(bss[0 : l-1])
 			if err == nil {
 				ingress.MaxBodySize = bs
