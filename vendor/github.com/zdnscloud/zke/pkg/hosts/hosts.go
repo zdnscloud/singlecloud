@@ -130,7 +130,7 @@ func (h *Host) CleanUp(ctx context.Context, toCleanPaths []string, cleanerImage 
 	if err := CleanHeritageContainers(ctx, h); err != nil {
 		return fmt.Errorf("err while cleanheritagecontainers on host [%s]:%s", h.Address, err)
 	}
-	if err := CleanHeritageStorge(ctx, h, types.AllK8sVersions["v1.13.1"].ZKERemover, clusterCIDR, prsMap); err != nil {
+	if err := CleanHeritageStorge(ctx, h, types.AllK8sVersions["v1.13.10"].ZKERemover, clusterCIDR, prsMap); err != nil {
 		return fmt.Errorf("err while cleanheritagestorage on host [%s]:%s", h.Address, err)
 	}
 

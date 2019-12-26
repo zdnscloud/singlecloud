@@ -48,29 +48,8 @@
         "readonly"
       ]
     },
-    "disablePortCheck": {
-      "type": "bool",
-      "description": [
-        "immutable"
-      ]
-    },
-    "dockerSocket": {
-      "type": "string",
-      "description": [
-        "immutable"
-      ]
-    },
-    "ignoreDockerVersion": {
-      "type": "bool",
-      "description": [
-        "immutable"
-      ]
-    },
-    "kubernetesVersion": {
-      "type": "string",
-      "description": [
-        "readonly"
-      ]
+    "loadBalance": {
+      "type": "clusterLoadBalance"
     },
     "memory": {
       "type": "int",
@@ -135,10 +114,6 @@
         "readonly"
       ]
     },
-    "privateRegistrys": {
-      "type": "array",
-      "elemType": "privateRegistry"
-    },
     "serviceCidr": {
       "type": "string",
       "description": [
@@ -183,6 +158,20 @@
     }
   },
   "subResources": {
+    "clusterLoadBalance": {
+      "backupServer": {
+        "type": "string"
+      },
+      "masterServer": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string"
+      },
+      "user": {
+        "type": "string"
+      }
+    },
     "clusterNetwork": {
       "iface": {
         "type": "string"
@@ -316,20 +305,6 @@
         "description": [
           "readonly"
         ]
-      }
-    },
-    "privateRegistry": {
-      "caCert": {
-        "type": "string"
-      },
-      "password": {
-        "type": "string"
-      },
-      "url": {
-        "type": "string"
-      },
-      "user": {
-        "type": "string"
       }
     }
   },

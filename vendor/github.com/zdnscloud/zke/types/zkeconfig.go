@@ -13,6 +13,7 @@ type ZKEConfig struct {
 	Authorization      ZKEConfigAuthz    `yaml:"authorization,omitempty" json:"authorization,omitempty"`
 	Monitor            ZKEConfigMonitor  `yaml:"monitor,omitempty" json:"monitor,omitempty"`
 	SingleCloudAddress string            `yaml:"single_cloud_address,omitempty" json:"singleCloudAddress"`
+	LoadBalance        ZKELBConfig       `yaml:"loadbalance,omitempty" json:"loadbalance,omitempty"`
 	ConfigVersion      string            `yaml:"config_version" json:"configVersion"`
 }
 
@@ -94,8 +95,18 @@ type ZKEConfigImages struct {
 	IngressBackend string `yaml:"ingress_backend" json:"ingressBackend"`
 	MetricsServer  string `yaml:"metrics_server" json:"metricsServer"`
 	// Zcloud image
-	ClusterAgent    string `yaml:"cluster_agent" json:"clusterAgent"`
-	NodeAgent       string `yaml:"node_agent" json:"nodeAgent"`
-	StorageOperator string `yaml:"storage_operator" json:"storageOperator"`
-	ZcloudShell     string `yaml:"zcloud_shell" json:"zcloud_shell"`
+	ClusterAgent       string `yaml:"cluster_agent" json:"clusterAgent"`
+	NodeAgent          string `yaml:"node_agent" json:"nodeAgent"`
+	StorageOperator    string `yaml:"storage_operator" json:"storageOperator"`
+	ZcloudShell        string `yaml:"zcloud_shell" json:"zcloudShell"`
+	ZcloudProxy        string `yaml:"zcloud_proxy" json:"zcloudProxy"`
+	ZcloudLBController string `yaml:"zcloud_lbcontroller" json:"zcloudLBController"`
+}
+
+type ZKELBConfig struct {
+	Enable       bool   `yaml:"enable" json:"enable"`
+	MasterServer string `yaml:"master_server" json:"masterServer"`
+	BackupServer string `yaml:"backup_server,omitempty" json:"backupServer,omitempty"`
+	User         string `yaml:"user" json:"user"`
+	Password     string `yaml:"password" json:"password"`
 }

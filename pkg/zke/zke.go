@@ -13,19 +13,7 @@ import (
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 	zketypes "github.com/zdnscloud/zke/types"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-)
-
-const (
-	zcloudProxyReplicas   = 1
-	zcloudProxyDeployName = "zcloud-proxy"
-	zcloudProxyImage      = "zdnscloud/zcloud-proxy:v1.0.1"
-	zcloudProxyNamespace  = "zcloud"
 )
 
 func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.FullState, logger log.Logger) (*core.FullState, *rest.Config, client.Client, error) {
@@ -45,10 +33,6 @@ func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.F
 	storagev1.AddToScheme(options.Scheme)
 	kubeClient, err := client.New(k8sConfig, options)
 	if err != nil {
-		return newState, k8sConfig, kubeClient, err
-	}
-
-	if err := createOrUpdateZcloudProxy(kubeClient, config.ClusterName, config.SingleCloudAddress); err != nil {
 		return newState, k8sConfig, kubeClient, err
 	}
 
@@ -88,18 +72,14 @@ func genZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 		config.Nodes = append(config.Nodes, n)
 	}
 
-	if cluster.PrivateRegistries != nil {
-		config.PrivateRegistries = []zketypes.PrivateRegistry{}
-		for _, pr := range cluster.PrivateRegistries {
-			npr := zketypes.PrivateRegistry{
-				User:     pr.User,
-				Password: pr.Password,
-				URL:      pr.URL,
-				CAcert:   pr.CAcert,
-			}
-			config.PrivateRegistries = append(config.PrivateRegistries, npr)
-		}
+	if cluster.LoadBalance.MasterServer != "" {
+		config.LoadBalance.Enable = true
+		config.LoadBalance.MasterServer = cluster.LoadBalance.MasterServer
+		config.LoadBalance.BackupServer = cluster.LoadBalance.BackupServer
+		config.LoadBalance.User = cluster.LoadBalance.User
+		config.LoadBalance.Password = cluster.LoadBalance.Password
 	}
+
 	return config
 }
 
@@ -122,51 +102,10 @@ func genZKEConfigForUpdate(config *zketypes.ZKEConfig, sc *types.Cluster) *zkety
 		}
 		newConfig.Nodes = append(newConfig.Nodes, n)
 	}
+
+	newConfig.LoadBalance.MasterServer = sc.LoadBalance.MasterServer
+	newConfig.LoadBalance.BackupServer = sc.LoadBalance.BackupServer
+	newConfig.LoadBalance.User = sc.LoadBalance.User
+	newConfig.LoadBalance.Password = sc.LoadBalance.Password
 	return newConfig
-}
-
-func createOrUpdateZcloudProxy(cli client.Client, clusterName, scAddress string) error {
-	deploy := appsv1.Deployment{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{zcloudProxyNamespace, zcloudProxyDeployName}, &deploy)
-	if apierrors.IsNotFound(err) {
-		return cli.Create(context.TODO(), genZcloudProxyDeploy(clusterName, scAddress))
-	}
-	return cli.Update(context.TODO(), genZcloudProxyDeploy(clusterName, scAddress))
-}
-
-func genZcloudProxyDeploy(clusterName, scAddress string) *appsv1.Deployment {
-	replicas := int32(zcloudProxyReplicas)
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      zcloudProxyDeployName,
-			Namespace: zcloudProxyNamespace,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": zcloudProxyDeployName,
-				},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": zcloudProxyDeployName,
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						corev1.Container{
-							Name:    zcloudProxyDeployName,
-							Image:   zcloudProxyImage,
-							Command: []string{"agent"},
-							Args:    []string{"-server", scAddress, "-cluster", clusterName},
-						},
-					},
-					RestartPolicy: corev1.RestartPolicyAlways,
-					DNSPolicy:     corev1.DNSClusterFirst,
-				},
-			},
-		},
-	}
 }

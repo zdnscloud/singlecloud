@@ -261,6 +261,7 @@ func ClusterUpForSingleCloud(ctx context.Context, clusterState *core.FullState, 
 			return clusterState, err
 		}
 	}
+
 	log.Infof(ctx, "Finished building Kubernetes cluster successfully")
 	return clusterState, nil
 }
@@ -347,6 +348,7 @@ func ConfigureCluster(
 	if err := kubeCluster.SetupDialers(ctx, dailersOptions); err != nil {
 		return err
 	}
+
 	if len(kubeCluster.ControlPlaneHosts) > 0 && isNewCluster {
 		kubeCluster.Certificates = crtBundle
 		if err := network.DeployNetwork(ctx, kubeCluster); err != nil {
@@ -361,6 +363,14 @@ func ConfigureCluster(
 		if err := zcloud.DeployZcloudManager(ctx, kubeCluster); err != nil {
 			return err
 		}
+	}
+
+	if err := zcloud.DeployZcloudProxy(ctx, kubeCluster); err != nil {
+		return err
+	}
+
+	if err := zcloud.DeployZcloudLBController(ctx, kubeCluster); err != nil {
+		return err
 	}
 	return nil
 }

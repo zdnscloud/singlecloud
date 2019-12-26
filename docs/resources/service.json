@@ -19,6 +19,17 @@
     "headless": {
       "type": "bool"
     },
+    "loadBalanceMethod": {
+      "type": "enum",
+      "validValues": [
+        "rr",
+        "lc",
+        "hash"
+      ]
+    },
+    "loadBalanceVip": {
+      "type": "string"
+    },
     "name": {
       "type": "string",
       "description": [
@@ -30,7 +41,8 @@
       "type": "enum",
       "validValues": [
         "clusterip",
-        "nodeport"
+        "nodeport",
+        "loadbalancer"
       ],
       "description": [
         "required"

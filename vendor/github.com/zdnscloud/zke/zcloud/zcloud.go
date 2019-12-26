@@ -10,8 +10,10 @@ import (
 	"github.com/zdnscloud/zke/pkg/log"
 	"github.com/zdnscloud/zke/pkg/util"
 	clusteragent "github.com/zdnscloud/zke/zcloud/cluster-agent"
+	"github.com/zdnscloud/zke/zcloud/lbcontroller"
 	"github.com/zdnscloud/zke/zcloud/linkerd"
 	nodeagent "github.com/zdnscloud/zke/zcloud/node-agent"
+	"github.com/zdnscloud/zke/zcloud/proxy"
 	zcloudsa "github.com/zdnscloud/zke/zcloud/sa"
 	"github.com/zdnscloud/zke/zcloud/storage"
 	zcloudshell "github.com/zdnscloud/zke/zcloud/zcloud-shell"
@@ -59,6 +61,42 @@ func DeployZcloudManager(ctx context.Context, c *core.Cluster) error {
 			return err
 		}
 		return nil
+	}
+}
+
+func DeployZcloudProxy(ctx context.Context, c *core.Cluster) error {
+	if c.SingleCloudAddress == "" {
+		log.Infof(ctx, "[zcloud] singlecloud address is empty, skip deploy ZcloudProxy")
+		return nil
+	}
+	log.Infof(ctx, "[zcloud] deploy ZcloudProxy")
+	select {
+	case <-ctx.Done():
+		return util.CancelErr
+	default:
+		k8sClient, err := k8s.GetK8sClientFromYaml(c.Certificates[pki.KubeAdminCertName].Config)
+		if err != nil {
+			return err
+		}
+		return proxy.CreateOrUpdate(k8sClient, c)
+	}
+}
+
+func DeployZcloudLBController(ctx context.Context, c *core.Cluster) error {
+	if !c.LoadBalance.Enable {
+		log.Infof(ctx, "[zcloud] LoadBalance disabled, skip deploy ZcloudLBController")
+		return nil
+	}
+	log.Infof(ctx, "[zcloud] deploy ZcloudLBController")
+	select {
+	case <-ctx.Done():
+		return util.CancelErr
+	default:
+		k8sClient, err := k8s.GetK8sClientFromYaml(c.Certificates[pki.KubeAdminCertName].Config)
+		if err != nil {
+			return err
+		}
+		return lbcontroller.CreateOrUpdate(k8sClient, c)
 	}
 }
 

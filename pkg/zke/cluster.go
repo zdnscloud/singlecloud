@@ -276,19 +276,6 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	}
 	sc.NodesCount = len(sc.Nodes)
 
-	if c.config.PrivateRegistries != nil {
-		sc.PrivateRegistries = []types.PrivateRegistry{}
-		for _, pr := range c.config.PrivateRegistries {
-			npr := types.PrivateRegistry{
-				User:     pr.User,
-				Password: pr.Password,
-				URL:      pr.URL,
-				CAcert:   pr.CAcert,
-			}
-			sc.PrivateRegistries = append(sc.PrivateRegistries, npr)
-		}
-	}
-
 	sc.SetID(c.Name)
 	sc.SetCreationTimestamp(c.CreateTime)
 	sc.SetDeletionTimestamp(c.DeleteTime)
