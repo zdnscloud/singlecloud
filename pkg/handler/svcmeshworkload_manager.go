@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"path"
 	"strings"
 
 	"github.com/zdnscloud/cement/log"
@@ -57,14 +58,14 @@ func genClusterAgentURL(path, cluster string) string {
 func setWorkloadRelativeResourceLink(reqPath string, workload *types.SvcMeshWorkload) {
 	workloadLinkPrefix := strings.TrimSuffix(reqPath, workload.GetID())
 	for i, in := range workload.Inbound {
-		workload.Inbound[i].Link = workloadLinkPrefix + in.ID
+		workload.Inbound[i].Link = path.Join(workloadLinkPrefix, in.ID)
 	}
 
 	for i, out := range workload.Outbound {
-		workload.Outbound[i].Link = workloadLinkPrefix + out.ID
+		workload.Outbound[i].Link = path.Join(workloadLinkPrefix, out.ID)
 	}
 
 	for i, pod := range workload.Pods {
-		workload.Pods[i].Stat.Link = reqPath + "/svcmeshpods/" + pod.Stat.ID
+		workload.Pods[i].Stat.Link = path.Join(reqPath, "svcmeshpods", pod.Stat.ID)
 	}
 }

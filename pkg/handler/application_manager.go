@@ -45,8 +45,8 @@ var (
 		APIVersions: chartutil.DefaultVersionSet,
 	}
 
-	AppSupportWorkloadTypes = []string{types.ResourceTypeDeployment, types.ResourceTypeDaemonSet, types.ResourceTypeStatefulSet}
-	AppSupportResourceTypes = append(AppSupportWorkloadTypes, types.ResourceTypeCronJob, types.ResourceTypeJob, types.ResourceTypeConfigMap, types.ResourceTypeSecret, types.ResourceTypeService, types.ResourceTypeIngress)
+	SupportWorkloadTypes = []string{types.ResourceTypeDeployment, types.ResourceTypeDaemonSet, types.ResourceTypeStatefulSet}
+	SupportResourceTypes = append(SupportWorkloadTypes, types.ResourceTypeCronJob, types.ResourceTypeJob, types.ResourceTypeConfigMap, types.ResourceTypeSecret, types.ResourceTypeService, types.ResourceTypeIngress)
 )
 
 const (
@@ -160,7 +160,8 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		return fmt.Errorf("add application %s to db failed: %s", app.Name, err.Error())
 	}
 
-	go createApplication(table, cluster.KubeClient, isAdminUser, namespace, genUrlPrefix(ctx, cluster.Name), app, crdManifests)
+	urls := strings.SplitAfterN(ctx.Request.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", cluster.Name), 2)
+	go createApplication(table, cluster.KubeClient, isAdminUser, namespace, urls[0], app, crdManifests)
 	return nil
 }
 
@@ -172,17 +173,6 @@ func createOrGetAppTable(db kvzoo.DB, clusterName, namespace string) (kvzoo.Tabl
 	}
 
 	return table, tn, nil
-}
-
-func genUrlPrefix(ctx *resource.Context, clusterName string) string {
-	req := ctx.Request
-	scheme := "http"
-	if req.TLS != nil {
-		scheme = "https"
-	}
-
-	urls := strings.SplitAfterN(req.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", clusterName), 2)
-	return fmt.Sprintf("%s://%s%s", scheme, req.Host, urls[0])
 }
 
 func parseChartConfigs(chartVersionDir string, configRaw json.RawMessage) (map[string]interface{}, error) {
@@ -340,8 +330,8 @@ func createAppResources(cli client.Client, isAdmin bool, namespace, urlPrefix st
 			}
 
 			typ := strings.ToLower(gvk.Kind)
-			if slice.SliceIndex(AppSupportResourceTypes, typ) != -1 {
-				if slice.SliceIndex(AppSupportWorkloadTypes, typ) != -1 {
+			if slice.SliceIndex(SupportResourceTypes, typ) != -1 {
+				if slice.SliceIndex(SupportWorkloadTypes, typ) != -1 {
 					app.WorkloadCount += 1
 				}
 				app.AppResources = append(app.AppResources, types.AppResource{

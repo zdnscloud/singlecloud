@@ -22,13 +22,15 @@ import (
 )
 
 const (
-	TapApiURLPath = "/apis/tap.linkerd.io/v1alpha1/watch/namespaces/%s/%ss/%s/tap"
-	DefaultMaxRps = 100.0
+	TapApiURLPath          = "/apis/tap.linkerd.io/v1alpha1/watch/namespaces/%s/%ss/%s/tap"
+	SvcMeshWorkloadURLPath = "/apis/zcloud.cn/v1/clusters/%s/namespaces/%s/svcmeshworkloads/%s"
+	DefaultMaxRps          = 100.0
+	INBOUND                = "INBOUND"
+	OUTBOUND               = "OUTBOUND"
 )
 
 var (
-	ValidTapResourceTypes = append(AppSupportWorkloadTypes, types.ResourceTypePod)
-	ValidTapMethods       = []string{"POST", "GET", "PUT", "DELETE"}
+	ValidTapMethods = []string{"POST", "GET", "PUT", "DELETE"}
 )
 
 func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, path string, r *http.Request, w http.ResponseWriter) {
@@ -81,7 +83,7 @@ func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, 
 			break
 		}
 
-		if err := conn.WriteJSON(pbTapEventToScTap(&event)); err != nil {
+		if err := conn.WriteJSON(pbTapEventToScTap(clusterID, ns, &event)); err != nil {
 			if isBrokenPipeErr(err) == false {
 				log.Warnf("send tap response to websocket failed:%s", err.Error())
 			}
@@ -95,13 +97,13 @@ func buildTapRequest(namespace, kind, name, toKind, toName, method, path string)
 		return nil, fmt.Errorf("resource_type and resource_name must not be empty")
 	}
 
-	if slice.SliceIndex(ValidTapResourceTypes, kind) == -1 {
+	if slice.SliceIndex(SupportWorkloadTypes, kind) == -1 {
 		return nil, fmt.Errorf("tap unsupported resource_type %s", kind)
 	}
 
 	matches := []*pb.TapByResourceRequest_Match{}
 	if toKind != "" && toName != "" {
-		if slice.SliceIndex(ValidTapResourceTypes, toKind) == -1 {
+		if slice.SliceIndex(SupportWorkloadTypes, toKind) == -1 {
 			return nil, fmt.Errorf("tap unsupported to_resource_type %s", toKind)
 		}
 
@@ -161,8 +163,8 @@ func buildTapRequest(namespace, kind, name, toKind, toName, method, path string)
 	}, nil
 }
 
-func pbTapEventToScTap(pbEvent *pb.TapEvent) *types.Tap {
-	return &types.Tap{
+func pbTapEventToScTap(clusterName, namespace string, pbEvent *pb.TapEvent) *types.Tap {
+	tap := &types.Tap{
 		Source:          getTcpAddr(pbEvent.GetSource()),
 		SourceMeta:      types.EndpointMeta{Labels: pbEvent.GetSourceMeta().GetLabels()},
 		Destination:     getTcpAddr(pbEvent.GetDestination()),
@@ -175,6 +177,33 @@ func pbTapEventToScTap(pbEvent *pb.TapEvent) *types.Tap {
 			ResponseEnd:  pbRespEndToScRespEnd(pbEvent),
 		},
 	}
+
+	switch tap.ProxyDirection {
+	case INBOUND:
+		if link, ok := genWorkloadLink(clusterName, namespace, tap.SourceMeta.Labels); ok {
+			tap.SourceMeta.Labels["link"] = link
+		}
+	case OUTBOUND:
+		if link, ok := genWorkloadLink(clusterName, namespace, tap.DestinationMeta.Labels); ok {
+			tap.DestinationMeta.Labels["link"] = link
+		}
+	}
+
+	return tap
+}
+
+func genWorkloadLink(clusterName, namespace string, labels map[string]string) (string, bool) {
+	var workloadName, workloadPrefix string
+	ok := false
+	if workloadName, ok = labels[types.ResourceTypeDeployment]; ok {
+		workloadPrefix = "dpm-"
+	} else if workloadName, ok = labels[types.ResourceTypeDaemonSet]; ok {
+		workloadPrefix = "dms-"
+	} else if workloadName, ok = labels[types.ResourceTypeStatefulSet]; ok {
+		workloadPrefix = "sts-"
+	}
+
+	return fmt.Sprintf(SvcMeshWorkloadURLPath, clusterName, namespace, workloadPrefix+workloadName), ok
 }
 
 func getTcpAddr(pbTcpAddr *pb.TcpAddress) types.TcpAddress {

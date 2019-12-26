@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"path"
 	"strings"
 
 	"github.com/zdnscloud/cement/log"
@@ -35,10 +36,10 @@ func (m *SvcMeshPodManager) Get(ctx *resource.Context) resource.Resource {
 func setPodRelativeResourceLink(reqPath, namespace string, pod *types.SvcMeshPod) {
 	workloadLinkPrefix := strings.SplitAfterN(reqPath, "/namespaces/"+namespace+"/svcmeshworkloads/", 2)[0]
 	for i, in := range pod.Inbound {
-		pod.Inbound[i].Link = workloadLinkPrefix + in.WorkloadID + "/svcmeshpods/" + in.ID
+		pod.Inbound[i].Link = path.Join(workloadLinkPrefix, in.WorkloadID, "svcmeshpods", in.ID)
 	}
 
 	for i, out := range pod.Outbound {
-		pod.Outbound[i].Link = workloadLinkPrefix + out.WorkloadID + "/svcmeshpods/" + out.ID
+		pod.Outbound[i].Link = path.Join(workloadLinkPrefix, out.WorkloadID, "svcmeshpods", out.ID)
 	}
 }
