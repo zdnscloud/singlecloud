@@ -19,6 +19,9 @@ const (
 	GetInfoSucceedEvent  = "getInfoSucceed"
 	DeleteEvent          = "delete"
 	DeleteCompletedEvent = "deleteCompleted"
+
+	DeleteFailedEvent = "deleteFailed"
+	UpdateFailedEvent = "updateFailed"
 )
 
 func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM {
@@ -50,6 +53,8 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 			CreateFailedEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
+				err := e.Args[2].(error)
+				mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: CreateFailedEvent, Message: err.Error()})
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
@@ -66,6 +71,9 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				mgr := e.Args[0].(*ZKEManager)
 				state := e.Args[1].(clusterState)
 				cluster.logCh = nil
+				if err := e.Args[2].(error); err != nil {
+					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: UpdateFailedEvent, Message: err.Error()})
+				}
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
@@ -80,6 +88,9 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 			},
 			DeleteCompletedEvent: func(e *fsm.Event) {
 				mgr := e.Args[0].(*ZKEManager)
+				if err := e.Args[2].(error); err != nil {
+					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: DeleteFailedEvent, Message: err.Error()})
+				}
 				mgr.Remove(cluster)
 				if err := deleteClusterFromDB(cluster.Name, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
