@@ -16,7 +16,7 @@ docker: build-image
 	#docker push zdnscloud/singlecloud:latest
 
 build-image:
-	docker build -t zdnscloud/singlecloud:${BRANCH} --build-arg version=${VERSION} --build-arg buildtime=${BUILD} .
+	docker build -t zdnscloud/singlecloud:${BRANCH} --build-arg version=${VERSION} --build-arg buildtime=${BUILD} --no-cache .
 	docker image prune -f
 
 clean:
