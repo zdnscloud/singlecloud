@@ -19,7 +19,7 @@ import (
 
 const (
 	clusterEventBufferCount   = 10
-	defaultZKEImageConfigFile = "/default_image.yml"
+	defaultZKEImageConfigFile = "/zke_image.yml"
 )
 
 type ZKEManager struct {
