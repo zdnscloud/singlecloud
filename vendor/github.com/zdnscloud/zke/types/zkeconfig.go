@@ -83,10 +83,9 @@ type ZKEConfigImages struct {
 	FlannelCNI     string `yaml:"flannel_cni" json:"flannelCni"`
 	FlannelSidecar string `yaml:"flannel_sidecar" json:"flannelSidecar"`
 	// Calico image
-	CalicoNode        string `yaml:"calico_node" json:"calicoNode"`
-	CalicoCNI         string `yaml:"calico_cni" json:"calicoCni"`
-	CalicoControllers string `yaml:"calico_controllers" json:"calicoControllers"`
-	CalicoCtl         string `yaml:"calico_ctl" json:"calicoCtl"`
+	CalicoNode string `yaml:"calico_node" json:"calicoNode"`
+	CalicoCNI  string `yaml:"calico_cni" json:"calicoCni"`
+	CalicoCtl  string `yaml:"calico_ctl" json:"calicoCtl"`
 	// Pod infra container image
 	PodInfraContainer string `yaml:"pod_infra_container" json:"podInfraContainer"`
 	// Ingress Controller image

@@ -24,10 +24,17 @@ import (
 )
 
 func UpCommand() cli.Command {
+	flags := []cli.Flag{
+		cli.StringFlag{
+			Name:  "image-config",
+			Usage: "Specify the images config file",
+		},
+	}
 	return cli.Command{
 		Name:   "up",
 		Usage:  "Bring the cluster up",
 		Action: clusterUpFromCli,
+		Flags:  flags,
 	}
 }
 
@@ -277,6 +284,9 @@ func checkAllIncluded(cluster *core.Cluster) error {
 }
 
 func clusterUpFromCli(cliCtx *cli.Context) error {
+	if err := LoadImageConfig(cliCtx.String("image-config")); err != nil {
+		return err
+	}
 	parentCtx := context.Background()
 	logger := cementlog.NewLog4jConsoleLogger(log.LogLevel)
 	defer logger.Close()
@@ -372,7 +382,7 @@ func postCleanToDeleteHosts(ctx context.Context, kubeCluster, currentCluster *co
 
 	_, err := errgroup.Batch(toDeleteHosts, func(h interface{}) (interface{}, error) {
 		runHost := h.(*hosts.Host)
-		return nil, runHost.CleanUpAll(ctx, kubeCluster.Image.Alpine, kubeCluster.PrivateRegistriesMap, false, currentCluster.Option.ClusterCidr)
+		return nil, runHost.CleanUpAll(ctx, kubeCluster.Image.Alpine, kubeCluster.Image.ZKERemover, kubeCluster.PrivateRegistriesMap, false, currentCluster.Option.ClusterCidr)
 	})
 
 	if err != nil {

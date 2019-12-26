@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
+	"os"
+	"reflect"
 
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
@@ -16,7 +19,7 @@ import (
 
 func ConfigCommand() cli.Command {
 	return cli.Command{
-		Name:   "generateconfig",
+		Name:   "genconfig",
 		Usage:  "Generate an empty configuration file",
 		Action: generateConfig,
 	}
@@ -44,4 +47,41 @@ func generateConfig(cliCtx *cli.Context) error {
 	cluster.ConfigVersion = core.DefaultConfigVersion
 	cluster.Nodes = make([]types.ZKEConfigNode, 1)
 	return writeConfig(ctx, &cluster, pki.ClusterConfig)
+}
+
+func LoadImageConfig(path string) error {
+	if path == "" {
+		return fmt.Errorf("must specify image config file")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open image config file %s failed %s", path, err.Error())
+	}
+
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return fmt.Errorf("read image config file failed %s", err.Error())
+	}
+
+	if err := yaml.Unmarshal(b, &types.AllK8sVersions); err != nil {
+		return fmt.Errorf("unmarshal image config failed %s", err.Error())
+	}
+	return validateImageConfig(types.AllK8sVersions)
+}
+
+func validateImageConfig(in map[string]types.ZKEConfigImages) error {
+	if _, ok := in[types.DefaultK8s]; !ok {
+		return fmt.Errorf("validate image config failed: defaultK8s %s not in image configs", types.DefaultK8s)
+	}
+
+	for version, images := range in {
+		t := reflect.TypeOf(images)
+		v := reflect.ValueOf(images)
+		for i := 0; i < t.NumField(); i++ {
+			if v.Field(i).String() == "" {
+				return fmt.Errorf("validate image config failed: k8s version %s field %s nil", version, t.Field(i).Name)
+			}
+		}
+	}
+	return nil
 }

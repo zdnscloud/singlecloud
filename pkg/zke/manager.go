@@ -12,12 +12,14 @@ import (
 	"github.com/zdnscloud/cement/log"
 	resterr "github.com/zdnscloud/gorest/error"
 	restsource "github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/zke/cmd"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 )
 
 const (
-	clusterEventBufferCount = 10
+	clusterEventBufferCount   = 10
+	defaultZKEImageConfigFile = "/default_image.yml"
 )
 
 type ZKEManager struct {
@@ -39,6 +41,7 @@ func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create or get db table failed %s", err.Error())
 	}
+
 	mgr := &ZKEManager{
 		clusters:     make([]*Cluster, 0),
 		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
@@ -46,6 +49,11 @@ func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 		scVersion:    scVersion,
 		nodeListener: nl,
 	}
+
+	if err := cmd.LoadImageConfig(defaultZKEImageConfigFile); err != nil {
+		return mgr, err
+	}
+
 	if err := mgr.loadDB(); err != nil {
 		return mgr, err
 	}
