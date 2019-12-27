@@ -87,5 +87,5 @@
   version = "v10.0.0"
 
 [[constraint]]
-  branch = "split-image-config"
+  branch = "master"
   name = "github.com/zdnscloud/zke"

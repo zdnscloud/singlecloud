@@ -1,5 +1,12 @@
 package types
 
+import (
+	"fmt"
+	"reflect"
+
+	"gopkg.in/yaml.v2"
+)
+
 const (
 	DefaultK8s = "v1.13.10"
 )
@@ -24,3 +31,29 @@ var (
 
 	AllK8sVersions = map[string]ZKEConfigImages{}
 )
+
+func mustLoadImage(image string) {
+	if err := yaml.Unmarshal([]byte(image), &AllK8sVersions); err != nil {
+		panic(err.Error())
+	}
+	if err := validateImageConfig(AllK8sVersions); err != nil {
+		panic(err.Error())
+	}
+}
+
+func validateImageConfig(in map[string]ZKEConfigImages) error {
+	if _, ok := in[DefaultK8s]; !ok {
+		return fmt.Errorf("validate image config failed: defaultK8s %s not in image configs", DefaultK8s)
+	}
+
+	for version, images := range in {
+		t := reflect.TypeOf(images)
+		v := reflect.ValueOf(images)
+		for i := 0; i < t.NumField(); i++ {
+			if v.Field(i).String() == "" {
+				return fmt.Errorf("validate image config failed: k8s version %s field %s nil", version, t.Field(i).Name)
+			}
+		}
+	}
+	return nil
+}

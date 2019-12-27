@@ -12,14 +12,12 @@ import (
 	"github.com/zdnscloud/cement/log"
 	resterr "github.com/zdnscloud/gorest/error"
 	restsource "github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/zke/cmd"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 )
 
 const (
-	clusterEventBufferCount   = 10
-	defaultZKEImageConfigFile = "/zke_image.yml"
+	clusterEventBufferCount = 10
 )
 
 type ZKEManager struct {
@@ -48,10 +46,6 @@ func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 		dbTable:      table,
 		scVersion:    scVersion,
 		nodeListener: nl,
-	}
-
-	if err := cmd.LoadImageConfig(defaultZKEImageConfigFile); err != nil {
-		return mgr, err
 	}
 
 	if err := mgr.loadDB(); err != nil {

@@ -8,7 +8,11 @@ GOSRC = $(shell find . -type f -name '*.go')
 build: singlecloud
 
 singlecloud: $(GOSRC) 
+	cp zke_image.yml vendor/github.com/zdnscloud/zke/image_config.yml
+	go generate vendor/github.com/zdnscloud/zke/types/generate.go
 	go build ${LDFLAGS} cmd/singlecloud/singlecloud.go
+	rm -f vendor/github.com/zdnscloud/zke/image_config.yml
+	rm -f vendor/github.com/zdnscloud/zke/types/initer.go
 
 docker: build-image
 	docker push zdnscloud/singlecloud:${BRANCH}

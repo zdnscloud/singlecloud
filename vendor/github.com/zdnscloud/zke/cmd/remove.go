@@ -18,17 +18,10 @@ import (
 )
 
 func RemoveCommand() cli.Command {
-	flags := []cli.Flag{
-		cli.StringFlag{
-			Name:  "image-config",
-			Usage: "Specify the images config file",
-		},
-	}
 	return cli.Command{
 		Name:   "remove",
 		Usage:  "Teardown the cluster and clean cluster nodes",
 		Action: clusterRemoveFromCli,
-		Flags:  flags,
 	}
 }
 
@@ -83,10 +76,6 @@ func ClusterRemoveWithoutCleanFiles(
 }
 
 func clusterRemoveFromCli(cliCtx *cli.Context) error {
-	if err := LoadImageConfig(cliCtx.String("image-config")); err != nil {
-		return err
-	}
-
 	parentCtx := context.Background()
 	logger := cementlog.NewLog4jConsoleLogger(log.LogLevel)
 	defer logger.Close()

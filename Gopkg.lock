@@ -716,8 +716,8 @@
   revision = "d7bf8860bb4015c0f822bbe1a3a7579f55f7cfc8"
 
 [[projects]]
-  branch = "split-image-config"
-  digest = "1:297d7511e7875f9bb713199b1b82d556017bd021eda4fb7b73a709e115e2a794"
+  branch = "master"
+  digest = "1:73312f59126a8232a030e386f9e084365650db0ae3fe9bfead4ec1c2d954f1bb"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -748,7 +748,7 @@
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "cb3dabc86f24266ee56d8597a4d334258029f5c2"
+  revision = "207a27eedb365208a928276e9eb4f15ff4ce558f"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"
