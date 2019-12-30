@@ -9,6 +9,7 @@ import (
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
@@ -239,8 +240,13 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 
 func (m *ClusterManager) eventLoop() {
 	for {
-		obj := <-m.zkeManager.PubEventCh
-		m.eventBus.Pub(obj, eventbus.ClusterEvent)
+		e := <-m.zkeManager.PubEventCh
+		switch obj := e.(type) {
+		case zke.AlarmCluster:
+			alarm.New().Kind("cluster").Name(obj.Cluster).Reason(obj.Reason).Message(obj.Message).Publish()
+		default:
+			m.eventBus.Pub(obj, eventbus.ClusterEvent)
+		}
 	}
 }
 
