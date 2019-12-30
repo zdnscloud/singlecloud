@@ -26,7 +26,7 @@ const (
 
 var ClusterKinds = []string{"Node", "node", "Cluster", "cluster"}
 
-func SendMail(cli client.Client, alarm *Alarm) {
+func SendMail(cli client.Client, alarm *types.Alarm) {
 	mailConn, err := getSender(cli)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -73,7 +73,7 @@ func getSender(cli client.Client) (map[string]string, error) {
 	return sender, nil
 }
 
-func getRecipient(cli client.Client, alarm *Alarm) ([]string, error) {
+func getRecipient(cli client.Client, alarm *types.Alarm) ([]string, error) {
 	var recipient []string
 	var configMaps []corev1.ConfigMap
 	clusterCm, err := getConfigMap(cli, ClusterThresholdConfigmapName)
@@ -108,7 +108,7 @@ func genMailTo(cm corev1.ConfigMap) []string {
 	}
 }
 
-func genMessage(alarm *Alarm) string {
+func genMessage(alarm *types.Alarm) string {
 	info, _ := json.Marshal(alarm)
 	return string(info)
 }

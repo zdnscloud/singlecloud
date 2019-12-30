@@ -2,18 +2,19 @@ package alarm
 
 import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-func publishAlarmEvent(ac *AlarmCache, stop chan struct{}) {
+func subscribeAlarmEvent(cache *AlarmCache, stop chan struct{}) {
 	alarmEventCh := eventBus.Sub(eventbus.AlarmEvent)
 	for {
 		select {
 		case <-stop:
 			return
 		case event := <-alarmEventCh:
-			alarm := event.(*Alarm)
-			alarm.Type = ZcloudType
-			ac.Add(alarm)
+			alarm := event.(*types.Alarm)
+			alarm.Type = types.ZcloudType
+			cache.Add(alarm)
 		}
 	}
 }

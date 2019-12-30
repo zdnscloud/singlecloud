@@ -1,11 +1,6 @@
 package alarm
 
-func (ac *AlarmCache) AckChannel() <-chan int {
-	go ac.publishAck()
-	return ac.ackCh
-}
-
-func (ac *AlarmCache) publishAck() {
+func (ac *AlarmCache) publishAck(al *AlarmListener) {
 	num := ac.unAckNumber
 	for {
 		if ac.unAckNumber == 0 {
@@ -20,7 +15,7 @@ func (ac *AlarmCache) publishAck() {
 			return
 		default:
 			if num != ac.unAckNumber {
-				ac.ackCh <- 1
+				al.alarmCh <- 1
 				num = ac.unAckNumber
 			}
 		}

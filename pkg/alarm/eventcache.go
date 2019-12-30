@@ -11,39 +11,59 @@ import (
 	"github.com/zdnscloud/gok8s/event"
 	"github.com/zdnscloud/gok8s/handler"
 	"github.com/zdnscloud/gok8s/predicate"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-func publishK8sEvent(ac *AlarmCache, cache cache.Cache, stop chan struct{}) {
+type EventCache struct {
+	cluster string
+	cache   *AlarmCache
+	stopCh  chan struct{}
+}
+
+func NewEventCache(name string, cache cache.Cache, alarmCache *AlarmCache) *EventCache {
+	stop := make(chan struct{})
+	eventCache := &EventCache{
+		cluster: name,
+		stopCh:  stop,
+		cache:   alarmCache,
+	}
 	ctrl := controller.New("eventWatcher", cache, scheme.Scheme)
 	ctrl.Watch(&corev1.Event{})
-	go ctrl.Start(stop, ac, predicate.NewIgnoreUnchangedUpdate())
+	go ctrl.Start(stop, eventCache, predicate.NewIgnoreUnchangedUpdate())
+	return eventCache
 }
 
-func (ac *AlarmCache) OnCreate(e event.CreateEvent) (handler.Result, error) {
+func (ec *EventCache) Stop() {
+	close(ec.stopCh)
+}
+
+func (ec *EventCache) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	if event, ok := e.Object.(*corev1.Event); ok {
 		if checkEventTypeAndKind(event) {
-			ac.Add(k8sEventToAlarm(event))
+			alarm := ec.k8sEventToAlarm(event)
+			ec.cache.Add(alarm)
 		}
 	}
 
 	return handler.Result{}, nil
 }
 
-func (ac *AlarmCache) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
+func (ec *EventCache) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	if event, ok := e.ObjectNew.(*corev1.Event); ok {
 		if checkEventTypeAndKind(event) {
-			ac.Add(k8sEventToAlarm(event))
+			alarm := ec.k8sEventToAlarm(event)
+			ec.cache.Add(alarm)
 		}
 	}
 
 	return handler.Result{}, nil
 }
 
-func (ac *AlarmCache) OnDelete(e event.DeleteEvent) (handler.Result, error) {
+func (ec *EventCache) OnDelete(e event.DeleteEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
-func (ac *AlarmCache) OnGeneric(e event.GenericEvent) (handler.Result, error) {
+func (ec *EventCache) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 	return handler.Result{}, nil
 }
 
@@ -57,11 +77,12 @@ func checkEventTypeAndKind(event *corev1.Event) bool {
 	return false
 }
 
-func k8sEventToAlarm(event *corev1.Event) *Alarm {
+func (ec *EventCache) k8sEventToAlarm(event *corev1.Event) *types.Alarm {
 	t := event.LastTimestamp
-	return &Alarm{
+	return &types.Alarm{
 		Time:      fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second()),
-		Type:      EventType,
+		Type:      types.EventType,
+		Cluster:   ec.cluster,
 		Namespace: event.InvolvedObject.Namespace,
 		Kind:      event.InvolvedObject.Kind,
 		Name:      event.InvolvedObject.Name,

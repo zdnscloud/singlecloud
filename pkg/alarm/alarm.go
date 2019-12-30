@@ -5,36 +5,27 @@ import (
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
-
-const (
-	EventType  AlarmType = "Event"
-	ZcloudType AlarmType = "Alarm"
-)
-
-type AlarmType string
-
-type Alarm struct {
-	ID           uint64    `json:"-"`
-	Time         string    `json:"time,omitempty"`
-	Cluster      string    `json:"cluster,omitempty"`
-	Type         AlarmType `json:"type,omitempty"`
-	Namespace    string    `json:"namespace,omitempty"`
-	Kind         string    `json:"kind,omitempty"`
-	Name         string    `json:"name,omitempty"`
-	Reason       string    `json:"reason,omitempty"`
-	Message      string    `json:"message,omitempty"`
-	Acknowledged bool      `json:"acknowledged,omitempty"`
-}
 
 type AlarmEvent struct {
-	Alarm
+	types.Alarm
 }
 
 func New() *AlarmEvent {
 	t := time.Now()
 	time := fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second())
-	return &AlarmEvent{Alarm{Time: time}}
+	return &AlarmEvent{
+		types.Alarm{
+			Time:         time,
+			Acknowledged: false,
+		},
+	}
+}
+
+func (a *AlarmEvent) Cluster(cluster string) *AlarmEvent {
+	a.Alarm.Cluster = cluster
+	return a
 }
 
 func (a *AlarmEvent) Namespace(namespace string) *AlarmEvent {

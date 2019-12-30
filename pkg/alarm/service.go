@@ -1,92 +1,56 @@
 package alarm
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
-	WSPrefix        = "/apis/ws.zcloud.cn/v1"
-	WSEventPathTemp = WSPrefix + "/clusters/%s/alarm"
-	WSUnAckPathTemp = WSPrefix + "/clusters/%s/unack"
+	WSPrefix  = "/apis/ws.zcloud.cn/v1"
+	eventPath = WSPrefix + "/alarm"
 )
 
 func (mgr *AlarmManager) RegisterHandler(router gin.IRoutes) error {
-	eventPath := fmt.Sprintf(WSEventPathTemp, ":cluster")
 	router.GET(eventPath, func(c *gin.Context) {
-		mgr.OpenAlarm(c.Param("cluster"), c.Request, c.Writer)
+		mgr.OpenAlarm(c.Request, c.Writer)
 	})
-
-	unAckPath := fmt.Sprintf(WSUnAckPathTemp, ":cluster")
-	router.GET(unAckPath, func(c *gin.Context) {
-		mgr.OpenUnAck(c.Param("cluster"), c.Request, c.Writer)
-	})
-
 	return nil
 }
 
-func (mgr *AlarmManager) OpenUnAck(clusterID string, r *http.Request, w http.ResponseWriter) {
-	mgr.lock.Lock()
-	cache, ok := mgr.caches[clusterID]
-	mgr.lock.Unlock()
-
-	if ok == false {
-		log.Warnf("cluster %s isn't found to open console", clusterID)
-		return
-	}
-
+func (mgr *AlarmManager) OpenAlarm(r *http.Request, w http.ResponseWriter) {
 	conn, err := websocket.Upgrade(w, r, nil, 0, 0)
 	if err != nil {
-		log.Warnf("cluster %s event websocket upgrade failed %s", clusterID, err.Error())
+		log.Warnf("event websocket upgrade failed %s", err.Error())
 		return
 	}
 	defer conn.Close()
 
-	ackCh := cache.AckChannel()
-	for {
-		err := conn.WriteJSON(cache.unAckNumber)
-		if err != nil {
-			log.Warnf("send log failed:%s", err.Error())
-			break
-		}
-		_, ok := <-ackCh
-		if ok == false {
-			break
-		}
-	}
-}
-
-func (mgr *AlarmManager) OpenAlarm(clusterID string, r *http.Request, w http.ResponseWriter) {
-	mgr.lock.Lock()
-	cache, ok := mgr.caches[clusterID]
-	mgr.lock.Unlock()
-
-	if ok == false {
-		log.Warnf("cluster %s isn't found to open console", clusterID)
-		return
-	}
-
-	conn, err := websocket.Upgrade(w, r, nil, 0, 0)
+	err = conn.WriteJSON(Message{UnackNumber, mgr.cache.unAckNumber})
 	if err != nil {
-		log.Warnf("cluster %s event websocket upgrade failed %s", clusterID, err.Error())
-		return
+		log.Warnf("send log failed:%s", err.Error())
 	}
-	defer conn.Close()
 
-	listener := cache.AddListener()
-
+	listener := mgr.cache.AddListener()
 	alarmCh := listener.AlarmChannel()
 	for {
-		e, ok := <-alarmCh
+		alarm, ok := <-alarmCh
 		if ok == false {
 			break
 		}
-		err = conn.WriteJSON(e)
+		var msg Message
+		switch alarm.(type) {
+		case types.Alarm:
+			msg.Type = UnackAlarm
+			msg.Payload = alarm.(types.Alarm)
+		case int:
+			msg.Type = UnackNumber
+			msg.Payload = mgr.cache.unAckNumber
+		}
+		err = conn.WriteJSON(msg)
 		if err != nil {
 			log.Warnf("send log failed:%s", err.Error())
 			break
