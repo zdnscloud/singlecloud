@@ -1,9 +1,9 @@
 package alarm
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -13,11 +13,9 @@ type AlarmEvent struct {
 }
 
 func New() *AlarmEvent {
-	t := time.Now()
-	time := fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second())
 	return &AlarmEvent{
 		types.Alarm{
-			Time:         time,
+			Time:         resource.ISOTime(time.Now()),
 			Acknowledged: false,
 		},
 	}

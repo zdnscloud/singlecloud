@@ -1,8 +1,6 @@
 package alarm
 
 import (
-	"fmt"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -11,6 +9,7 @@ import (
 	"github.com/zdnscloud/gok8s/event"
 	"github.com/zdnscloud/gok8s/handler"
 	"github.com/zdnscloud/gok8s/predicate"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -78,9 +77,8 @@ func checkEventTypeAndKind(event *corev1.Event) bool {
 }
 
 func (ec *EventCache) k8sEventToAlarm(event *corev1.Event) *types.Alarm {
-	t := event.LastTimestamp
 	return &types.Alarm{
-		Time:      fmt.Sprintf("%.2d:%.2d:%.2d", t.Hour(), t.Minute(), t.Second()),
+		Time:      resource.ISOTime(event.LastTimestamp.Time),
 		Type:      types.EventType,
 		Cluster:   ec.cluster,
 		Namespace: event.InvolvedObject.Namespace,

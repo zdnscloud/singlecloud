@@ -8,6 +8,6 @@ const (
 type MessageType string
 
 type Message struct {
-	Type    MessageType
-	Payload interface{}
+	Type    MessageType `json:"type"`
+	Payload interface{} `json:"payload"`
 }
