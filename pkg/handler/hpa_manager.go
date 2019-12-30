@@ -453,6 +453,7 @@ func k8sMetricSpecToScCustomMetricSpec(namespace, hpaName, metricName string, se
 	labelsHash, _ := hashMetricLabel(selector.MatchLabels)
 	return types.CustomMetricSpec{
 		MetricName:   strings.TrimSuffix(metricName, fmt.Sprintf(NameAsTemplate, "", labelsHash, namespace, hpaName)),
+		Labels:       selector.MatchLabels,
 		AverageValue: averageValue,
 	}
 }
