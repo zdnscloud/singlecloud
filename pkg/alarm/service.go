@@ -46,9 +46,9 @@ func (mgr *AlarmManager) OpenAlarm(r *http.Request, w http.ResponseWriter) {
 		case types.Alarm:
 			msg.Type = UnackAlarm
 			msg.Payload = alarm.(types.Alarm)
-		case int:
+		case uint64:
 			msg.Type = UnackNumber
-			msg.Payload = mgr.cache.unAckNumber
+			msg.Payload = alarm.(uint64)
 		}
 		err = conn.WriteJSON(msg)
 		if err != nil {

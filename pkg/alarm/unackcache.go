@@ -15,7 +15,7 @@ func (ac *AlarmCache) publishAck(al *AlarmListener) {
 			return
 		default:
 			if num != ac.unAckNumber {
-				al.alarmCh <- 1
+				al.alarmCh <- ac.unAckNumber
 				num = ac.unAckNumber
 			}
 		}

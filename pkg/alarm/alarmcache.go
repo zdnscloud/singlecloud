@@ -17,6 +17,7 @@ type AlarmCache struct {
 	lock        sync.RWMutex
 	cond        *sync.Cond
 	alarmList   *list.List
+	ackList     *list.List
 	stopCh      chan struct{}
 	unAckNumber uint64
 	ackCh       chan int
@@ -35,6 +36,7 @@ func NewAlarmCache(size uint, clusters map[string]*zke.Cluster) *AlarmCache {
 		eventID:   0,
 		maxSize:   size,
 		alarmList: list.New(),
+		ackList:   list.New(),
 		stopCh:    stop,
 		ackCh:     make(chan int),
 		clusters:  clusters,
@@ -60,7 +62,7 @@ func (al *AlarmListener) Stop() {
 
 func (ac *AlarmCache) AddListener() *AlarmListener {
 	al := &AlarmListener{
-		lastID:  0,
+		lastID:  ac.eventID,
 		stopCh:  make(chan struct{}),
 		alarmCh: make(chan interface{}),
 	}
@@ -90,9 +92,6 @@ func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 
 		al.lastID = lastID
 		for i := 0; i < c; i++ {
-			if events[i].Acknowledged {
-				continue
-			}
 			select {
 			case <-al.stopCh:
 				al.stopCh <- struct{}{}
@@ -106,10 +105,11 @@ func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 func (ac *AlarmCache) getAlarmsAfterID(id uint64, events []*types.Alarm) (uint64, int) {
 	ac.lock.RLock()
 	defer ac.lock.RUnlock()
-	if ac.alarmList.Len() == int(id) {
+	elem := ac.alarmList.Back()
+	if elem == nil || elem.Value.(*types.Alarm).UID == id {
 		return 0, 0
 	}
-	if id == 0 {
+	if id == 0 || ac.alarmList.Len() == 1 {
 		return ac.getAlarmsFromOutdated(id, events)
 	} else {
 		return ac.getAlarmsFromLatest(id, events)
@@ -182,7 +182,11 @@ func (ac *AlarmCache) SetUnAck(u int) {
 }
 
 func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
-	if lastAlarm.Namespace == newAlarm.Namespace && lastAlarm.Kind == newAlarm.Kind && lastAlarm.Message == newAlarm.Message && lastAlarm.Name == newAlarm.Name {
+	if lastAlarm.Cluster == newAlarm.Cluster &&
+		lastAlarm.Namespace == newAlarm.Namespace &&
+		lastAlarm.Kind == newAlarm.Kind &&
+		lastAlarm.Message == newAlarm.Message &&
+		lastAlarm.Name == newAlarm.Name {
 		return true
 	}
 	return false
