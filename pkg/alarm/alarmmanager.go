@@ -71,15 +71,11 @@ func (mgr *AlarmManager) eventLoop() {
 
 func (m *AlarmManager) List(ctx *resource.Context) interface{} {
 	var alarms types.Alarms
-	elem := m.cache.alarmList.Back()
-	for elem != nil {
-		alarms = append(alarms, elem.Value.(*types.Alarm))
-		elem = elem.Prev()
+	for e := m.cache.alarmList.Back(); e != nil; e = e.Prev() {
+		alarms = append(alarms, e.Value.(*types.Alarm))
 	}
-	elem = m.cache.ackList.Back()
-	for len(alarms) < int(m.cache.maxSize) && elem != nil {
-		alarms = append(alarms, elem.Value.(*types.Alarm))
-		elem = elem.Prev()
+	for e := m.cache.ackList.Back(); len(alarms) < int(m.cache.maxSize) && e != nil; e = e.Prev() {
+		alarms = append(alarms, e.Value.(*types.Alarm))
 	}
 	sort.Sort(sort.Reverse(alarms))
 	return alarms
@@ -89,27 +85,23 @@ func (m *AlarmManager) Update(ctx *resource.Context) (resource.Resource, *gorest
 	alarm := ctx.Resource.(*types.Alarm)
 	m.cache.lock.Lock()
 	defer m.cache.lock.Unlock()
-	elem := m.cache.alarmList.Back()
-	if elem == nil {
+	id, _ := strconv.Atoi(alarm.ID)
+	if id > int(m.cache.eventID) || m.cache.alarmList.Len() == 0 {
 		return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
 	}
-	if id, _ := strconv.Atoi(alarm.ID); id > int(m.cache.eventID) {
-		return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
-	}
-	for elem != nil {
-		newAlarm := elem.Value.(*types.Alarm)
+	for e := m.cache.alarmList.Back(); e != nil; e = e.Prev() {
+		newAlarm := e.Value.(*types.Alarm)
 		if newAlarm.ID == alarm.ID {
-			m.cache.alarmList.Remove(elem)
+			m.cache.alarmList.Remove(e)
 			m.cache.SetUnAck(-1)
 			newAlarm.Acknowledged = true
 			m.cache.ackList.PushBack(newAlarm)
 			if uint(m.cache.ackList.Len()) > m.cache.maxSize {
-				elem = m.cache.ackList.Front()
-				m.cache.ackList.Remove(elem)
+				e = m.cache.ackList.Front()
+				m.cache.ackList.Remove(e)
 			}
 			return alarm, nil
 		}
-		elem = elem.Prev()
 	}
 	return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's been acknowledged or has been acknowledged"))
 }
@@ -124,13 +116,11 @@ func (m *AlarmManager) Get(ctx *resource.Context) resource.Resource {
 }
 
 func getAlarmFromList(targetList *list.List, id string) *types.Alarm {
-	elem := targetList.Back()
-	for elem != nil {
-		alarm := elem.Value.(*types.Alarm)
+	for e := targetList.Back(); e != nil; e = e.Prev() {
+		alarm := e.Value.(*types.Alarm)
 		if alarm.ID == id {
 			return alarm
 		}
-		elem = elem.Prev()
 	}
 	return nil
 }

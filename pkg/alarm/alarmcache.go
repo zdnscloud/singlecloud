@@ -73,15 +73,15 @@ func (ac *AlarmCache) AddListener() *AlarmListener {
 }
 
 func (ac *AlarmCache) publishEvent(al *AlarmListener) {
-	events := make([]*types.Alarm, ac.maxSize)
 	for {
-		lastID, c := ac.getAlarmsAfterID(al.lastID, events)
+		alarms := ac.getAlarmsAfterID(al.lastID)
 		select {
 		case <-al.stopCh:
 			al.stopCh <- struct{}{}
 			return
 		default:
 		}
+		c := len(alarms)
 
 		if c == 0 {
 			ac.lock.Lock()
@@ -89,60 +89,34 @@ func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 			ac.lock.Unlock()
 			continue
 		}
-
-		al.lastID = lastID
-		for i := 0; i < c; i++ {
+		al.lastID += uint64(c)
+		for _, alarm := range alarms {
 			select {
 			case <-al.stopCh:
 				al.stopCh <- struct{}{}
 				return
-			case al.alarmCh <- *events[i]:
+			case al.alarmCh <- *alarm:
 			}
 		}
 	}
 }
 
-func (ac *AlarmCache) getAlarmsAfterID(id uint64, events []*types.Alarm) (uint64, int) {
+func (ac *AlarmCache) getAlarmsAfterID(id uint64) []*types.Alarm {
 	ac.lock.RLock()
 	defer ac.lock.RUnlock()
-	elem := ac.alarmList.Back()
-	if elem == nil || elem.Value.(*types.Alarm).UID == id {
-		return 0, 0
+	var alarms types.Alarms
+	if ac.alarmList.Len() == 0 || id == ac.eventID {
+		return alarms
 	}
-	if id == 0 || ac.alarmList.Len() == 1 {
-		return ac.getAlarmsFromOutdated(id, events)
-	} else {
-		return ac.getAlarmsFromLatest(id, events)
+	for e := ac.alarmList.Back(); e != nil; e = e.Prev() {
+		alarm := e.Value.(*types.Alarm)
+		if alarm.UID > id {
+			alarms = append(alarms, alarm)
+		} else {
+			return alarms
+		}
 	}
-}
-
-func (ac *AlarmCache) getAlarmsFromOutdated(id uint64, events []*types.Alarm) (uint64, int) {
-	elem := ac.alarmList.Front()
-	for elem.Value.(*types.Alarm).UID <= id {
-		elem = elem.Next()
-	}
-	return ac.getAlarmsFromElem(elem, events)
-}
-
-func (ac *AlarmCache) getAlarmsFromLatest(id uint64, events []*types.Alarm) (uint64, int) {
-	elem := ac.alarmList.Back()
-	for elem.Value.(*types.Alarm).UID > id {
-		elem = elem.Prev()
-	}
-	elem = elem.Next()
-	return ac.getAlarmsFromElem(elem, events)
-}
-
-func (ac *AlarmCache) getAlarmsFromElem(elem *list.Element, events []*types.Alarm) (uint64, int) {
-	ec := 0
-	batch := len(events)
-	startID := elem.Value.(*types.Alarm).UID
-	for elem != nil && ec < batch {
-		events[ec] = elem.Value.(*types.Alarm)
-		ec += 1
-		elem = elem.Next()
-	}
-	return startID + uint64(ec-1), ec
+	return alarms
 }
 
 func (ac *AlarmCache) Add(alarm *types.Alarm) {
@@ -155,21 +129,19 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	}
 	alarm.UID = atomic.AddUint64(&ac.eventID, 1)
 	alarm.SetID(strconv.Itoa(int(alarm.UID)))
+	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
+		alarm.Namespace = ""
+	}
 	cluster, ok := ac.clusters[alarm.Cluster]
 	if ok {
 		SendMail(cluster.KubeClient, alarm)
-	}
-	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
-		alarm.Namespace = ""
 	}
 	ac.alarmList.PushBack(alarm)
 	addUnAck := true
 	if uint(ac.alarmList.Len()) > ac.maxSize {
 		elem := ac.alarmList.Front()
-		if !elem.Value.(*types.Alarm).Acknowledged {
-			addUnAck = false
-		}
 		ac.alarmList.Remove(elem)
+		addUnAck = false
 	}
 	if addUnAck {
 		ac.SetUnAck(1)
@@ -182,12 +154,9 @@ func (ac *AlarmCache) SetUnAck(u int) {
 }
 
 func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
-	if lastAlarm.Cluster == newAlarm.Cluster &&
+	return lastAlarm.Cluster == newAlarm.Cluster &&
 		lastAlarm.Namespace == newAlarm.Namespace &&
 		lastAlarm.Kind == newAlarm.Kind &&
 		lastAlarm.Message == newAlarm.Message &&
-		lastAlarm.Name == newAlarm.Name {
-		return true
-	}
-	return false
+		lastAlarm.Name == newAlarm.Name
 }
