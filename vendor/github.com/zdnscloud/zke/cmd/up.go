@@ -358,7 +358,7 @@ func ConfigureCluster(
 			return err
 		}
 
-		if err := zcloud.DeployZcloudManager(ctx, kubeCluster); err != nil {
+		if err := zcloud.DeployZcloudComponents(ctx, kubeCluster); err != nil {
 			return err
 		}
 	}

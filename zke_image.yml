@@ -22,3 +22,10 @@ v1.13.10:
   zke_remover: zdnscloud/zke-remove:v0.7
   storage_operator: zdnscloud/storage-operator:v3.5.7
   zcloud_shell: zdnscloud/kubectl:v1.13.10
+  service_mesh:
+    controller: zdnscloud/linkerd-io-controller:stable-2.6.0
+    proxy: zdnscloud/linkerd-io-proxy:stable-2.6.0
+    proxy_init: zdnscloud/linkerd-io-proxy-init:v1.2.0
+    web: zdnscloud/linkerd-io-web:stable-2.6.0
+    prometheus: prom/prometheus:v2.11.1
+    grafana: zdnscloud/linkerd-io-grafana:stable-2.6.0

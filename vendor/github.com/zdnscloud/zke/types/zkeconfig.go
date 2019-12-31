@@ -97,4 +97,15 @@ type ZKEConfigImages struct {
 	NodeAgent       string `yaml:"node_agent" json:"nodeAgent"`
 	StorageOperator string `yaml:"storage_operator" json:"storageOperator"`
 	ZcloudShell     string `yaml:"zcloud_shell" json:"zcloud_shell"`
+	//ServiceMesh image
+	ServiceMesh ServiceMeshImages `yaml:"service_mesh" json:"serviceMesh"`
+}
+
+type ServiceMeshImages struct {
+	Controller string `yaml:"controller" json:"controller"`
+	Proxy      string `yaml:"proxy" json:"proxy"`
+	ProxyInit  string `yaml:"proxy_init" json:"proxyInit"`
+	Web        string `yaml:"web" json:"web"`
+	Prometheus string `yaml:"prometheus" json:"prometheus"`
+	Grafana    string `yaml:"grafana" json:"grafana"`
 }

@@ -5,6 +5,11 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: zcloud
+  annotations:
+    linkerd.io/inject: disabled
+  labels:
+    linkerd.io/is-control-plane: "true"
+    config.linkerd.io/admission-webhooks: disabled
 ---
 apiVersion: v1
 kind: ServiceAccount
