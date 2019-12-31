@@ -157,7 +157,7 @@ func deleteApplicationByChartName(db kvzoo.DB, cluster *zke.Cluster, chartName s
 	}
 
 	appName := app.Name
-	if err := deleteApplication(table, cluster.KubeClient, ZCloudNamespace, appName, true); err != nil {
+	if err := deleteApplication(table, cluster, ZCloudNamespace, appName, true); err != nil {
 		if err == kvzoo.ErrNotFound {
 			return resterr.NewAPIError(resterr.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, ZCloudNamespace))
@@ -251,7 +251,7 @@ func ensureApplicationSucceedOrDie(table kvzoo.Table, cluster *zke.Cluster, appN
 
 		switch sysApp.Status {
 		case types.AppStatusFailed:
-			if err := deleteApplication(table, cluster.KubeClient, ZCloudNamespace, appName, true); err != nil {
+			if err := deleteApplication(table, cluster, ZCloudNamespace, appName, true); err != nil {
 				log.Warnf("delete system application %s failed %s", appName, err.Error())
 				return
 			}
