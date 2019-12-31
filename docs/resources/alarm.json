@@ -43,7 +43,7 @@
       ]
     },
     "time": {
-      "type": "string",
+      "type": "date",
       "description": [
         "readonly"
       ]
