@@ -16,7 +16,7 @@ import (
 
 func ConfigCommand() cli.Command {
 	return cli.Command{
-		Name:   "generateconfig",
+		Name:   "genconfig",
 		Usage:  "Generate an empty configuration file",
 		Action: generateConfig,
 	}
