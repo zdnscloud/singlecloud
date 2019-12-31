@@ -22,14 +22,14 @@ type ResetPassword struct {
 
 type User struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string    `json:"name" rest:"description=immutable"`
-	Password              string    `json:"password,omitempty"`
+	Name                  string    `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	Password              string    `json:"password,omitempty" rest:"required=true"`
 	Projects              []Project `json:"projects"`
 }
 
 type Project struct {
-	Cluster   string `json:"cluster"`
-	Namespace string `json:"namespace"`
+	Cluster   string `json:"cluster" rest:"isDomain=true"`
+	Namespace string `json:"namespace" rest:"isDomain=true"`
 }
 
 func (u User) CreateAction(name string) *resource.Action {

@@ -22,6 +22,8 @@
     "name": {
       "type": "string",
       "description": [
+        "required",
+        "isDomain",
         "immutable"
       ]
     },
@@ -42,7 +44,8 @@
     "scaleTargetName": {
       "type": "string",
       "description": [
-        "required"
+        "required",
+        "isDomain"
       ]
     },
     "status": {
@@ -95,10 +98,18 @@
         "type": "string"
       },
       "resourceName": {
-        "type": "string"
+        "type": "enum",
+        "validValues": [
+          "cpu",
+          "memory"
+        ]
       },
       "targetType": {
-        "type": "string"
+        "type": "enum",
+        "validValues": [
+          "Utilization",
+          "AverageValue"
+        ]
       }
     }
   },

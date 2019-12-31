@@ -11,16 +11,30 @@
     },
     "exposedPorts": {
       "type": "array",
-      "elemType": "servicePort"
+      "elemType": "servicePort",
+      "description": [
+        "required"
+      ]
     },
     "headless": {
       "type": "bool"
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required",
+        "isDomain"
+      ]
     },
     "serviceType": {
-      "type": "string"
+      "type": "enum",
+      "validValues": [
+        "clusterip",
+        "nodeport"
+      ],
+      "description": [
+        "required"
+      ]
     }
   },
   "subResources": {
@@ -37,19 +51,36 @@
     },
     "servicePort": {
       "name": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "required",
+          "isDomain"
+        ]
       },
       "nodePort": {
         "type": "int"
       },
       "port": {
-        "type": "int"
+        "type": "int",
+        "description": [
+          "required"
+        ]
       },
       "protocol": {
-        "type": "string"
+        "type": "enum",
+        "validValues": [
+          "tcp",
+          "udp"
+        ],
+        "description": [
+          "required"
+        ]
       },
       "targetPort": {
-        "type": "intOrString"
+        "type": "intOrString",
+        "description": [
+          "required"
+        ]
       }
     }
   },

@@ -80,11 +80,6 @@ func ValidateVersion(version string) error {
 	if !ok {
 		return fmt.Errorf("%s is an unsupported Kubernetes version", version)
 	}
-	// Make sure Target version is not "bad".
-	_, ok = types.K8sBadVersions[version]
-	if ok {
-		return fmt.Errorf("%s is an unsupported Kubernetes version", version)
-	}
 
 	return nil
 }

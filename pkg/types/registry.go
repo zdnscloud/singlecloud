@@ -12,7 +12,7 @@ const (
 
 type Registry struct {
 	resource.ResourceBase `json:",inline"`
-	IngressDomain         string `json:"ingressDomain" rest:"description=immutable"`
+	IngressDomain         string `json:"ingressDomain" rest:"description=immutable,isDomain=true"`
 	StorageClass          string `json:"storageClass" rest:"options=lvm|cephfs,description=immutable"`
 	StorageSize           int    `json:"storageSize" rest:"description=immutable"`
 	AdminPassword         string `json:"adminPassword" rest:"description=immutable"`

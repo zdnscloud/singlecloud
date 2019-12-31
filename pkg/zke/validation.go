@@ -7,7 +7,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/cement/set"
-	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 type createValidator func(c *types.Cluster) error
@@ -19,7 +18,6 @@ var createValidators = []createValidator{
 	validateNodeCount,
 	validateNodeNameRoleAndAddress,
 	validateScAddress,
-	validateClusterDomain,
 }
 
 var updateValidators = []updateValidator{
@@ -121,9 +119,6 @@ func validateNodeNameRoleAndAddress(c *types.Cluster) error {
 		if !isIPv4(n.Address) {
 			return fmt.Errorf("%s node address isn't an ipv4 address", n.Address)
 		}
-		if errs := k8svalidation.IsDNS1123Subdomain(n.Name); len(errs) > 0 {
-			return fmt.Errorf("node %s name %s is not valid: %v", n.Address, n.Name, errs)
-		}
 	}
 	return nil
 }
@@ -219,13 +214,6 @@ func validateClusterCIDRAndIPs(c *types.Cluster) error {
 func validateClusterSSHKeyNotEmpty(c *types.Cluster) error {
 	if len(c.SSHKey) == 0 {
 		return fmt.Errorf("cluster sshkey is empty")
-	}
-	return nil
-}
-
-func validateClusterDomain(c *types.Cluster) error {
-	if !isDomainName(c.ClusterDomain) {
-		return fmt.Errorf("clusterDomain %s isn't a domain name", c.ClusterDomain)
 	}
 	return nil
 }

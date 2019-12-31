@@ -183,6 +183,8 @@ workload详情数据，数据内容包括：与此workload相关的workload流�
 
 别且在入流量与出流量中提供实时流量抓包功能。
 
+抓包功能支持四个4个参数，相关workload，目的workload，HTTP方法，HTTP路径，其中相关workload是必选项。
+
 第三层：
 
 POD详情：通过workload详情可进入POD详情，数据内容包括：此POD相关的POD流量关系，此POD的入流量、出流量、POD服务情况列表，POD的TCP连接情况
@@ -272,7 +274,7 @@ POD详情：通过workload详情可进入POD详情，数据内容包括：此POD
 
 ​        对于k8s资源，目前只显示deployment、statefulset、daemonset，cronjob，job，config map，secret，svc，ingress，不显示pvc，pv，serviceaccount，clusterrole，clusterrolebingd，networkpolicy。
 
-​		svc，ingress，与deployment等关系不做保存。
+​		在app资源详情页，需要展示相关资源是否还存在，对于用户已删除的资源，需要做出提示。
 
 **app资源的子资源状态**
 
@@ -293,6 +295,8 @@ POD详情：通过workload详情可进入POD详情，数据内容包括：此POD
 按自定义指标伸缩：支持用户的自定义指标，指标只支持平均值。
 
 对于自定义指标，应用需要提供metrics接口获取指标数据。或者由第三方软件提供指标数据。比如ETL应用程序，可能会由于作业队列长度超过某个阈值而触发自动缩放，比如由linkerd获取的应用http请求数超过某个阈值而触发自动缩放.
+
+配置自定义指标时，zcloud在workload配置用获取metrics指标名称，供用户下拉选择。在配置指标的同时，配置adapter。HPA删除时，清除adapter相关的配置。
 
 #### 4.3.4.3      无状态副本
 
@@ -407,6 +411,8 @@ deployment创建需要支持以下设置：
 增加会话保持设置。
 
 #### **4.7.4.7**      服务入口
+
+新建HTTP的ingress，支持设置文件上传限制大小。
 
 **修改**
 
@@ -597,7 +603,7 @@ workload：新建失败，删除失败，编辑失败
 
 namespaces：CPU、MEM、存储
 
-workload：存储
+POD：存储
 
 用户空间指标：用户空间所有POD使用CPU、MEM、存储的量占用户申请资源的百分比。若用户空间没有申请资源，则按集群总量资源量计算。
 

@@ -4,7 +4,10 @@
   "goStructName": "UserQuota",
   "resourceFields": {
     "clusterName": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "isDomain"
+      ]
     },
     "cpu": {
       "type": "string"
@@ -15,11 +18,17 @@
     "name": {
       "type": "string",
       "description": [
+        "required",
+        "isDomain",
         "immutable"
       ]
     },
     "namespace": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required",
+        "isDomain"
+      ]
     },
     "purpose": {
       "type": "string"

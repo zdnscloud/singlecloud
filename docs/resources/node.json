@@ -9,7 +9,8 @@
     "address": {
       "type": "string",
       "description": [
-        "required"
+        "required",
+        "immutable"
       ]
     },
     "annotations": {
@@ -74,7 +75,8 @@
       "type": "string",
       "description": [
         "required",
-        "immutable"
+        "immutable",
+        "isDomain"
       ]
     },
     "operatingSystem": {

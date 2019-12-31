@@ -1,4 +1,4 @@
-package linkerd
+package servicemesh
 
 import (
 	"bytes"
@@ -16,33 +16,48 @@ import (
 
 	"github.com/zdnscloud/cement/uuid"
 
-	"github.com/zdnscloud/zke/zcloud/linkerd/pkg/tls"
+	"github.com/zdnscloud/zke/types"
+	"github.com/zdnscloud/zke/zcloud/servicemesh/pkg/tls"
 )
 
 const (
-	caLifeTime = 10 * 365
-	issuerName = "identity.linkerd."
+	caLifeTime           = 10 * 365
+	serviceMeshNamespace = "zcloud"
+	issuerName           = "identity.zcloud."
+	spValidatorSvcName   = "linkerd-sp-validator.zcloud.svc"
+	proxyInjectorSvcName = "linkerd-proxy-injector.zcloud.svc"
+	tapSvcName           = "linkerd-tap.zcloud.svc"
 )
 
-func GetDeployConfig(clusterDomain string) (map[string]interface{}, error) {
-	spValidatorCA, err := generateCertificateAuthority("linkerd-sp-validator.linkerd.svc", caLifeTime)
-	if err != nil {
-		return nil, fmt.Errorf("gen linkerd-sp-validator certificate failed: %s", err.Error())
+func GetDeployConfig(clusterDomain string, images types.ServiceMeshImages) (map[string]interface{}, error) {
+	proxyImageNameAndTag := strings.SplitN(images.Proxy, ":", 2)
+	if len(proxyImageNameAndTag) != 2 {
+		return nil, fmt.Errorf("servicemesh proxy image %s invalid: no tag", images.Proxy)
 	}
 
-	proxyInjectCA, err := generateCertificateAuthority("linkerd-proxy-injector.linkerd.svc", caLifeTime)
-	if err != nil {
-		return nil, fmt.Errorf("gen linkerd-proxy-injector certificate failed: %s", err.Error())
+	proxyInitImageNameAndTag := strings.SplitN(images.ProxyInit, ":", 2)
+	if len(proxyInitImageNameAndTag) != 2 {
+		return nil, fmt.Errorf("servicemesh proxy init image %s invalid: no tag", images.ProxyInit)
 	}
 
-	tapCA, err := generateCertificateAuthority("linkerd-tap.linkerd.svc", caLifeTime)
+	spValidatorCA, err := generateCertificateAuthority(spValidatorSvcName, caLifeTime)
 	if err != nil {
-		return nil, fmt.Errorf("gen linkerd-tap certificate failed: %s", err.Error())
+		return nil, fmt.Errorf("gen servicemesh sp-validator certificate failed: %s", err.Error())
+	}
+
+	proxyInjectCA, err := generateCertificateAuthority(proxyInjectorSvcName, caLifeTime)
+	if err != nil {
+		return nil, fmt.Errorf("gen servicemesh proxy-injector certificate failed: %s", err.Error())
+	}
+
+	tapCA, err := generateCertificateAuthority(tapSvcName, caLifeTime)
+	if err != nil {
+		return nil, fmt.Errorf("gen servicemesh tap certificate failed: %s", err.Error())
 	}
 
 	installUUID, err := uuid.Gen()
 	if err != nil {
-		return nil, fmt.Errorf("gen linkerd config install uuid failed: %s", err.Error())
+		return nil, fmt.Errorf("gen servicemesh config install uuid failed: %s", err.Error())
 	}
 
 	root, err := tls.GenerateRootCAWithDefaults(issuerName + clusterDomain)
@@ -52,6 +67,7 @@ func GetDeployConfig(clusterDomain string) (map[string]interface{}, error) {
 
 	return map[string]interface{}{
 		"ClusterDomain":                 clusterDomain,
+		"Namespace":                     serviceMeshNamespace,
 		"LinkerdProxyInjectorTLSCrtPEM": b64enc(proxyInjectCA.Cert),
 		"LinkerdProxyInjectorTLSKeyPEM": b64enc(proxyInjectCA.Key),
 		"LinkerdSpValidatorTLSCrtPEM":   b64enc(spValidatorCA.Cert),
@@ -63,6 +79,14 @@ func GetDeployConfig(clusterDomain string) (map[string]interface{}, error) {
 		"TrustAnchorsPEM":               strings.TrimSpace(root.Cred.Crt.EncodeCertificatePEM()),
 		"LinkerdConfigInstallUUID":      installUUID,
 		"LinkerdIdentityIssuerExpiry":   root.Cred.Crt.Certificate.NotAfter.Format(time.RFC3339),
+		"LinkerdProxyImageName":         proxyImageNameAndTag[0],
+		"LinkerdProxyInitImageName":     proxyInitImageNameAndTag[0],
+		"LinkerdControllerImage":        images.Controller,
+		"LinkerdProxyImage":             images.Proxy,
+		"LinkerdProxyInitImage":         images.ProxyInit,
+		"LinkerdWebImage":               images.Web,
+		"LinkerdPrometheusImage":        images.Prometheus,
+		"LinkerdGrafanaImage":           images.Grafana,
 	}, nil
 }
 

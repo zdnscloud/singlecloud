@@ -12,7 +12,7 @@ const (
 
 type EFK struct {
 	resource.ResourceBase `json:",inline"`
-	IngressDomain         string `json:"ingressDomain,omitempty"`
+	IngressDomain         string `json:"ingressDomain,omitempty" rest:"isDomain=true"`
 	ESReplicas            int    `json:"esReplicas,omitempty"`
 	StorageSize           int    `json:"storageSize,omitempty" rest:"description=immutable"`
 	StorageClass          string `json:"storageClass,omitempty" rest:"description=immutable"`

@@ -24,6 +24,7 @@ import (
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/common"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -161,8 +162,8 @@ func deleteStorageCluster(cli client.Client, name string) error {
 	if err != nil {
 		return err
 	}
-	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
-		return errors.New("storagecluster in Creating or Updating, not allowed delete")
+	if k8sStorageCluster.Status.Phase == storagev1.Creating || k8sStorageCluster.Status.Phase == storagev1.Updating || k8sStorageCluster.Status.Phase == storagev1.Deleting {
+		return errors.New("storagecluster in Creating, Updating or Deleting, not allowed delete")
 	}
 
 	if err := checkFinalizers(cli, name); err != nil {
@@ -194,8 +195,8 @@ func updateStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager
 	if err != nil {
 		return err
 	}
-	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
-		return errors.New("storagecluster in Creating or Updating, not allowed update")
+	if k8sStorageCluster.Status.Phase == storagev1.Creating || k8sStorageCluster.Status.Phase == storagev1.Updating ||k8sStorageCluster.Status.Phase == storagev1.Deleting {
+		return errors.New("storagecluster in Creating, Updating or Deleting, not allowed update")
 	}
 	if k8sStorageCluster.GetDeletionTimestamp() != nil {
 		return errors.New("storagecluster in Deleting, not allowed update")
@@ -237,7 +238,7 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cl
 		Name:        k8sStorageCluster.Name,
 		StorageType: k8sStorageCluster.Spec.StorageType,
 		Hosts:       k8sStorageCluster.Spec.Hosts,
-		Phase:       k8sStorageCluster.Status.Phase,
+		Phase:       string(k8sStorageCluster.Status.Phase),
 		Size:        tSize,
 		UsedSize:    uSize,
 		FreeSize:    fSize,
@@ -299,10 +300,12 @@ func checkFinalizers(cli client.Client, name string) error {
 		return err
 	}
 	metaObj := obj.(metav1.Object)
-	if len(metaObj.GetFinalizers()) > 0 {
+	finalizers := metaObj.GetFinalizers()
+	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.ClusterPrestopHookFinalizer) == 0) {
+		return nil
+	} else {
 		return errors.New(fmt.Sprintf("The storagecluster %s is used by some pods, you should stop those pods first", name))
 	}
-	return nil
 }
 
 func sToi(size string) int64 {

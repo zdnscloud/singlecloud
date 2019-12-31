@@ -119,7 +119,8 @@ func (m *DaemonSetManager) Update(ctx *resource.Context) (resource.Resource, *re
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update daemonset failed %s", err.Error()))
 	}
 
-	k8sDaemonSet.Spec.Template.Spec = k8sPodSpec
+	k8sDaemonSet.Spec.Template.Spec.Containers = k8sPodSpec.Containers
+	k8sDaemonSet.Spec.Template.Spec.Volumes = k8sPodSpec.Volumes
 	k8sDaemonSet.Annotations[ChangeCauseAnnotation] = daemonSet.Memo
 	if err := cluster.KubeClient.Update(context.TODO(), k8sDaemonSet); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update daemonset failed %s", err.Error()))
