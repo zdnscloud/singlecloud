@@ -159,7 +159,7 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	if ok {
 		SendMail(cluster.KubeClient, alarm)
 	}
-	if slice.SliceIndex(ClusterKinds, alarm.Kind) == -1 {
+	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 		alarm.Namespace = ""
 	}
 	ac.alarmList.PushBack(alarm)
