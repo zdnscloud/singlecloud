@@ -243,7 +243,7 @@ func (m *ClusterManager) eventLoop() {
 		e := <-m.zkeManager.PubEventCh
 		switch obj := e.(type) {
 		case zke.AlarmCluster:
-			alarm.New().Kind("cluster").Name(obj.Cluster).Reason(obj.Reason).Message(obj.Message).Publish()
+			alarm.New().Kind("cluster").Cluster(obj.Cluster).Name(obj.Cluster).Reason(obj.Reason).Message(obj.Message).Publish()
 		default:
 			m.eventBus.Pub(obj, eventbus.ClusterEvent)
 		}
