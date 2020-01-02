@@ -1,11 +1,11 @@
 package alarm
 
+type MessageType string
+
 const (
 	UnackNumber MessageType = "UnackNumber"
 	UnackAlarm  MessageType = "UnackAlarm"
 )
-
-type MessageType string
 
 type Message struct {
 	Type    MessageType `json:"type"`

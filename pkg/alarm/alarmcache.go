@@ -7,21 +7,21 @@ import (
 	"sync/atomic"
 
 	"github.com/zdnscloud/cement/slice"
+	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 type AlarmCache struct {
-	eventID     uint64
-	maxSize     uint
-	lock        sync.RWMutex
-	cond        *sync.Cond
-	alarmList   *list.List
-	ackList     *list.List
-	stopCh      chan struct{}
-	unAckNumber uint64
-	ackCh       chan int
-	clusters    map[string]*zke.Cluster
+	eventID       uint64
+	maxSize       uint
+	lock          sync.RWMutex
+	cond          *sync.Cond
+	alarmList     *list.List
+	ackList       *list.List
+	stopCh        chan struct{}
+	unAckNumber   uint64
+	ackCh         chan int
+	clusterClient map[string]client.Client
 }
 
 type AlarmListener struct {
@@ -30,16 +30,16 @@ type AlarmListener struct {
 	alarmCh chan interface{}
 }
 
-func NewAlarmCache(size uint, clusters map[string]*zke.Cluster) *AlarmCache {
+func NewAlarmCache(size uint, clusterClient map[string]client.Client) *AlarmCache {
 	stop := make(chan struct{})
 	ac := &AlarmCache{
-		eventID:   0,
-		maxSize:   size,
-		alarmList: list.New(),
-		ackList:   list.New(),
-		stopCh:    stop,
-		ackCh:     make(chan int),
-		clusters:  clusters,
+		eventID:       0,
+		maxSize:       size,
+		alarmList:     list.New(),
+		ackList:       list.New(),
+		stopCh:        stop,
+		ackCh:         make(chan int),
+		clusterClient: clusterClient,
 	}
 	ac.cond = sync.NewCond(&ac.lock)
 	go subscribeAlarmEvent(ac, stop)
@@ -74,13 +74,13 @@ func (ac *AlarmCache) AddListener() *AlarmListener {
 
 func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 	for {
-		alarms := ac.getAlarmsAfterID(al.lastID)
 		select {
 		case <-al.stopCh:
 			al.stopCh <- struct{}{}
 			return
 		default:
 		}
+		alarms := ac.getAlarmsAfterID(al.lastID)
 		c := len(alarms)
 
 		if c == 0 {
@@ -110,11 +110,10 @@ func (ac *AlarmCache) getAlarmsAfterID(id uint64) []*types.Alarm {
 	}
 	for e := ac.alarmList.Back(); e != nil; e = e.Prev() {
 		alarm := e.Value.(*types.Alarm)
-		if alarm.UID > id {
-			alarms = append(alarms, alarm)
-		} else {
-			return alarms
+		if alarm.UID <= id {
+			break
 		}
+		alarms = append(alarms, alarm)
 	}
 	return alarms
 }
@@ -132,18 +131,14 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 		alarm.Namespace = ""
 	}
-	cluster, ok := ac.clusters[alarm.Cluster]
-	if ok {
-		SendMail(cluster.KubeClient, alarm)
+	if cli, ok := ac.clusterClient[alarm.Cluster]; ok {
+		SendMail(cli, alarm)
 	}
 	ac.alarmList.PushBack(alarm)
-	addUnAck := true
 	if uint(ac.alarmList.Len()) > ac.maxSize {
 		elem := ac.alarmList.Front()
 		ac.alarmList.Remove(elem)
-		addUnAck = false
-	}
-	if addUnAck {
+	} else {
 		ac.SetUnAck(1)
 	}
 	ac.cond.Broadcast()
@@ -157,6 +152,24 @@ func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
 	return lastAlarm.Cluster == newAlarm.Cluster &&
 		lastAlarm.Namespace == newAlarm.Namespace &&
 		lastAlarm.Kind == newAlarm.Kind &&
+		lastAlarm.Reason == newAlarm.Reason &&
 		lastAlarm.Message == newAlarm.Message &&
 		lastAlarm.Name == newAlarm.Name
+}
+
+func (ac *AlarmCache) ackListAdd(alarm *types.Alarm) {
+	if ac.ackList.Len() == 0 {
+		ac.ackList.PushBack(alarm)
+		return
+	}
+	if e := ac.ackList.Front(); alarm.UID < e.Value.(*types.Alarm).UID {
+		ac.ackList.PushFront(alarm)
+		return
+	}
+	for e := ac.ackList.Back(); e != nil; e = e.Prev() {
+		if alarm.UID > e.Value.(*types.Alarm).UID {
+			ac.ackList.InsertAfter(alarm, e)
+			return
+		}
+	}
 }

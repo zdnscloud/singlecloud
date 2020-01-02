@@ -1,7 +1,6 @@
 package alarm
 
 import (
-	"container/list"
 	"fmt"
 	"sort"
 	"strconv"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
+	"github.com/zdnscloud/gok8s/client"
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
@@ -17,24 +17,29 @@ import (
 )
 
 var eventBus *pubsub.PubSub
+var UpdateErr = gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
 
-const MaxEventCount = 100
+const (
+	MaxEventCount = 100
+)
 
 type AlarmManager struct {
-	lock        sync.Mutex
-	cache       *AlarmCache
-	clusters    map[string]*zke.Cluster
-	eventCaches map[string]*EventCache
+	lock              sync.Mutex
+	cache             *AlarmCache
+	clusterClient     map[string]client.Client
+	clusterEventCache map[string]*EventCache
 }
 
 func NewAlarmManager(eBus *pubsub.PubSub) *AlarmManager {
 	eventBus = eBus
+	clients := make(map[string]client.Client)
+	events := make(map[string]*EventCache)
+	cache := NewAlarmCache(MaxEventCount, clients)
 	mgr := &AlarmManager{
-		clusters:    make(map[string]*zke.Cluster),
-		eventCaches: make(map[string]*EventCache),
+		cache:             cache,
+		clusterClient:     clients,
+		clusterEventCache: events,
 	}
-	cache := NewAlarmCache(MaxEventCount, mgr.clusters)
-	mgr.cache = cache
 	go mgr.eventLoop()
 	return mgr
 }
@@ -47,22 +52,22 @@ func (mgr *AlarmManager) eventLoop() {
 		case zke.AddCluster:
 			cluster := e.Cluster
 			mgr.lock.Lock()
-			mgr.clusters[cluster.Name] = cluster
-			mgr.eventCaches[cluster.Name] = NewEventCache(cluster.Name, cluster.Cache, mgr.cache)
+			mgr.clusterClient[cluster.Name] = cluster.KubeClient
+			mgr.clusterEventCache[cluster.Name] = NewEventCache(cluster.Name, cluster.Cache, mgr.cache)
 			mgr.lock.Unlock()
 		case zke.DeleteCluster:
 			cluster := e.Cluster
 			mgr.lock.Lock()
-			_, ok := mgr.clusters[cluster.Name]
-			if ok {
-				delete(mgr.clusters, cluster.Name)
+			if _, ok := mgr.clusterClient[cluster.Name]; ok {
+				delete(mgr.clusterClient, cluster.Name)
 			} else {
-				log.Warnf("event watcher unknown cluster %s", cluster.Name)
+				log.Warnf("can not found client for cluster %s", cluster.Name)
 			}
-			eventCacher, ok := mgr.eventCaches[cluster.Name]
-			if ok {
-				eventCacher.Stop()
-				delete(mgr.eventCaches, cluster.Name)
+			if cache, ok := mgr.clusterEventCache[cluster.Name]; ok {
+				cache.Stop()
+				delete(mgr.clusterEventCache, cluster.Name)
+			} else {
+				log.Warnf("can not found event cache for cluster %s", cluster.Name)
 			}
 			mgr.lock.Unlock()
 		}
@@ -85,9 +90,8 @@ func (m *AlarmManager) Update(ctx *resource.Context) (resource.Resource, *gorest
 	alarm := ctx.Resource.(*types.Alarm)
 	m.cache.lock.Lock()
 	defer m.cache.lock.Unlock()
-	id, _ := strconv.Atoi(alarm.ID)
-	if id > int(m.cache.eventID) || m.cache.alarmList.Len() == 0 {
-		return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
+	if id, _ := strconv.Atoi(alarm.ID); id > int(m.cache.eventID) || m.cache.alarmList.Len() == 0 {
+		return nil, UpdateErr
 	}
 	for e := m.cache.alarmList.Back(); e != nil; e = e.Prev() {
 		newAlarm := e.Value.(*types.Alarm)
@@ -95,7 +99,7 @@ func (m *AlarmManager) Update(ctx *resource.Context) (resource.Resource, *gorest
 			m.cache.alarmList.Remove(e)
 			m.cache.SetUnAck(-1)
 			newAlarm.Acknowledged = true
-			m.cache.ackList.PushBack(newAlarm)
+			m.cache.ackListAdd(newAlarm)
 			if uint(m.cache.ackList.Len()) > m.cache.maxSize {
 				e = m.cache.ackList.Front()
 				m.cache.ackList.Remove(e)
@@ -103,24 +107,5 @@ func (m *AlarmManager) Update(ctx *resource.Context) (resource.Resource, *gorest
 			return alarm, nil
 		}
 	}
-	return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's been acknowledged or has been acknowledged"))
-}
-
-func (m *AlarmManager) Get(ctx *resource.Context) resource.Resource {
-	alarm := ctx.Resource.(*types.Alarm)
-	targetAlarm := getAlarmFromList(m.cache.alarmList, alarm.ID)
-	if targetAlarm == nil {
-		targetAlarm = getAlarmFromList(m.cache.ackList, alarm.ID)
-	}
-	return targetAlarm
-}
-
-func getAlarmFromList(targetList *list.List, id string) *types.Alarm {
-	for e := targetList.Back(); e != nil; e = e.Prev() {
-		alarm := e.Value.(*types.Alarm)
-		if alarm.ID == id {
-			return alarm
-		}
-	}
-	return nil
+	return nil, UpdateErr
 }

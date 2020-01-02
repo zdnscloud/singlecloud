@@ -3,6 +3,7 @@ package alarm
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -33,49 +34,47 @@ func SendMail(cli client.Client, alarm *types.Alarm) {
 			return
 		}
 		log.Warnf("get mail sender failed. %s", err)
+		return
 	}
 	mailTo, err := getRecipient(cli, alarm)
 	if err != nil {
 		log.Warnf("get mail recipient failed. %s", err)
+		return
 	}
 
-	port, _ := strconv.Atoi(mailConn["port"])
+	port, _ := strconv.Atoi(mailConn.Port)
 	m := gomail.NewMessage()
-	m.SetHeader("From", mailConn["user"])
+	m.SetHeader("From", mailConn.User)
 	m.SetHeader("To", mailTo...)
 	m.SetHeader("Subject", Subject)
 	m.SetBody("text/html", genMessage(alarm))
 
-	d := gomail.NewDialer(mailConn["host"], port, mailConn["user"], mailConn["pass"])
+	d := gomail.NewDialer(mailConn.Host, port, mailConn.User, mailConn.Password)
 	if err := d.DialAndSend(m); err != nil {
 		log.Warnf("send mail to %s failed:%s", mailTo, err.Error())
 	}
 	return
 }
 
-func getSender(cli client.Client) (map[string]string, error) {
-	sender := make(map[string]string)
+func getSender(cli client.Client) (*types.Mail, error) {
 	cm, err := getConfigMap(cli, ClusterThresholdConfigmapName)
 	if err != nil {
 		return nil, err
 	}
-	data, ok := cm.Data["mailFrom"]
-	if ok {
-		var mail types.Mail
-		if err := json.Unmarshal([]byte(data), &mail); err != nil {
+	if data, ok := cm.Data["mailFrom"]; ok {
+		var mail *types.Mail
+		if err := json.Unmarshal([]byte(data), mail); err != nil {
 			return nil, err
 		}
-		sender["user"] = mail.User
-		sender["pass"] = mail.Password
-		sender["host"] = mail.Host
-		sender["port"] = mail.Port
+		return mail, nil
+	} else {
+		return nil, fmt.Errorf("can not found mailFrom in configmap %s", ClusterThresholdConfigmapName)
 	}
-	return sender, nil
 }
 
 func getRecipient(cli client.Client, alarm *types.Alarm) ([]string, error) {
 	var recipient []string
-	var configMaps []corev1.ConfigMap
+	var configMaps []*corev1.ConfigMap
 	clusterCm, err := getConfigMap(cli, ClusterThresholdConfigmapName)
 	if err != nil {
 		return nil, err
@@ -91,16 +90,13 @@ func getRecipient(cli client.Client, alarm *types.Alarm) ([]string, error) {
 		}
 	}
 	for _, cm := range configMaps {
-		for _, mail := range genMailTo(cm) {
-			recipient = append(recipient, mail)
-		}
+		recipient = append(recipient, genMailTo(cm)...)
 	}
 	return recipient, nil
 }
 
-func genMailTo(cm corev1.ConfigMap) []string {
-	data, ok := cm.Data["mailTo"]
-	if ok {
+func genMailTo(cm *corev1.ConfigMap) []string {
+	if data, ok := cm.Data["mailTo"]; ok {
 		data := strings.Trim(data, "[]\"")
 		return strings.Split(data, "\",\"")
 	} else {
@@ -113,10 +109,8 @@ func genMessage(alarm *types.Alarm) string {
 	return string(info)
 }
 
-func getConfigMap(cli client.Client, name string) (corev1.ConfigMap, error) {
-	cm := corev1.ConfigMap{}
-	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{ThresholdConfigmapNamespace, name}, &cm); err != nil {
-		return cm, err
-	}
-	return cm, nil
+func getConfigMap(cli client.Client, name string) (*corev1.ConfigMap, error) {
+	cm := &corev1.ConfigMap{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{ThresholdConfigmapNamespace, name}, cm)
+	return cm, err
 }
