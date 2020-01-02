@@ -31,16 +31,16 @@ type App struct {
 	registryCAConf config.RegistryCAConf
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, db kvzoo.DB, chartDir, repoUrl string, registryCAConf config.RegistryCAConf) (*App, error) {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, db kvzoo.DB, conf *config.SinglecloudConf) (*App, error) {
 	clusterMgr, err := newClusterManager(authenticator, authorizer, db)
 	if err != nil {
 		return nil, err
 	}
 	return &App{
 		clusterManager: clusterMgr,
-		chartDir:       chartDir,
-		repoUrl:        repoUrl,
-		registryCAConf: registryCAConf,
+		chartDir:       conf.Chart.Path,
+		repoUrl:        conf.Chart.Repo,
+		registryCAConf: conf.Registry,
 	}, nil
 }
 
