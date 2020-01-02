@@ -163,14 +163,16 @@ func (m *ApplicationManager) createApplication(ctx *resource.Context, cluster *z
 		if err := asyncCreateApplication(table, cluster.KubeClient, isAdminUser, namespace,
 			genUrlPrefix(ctx, cluster.Name), app, crdManifests); err != nil {
 			log.Warnf("create application failed: %s", err.Error())
-			publishApplicationEvent(namespace, app.Name, createFailedReason, err.Error())
+			publishApplicationEvent(cluster.Name, namespace, app.Name, createFailedReason, err.Error())
+			updateAppStatusToFailed(table, cluster.Name, namespace, app)
 		}
 	}()
 	return nil
 }
 
-func publishApplicationEvent(namespace, name, reason, msg string) {
+func publishApplicationEvent(cluster, namespace, name, reason, msg string) {
 	alarm.New().
+		Cluster(cluster).
 		Namespace(namespace).
 		Kind("Application").
 		Name(name).
@@ -305,29 +307,26 @@ func addOrUpdateApplicationToDB(table kvzoo.Table, app *types.Application, isCre
 
 func asyncCreateApplication(table kvzoo.Table, cli client.Client, isAdmin bool, namespace, urlPrefix string, app *types.Application, crdManifests []types.Manifest) error {
 	if err := preInstallChartCRDs(cli, crdManifests); err != nil {
-		updateAppStatusToFailed(table, namespace, app)
 		return fmt.Errorf("create application %s crds failed: %s", app.Name, err.Error())
 	}
 
 	if err := createAppResources(cli, isAdmin, namespace, urlPrefix, app); err != nil {
-		updateAppStatusToFailed(table, namespace, app)
 		return fmt.Errorf("create application %s resources failed: %s", app.Name, err.Error())
 	}
 
 	app.Status = types.AppStatusSucceed
 	if err := updateApplicationToDB(table, app); err != nil {
-		updateAppStatusToFailed(table, namespace, app)
 		return fmt.Errorf("update application %s status to succeed failed: %s", app.Name, err.Error())
 	}
 
 	return nil
 }
 
-func updateAppStatusToFailed(table kvzoo.Table, namespace string, app *types.Application) {
+func updateAppStatusToFailed(table kvzoo.Table, clusterName, namespace string, app *types.Application) {
 	app.Status = types.AppStatusFailed
 	if err := updateApplicationToDB(table, app); err != nil {
 		log.Warnf("update application %s status to failed get error: %s", app.Name, err.Error())
-		publishApplicationEvent(namespace, app.Name, updateDBFailedReason, err.Error())
+		publishApplicationEvent(clusterName, namespace, app.Name, updateDBFailedReason, err.Error())
 	}
 }
 
@@ -585,7 +584,7 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 			fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
 	}
 
-	if err := deleteApplication(table, cluster.KubeClient, namespace, appName, false); err != nil {
+	if err := deleteApplication(table, cluster, namespace, appName, false); err != nil {
 		if err == kvzoo.ErrNotFound {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
@@ -598,16 +597,17 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 	return nil
 }
 
-func deleteApplication(table kvzoo.Table, cli client.Client, namespace, appName string, isSystemChart bool) error {
+func deleteApplication(table kvzoo.Table, cluster *zke.Cluster, namespace, appName string, isSystemChart bool) error {
 	app, err := updateAppStatusToDeleteFromDB(table, appName, isSystemChart)
 	if err != nil {
 		return err
 	}
 
 	go func() {
-		if err := asyncDeleteApplication(table, cli, namespace, app); err != nil {
+		if err := asyncDeleteApplication(table, cluster.KubeClient, namespace, app); err != nil {
 			log.Warnf("delete application failed: %s", err.Error())
-			publishApplicationEvent(namespace, appName, deleteFailedReason, err.Error())
+			publishApplicationEvent(cluster.Name, namespace, appName, deleteFailedReason, err.Error())
+			updateAppStatusToFailed(table, cluster.Name, namespace, app)
 		}
 	}()
 
@@ -616,12 +616,10 @@ func deleteApplication(table kvzoo.Table, cli client.Client, namespace, appName 
 
 func asyncDeleteApplication(table kvzoo.Table, cli client.Client, namespace string, app *types.Application) error {
 	if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
-		updateAppStatusToFailed(table, namespace, app)
 		return fmt.Errorf("delete application %s resources failed: %s", app.Name, err.Error())
 	}
 
 	if err := deleteApplicationFromDB(table, app.GetID()); err != nil {
-		updateAppStatusToFailed(table, namespace, app)
 		return fmt.Errorf("delete application %s from db failed: %s", app.Name, err.Error())
 	}
 
