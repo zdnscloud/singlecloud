@@ -13,7 +13,6 @@ import (
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
-	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
@@ -32,8 +31,8 @@ type App struct {
 	registryCAConf config.RegistryCAConf
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, agent *clusteragent.AgentManager, db kvzoo.DB, chartDir, scVersion, repoUrl string, registryCAConf config.RegistryCAConf) (*App, error) {
-	clusterMgr, err := newClusterManager(authenticator, authorizer, agent, db, scVersion)
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, db kvzoo.DB, chartDir, repoUrl string, registryCAConf config.RegistryCAConf) (*App, error) {
+	clusterMgr, err := newClusterManager(authenticator, authorizer, db)
 	if err != nil {
 		return nil, err
 	}

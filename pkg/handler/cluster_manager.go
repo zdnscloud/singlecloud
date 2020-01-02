@@ -35,18 +35,18 @@ type ClusterManager struct {
 	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, agent *clusteragent.AgentManager, db kvzoo.DB, scVersion string) (*ClusterManager, error) {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, db kvzoo.DB) (*ClusterManager, error) {
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
 		eventBus:      eb.EventBus,
 		db:            db,
-		Agent:         agent,
+		Agent:         clusteragent.ClusterAgent,
 	}
 	storageNodeListener := &StorageNodeListener{
 		clusters: clusterMgr,
 	}
-	zkeMgr, err := zke.New(db, scVersion, storageNodeListener)
+	zkeMgr, err := zke.New(db, storageNodeListener)
 	if err != nil {
 		log.Errorf("create zke-manager failed %s", err.Error())
 		return nil, err

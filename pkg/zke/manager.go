@@ -20,6 +20,8 @@ const (
 	clusterEventBufferCount = 10
 )
 
+var singleCloudVersion string
+
 type ZKEManager struct {
 	PubEventCh   chan interface{}
 	clusters     []*Cluster
@@ -33,7 +35,7 @@ type NodeListener interface {
 	IsStorageNode(cluster *Cluster, node string) (bool, error)
 }
 
-func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
+func New(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
 	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
 	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
@@ -44,7 +46,7 @@ func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 		clusters:     make([]*Cluster, 0),
 		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
 		dbTable:      table,
-		scVersion:    scVersion,
+		scVersion:    singleCloudVersion,
 		nodeListener: nl,
 	}
 

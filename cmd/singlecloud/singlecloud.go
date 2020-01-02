@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 
@@ -35,7 +36,7 @@ func main() {
 	log.InitLogger(log.Debug)
 
 	if showVersion {
-		log.Infof("singlecloud %s (build at %s)\n", version, build)
+		fmt.Printf("singlecloud %s (build at %s)\n", version, build)
 		return
 	}
 
@@ -95,12 +96,11 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
-	agent := clusteragent.New()
-	if err := server.RegisterHandler(agent); err != nil {
+	if err := server.RegisterHandler(clusteragent.ClusterAgent); err != nil {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}
 
-	app, err := handler.NewApp(authenticator, authorizer, agent, dbClient, conf.Chart.Path, version, conf.Chart.Repo, conf.Registry)
+	app, err := handler.NewApp(authenticator, authorizer, dbClient, conf.Chart.Path, conf.Chart.Repo, conf.Registry)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}

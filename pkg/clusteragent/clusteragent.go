@@ -19,10 +19,16 @@ type AgentManager struct {
 	server *goproxy.Server
 }
 
-func New() *AgentManager {
+var ClusterAgent *AgentManager
+
+func new() *AgentManager {
 	return &AgentManager{
 		server: goproxy.New(authorizer),
 	}
+}
+
+func init() {
+	ClusterAgent = new()
 }
 
 func authorizer(req *http.Request) (string, bool, error) {
