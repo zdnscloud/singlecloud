@@ -169,9 +169,6 @@ func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods 
 					break
 				}
 			}
-			if pvc.StorageClassName == "lvm" && len(pvc.Pods) > 0 {
-				break
-			}
 		}
 	}
 	return nil
