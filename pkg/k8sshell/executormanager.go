@@ -5,9 +5,8 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 
-	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gok8s/exec"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
@@ -17,10 +16,10 @@ type ExecutorManager struct {
 	clusterEventCh <-chan interface{}
 }
 
-func New(eventBus *pubsub.PubSub) *ExecutorManager {
+func New() *ExecutorManager {
 	mgr := &ExecutorManager{
 		executors:      make(map[string]*exec.Executor),
-		clusterEventCh: eventBus.Sub(eventbus.ClusterEvent),
+		clusterEventCh: eb.EventBus.Sub(eb.ClusterEvent),
 	}
 	go mgr.eventLoop()
 	return mgr

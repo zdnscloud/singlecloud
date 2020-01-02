@@ -4,9 +4,7 @@ import (
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
-
-	"github.com/zdnscloud/cement/pubsub"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
@@ -18,10 +16,10 @@ type WatcherManager struct {
 	clusterEventCh <-chan interface{}
 }
 
-func New(eventBus *pubsub.PubSub) *WatcherManager {
+func New() *WatcherManager {
 	mgr := &WatcherManager{
 		watchers:       make(map[string]*EventWatcher),
-		clusterEventCh: eventBus.Sub(eventbus.ClusterEvent),
+		clusterEventCh: eb.EventBus.Sub(eb.ClusterEvent),
 	}
 	go mgr.eventLoop()
 	return mgr

@@ -12,7 +12,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 
@@ -35,11 +35,11 @@ type ClusterManager struct {
 	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db kvzoo.DB, scVersion string) (*ClusterManager, error) {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, agent *clusteragent.AgentManager, db kvzoo.DB, scVersion string) (*ClusterManager, error) {
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
-		eventBus:      eventBus,
+		eventBus:      eb.EventBus,
 		db:            db,
 		Agent:         agent,
 	}
@@ -239,7 +239,7 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 func (m *ClusterManager) eventLoop() {
 	for {
 		obj := <-m.zkeManager.PubEventCh
-		m.eventBus.Pub(obj, eventbus.ClusterEvent)
+		m.eventBus.Pub(obj, eb.ClusterEvent)
 	}
 }
 

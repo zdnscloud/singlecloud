@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gorest"
 	"github.com/zdnscloud/gorest/adaptor"
 	restresource "github.com/zdnscloud/gorest/resource"
@@ -33,8 +32,8 @@ type App struct {
 	registryCAConf config.RegistryCAConf
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db kvzoo.DB, chartDir, scVersion, repoUrl string, registryCAConf config.RegistryCAConf) (*App, error) {
-	clusterMgr, err := newClusterManager(authenticator, authorizer, eventBus, agent, db, scVersion)
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, agent *clusteragent.AgentManager, db kvzoo.DB, chartDir, scVersion, repoUrl string, registryCAConf config.RegistryCAConf) (*App, error) {
+	clusterMgr, err := newClusterManager(authenticator, authorizer, agent, db, scVersion)
 	if err != nil {
 		return nil, err
 	}

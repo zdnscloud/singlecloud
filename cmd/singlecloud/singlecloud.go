@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
@@ -17,10 +16,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
 	"github.com/zdnscloud/singlecloud/pkg/k8sshell"
 	"github.com/zdnscloud/singlecloud/server"
-)
-
-const (
-	EventBufLen = 1000
 )
 
 var (
@@ -64,8 +59,6 @@ func main() {
 }
 
 func runAsMaster(conf *config.SinglecloudConf) {
-	eventBus := pubsub.New(EventBufLen)
-
 	stopCh := make(chan struct{})
 	dbClient, err := db.RunAsMaster(conf, stopCh)
 	if err != nil {
@@ -73,7 +66,7 @@ func runAsMaster(conf *config.SinglecloudConf) {
 	}
 	defer close(stopCh)
 
-	if err := globaldns.New(conf.Server.DNSAddr, eventBus); err != nil {
+	if err := globaldns.New(conf.Server.DNSAddr); err != nil {
 		log.Fatalf("create globaldns failed: %v", err.Error())
 	}
 
@@ -92,12 +85,12 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("create server failed:%s", err.Error())
 	}
 
-	watcher := k8seventwatcher.New(eventBus)
+	watcher := k8seventwatcher.New()
 	if err := server.RegisterHandler(watcher); err != nil {
 		log.Fatalf("register k8s event watcher failed:%s", err.Error())
 	}
 
-	shellExecutor := k8sshell.New(eventBus)
+	shellExecutor := k8sshell.New()
 	if err := server.RegisterHandler(shellExecutor); err != nil {
 		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
@@ -107,7 +100,7 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}
 
-	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, conf.Chart.Path, version, conf.Chart.Repo, conf.Registry)
+	app, err := handler.NewApp(authenticator, authorizer, agent, dbClient, conf.Chart.Path, version, conf.Chart.Repo, conf.Registry)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}
