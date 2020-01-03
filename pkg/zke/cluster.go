@@ -258,6 +258,9 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	sc.ClusterUpstreamDNS = c.config.Option.ClusterUpstreamDNS
 	sc.SingleCloudAddress = c.config.SingleCloudAddress
 	sc.ScVersion = c.scVersion
+	sc.LoadBalance.MasterServer = c.config.LoadBalance.MasterServer
+	sc.LoadBalance.BackupServer = c.config.LoadBalance.BackupServer
+	sc.LoadBalance.User = c.config.LoadBalance.User
 
 	sc.Network = types.ClusterNetwork{
 		Plugin: c.config.Network.Plugin,
