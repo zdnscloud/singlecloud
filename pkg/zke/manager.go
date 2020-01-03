@@ -7,13 +7,15 @@ import (
 	"time"
 
 	"github.com/zdnscloud/kvzoo"
-	"github.com/zdnscloud/singlecloud/pkg/types"
-
 	"github.com/zdnscloud/cement/log"
 	resterr "github.com/zdnscloud/gorest/error"
 	restsource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
+
+	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/db"
+
 )
 
 const (
@@ -35,7 +37,11 @@ type NodeListener interface {
 	IsStorageNode(cluster *Cluster, node string) (bool, error)
 }
 
-func New(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
+func New(nl NodeListener) (*ZKEManager, error) {
+    return newZKEManager(db.GetGlobalDB(), nl)
+}
+
+func newZKEManager(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
 	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
 	table, err := db.CreateOrGetTable(tn)
 	if err != nil {

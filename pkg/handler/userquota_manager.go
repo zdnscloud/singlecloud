@@ -18,6 +18,7 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/db"
 )
 
 const UserQuotaTable = "userquota"
@@ -29,7 +30,7 @@ type UserQuotaManager struct {
 
 func newUserQuotaManager(clusters *ClusterManager) (*UserQuotaManager, error) {
 	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
-	table, err := clusters.GetDB().CreateOrGetTable(tn)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
 	if err != nil {
 		return nil, fmt.Errorf("new userquota manager failed: %s", err.Error())
 	}

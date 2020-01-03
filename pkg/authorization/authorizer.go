@@ -41,12 +41,12 @@ type Authorizer struct {
 	db    kvzoo.Table
 }
 
-func New(db kvzoo.DB) (*Authorizer, error) {
+func New() (*Authorizer, error) {
 	auth := &Authorizer{
 		users: make(map[string]*User),
 	}
 
-	if err := auth.loadUsers(db); err != nil {
+	if err := auth.loadUsers(); err != nil {
 		return nil, err
 	}
 

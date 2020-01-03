@@ -61,7 +61,7 @@ func main() {
 
 func runAsMaster(conf *config.SinglecloudConf) {
 	stopCh := make(chan struct{})
-	dbClient, err := db.RunAsMaster(conf, stopCh)
+	err := db.RunAsMaster(conf, stopCh)
 	if err != nil {
 		log.Fatalf("create database failed: %s", err.Error())
 	}
@@ -71,12 +71,12 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("create globaldns failed: %v", err.Error())
 	}
 
-	authenticator, err := authentication.New(conf.Server.CasAddr, dbClient)
+	authenticator, err := authentication.New(conf.Server.CasAddr)
 	if err != nil {
 		log.Fatalf("create authenticator failed:%s", err.Error())
 	}
 
-	authorizer, err := authorization.New(dbClient)
+	authorizer, err := authorization.New()
 	if err != nil {
 		log.Fatalf("create authorizer failed:%s", err.Error())
 	}
@@ -100,7 +100,7 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}
 
-	app, err := handler.NewApp(authenticator, authorizer, dbClient, conf)
+	app, err := handler.NewApp(authenticator, authorizer, conf)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}

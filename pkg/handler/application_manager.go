@@ -38,6 +38,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/pkg/db"
 )
 
 var (
@@ -84,7 +85,7 @@ func (m *ApplicationManager) eventLoop() {
 		switch e := event.(type) {
 		case zke.DeleteCluster:
 			tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, e.Cluster.Name)
-			if err := m.clusters.GetDB().DeleteTable(tn); err != nil {
+			if err := db.GetGlobalDB().DeleteTable(tn); err != nil {
 				log.Warnf("delete /application/cluster %s table failed: %s", e.Cluster.Name, err.Error())
 			}
 		}
@@ -151,7 +152,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
 	app.ChartIcon = genChartIcon(iconPrefixForReturn, app.ChartName)
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return err
 	}
@@ -164,9 +165,9 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	return nil
 }
 
-func createOrGetAppTable(db kvzoo.DB, clusterName, namespace string) (kvzoo.Table, kvzoo.TableName, error) {
+func createOrGetAppTable(clusterName, namespace string) (kvzoo.Table, kvzoo.TableName, error) {
 	tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, clusterName, namespace)
-	table, err := db.CreateOrGetTable(tn)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
 	if err != nil {
 		return nil, tn, fmt.Errorf("create or get table %s failed: %s", tn, err.Error())
 	}
@@ -367,7 +368,7 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return err
 	}
@@ -505,7 +506,7 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		log.Warnf("get application %s failed %s", ctx.Resource.GetID(), err.Error())
 		return nil
@@ -558,7 +559,7 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
@@ -674,8 +675,8 @@ func deleteApplicationFromDB(table kvzoo.Table, name string) error {
 	return tx.Commit()
 }
 
-func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace string) error {
-	table, tableName, err := createOrGetAppTable(db, clusterName, namespace)
+func clearApplications(cli client.Client, clusterName, namespace string) error {
+	table, tableName, err := createOrGetAppTable(clusterName, namespace)
 	if err != nil {
 		return err
 	}
@@ -696,7 +697,7 @@ func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace st
 		}
 	}
 
-	if err := db.DeleteTable(tableName); err != nil {
+	if err := db.GetGlobalDB().DeleteTable(tableName); err != nil {
 		return fmt.Errorf("delete application table %s failed: %s", tableName, err.Error())
 	}
 

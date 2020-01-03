@@ -9,7 +9,6 @@ import (
 	"github.com/zdnscloud/gorest/adaptor"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/gorest/resource/schema"
-	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
@@ -31,8 +30,8 @@ type App struct {
 	registryCAConf config.RegistryCAConf
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, db kvzoo.DB, conf *config.SinglecloudConf) (*App, error) {
-	clusterMgr, err := newClusterManager(authenticator, authorizer, db)
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, conf *config.SinglecloudConf) (*App, error) {
+	clusterMgr, err := newClusterManager(authenticator, authorizer)
 	if err != nil {
 		return nil, err
 	}

@@ -77,7 +77,7 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
-	if err := createSysApplication(ctx, m.clusters.GetDB(), m.apps, cluster, registryChartName, app, registry.StorageClass, registryAppNamePrefix); err != nil {
+	if err := createSysApplication(ctx, m.apps, cluster, registryChartName, app, registry.StorageClass, registryAppNamePrefix); err != nil {
 		return nil, err
 	}
 
@@ -109,7 +109,7 @@ func (m *RegistryManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), cluster.Name, registryChartName)
+	app, err := getApplicationFromDBByChartName(cluster.Name, registryChartName)
 	if err != nil {
 		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, registryChartName, err.Error())
 		return nil
@@ -131,7 +131,7 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 		return resterr.NewAPIError(resterr.NotFound, "registry doesn't exist")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	return deleteApplicationByChartName(m.clusters.GetDB(), cluster, registryChartName)
+	return deleteApplicationByChartName(cluster, registryChartName)
 }
 
 func genRegistryApplication(cluster *zke.Cluster, registry *types.Registry, ca x509.Certificate) (*types.Application, error) {

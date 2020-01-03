@@ -17,7 +17,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/kvzoo"
 )
 
 const (
@@ -31,22 +30,20 @@ type ClusterManager struct {
 	authorizer    *authorization.Authorizer
 	authenticator *authentication.Authenticator
 	zkeManager    *zke.ZKEManager
-	db            kvzoo.DB
 	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, db kvzoo.DB) (*ClusterManager, error) {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer) (*ClusterManager, error) {
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
 		eventBus:      eb.EventBus,
-		db:            db,
 		Agent:         clusteragent.ClusterAgent,
 	}
 	storageNodeListener := &StorageNodeListener{
 		clusters: clusterMgr,
 	}
-	zkeMgr, err := zke.New(db, storageNodeListener)
+	zkeMgr, err := zke.New(storageNodeListener)
 	if err != nil {
 		log.Errorf("create zke-manager failed %s", err.Error())
 		return nil, err
@@ -54,10 +51,6 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 	clusterMgr.zkeManager = zkeMgr
 	go clusterMgr.eventLoop()
 	return clusterMgr, nil
-}
-
-func (m *ClusterManager) GetDB() kvzoo.DB {
-	return m.db
 }
 
 func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {

@@ -18,6 +18,7 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/db"
 )
 
 const (
@@ -31,7 +32,7 @@ type NamespaceManager struct {
 
 func newNamespaceManager(clusters *ClusterManager) (*NamespaceManager, error) {
 	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
-	table, err := clusters.GetDB().CreateOrGetTable(tn)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
 	if err != nil {
 		return nil, fmt.Errorf("new namespace manager when create or get userquota table failed: %s", err.Error())
 	}
@@ -121,7 +122,7 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 			fmt.Sprintf("can`t delete namespace %s for other user using", namespace.GetID()))
 	}
 
-	if err := clearApplications(m.clusters.GetDB(), cluster.KubeClient, cluster.Name, namespace.GetID()); err != nil {
+	if err := clearApplications(cluster.KubeClient, cluster.Name, namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
 			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("delete namespace applications failed: %s", err.Error()))
