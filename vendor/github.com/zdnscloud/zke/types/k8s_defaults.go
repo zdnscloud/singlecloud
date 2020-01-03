@@ -43,10 +43,6 @@ func init() {
 }
 
 func validateImageConfig(in map[string]ZKEConfigImages) error {
-	if _, ok := in[DefaultK8s]; !ok {
-		return fmt.Errorf("validate image config failed: defaultK8s %s not in image configs", DefaultK8s)
-	}
-
 	for version, images := range in {
 		t := reflect.TypeOf(images)
 		v := reflect.ValueOf(images)
