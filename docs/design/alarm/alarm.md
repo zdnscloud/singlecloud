@@ -24,6 +24,29 @@
 
 
 # 详细设计
+## 报警资源
+```
+const (
+        EventType  AlarmType = "Event"
+        ZcloudType AlarmType = "Alarm"
+)
+
+type AlarmType string
+
+type Alarm struct {
+        resource.ResourceBase `json:",inline"`
+        UID                   uint64           `json:"-"`
+        Time                  resource.ISOTime `json:"time" rest:"description=readonly"`
+        Cluster               string           `json:"cluster" rest:"description=readonly"`
+        Type                  AlarmType        `json:"type" rest:"description=readonly"`
+        Namespace             string           `json:"namespace" rest:"description=readonly"`
+        Kind                  string           `json:"kind" rest:"description=readonly"`
+        Name                  string           `json:"name" rest:"description=readonly"`
+        Reason                string           `json:"reason" rest:"description=readonly"`
+        Message               string           `json:"message" rest:"description=readonly"`
+        Acknowledged          bool             `json:"acknowledged"`
+}
+```
 
 ## 指标配置
 	用户设置的指标会保存在kubernetes 的zcloud名称空间下，以configmap方式保存
@@ -83,6 +106,25 @@ var EventKindFilter = []string{
         "PersistentVolume",
         "PersistentVolumeClaim",
 }
+```
+> 如果前后两条报警的Cluster、Namespace、Kind、Reason、Message、Name都一样，则忽略后一条报警
+
+> 如果报警Kind为Cluster或者Node，则Namespace字段为空
+```
+func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
+        return lastAlarm.Cluster == newAlarm.Cluster &&
+                lastAlarm.Namespace == newAlarm.Namespace &&
+                lastAlarm.Kind == newAlarm.Kind &&
+                lastAlarm.Reason == newAlarm.Reason &&
+                lastAlarm.Message == newAlarm.Message &&
+                lastAlarm.Name == newAlarm.Name
+}
+```
+```
+var ClusterKinds = []string{"Node", "Cluster"}
+if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
+                alarm.Namespace = ""
+        }
 ```
 ## 数据返回
 - 即时推送
