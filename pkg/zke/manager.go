@@ -39,6 +39,7 @@ func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create or get db table failed %s", err.Error())
 	}
+
 	mgr := &ZKEManager{
 		clusters:     make([]*Cluster, 0),
 		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
@@ -46,6 +47,7 @@ func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
 		scVersion:    scVersion,
 		nodeListener: nl,
 	}
+
 	if err := mgr.loadDB(); err != nil {
 		return mgr, err
 	}

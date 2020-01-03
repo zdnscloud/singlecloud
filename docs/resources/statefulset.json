@@ -96,10 +96,7 @@
     },
     "containerPort": {
       "name": {
-        "type": "string",
-        "description": [
-          "isDomain"
-        ]
+        "type": "string"
       },
       "port": {
         "type": "int"
@@ -114,10 +111,7 @@
     },
     "envVar": {
       "name": {
-        "type": "string",
-        "description": [
-          "isDomain"
-        ]
+        "type": "string"
       },
       "value": {
         "type": "string"

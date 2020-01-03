@@ -33,8 +33,9 @@ type ResourceMetricSpec struct {
 }
 
 type CustomMetricSpec struct {
-	MetricName   string `json:"metricName,omitempty"`
-	AverageValue string `json:"averageValue,omitempty"`
+	MetricName   string            `json:"metricName,omitempty"`
+	Labels       map[string]string `json:"labels,omitempty"`
+	AverageValue string            `json:"averageValue,omitempty"`
 }
 
 type HorizontalPodAutoscalerStatus struct {

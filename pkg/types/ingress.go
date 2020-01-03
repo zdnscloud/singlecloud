@@ -15,6 +15,8 @@ type Ingress struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string        `json:"name" rest:"required=true,isDomain=true,description=immutable"`
 	Rules                 []IngressRule `json:"rules" rest:"required=true"`
+	MaxBodySize           int           `json:"maxBodySize"`
+	MaxBodySizeUnit       string        `json:"maxBodySizeUnit" rest:"options=m|k"`
 }
 
 func (i Ingress) GetParents() []resource.ResourceKind {

@@ -16,7 +16,7 @@ const (
 )
 
 type ContainerPort struct {
-	Name     string `json:"name" rest:"isDomain=true"`
+	Name     string `json:"name"`
 	Port     int    `json:"port"`
 	Protocol string `json:"protocol" rest:"options=tcp|udp"`
 }
@@ -38,7 +38,7 @@ type Volume struct {
 }
 
 type EnvVar struct {
-	Name  string `json:"name,omitempty" rest:"isDomain=true"`
+	Name  string `json:"name,omitempty"`
 	Value string `json:"value,omitempty"`
 }
 
