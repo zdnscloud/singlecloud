@@ -12,6 +12,7 @@ const (
 )
 
 var (
+	imageConfig        string
 	K8sVersionsCurrent = []string{
 		"v1.13.10",
 	}
@@ -32,8 +33,8 @@ var (
 	AllK8sVersions = map[string]ZKEConfigImages{}
 )
 
-func mustLoadImage(image string) {
-	if err := yaml.Unmarshal([]byte(image), &AllK8sVersions); err != nil {
+func init() {
+	if err := yaml.Unmarshal([]byte(imageConfig), &AllK8sVersions); err != nil {
 		panic(err.Error())
 	}
 	if err := validateImageConfig(AllK8sVersions); err != nil {

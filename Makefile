@@ -1,20 +1,15 @@
 VERSION=`git describe --tags`
 BUILD=`date +%FT%T%z`
 BRANCH=`git branch | sed -n '/\* /s///p'`
-IMAGE_INITER_FILE=vendor/github.com/zdnscloud/zke/types/initer.go
+IMAGE_CONFIG=`cat zke_image.yml`
 
-LDFLAGS=-ldflags "-w -s -X main.version=${VERSION} -X main.build=${BUILD} -X github.com/zdnscloud/singlecloud/pkg/zke.singleCloudVersion=${VERSION}"
+LDFLAGS=-ldflags "-w -s -X main.version=${VERSION} -X main.build=${BUILD} -X github.com/zdnscloud/singlecloud/pkg/zke.singleCloudVersion=${VERSION} -X 'github.com/zdnscloud/singlecloud/vendor/github.com/zdnscloud/zke/types.imageConfig=${IMAGE_CONFIG}'"
 GOSRC = $(shell find . -type f -name '*.go')
 
 build: singlecloud
 
 singlecloud: $(GOSRC) 
-	if [ -f $(IMAGE_INITER_FILE) ]; then rm $(IMAGE_INITER_FILE); fi
-	cp zke_image.yml vendor/github.com/zdnscloud/zke/image_config.yml
-	go generate vendor/github.com/zdnscloud/zke/types/generate.go
 	go build ${LDFLAGS} cmd/singlecloud/singlecloud.go
-	rm -f vendor/github.com/zdnscloud/zke/image_config.yml
-	rm -f ${IMAGE_INITER_FILE}
 
 docker: build-image
 	docker push zdnscloud/singlecloud:${BRANCH}
