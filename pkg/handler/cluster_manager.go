@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
-	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -26,28 +24,27 @@ const (
 )
 
 type ClusterManager struct {
-	eventBus      *pubsub.PubSub
 	authorizer    *authorization.Authorizer
 	authenticator *authentication.Authenticator
 	zkeManager    *zke.ZKEManager
-	Agent         *clusteragent.AgentManager
 }
 
 func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer) (*ClusterManager, error) {
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
-		eventBus:      eb.GetEventBus(),
-		Agent:         clusteragent.GetAgent(),
 	}
+
 	storageNodeListener := &StorageNodeListener{
 		clusters: clusterMgr,
 	}
+
 	zkeMgr, err := zke.New(storageNodeListener)
 	if err != nil {
 		log.Errorf("create zke-manager failed %s", err.Error())
 		return nil, err
 	}
+
 	clusterMgr.zkeManager = zkeMgr
 	go clusterMgr.eventLoop()
 	return clusterMgr, nil
@@ -55,10 +52,6 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 
 func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {
 	return m.authorizer
-}
-
-func (m *ClusterManager) GetEventBus() *pubsub.PubSub {
-	return m.eventBus
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj restresource.Resource) *zke.Cluster {
@@ -232,7 +225,7 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 func (m *ClusterManager) eventLoop() {
 	for {
 		obj := <-m.zkeManager.PubEventCh
-		m.eventBus.Pub(obj, eb.ClusterEvent)
+		eb.GetEventBus().Pub(obj, eb.ClusterEvent)
 	}
 }
 

@@ -35,10 +35,10 @@ import (
 	restutil "github.com/zdnscloud/gorest/util"
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	"github.com/zdnscloud/singlecloud/pkg/db"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	"github.com/zdnscloud/singlecloud/pkg/db"
 )
 
 var (
@@ -73,7 +73,7 @@ func newApplicationManager(clusters *ClusterManager, chartDir string) *Applicati
 	m := &ApplicationManager{
 		clusters:       clusters,
 		chartDir:       chartDir,
-		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
+		clusterEventCh: eb.GetEventBus().Sub(eb.ClusterEvent),
 	}
 	go m.eventLoop()
 	return m
