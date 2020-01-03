@@ -6,6 +6,16 @@
   ],
   "goStructName": "Ingress",
   "resourceFields": {
+    "maxBodySize": {
+      "type": "int"
+    },
+    "maxBodySizeUnit": {
+      "type": "enum",
+      "validValues": [
+        "m",
+        "k"
+      ]
+    },
     "name": {
       "type": "string",
       "description": [

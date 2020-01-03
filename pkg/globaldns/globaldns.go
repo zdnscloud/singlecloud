@@ -35,6 +35,10 @@ type GlobalDNS struct {
 }
 
 func New(httpCmdAddr string, eventBus *pubsub.PubSub) error {
+	if httpCmdAddr == "" {
+		return nil
+	}
+
 	proxy, err := newDnsProxy(httpCmdAddr)
 	if err != nil {
 		return err

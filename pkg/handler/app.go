@@ -89,6 +89,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.OuterService{}, newOuterServiceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.KubeConfig{}, newKubeConfigManager(a.clusterManager))
 	schemas.MustImport(&Version, types.FluentBitConfig{}, newFluentBitConfigManager(a.clusterManager))
+	schemas.MustImport(&Version, types.Metric{}, newMetricManager(a.clusterManager))
 
 	userQuotaManager, err := newUserQuotaManager(a.clusterManager)
 	if err != nil {

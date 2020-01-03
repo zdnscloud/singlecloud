@@ -84,10 +84,9 @@ type ZKEConfigImages struct {
 	FlannelCNI     string `yaml:"flannel_cni" json:"flannelCni"`
 	FlannelSidecar string `yaml:"flannel_sidecar" json:"flannelSidecar"`
 	// Calico image
-	CalicoNode        string `yaml:"calico_node" json:"calicoNode"`
-	CalicoCNI         string `yaml:"calico_cni" json:"calicoCni"`
-	CalicoControllers string `yaml:"calico_controllers" json:"calicoControllers"`
-	CalicoCtl         string `yaml:"calico_ctl" json:"calicoCtl"`
+	CalicoNode string `yaml:"calico_node" json:"calicoNode"`
+	CalicoCNI  string `yaml:"calico_cni" json:"calicoCni"`
+	CalicoCtl  string `yaml:"calico_ctl" json:"calicoCtl"`
 	// Pod infra container image
 	PodInfraContainer string `yaml:"pod_infra_container" json:"podInfraContainer"`
 	// Ingress Controller image
@@ -101,6 +100,8 @@ type ZKEConfigImages struct {
 	ZcloudShell        string `yaml:"zcloud_shell" json:"zcloudShell"`
 	ZcloudProxy        string `yaml:"zcloud_proxy" json:"zcloudProxy"`
 	ZcloudLBController string `yaml:"zcloud_lbcontroller" json:"zcloudLBController"`
+	//ServiceMesh image
+	ServiceMesh ServiceMeshImages `yaml:"service_mesh" json:"serviceMesh"`
 }
 
 type ZKELBConfig struct {
@@ -109,4 +110,13 @@ type ZKELBConfig struct {
 	BackupServer string `yaml:"backup_server,omitempty" json:"backupServer,omitempty"`
 	User         string `yaml:"user" json:"user"`
 	Password     string `yaml:"password" json:"password"`
+}
+
+type ServiceMeshImages struct {
+	Controller string `yaml:"controller" json:"controller"`
+	Proxy      string `yaml:"proxy" json:"proxy"`
+	ProxyInit  string `yaml:"proxy_init" json:"proxyInit"`
+	Web        string `yaml:"web" json:"web"`
+	Prometheus string `yaml:"prometheus" json:"prometheus"`
+	Grafana    string `yaml:"grafana" json:"grafana"`
 }

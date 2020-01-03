@@ -717,7 +717,7 @@
 
 [[projects]]
   branch = "lb-support"
-  digest = "1:12791aeb2e0137e2bd08a2e122c3bbb320d2c6f62e26eddb8ccaa70caa3d518d"
+  digest = "1:c9343b023c8312e510e09e33753344cbccee0b5d361ff9564ab5ba6f45060379"
   name = "github.com/zdnscloud/zke"
   packages = [
     "cmd",
@@ -741,16 +741,16 @@
     "zcloud",
     "zcloud/cluster-agent",
     "zcloud/lbcontroller",
-    "zcloud/linkerd",
-    "zcloud/linkerd/pkg/tls",
     "zcloud/node-agent",
     "zcloud/proxy",
     "zcloud/sa",
+    "zcloud/servicemesh",
+    "zcloud/servicemesh/pkg/tls",
     "zcloud/storage",
     "zcloud/zcloud-shell",
   ]
   pruneopts = "UT"
-  revision = "d6c5e903f53b72c3153b7dfc448d4197aee2310b"
+  revision = "e1a9ff22264506ad67e5d184f18819031391d747"
 
 [[projects]]
   digest = "1:bcc3e8b281f79d903661fe821e5271e3732bfed74e7bb61f489f23321e664234"

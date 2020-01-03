@@ -2,11 +2,14 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	k8sstorage "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
@@ -43,26 +46,10 @@ func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) interface{} {
 	for _, item := range k8sPersistentVolumeClaims.Items {
 		pvcs = append(pvcs, k8sPVCToSCPVC(&item))
 	}
+	if err := genUseInfoForPVCs(cluster.KubeClient, namespace, pvcs); err != nil {
+		return nil
+	}
 	return pvcs
-}
-
-func (m PersistentVolumeClaimManager) Get(ctx *resource.Context) resource.Resource {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	if cluster == nil {
-		return nil
-	}
-
-	namespace := ctx.Resource.GetParent().GetID()
-	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
-	k8sPersistentVolumeClaim, err := getPersistentVolumeClaim(cluster.KubeClient, namespace, pvc.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get persistentvolumeclaim info failed:%s", err.Error())
-		}
-		return nil
-	}
-
-	return k8sPVCToSCPVC(k8sPersistentVolumeClaim)
 }
 
 func (m PersistentVolumeClaimManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -73,6 +60,11 @@ func (m PersistentVolumeClaimManager) Delete(ctx *resource.Context) *resterror.A
 
 	namespace := ctx.Resource.GetParent().GetID()
 	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
+
+	if err := isUsed(cluster.KubeClient, namespace, pvc.GetID()); err != nil {
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete persistentvolumeclaim failed %s", err.Error()))
+	}
+
 	err := deletePersistentVolumeClaim(cluster.KubeClient, namespace, pvc.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -122,7 +114,6 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 
 	pvc := &types.PersistentVolumeClaim{
 		Name:               k8sPersistentVolumeClaim.Name,
-		Namespace:          k8sPersistentVolumeClaim.Namespace,
 		RequestStorageSize: requestStorage,
 		StorageClassName:   storageClassName,
 		VolumeName:         k8sPersistentVolumeClaim.Spec.VolumeName,
@@ -135,4 +126,77 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 		pvc.SetDeletionTimestamp(k8sPersistentVolumeClaim.DeletionTimestamp.Time)
 	}
 	return pvc
+}
+
+func genUseInfoForPVCs(cli client.Client, namespace string, pvcs []*types.PersistentVolumeClaim) error {
+	vas := k8sstorage.VolumeAttachmentList{}
+	if err := cli.List(context.TODO(), nil, &vas); err != nil {
+		return err
+	}
+	pods, err := getPods(cli, namespace, labels.Everything())
+	if err != nil {
+		return err
+	}
+	for _, pvc := range pvcs {
+		if pvc.Status != "Bound" {
+			return nil
+		}
+		if err := genUseInfoForPVC(cli, pvc, pods, vas); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods *corev1.PodList, vas k8sstorage.VolumeAttachmentList) error {
+	pv, err := getPersistentVolume(cli, pvc.VolumeName)
+	if err != nil {
+		return err
+	}
+	for _, va := range vas.Items {
+		if *va.Spec.Source.PersistentVolumeName == pv.Name {
+			pvc.Used = va.Status.Attached
+			if pvc.Used && pvc.StorageClassName == "lvm" {
+				pvc.Node = va.Spec.NodeName
+			}
+		}
+	}
+	if pvc.Used {
+		for _, p := range pods.Items {
+			for _, volume := range p.Spec.Volumes {
+				if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvc.Name {
+					pvc.Pods = append(pvc.Pods, p.Name)
+					break
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func isUsed(cli client.Client, namespace, name string) error {
+	k8sPvc, err := getPersistentVolumeClaim(cli, namespace, name)
+	if err != nil {
+		return err
+	}
+	if string(k8sPvc.Status.Phase) != "Bound" {
+		return nil
+	}
+	pv, err := getPersistentVolume(cli, k8sPvc.Spec.VolumeName)
+	if err != nil {
+		return err
+	}
+	vas := k8sstorage.VolumeAttachmentList{}
+	if err := cli.List(context.TODO(), nil, &vas); err != nil {
+		return err
+	}
+	for _, va := range vas.Items {
+		if *va.Spec.Source.PersistentVolumeName == pv.Name {
+			if va.Status.Attached {
+				return errors.New(fmt.Sprintf("the pvc %s is in used, can not delete it", name))
+			}
+			return nil
+		}
+	}
+	return nil
 }

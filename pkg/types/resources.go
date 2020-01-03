@@ -42,5 +42,6 @@ func Resources() []resource.ResourceKind {
 		User{},
 		HorizontalPodAutoscaler{},
 		FluentBitConfig{},
+		Metric{},
 	}
 }

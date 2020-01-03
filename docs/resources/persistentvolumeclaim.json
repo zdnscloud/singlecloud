@@ -18,20 +18,15 @@
         "readonly"
       ]
     },
-    "namespace": {
+    "node": {
       "type": "string",
       "description": [
         "readonly"
       ]
     },
-    "requestStorageSize": {
-      "type": "string",
-      "description": [
-        "readonly"
-      ]
-    },
-    "status": {
-      "type": "string",
+    "pods": {
+      "type": "array",
+      "elemType": "string",
       "description": [
         "readonly"
       ]
@@ -42,15 +37,14 @@
         "readonly"
       ]
     },
-    "volumeName": {
-      "type": "string",
+    "used": {
+      "type": "bool",
       "description": [
         "readonly"
       ]
     }
   },
   "resourceMethods": [
-    "GET",
     "DELETE"
   ],
   "collectionMethods": [

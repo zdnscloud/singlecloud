@@ -360,7 +360,7 @@ func ConfigureCluster(
 			return err
 		}
 
-		if err := zcloud.DeployZcloudManager(ctx, kubeCluster); err != nil {
+		if err := zcloud.DeployZcloudComponents(ctx, kubeCluster); err != nil {
 			return err
 		}
 	}
@@ -382,7 +382,7 @@ func postCleanToDeleteHosts(ctx context.Context, kubeCluster, currentCluster *co
 
 	_, err := errgroup.Batch(toDeleteHosts, func(h interface{}) (interface{}, error) {
 		runHost := h.(*hosts.Host)
-		return nil, runHost.CleanUpAll(ctx, kubeCluster.Image.Alpine, kubeCluster.PrivateRegistriesMap, false, currentCluster.Option.ClusterCidr)
+		return nil, runHost.CleanUpAll(ctx, kubeCluster.Image.Alpine, kubeCluster.Image.ZKERemover, kubeCluster.PrivateRegistriesMap, false, currentCluster.Option.ClusterCidr)
 	})
 
 	if err != nil {

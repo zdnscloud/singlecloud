@@ -2,20 +2,16 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"path"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
-	"github.com/zdnscloud/kvzoo"
-	"github.com/zdnscloud/kvzoo/client"
-	dbserver "github.com/zdnscloud/kvzoo/server"
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
+	"github.com/zdnscloud/singlecloud/pkg/db"
 	"github.com/zdnscloud/singlecloud/pkg/globaldns"
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
@@ -25,7 +21,6 @@ import (
 
 const (
 	EventBufLen = 1000
-	DBFileName  = "singlecloud.db"
 )
 
 var (
@@ -72,16 +67,14 @@ func runAsMaster(conf *config.SinglecloudConf) {
 	eventBus := pubsub.New(EventBufLen)
 
 	stopCh := make(chan struct{})
-	dbClient, err := initMasterDB(conf.DB.Port, conf.DB.Path, conf.DB.SlaveDBAddr, stopCh)
+	dbClient, err := db.RunAsMaster(conf, stopCh)
 	if err != nil {
 		log.Fatalf("create database failed: %s", err.Error())
 	}
 	defer close(stopCh)
 
-	if conf.Server.DNSAddr != "" {
-		if err := globaldns.New(conf.Server.DNSAddr, eventBus); err != nil {
-			log.Fatalf("create globaldns failed: %v", err.Error())
-		}
+	if err := globaldns.New(conf.Server.DNSAddr, eventBus); err != nil {
+		log.Fatalf("create globaldns failed: %v", err.Error())
 	}
 
 	authenticator, err := authentication.New(conf.Server.CasAddr, dbClient)
@@ -127,55 +120,13 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register resource handler failed:%s", err.Error())
 	}
 
-	if conf.DB.SlaveDBAddr != "" {
-		if _, err := dbClient.Checksum(); err != nil {
-			log.Fatalf("db isn't in sync:%s", err.Error())
-		}
-	}
-
 	if err := server.Run(conf.Server.Addr); err != nil {
 		log.Fatalf("server run failed:%s", err.Error())
 	}
 }
 
-func initMasterDB(localDBPort int, dbFilePath, slaveDBAddress string, stopCh chan struct{}) (kvzoo.DB, error) {
-	dbServerAddr := fmt.Sprintf(":%d", localDBPort)
-	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(dbFilePath, DBFileName))
-	if err != nil {
-		return nil, err
-	}
-	dbStarted := make(chan struct{})
-	go func() {
-		close(dbStarted)
-		db.Start()
-	}()
-	<-dbStarted
-
-	var slaves []string
-	if slaveDBAddress != "" {
-		slaves = append(slaves, slaveDBAddress)
-	}
-	dbClient, err := client.New(dbServerAddr, slaves)
-	if err != nil {
-		db.Stop()
-		return nil, err
-	}
-
-	go func() {
-		<-stopCh
-		db.Stop()
-	}()
-	return dbClient, nil
-}
-
 func runAsSlave(conf *config.SinglecloudConf) {
-	dbServerAddr := fmt.Sprintf(":%d", conf.DB.Port)
-	db, err := dbserver.NewWithBoltDB(dbServerAddr, path.Join(conf.DB.Path, DBFileName))
-	if err != nil {
-		log.Fatalf("start slave failed:%s", err.Error())
-		return
-	}
-	db.Start()
+	db.RunAsSlave(conf)
 }
 
 func genInitConfig() error {
