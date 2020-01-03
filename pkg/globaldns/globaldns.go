@@ -44,7 +44,7 @@ func New(httpCmdAddr string) error {
 	}
 
 	gdns := &GlobalDNS{
-		clusterEventCh:    eb.EventBus.Sub(eb.ClusterEvent),
+		clusterEventCh:    eb.GetEventBus().Sub(eb.ClusterEvent),
 		clusterDNSSyncers: make(map[string]*ClusterDNSSyncer),
 		proxy:             proxy,
 	}

@@ -96,7 +96,7 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
-	if err := server.RegisterHandler(clusteragent.ClusterAgent); err != nil {
+	if err := server.RegisterHandler(clusteragent.GetAgent()); err != nil {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}
 

@@ -6,8 +6,12 @@ import (
 
 const EventBufLen = 1000
 
-var EventBus *pubsub.PubSub
+var eventBus *pubsub.PubSub
+
+func GetEventBus() *pubsub.PubSub {
+	return eventBus
+}
 
 func init() {
-	EventBus = pubsub.New(EventBufLen)
+	eventBus = pubsub.New(EventBufLen)
 }

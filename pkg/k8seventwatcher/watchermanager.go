@@ -19,7 +19,7 @@ type WatcherManager struct {
 func New() *WatcherManager {
 	mgr := &WatcherManager{
 		watchers:       make(map[string]*EventWatcher),
-		clusterEventCh: eb.EventBus.Sub(eb.ClusterEvent),
+		clusterEventCh: eb.GetEventBus().Sub(eb.ClusterEvent),
 	}
 	go mgr.eventLoop()
 	return mgr

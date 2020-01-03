@@ -37,8 +37,8 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
-		eventBus:      eb.EventBus,
-		Agent:         clusteragent.ClusterAgent,
+		eventBus:      eb.GetEventBus(),
+		Agent:         clusteragent.GetAgent(),
 	}
 	storageNodeListener := &StorageNodeListener{
 		clusters: clusterMgr,

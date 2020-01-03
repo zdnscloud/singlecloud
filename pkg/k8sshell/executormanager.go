@@ -19,7 +19,7 @@ type ExecutorManager struct {
 func New() *ExecutorManager {
 	mgr := &ExecutorManager{
 		executors:      make(map[string]*exec.Executor),
-		clusterEventCh: eb.EventBus.Sub(eb.ClusterEvent),
+		clusterEventCh: eb.GetEventBus().Sub(eb.ClusterEvent),
 	}
 	go mgr.eventLoop()
 	return mgr
