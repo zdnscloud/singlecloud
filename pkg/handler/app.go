@@ -25,9 +25,7 @@ var (
 
 type App struct {
 	clusterManager *ClusterManager
-	chartDir       string
-	repoUrl        string
-	registryCAConf config.RegistryCAConf
+	conf           *config.SinglecloudConf
 }
 
 func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, conf *config.SinglecloudConf) (*App, error) {
@@ -37,9 +35,7 @@ func NewApp(authenticator *authentication.Authenticator, authorizer *authorizati
 	}
 	return &App{
 		clusterManager: clusterMgr,
-		chartDir:       conf.Chart.Path,
-		repoUrl:        conf.Chart.Repo,
-		registryCAConf: conf.Registry,
+		conf:           conf,
 	}, nil
 }
 
@@ -65,7 +61,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 		return err
 	}
 	schemas.MustImport(&Version, types.Namespace{}, namespaceManager)
-	schemas.MustImport(&Version, types.Chart{}, newChartManager(a.chartDir, a.repoUrl))
+	schemas.MustImport(&Version, types.Chart{}, newChartManager(a.conf.Chart.Path, a.conf.Chart.Repo))
 	schemas.MustImport(&Version, types.ConfigMap{}, newConfigMapManager(a.clusterManager))
 	schemas.MustImport(&Version, types.CronJob{}, newCronJobManager(a.clusterManager))
 	schemas.MustImport(&Version, types.DaemonSet{}, newDaemonSetManager(a.clusterManager))
@@ -93,12 +89,12 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 		return err
 	}
 	schemas.MustImport(&Version, types.UserQuota{}, userQuotaManager)
-	appManager := newApplicationManager(a.clusterManager, a.chartDir)
+	appManager := newApplicationManager(a.clusterManager, a.conf.Chart.Path)
 	schemas.MustImport(&Version, types.Application{}, appManager)
 	schemas.MustImport(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appManager))
 	schemas.MustImport(&Version, types.EFK{}, newEFKManager(a.clusterManager, appManager))
 
-	registryManager, err := newRegistryManager(a.clusterManager, appManager, a.registryCAConf)
+	registryManager, err := newRegistryManager(a.clusterManager, appManager, a.conf.Registry)
 	if err != nil {
 		return err
 	}
