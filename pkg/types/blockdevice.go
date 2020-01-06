@@ -12,9 +12,8 @@ type BlockDevice struct {
 }
 
 type Dev struct {
-	Name   string `json:"name"`
-	Size   string `json:"size"`
-	UsedBy string `json:"-"`
+	Name string `json:"name"`
+	Size string `json:"size"`
 }
 
 func (b BlockDevice) GetParents() []resource.ResourceKind {

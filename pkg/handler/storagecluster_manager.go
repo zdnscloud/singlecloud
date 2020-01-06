@@ -2,15 +2,12 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/zdnscloud/cement/set"
 	"github.com/zdnscloud/cement/slice"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"math"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -252,31 +249,15 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cl
 }
 
 func k8sStorageToSCStorageDetail(cluster *zke.Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
-	info, err := getStatusInfo(cluster.Name, agent, k8sStorageCluster.Spec.StorageType)
-	if err != nil {
+	var info types.Storage
+	if err := agent.GetResource(cluster.Name, "/storages/"+k8sStorageCluster.Spec.StorageType, &info); err != nil {
 		log.Warnf("get storages from clusteragent failed:%s", err.Error())
 	}
+
 	storagecluster := k8sStorageToSCStorage(cluster, k8sStorageCluster)
 	storagecluster.Nodes = countSize(k8sStorageCluster)
 	storagecluster.PVs = info.PVs
 	return storagecluster
-}
-
-func getStatusInfo(cluster string, agent *clusteragent.AgentManager, storagetype string) (types.Storage, error) {
-	var info types.Storage
-	url := "/apis/agent.zcloud.cn/v1/storages/" + storagetype
-	req, err := http.NewRequest("GET", clusteragent.ClusterAgentServiceHost+url, nil)
-	if err != nil {
-		return info, err
-	}
-	resp, err := agent.ProxyRequest(cluster, req)
-	if err != nil {
-		return info, err
-	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &info)
-	defer resp.Body.Close()
-	return info, nil
 }
 
 func checkStorageClusterExist(cli client.Client, storageType string) error {

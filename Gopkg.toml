@@ -35,6 +35,10 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/zdnscloud/servicemesh"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/zdnscloud/gorest"
 
 [[constraint]]
@@ -87,5 +91,5 @@
   version = "v10.0.0"
 
 [[constraint]]
-  branch = "master"
+  branch = "add-servicemesh"
   name = "github.com/zdnscloud/zke"

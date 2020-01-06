@@ -23,6 +23,7 @@ var (
 	ResourceTypeSecret      = resource.DefaultKindName(Secret{})
 	ResourceTypeService     = resource.DefaultKindName(Service{})
 	ResourceTypeIngress     = resource.DefaultKindName(Ingress{})
+	ResourceTypePod         = resource.DefaultKindName(Pod{})
 )
 
 type Application struct {

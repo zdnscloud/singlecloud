@@ -3,6 +3,7 @@ package zke
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -21,21 +22,22 @@ import (
 )
 
 type Cluster struct {
-	Name       string
-	CreateTime time.Time
-	DeleteTime time.Time
-	KubeClient client.Client
-	Cache      cache.Cache
-	K8sConfig  *rest.Config
-	stopCh     chan struct{}
-	config     *zketypes.ZKEConfig
-	logCh      chan string
-	logSession *websocket.Conn
-	cancel     context.CancelFunc
-	isCanceled bool
-	lock       sync.Mutex
-	fsm        *fsm.FSM
-	scVersion  string
+	Name           string
+	CreateTime     time.Time
+	DeleteTime     time.Time
+	KubeClient     client.Client
+	Cache          cache.Cache
+	K8sConfig      *rest.Config
+	stopCh         chan struct{}
+	config         *zketypes.ZKEConfig
+	logCh          chan string
+	logSession     *websocket.Conn
+	cancel         context.CancelFunc
+	isCanceled     bool
+	lock           sync.Mutex
+	fsm            *fsm.FSM
+	scVersion      string
+	KubeHttpClient *http.Client
 }
 
 type AddCluster struct {
@@ -136,6 +138,11 @@ func (c *Cluster) Init(kubeConfig string) error {
 }
 
 func (c *Cluster) setCache(k8sConfig *rest.Config) error {
+	httpClient, err := c.newKubeHttpClient(k8sConfig)
+	if err != nil {
+		return err
+	}
+	c.KubeHttpClient = httpClient
 	c.stopCh = make(chan struct{})
 	c.K8sConfig = k8sConfig
 	cache, err := cache.New(k8sConfig, cache.Options{})
@@ -146,6 +153,17 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	cache.WaitForCacheSync(c.stopCh)
 	c.Cache = cache
 	return nil
+}
+
+func (c *Cluster) newKubeHttpClient(k8sConfig *rest.Config) (*http.Client, error) {
+	secureTransport, err := rest.TransportFor(k8sConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create kube http client failed: %s", err.Error())
+	}
+
+	return &http.Client{
+		Transport: secureTransport,
+	}, nil
 }
 
 func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManager) {
