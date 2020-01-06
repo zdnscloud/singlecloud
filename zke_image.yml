@@ -23,7 +23,7 @@ v1.13.10:
   storage_operator: zdnscloud/storage-operator:v3.5.7
   zcloud_shell: zdnscloud/kubectl:v1.13.10
   zcloud_proxy: zdnscloud/zcloud-proxy:v1.0.1
-  zcloud_lbcontroller: zdnscloud/elb-controller:v0.0.3
+  zcloud_lbcontroller: zdnscloud/elb-controller:v0.0.4
   service_mesh:
     controller: zdnscloud/linkerd-io-controller:stable-2.6.0
     proxy: zdnscloud/linkerd-io-proxy:stable-2.6.0
