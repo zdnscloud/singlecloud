@@ -19,7 +19,7 @@ import (
 const (
 	monitorAppNamePrefix = "monitor"
 	monitorChartName     = "prometheus"
-	monitorChartVersion  = "6.4.1"
+	monitorChartVersion  = "6.4.2"
 
 	ZcloudDynamicaDomainPrefix  = "zc.zdns.cn"
 	sysApplicationCheckInterval = time.Second * 5
