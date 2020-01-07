@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -61,8 +62,10 @@ func validateIfLoadBalancerService(s *types.Service) error {
 	if s.ServiceType != "loadbalancer" {
 		return nil
 	}
-	if s.LoadBalanceVIP == "" {
-		return fmt.Errorf("loadbalance vip must be not empty")
+
+	ip := net.ParseIP(s.LoadBalanceVIP)
+	if ip == nil || ip.To4() == nil {
+		return fmt.Errorf("svc LoadBalanceVIP must be an ipv4 address")
 	}
 	return nil
 }
