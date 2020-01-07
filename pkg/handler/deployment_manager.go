@@ -304,6 +304,10 @@ func getDeploymentUpdateStatus(cli client.Client, k8sDeploy *appsv1.Deployment) 
 				workloadStatus.UpdatedReplicas = int(rs.Status.ReadyReplicas)
 				workloadStatus.UpdatingReplicas = int(rs.Status.Replicas - rs.Status.ReadyReplicas)
 			} else if v == strconv.Itoa(currentVersion-1) {
+				if rs.Status.Replicas == 0 {
+					return types.WorkloadStatus{ReadyReplicas: int(k8sDeploy.Status.ReadyReplicas)}, nil
+				}
+
 				workloadStatus.CurrentReplicas = int(rs.Status.Replicas)
 			}
 		}
