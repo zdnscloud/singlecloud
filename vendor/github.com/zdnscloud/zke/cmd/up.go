@@ -349,8 +349,9 @@ func ConfigureCluster(
 		return err
 	}
 
+	kubeCluster.Certificates = crtBundle
+
 	if len(kubeCluster.ControlPlaneHosts) > 0 && isNewCluster {
-		kubeCluster.Certificates = crtBundle
 		if err := network.DeployNetwork(ctx, kubeCluster); err != nil {
 			return err
 			log.Warnf(ctx, "Failed to deploy [%s]: %v", network.NetworkPluginResourceName, err)
