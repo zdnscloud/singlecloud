@@ -72,13 +72,11 @@ func genZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 		config.Nodes = append(config.Nodes, n)
 	}
 
-	if cluster.LoadBalance.MasterServer != "" {
-		config.LoadBalance.Enable = true
-		config.LoadBalance.MasterServer = cluster.LoadBalance.MasterServer
-		config.LoadBalance.BackupServer = cluster.LoadBalance.BackupServer
-		config.LoadBalance.User = cluster.LoadBalance.User
-		config.LoadBalance.Password = cluster.LoadBalance.Password
-	}
+	config.LoadBalance.Enable = cluster.LoadBalance.Enable
+	config.LoadBalance.MasterServer = cluster.LoadBalance.MasterServer
+	config.LoadBalance.BackupServer = cluster.LoadBalance.BackupServer
+	config.LoadBalance.User = cluster.LoadBalance.User
+	config.LoadBalance.Password = cluster.LoadBalance.Password
 
 	return config
 }
@@ -103,12 +101,10 @@ func genZKEConfigForUpdate(config *zketypes.ZKEConfig, sc *types.Cluster) *zkety
 		newConfig.Nodes = append(newConfig.Nodes, n)
 	}
 
-	if sc.LoadBalance.MasterServer != "" {
-		config.LoadBalance.Enable = true
-		newConfig.LoadBalance.MasterServer = sc.LoadBalance.MasterServer
-		newConfig.LoadBalance.BackupServer = sc.LoadBalance.BackupServer
-		newConfig.LoadBalance.User = sc.LoadBalance.User
-		newConfig.LoadBalance.Password = sc.LoadBalance.Password
-	}
+	config.LoadBalance.Enable = sc.LoadBalance.Enable
+	newConfig.LoadBalance.MasterServer = sc.LoadBalance.MasterServer
+	newConfig.LoadBalance.BackupServer = sc.LoadBalance.BackupServer
+	newConfig.LoadBalance.User = sc.LoadBalance.User
+	newConfig.LoadBalance.Password = sc.LoadBalance.Password
 	return newConfig
 }

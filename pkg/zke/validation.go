@@ -69,7 +69,7 @@ func validateToDeleteStorageNodes(oldCluster, newCluster *types.Cluster, nl Node
 }
 
 func validateLBConfig(c *types.Cluster) error {
-	if c.LoadBalance.MasterServer == "" && c.LoadBalance.BackupServer == "" && c.LoadBalance.User == "" && c.LoadBalance.Password == "" {
+	if !c.LoadBalance.Enable {
 		return nil
 	}
 	if !isIPv4(c.LoadBalance.MasterServer) && !isIPv4Host(c.LoadBalance.MasterServer) {

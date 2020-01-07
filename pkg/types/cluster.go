@@ -72,6 +72,7 @@ type ClusterNetwork struct {
 }
 
 type ClusterLoadBalance struct {
+	Enable       bool   `json:"enable"`
 	MasterServer string `json:"masterServer"`
 	BackupServer string `json:"backupServer"`
 	User         string `json:"user"`
