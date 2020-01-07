@@ -256,8 +256,19 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 		Containers:        containers,
 		PersistentVolumes: pvs,
 		AdvancedOptions:   advancedOpts,
-		Status:            k8sWorkloadStatusToScWorkloadStatus(&k8sDeploy.Status),
+		Status:            types.WorkloadStatus{ReadyReplicas: int(k8sDeploy.Status.ReadyReplicas)},
 	}
+
+	if deployIsUpdating(k8sDeploy) {
+		status, err := getDeploymentUpdateStatus(cli, k8sDeploy)
+		if err != nil {
+			return nil, err
+		}
+
+		deploy.Status = status
+	}
+
+	deploy.Status.Conditions = k8sWorkloadConditionsToScWorkloadConditions(k8sDeploy.Status.Conditions, true)
 	deploy.SetID(k8sDeploy.Name)
 	deploy.SetCreationTimestamp(k8sDeploy.CreationTimestamp.Time)
 	if k8sDeploy.GetDeletionTimestamp() != nil {
@@ -265,6 +276,58 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	}
 	deploy.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDeploy.Spec.Template.Annotations)
 	return deploy, nil
+}
+
+func getDeploymentUpdateStatus(cli client.Client, k8sDeploy *appsv1.Deployment) (types.WorkloadStatus, error) {
+	version, ok := k8sDeploy.Annotations[RevisionAnnotation]
+	if ok == false {
+		return types.WorkloadStatus{}, fmt.Errorf("deploy %s should has annotation deployment.kubernetes.io/revision", k8sDeploy.Name)
+	}
+
+	currentVersion, _ := strconv.Atoi(version)
+	rss, err := getReplicaSets(cli, k8sDeploy)
+	if err != nil {
+		return types.WorkloadStatus{}, err
+	}
+
+	if len(rss) < 2 {
+		return types.WorkloadStatus{}, fmt.Errorf("deploy %s should has at least two replicasets when updating", k8sDeploy.Name)
+	}
+
+	workloadStatus := types.WorkloadStatus{
+		ReadyReplicas: int(k8sDeploy.Status.ReadyReplicas),
+		Updating:      true,
+	}
+	for _, rs := range rss {
+		if v, ok := rs.Annotations[RevisionAnnotation]; ok {
+			if v == version {
+				workloadStatus.UpdatedReplicas = int(rs.Status.ReadyReplicas)
+				workloadStatus.UpdatingReplicas = int(rs.Status.Replicas - rs.Status.ReadyReplicas)
+			} else if v == strconv.Itoa(currentVersion-1) {
+				workloadStatus.CurrentReplicas = int(rs.Status.Replicas)
+			}
+		}
+	}
+
+	return workloadStatus, nil
+}
+
+func deployIsUpdating(k8sDeploy *appsv1.Deployment) bool {
+	if v, ok := k8sDeploy.Annotations[RevisionAnnotation]; ok {
+		if v == "1" {
+			return false
+		}
+	}
+
+	if k8sDeploy.Status.ObservedGeneration == 1 ||
+		(*k8sDeploy.Spec.Replicas == k8sDeploy.Status.Replicas &&
+			k8sDeploy.Status.Replicas == k8sDeploy.Status.ReadyReplicas &&
+			k8sDeploy.Status.ReadyReplicas == k8sDeploy.Status.UpdatedReplicas &&
+			k8sDeploy.Status.UnavailableReplicas == 0) {
+		return false
+	}
+
+	return true
 }
 
 func (m *DeploymentManager) getDeploymentHistory(ctx *resource.Context) (interface{}, *resterror.APIError) {
@@ -418,16 +481,21 @@ func getDeploymentAndReplicaSets(cli client.Client, namespace, deployName string
 		return nil, nil, fmt.Errorf("deploy %v has no selector", k8sDeploy.Name)
 	}
 
+	rss, err := getReplicaSets(cli, k8sDeploy)
+	return k8sDeploy, rss, err
+}
+
+func getReplicaSets(cli client.Client, k8sDeploy *appsv1.Deployment) ([]appsv1.ReplicaSet, error) {
 	replicasets := appsv1.ReplicaSetList{}
-	opts := &client.ListOptions{Namespace: namespace}
+	opts := &client.ListOptions{Namespace: k8sDeploy.Namespace}
 	labels, err := metav1.LabelSelectorAsSelector(k8sDeploy.Spec.Selector)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	opts.LabelSelector = labels
 	if err := cli.List(context.TODO(), opts, &replicasets); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var replicaSetsByDeployControled []appsv1.ReplicaSet
@@ -437,5 +505,5 @@ func getDeploymentAndReplicaSets(cli client.Client, namespace, deployName string
 		}
 	}
 
-	return k8sDeploy, replicaSetsByDeployControled, nil
+	return replicaSetsByDeployControled, nil
 }

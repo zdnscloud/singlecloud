@@ -90,17 +90,12 @@ func (d Deployment) CreateAction(name string) *resource.Action {
 }
 
 type WorkloadStatus struct {
-	ObservedGeneration  int                 `json:"observedGeneration,omitempty"`
-	Replicas            int                 `json:"replicas,omitempty"`
-	ReadyReplicas       int                 `json:"readyReplicas,omitempty"`
-	UpdatedReplicas     int                 `json:"updatedReplicas,omitempty"`
-	AvailableReplicas   int                 `json:"availableReplicas,omitempty"`
-	UnavailableReplicas int                 `json:"unavailableReplicas,omitempty"`
-	CurrentReplicas     int                 `json:"currentReplicas,omitempty"`
-	CurrentRevision     string              `json:"currentRevision,omitempty"`
-	UpdateRevision      string              `json:"updateRevision,omitempty"`
-	CollisionCount      int                 `json:"collisionCount,omitempty"`
-	Conditions          []WorkloadCondition `json:"conditions,omitempty"`
+	ReadyReplicas    int                 `json:"readyReplicas,omitempty"`
+	Updating         bool                `json:"updating,omitempty"`
+	CurrentReplicas  int                 `json:"currentReplicas,omitempty"`
+	UpdatingReplicas int                 `json:"updatingReplicas,omitempty"`
+	UpdatedReplicas  int                 `json:"updatedReplicas,omitempty"`
+	Conditions       []WorkloadCondition `json:"conditions,omitempty"`
 }
 
 type WorkloadCondition struct {

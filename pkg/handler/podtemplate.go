@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -532,36 +531,6 @@ func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.Expose
 		}
 	}
 	return types.ExposedMetric{}
-}
-
-func k8sWorkloadStatusToScWorkloadStatus(k8sStatus interface{}) types.WorkloadStatus {
-	_, isDeploy := k8sStatus.(*appsv1.DeploymentStatus)
-	structVal := reflect.ValueOf(k8sStatus).Elem()
-	k8sCollisionCount := structVal.FieldByName("CollisionCount").Interface().(*int32)
-	var collisionCount int
-	if k8sCollisionCount != nil {
-		collisionCount = int(*k8sCollisionCount)
-	}
-
-	status := types.WorkloadStatus{
-		ObservedGeneration: int(structVal.FieldByName("ObservedGeneration").Int()),
-		Replicas:           int(structVal.FieldByName("Replicas").Int()),
-		ReadyReplicas:      int(structVal.FieldByName("ReadyReplicas").Int()),
-		UpdatedReplicas:    int(structVal.FieldByName("UpdatedReplicas").Int()),
-		CollisionCount:     collisionCount,
-		Conditions:         k8sWorkloadConditionsToScWorkloadConditions(structVal.FieldByName("Conditions").Interface(), isDeploy),
-	}
-
-	if isDeploy {
-		status.AvailableReplicas = int(structVal.FieldByName("AvailableReplicas").Int())
-		status.UnavailableReplicas = int(structVal.FieldByName("UnavailableReplicas").Int())
-	} else {
-		status.CurrentReplicas = int(structVal.FieldByName("CurrentReplicas").Int())
-		status.CurrentRevision = structVal.FieldByName("CurrentRevision").String()
-		status.UpdateRevision = structVal.FieldByName("UpdateRevision").String()
-	}
-
-	return status
 }
 
 func k8sWorkloadConditionsToScWorkloadConditions(k8sConditions interface{}, isDeploy bool) []types.WorkloadCondition {

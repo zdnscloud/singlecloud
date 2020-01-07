@@ -255,8 +255,21 @@ func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.St
 		Containers:        containers,
 		AdvancedOptions:   advancedOpts,
 		PersistentVolumes: pvs,
-		Status:            k8sWorkloadStatusToScWorkloadStatus(&k8sStatefulSet.Status),
+		Status:            types.WorkloadStatus{ReadyReplicas: int(k8sStatefulSet.Status.ReadyReplicas)},
 	}
+
+	if k8sStatefulSet.Status.CurrentRevision != k8sStatefulSet.Status.UpdateRevision {
+		statefulset.Status.Updating = true
+		statefulset.Status.UpdatingReplicas = 1
+		if k8sStatefulSet.Status.UpdatedReplicas != 0 {
+			statefulset.Status.UpdatedReplicas = int(k8sStatefulSet.Status.UpdatedReplicas - 1)
+			statefulset.Status.CurrentReplicas = int(*k8sStatefulSet.Spec.Replicas - k8sStatefulSet.Status.UpdatedReplicas)
+		} else {
+			statefulset.Status.CurrentReplicas = int(*k8sStatefulSet.Spec.Replicas - 1)
+		}
+	}
+
+	statefulset.Status.Conditions = k8sWorkloadConditionsToScWorkloadConditions(k8sStatefulSet.Status.Conditions, false)
 	statefulset.SetID(k8sStatefulSet.Name)
 	statefulset.SetCreationTimestamp(k8sStatefulSet.CreationTimestamp.Time)
 	if k8sStatefulSet.GetDeletionTimestamp() != nil {
