@@ -101,7 +101,7 @@ func genZKEConfigForUpdate(config *zketypes.ZKEConfig, sc *types.Cluster) *zkety
 		newConfig.Nodes = append(newConfig.Nodes, n)
 	}
 
-	config.LoadBalance.Enable = sc.LoadBalance.Enable
+	newConfig.LoadBalance.Enable = sc.LoadBalance.Enable
 	newConfig.LoadBalance.MasterServer = sc.LoadBalance.MasterServer
 	newConfig.LoadBalance.BackupServer = sc.LoadBalance.BackupServer
 	newConfig.LoadBalance.User = sc.LoadBalance.User
