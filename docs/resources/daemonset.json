@@ -35,7 +35,7 @@
       "elemType": "persistentVolumeTemplate"
     },
     "status": {
-      "type": "daemonSetStatus",
+      "type": "workloadStatus",
       "description": [
         "readonly"
       ]
@@ -101,39 +101,6 @@
           "tcp",
           "udp"
         ]
-      }
-    },
-    "daemonSetStatus": {
-      "collisionCount": {
-        "type": "int"
-      },
-      "conditions": {
-        "type": "array",
-        "elemType": "workloadCondition"
-      },
-      "currentNumberScheduled": {
-        "type": "int"
-      },
-      "desiredNumberScheduled": {
-        "type": "int"
-      },
-      "numberAvailable": {
-        "type": "int"
-      },
-      "numberMisscheduled": {
-        "type": "int"
-      },
-      "numberReady": {
-        "type": "int"
-      },
-      "numberUnavailable": {
-        "type": "int"
-      },
-      "observedGeneration": {
-        "type": "int"
-      },
-      "updatedNumberScheduled": {
-        "type": "int"
       }
     },
     "envVar": {
@@ -208,6 +175,27 @@
       },
       "type": {
         "type": "string"
+      }
+    },
+    "workloadStatus": {
+      "conditions": {
+        "type": "array",
+        "elemType": "workloadCondition"
+      },
+      "currentReplicas": {
+        "type": "int"
+      },
+      "readyReplicas": {
+        "type": "int"
+      },
+      "updatedReplicas": {
+        "type": "int"
+      },
+      "updating": {
+        "type": "bool"
+      },
+      "updatingReplicas": {
+        "type": "int"
       }
     }
   },

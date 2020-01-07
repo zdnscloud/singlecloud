@@ -184,12 +184,6 @@
       }
     },
     "workloadStatus": {
-      "availableReplicas": {
-        "type": "int"
-      },
-      "collisionCount": {
-        "type": "int"
-      },
       "conditions": {
         "type": "array",
         "elemType": "workloadCondition"
@@ -197,25 +191,16 @@
       "currentReplicas": {
         "type": "int"
       },
-      "currentRevision": {
-        "type": "string"
-      },
-      "observedGeneration": {
-        "type": "int"
-      },
       "readyReplicas": {
         "type": "int"
       },
-      "replicas": {
-        "type": "int"
-      },
-      "unavailableReplicas": {
-        "type": "int"
-      },
-      "updateRevision": {
-        "type": "string"
-      },
       "updatedReplicas": {
+        "type": "int"
+      },
+      "updating": {
+        "type": "bool"
+      },
+      "updatingReplicas": {
         "type": "int"
       }
     }
