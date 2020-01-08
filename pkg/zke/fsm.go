@@ -1,6 +1,8 @@
 package zke
 
 import (
+	"fmt"
+
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/cement/fsm"
@@ -42,8 +44,11 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 		},
 		fsm.Callbacks{
 			CreateSucceedEvent: func(e *fsm.Event) {
-				mgr := e.Args[0].(*ZKEManager)
-				state := e.Args[1].(clusterState)
+				mgr, state, _, err := getFsmEventArgs(e)
+				if err != nil {
+					log.Warnf("fsm %s callback failed %s", CreateSucceedEvent, err.Error())
+				}
+
 				cluster.logCh = nil
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
@@ -51,46 +56,71 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				mgr.SendEvent(AddCluster{Cluster: cluster})
 			},
 			CreateFailedEvent: func(e *fsm.Event) {
-				mgr := e.Args[0].(*ZKEManager)
-				state := e.Args[1].(clusterState)
-				err := e.Args[2].(error)
-				mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: CreateFailedEvent, Message: err.Error()})
+				mgr, state, errMsg, err := getFsmEventArgs(e)
+				if err != nil {
+					log.Warnf("fsm %s callback failed %s", CreateFailedEvent, err.Error())
+					return
+				}
+
+				if errMsg != "" {
+					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: CreateFailedEvent, Message: errMsg})
+				}
+
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
 			},
 			CreateCanceledEvent: func(e *fsm.Event) {
-				mgr := e.Args[0].(*ZKEManager)
-				state := e.Args[1].(clusterState)
+				mgr, state, _, err := getFsmEventArgs(e)
+				if err != nil {
+					log.Warnf("fsm %s callback failed %s", CreateCanceledEvent, err.Error())
+					return
+				}
+
 				cluster.isCanceled = false
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
 			},
 			UpdateCompletedEvent: func(e *fsm.Event) {
-				mgr := e.Args[0].(*ZKEManager)
-				state := e.Args[1].(clusterState)
-				cluster.logCh = nil
-				if err := e.Args[2].(error); err != nil {
-					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: UpdateFailedEvent, Message: err.Error()})
+				mgr, state, errMsg, err := getFsmEventArgs(e)
+				if err != nil {
+					log.Warnf("fsm %s callback failed %s", UpdateCompletedEvent, err.Error())
+					return
 				}
+
+				cluster.logCh = nil
+				if errMsg != "" {
+					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: UpdateFailedEvent, Message: errMsg})
+				}
+
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
 			},
 			UpdateCanceledEvent: func(e *fsm.Event) {
-				mgr := e.Args[0].(*ZKEManager)
-				state := e.Args[1].(clusterState)
+				mgr, state, _, err := getFsmEventArgs(e)
+				if err != nil {
+					log.Warnf("fsm %s callback failed %s", UpdateCompletedEvent, err.Error())
+					return
+				}
+
 				cluster.isCanceled = false
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
 			},
 			DeleteCompletedEvent: func(e *fsm.Event) {
-				mgr := e.Args[0].(*ZKEManager)
-				if err := e.Args[2].(error); err != nil {
-					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: DeleteFailedEvent, Message: err.Error()})
+				mgr, _, errMsg, err := getFsmEventArgs(e)
+				if err != nil {
+					log.Warnf("fsm %s callback failed %s", DeleteCompletedEvent, err.Error())
+					return
 				}
+
+				if errMsg != "" {
+					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: DeleteFailedEvent, Message: errMsg})
+				}
+
 				mgr.Remove(cluster)
 				if err := deleteClusterFromDB(cluster.Name, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
@@ -98,4 +128,22 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 			},
 		},
 	)
+}
+
+func getFsmEventArgs(e *fsm.Event) (*ZKEManager, clusterState, string, error) {
+	zkeMgr, ok := e.Args[0].(*ZKEManager)
+	if !ok {
+		return nil, clusterState{}, "", fmt.Errorf("get zke manager from fsm event failed")
+	}
+
+	state, ok := e.Args[1].(clusterState)
+	if !ok {
+		return nil, clusterState{}, "", fmt.Errorf("get clusterState from fsm event failed")
+	}
+
+	errMessage, ok := e.Args[2].(string)
+	if !ok {
+		return nil, clusterState{}, "", fmt.Errorf("get errMessage from fsm event failed")
+	}
+	return zkeMgr, state, errMessage, nil
 }
