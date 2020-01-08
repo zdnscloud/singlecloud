@@ -42,15 +42,18 @@ type PodToSearch struct {
 	Name string `json:"name"`
 }
 
-func (n Namespace) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionSearchPod:
-		return &resource.Action{
-			Name:  ActionSearchPod,
-			Input: &PodToSearch{},
-		}
-	default:
-		return nil
+type PodInfo struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+}
+
+func (n Namespace) GetActions() []resource.Action {
+	return []resource.Action{
+		resource.Action{
+			Name:   ActionSearchPod,
+			Input:  &PodToSearch{},
+			Output: &PodInfo{},
+		},
 	}
 }
 

@@ -68,24 +68,21 @@ func (d Deployment) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
-func (d Deployment) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionGetHistory:
-		return &resource.Action{
-			Name: ActionGetHistory,
-		}
-	case ActionRollback:
-		return &resource.Action{
+func (d Deployment) GetActions() []resource.Action {
+	return []resource.Action{
+		resource.Action{
+			Name:   ActionGetHistory,
+			Output: &VersionHistory{},
+		},
+		resource.Action{
 			Name:  ActionRollback,
 			Input: &RollBackVersion{},
-		}
-	case ActionSetPodCount:
-		return &resource.Action{
-			Name:  ActionSetPodCount,
-			Input: &SetPodCount{},
-		}
-	default:
-		return nil
+		},
+		resource.Action{
+			Name:   ActionSetPodCount,
+			Input:  &SetPodCount{},
+			Output: &SetPodCount{},
+		},
 	}
 }
 

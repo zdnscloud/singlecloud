@@ -32,19 +32,20 @@ type Project struct {
 	Namespace string `json:"namespace" rest:"isDomain=true"`
 }
 
-func (u User) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionLogin:
-		return &resource.Action{
-			Name:  ActionLogin,
-			Input: &UserPassword{},
-		}
-	case ActionResetPassword:
-		return &resource.Action{
+type LoginInfo struct {
+	Token string `json:"token"`
+}
+
+func (u User) GetActions() []resource.Action {
+	return []resource.Action{
+		resource.Action{
+			Name:   ActionLogin,
+			Input:  &UserPassword{},
+			Output: &LoginInfo{},
+		},
+		resource.Action{
 			Name:  ActionResetPassword,
 			Input: &ResetPassword{},
-		}
-	default:
-		return nil
+		},
 	}
 }

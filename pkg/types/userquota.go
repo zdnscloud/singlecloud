@@ -23,7 +23,7 @@ type ClusterInfo struct {
 }
 
 type Rejection struct {
-	Reason string `reason`
+	Reason string `json:"reason"`
 }
 
 type UserQuota struct {
@@ -44,20 +44,16 @@ type UserQuota struct {
 	ResponseTimestamp     resource.ISOTime `json:"responseTimestamp,omitempty" rest:"description=readonly"`
 }
 
-func (uq UserQuota) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionApproval:
-		return &resource.Action{
+func (uq UserQuota) GetActions() []resource.Action {
+	return []resource.Action{
+		resource.Action{
 			Name:  ActionApproval,
 			Input: &ClusterInfo{},
-		}
-	case ActionRejection:
-		return &resource.Action{
+		},
+		resource.Action{
 			Name:  ActionRejection,
 			Input: &Rejection{},
-		}
-	default:
-		return nil
+		},
 	}
 }
 

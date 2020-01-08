@@ -137,9 +137,7 @@ func (m *UserManager) login(ctx *restresource.Context) (interface{}, *resterr.AP
 	if err != nil {
 		return nil, resterr.NewAPIError(resterr.InvalidBodyContent, err.Error())
 	} else {
-		return map[string]string{
-			"token": token,
-		}, nil
+		return types.LoginInfo{token}, nil
 	}
 }
 

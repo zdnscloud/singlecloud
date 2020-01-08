@@ -31,18 +31,15 @@ func (d DaemonSet) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
-func (d DaemonSet) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionGetHistory:
-		return &resource.Action{
-			Name: ActionGetHistory,
-		}
-	case ActionRollback:
-		return &resource.Action{
+func (d DaemonSet) GetActions() []resource.Action {
+	return []resource.Action{
+		resource.Action{
+			Name:   ActionGetHistory,
+			Output: &VersionHistory{},
+		},
+		resource.Action{
 			Name:  ActionRollback,
 			Input: &RollBackVersion{},
-		}
-	default:
-		return nil
+		},
 	}
 }

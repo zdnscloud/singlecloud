@@ -47,5 +47,45 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "login",
+      "input": {
+        "type": "userPassword"
+      },
+      "output": {
+        "type": "loginInfo"
+      },
+      "subResources": {
+        "loginInfo": {
+          "token": {
+            "type": "string"
+          }
+        },
+        "userPassword": {
+          "password": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "resetPassword",
+      "input": {
+        "type": "resetPassword"
+      },
+      "output": {},
+      "subResources": {
+        "resetPassword": {
+          "newPassword": {
+            "type": "string"
+          },
+          "oldPassword": {
+            "type": "string"
+          }
+        }
+      }
+    }
   ]
 }

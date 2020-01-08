@@ -56,7 +56,7 @@ type ResourceKind interface {
 	//when real data is provided, it will merge with
 	//default value
 	CreateDefaultResource() Resource
-	CreateAction(name string) *Action
+	GetActions() []Action
 }
 
 //lowercase singluar

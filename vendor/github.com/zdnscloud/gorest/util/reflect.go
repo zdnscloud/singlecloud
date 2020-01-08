@@ -22,6 +22,7 @@ const (
 	StructPtrSlice Kind = "structPtrSlice"
 
 	StructPtr Kind = "structPtr"
+	BoolPtr   Kind = "boolPtr"
 
 	StringIntMap       Kind = "stringIntMap"
 	StringUintMap      Kind = "stringUintMap"
@@ -47,6 +48,9 @@ func Inspect(typ reflect.Type) Kind {
 		vk := typ.Elem().Kind()
 		if vk == reflect.Struct {
 			return StructPtr
+		}
+		if vk == reflect.Bool {
+			return BoolPtr
 		}
 	case reflect.Map:
 		if typ.Key().Kind() == reflect.String {

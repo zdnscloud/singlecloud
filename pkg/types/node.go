@@ -55,22 +55,17 @@ func (n Node) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
 }
 
-func (n Node) CreateAction(name string) *resource.Action {
-	switch name {
-	case NodeCordon:
-		return &resource.Action{
+func (n Node) GetActions() []resource.Action {
+	return []resource.Action{
+		resource.Action{
 			Name: NodeCordon,
-		}
-	case NodeUnCordon:
-		return &resource.Action{
+		},
+		resource.Action{
 			Name: NodeUnCordon,
-		}
-	case NodeDrain:
-		return &resource.Action{
+		},
+		resource.Action{
 			Name: NodeDrain,
-		}
-	default:
-		return nil
+		},
 	}
 }
 

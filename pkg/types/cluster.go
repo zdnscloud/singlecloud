@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/zke/core"
 )
 
 type ClusterStatus string
@@ -96,19 +95,11 @@ func (c Cluster) CreateDefaultResource() resource.Resource {
 	}
 }
 
-func (c Cluster) CreateAction(name string) *resource.Action {
-	switch name {
-	case CSCancelAction:
-		return &resource.Action{
+func (c Cluster) GetActions() []resource.Action {
+	return []resource.Action{
+		resource.Action{
 			Name: CSCancelAction,
-		}
-	case CSImportAction:
-		return &resource.Action{
-			Name:  CSImportAction,
-			Input: &core.FullState{},
-		}
-	default:
-		return nil
+		},
 	}
 }
 
