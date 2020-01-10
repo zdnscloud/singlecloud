@@ -98,16 +98,8 @@ func (c *Cluster) Cancel() error {
 	return fmt.Errorf("can't cancel cluster %s on %s status", c.Name, status)
 }
 
-func (c *Cluster) CanUpdate() bool {
-	// doesn't support imported cluster update because no sshkey
-	if c.scVersion == types.ScVersionImported {
-		return false
-	}
-	return c.fsm.Can(UpdateEvent)
-}
-
-func (c *Cluster) CanDelete() bool {
-	return c.fsm.Can(DeleteEvent)
+func (c *Cluster) Can(operate string) bool {
+	return c.fsm.Can(operate)
 }
 
 func (c *Cluster) getStatus() types.ClusterStatus {

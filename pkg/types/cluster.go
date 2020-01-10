@@ -18,7 +18,6 @@ const (
 	CSDeleted      ClusterStatus = "Deleted"
 
 	CSCancelAction = "cancel"
-	CSImportAction = "import"
 
 	DefaultNetworkPlugin       = "flannel"
 	DefaultClusterCIDR         = "10.42.0.0/16"
@@ -28,8 +27,6 @@ const (
 	DefaultSSHPort             = "22"
 	DefaultClusterUpstreamDNS1 = "223.5.5.5"
 	DefaultClusterUpstreamDNS2 = "114.114.114.114"
-
-	ScVersionImported = "imported"
 )
 
 type Cluster struct {
