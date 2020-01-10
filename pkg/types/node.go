@@ -55,18 +55,20 @@ func (n Node) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
 }
 
+var NodeActions = []resource.Action{
+	resource.Action{
+		Name: NodeCordon,
+	},
+	resource.Action{
+		Name: NodeUnCordon,
+	},
+	resource.Action{
+		Name: NodeDrain,
+	},
+}
+
 func (n Node) GetActions() []resource.Action {
-	return []resource.Action{
-		resource.Action{
-			Name: NodeCordon,
-		},
-		resource.Action{
-			Name: NodeUnCordon,
-		},
-		resource.Action{
-			Name: NodeDrain,
-		},
-	}
+	return NodeActions
 }
 
 func (n *Node) HasRole(role NodeRole) bool {

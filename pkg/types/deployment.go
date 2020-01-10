@@ -68,22 +68,25 @@ func (d Deployment) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
+var DeploymentActions = []resource.Action{
+	resource.Action{
+		Name:   ActionGetHistory,
+		Output: &VersionHistory{},
+	},
+	resource.Action{
+		Name:  ActionRollback,
+		Input: &RollBackVersion{},
+	},
+	resource.Action{
+		Name:   ActionSetPodCount,
+		Input:  &SetPodCount{},
+		Output: &SetPodCount{},
+	},
+}
+
 func (d Deployment) GetActions() []resource.Action {
-	return []resource.Action{
-		resource.Action{
-			Name:   ActionGetHistory,
-			Output: &VersionHistory{},
-		},
-		resource.Action{
-			Name:  ActionRollback,
-			Input: &RollBackVersion{},
-		},
-		resource.Action{
-			Name:   ActionSetPodCount,
-			Input:  &SetPodCount{},
-			Output: &SetPodCount{},
-		},
-	}
+	return DeploymentActions
+
 }
 
 type WorkloadStatus struct {

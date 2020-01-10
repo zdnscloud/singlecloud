@@ -44,17 +44,19 @@ type UserQuota struct {
 	ResponseTimestamp     resource.ISOTime `json:"responseTimestamp,omitempty" rest:"description=readonly"`
 }
 
+var UserQuotaActions = []resource.Action{
+	resource.Action{
+		Name:  ActionApproval,
+		Input: &ClusterInfo{},
+	},
+	resource.Action{
+		Name:  ActionRejection,
+		Input: &Rejection{},
+	},
+}
+
 func (uq UserQuota) GetActions() []resource.Action {
-	return []resource.Action{
-		resource.Action{
-			Name:  ActionApproval,
-			Input: &ClusterInfo{},
-		},
-		resource.Action{
-			Name:  ActionRejection,
-			Input: &Rejection{},
-		},
-	}
+	return UserQuotaActions
 }
 
 type UserQuotas []*UserQuota

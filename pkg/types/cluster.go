@@ -95,12 +95,14 @@ func (c Cluster) CreateDefaultResource() resource.Resource {
 	}
 }
 
+var ClusterActions = []resource.Action{
+	resource.Action{
+		Name: CSCancelAction,
+	},
+}
+
 func (c Cluster) GetActions() []resource.Action {
-	return []resource.Action{
-		resource.Action{
-			Name: CSCancelAction,
-		},
-	}
+	return ClusterActions
 }
 
 func (c *Cluster) TrimFieldSpace() {

@@ -31,15 +31,17 @@ func (d DaemonSet) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
+var DaemonSetActions = []resource.Action{
+	resource.Action{
+		Name:   ActionGetHistory,
+		Output: &VersionHistory{},
+	},
+	resource.Action{
+		Name:  ActionRollback,
+		Input: &RollBackVersion{},
+	},
+}
+
 func (d DaemonSet) GetActions() []resource.Action {
-	return []resource.Action{
-		resource.Action{
-			Name:   ActionGetHistory,
-			Output: &VersionHistory{},
-		},
-		resource.Action{
-			Name:  ActionRollback,
-			Input: &RollBackVersion{},
-		},
-	}
+	return DaemonSetActions
 }

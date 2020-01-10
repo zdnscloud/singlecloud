@@ -32,19 +32,5 @@ func (s StatefulSet) GetParents() []resource.ResourceKind {
 }
 
 func (s StatefulSet) GetActions() []resource.Action {
-	return []resource.Action{
-		resource.Action{
-			Name:   ActionGetHistory,
-			Output: &VersionHistory{},
-		},
-		resource.Action{
-			Name:  ActionRollback,
-			Input: &RollBackVersion{},
-		},
-		resource.Action{
-			Name:   ActionSetPodCount,
-			Input:  &SetPodCount{},
-			Output: &SetPodCount{},
-		},
-	}
+	return DeploymentActions
 }

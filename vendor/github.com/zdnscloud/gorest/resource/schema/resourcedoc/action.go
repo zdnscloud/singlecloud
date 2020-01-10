@@ -4,7 +4,6 @@ import (
 	"reflect"
 
 	"github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/gorest/util"
 )
 
 type ResourceAction struct {
@@ -22,38 +21,37 @@ func genActions(kind resource.ResourceKind) ([]ResourceAction, error) {
 			SubResources: make(map[string]ResourceFields),
 		}
 		if action.Input != nil {
-			resourceField, err := genResourceFieldAndSubResources(resourceAction, action.Input)
+			resourceField, err := genResourceFieldAndSubResources(resourceAction.SubResources, action.Input)
 			if err != nil {
 				return nil, err
 			}
-			resourceAction.Input = *resourceField
+			resourceAction.Input = resourceField
 		}
 		if action.Output != nil {
-			resourceField, err := genResourceFieldAndSubResources(resourceAction, action.Output)
+			resourceField, err := genResourceFieldAndSubResources(resourceAction.SubResources, action.Output)
 			if err != nil {
 				return nil, err
 			}
-			resourceAction.Output = *resourceField
+			resourceAction.Output = resourceField
 		}
 		resourceActions = append(resourceActions, resourceAction)
 	}
 	return resourceActions, nil
 }
 
-func genResourceFieldAndSubResources(resourceAction ResourceAction, data interface{}) (*ResourceField, error) {
+func genResourceFieldAndSubResources(subResources map[string]ResourceFields, data interface{}) (ResourceField, error) {
 	var tag reflect.StructTag
 	typ := reflect.TypeOf(data)
 	resourceField, err := buildResourceField(typ, tag)
 	if err != nil {
-		return nil, err
+		return ResourceField{}, err
 	}
-	if k := util.Inspect(typ); k == util.Struct || k == util.StructPtr {
-		t := getStructType(typ)
-		resourceFields, err := buildResourceFields(resourceAction.SubResources, t)
+	if t := getStructType(typ); t != nil {
+		resourceFields, err := buildResourceFields(subResources, t)
 		if err != nil {
-			return nil, err
+			return ResourceField{}, err
 		}
-		resourceAction.SubResources[LowerFirstCharacter(t.Name())] = resourceFields
+		subResources[LowerFirstCharacter(t.Name())] = resourceFields
 	}
-	return &resourceField, nil
+	return resourceField, nil
 }

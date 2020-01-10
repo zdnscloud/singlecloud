@@ -47,14 +47,16 @@ type PodInfo struct {
 	Name string `json:"name"`
 }
 
+var NamespaceActions = []resource.Action{
+	resource.Action{
+		Name:   ActionSearchPod,
+		Input:  &PodToSearch{},
+		Output: &PodInfo{},
+	},
+}
+
 func (n Namespace) GetActions() []resource.Action {
-	return []resource.Action{
-		resource.Action{
-			Name:   ActionSearchPod,
-			Input:  &PodToSearch{},
-			Output: &PodInfo{},
-		},
-	}
+	return NamespaceActions
 }
 
 type PodByCpuUsage []*PodCpuInfo

@@ -36,16 +36,18 @@ type LoginInfo struct {
 	Token string `json:"token"`
 }
 
+var UserActions = []resource.Action{
+	resource.Action{
+		Name:   ActionLogin,
+		Input:  &UserPassword{},
+		Output: &LoginInfo{},
+	},
+	resource.Action{
+		Name:  ActionResetPassword,
+		Input: &ResetPassword{},
+	},
+}
+
 func (u User) GetActions() []resource.Action {
-	return []resource.Action{
-		resource.Action{
-			Name:   ActionLogin,
-			Input:  &UserPassword{},
-			Output: &LoginInfo{},
-		},
-		resource.Action{
-			Name:  ActionResetPassword,
-			Input: &ResetPassword{},
-		},
-	}
+	return UserActions
 }
