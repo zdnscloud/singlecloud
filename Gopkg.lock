@@ -643,8 +643,8 @@
   revision = "89eeea17b1b41d16b8ec2cda9783ad2a34a404b9"
 
 [[projects]]
-  branch = "change-actions"
-  digest = "1:3d42ad7679fb23332371b401899815024edbd21b5a99fc9792ba94e9aa911e14"
+  branch = "master"
+  digest = "1:ebb5e6341a22d32e3091b9bf93ecb32cb6263bdeb02cb758fed2da0dfe3ab2e0"
   name = "github.com/zdnscloud/gorest"
   packages = [
     ".",
@@ -658,7 +658,7 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "626cfdbf72d5edf551a8d8b4944bf10c6000a0ff"
+  revision = "c24da01dcca20dce67d8a7c4351117b83d116963"
 
 [[projects]]
   branch = "master"

@@ -84,32 +84,20 @@
     {
       "name": "approval",
       "input": {
-        "type": "clusterInfo"
-      },
-      "output": {},
-      "subResources": {
-        "clusterInfo": {
-          "clusterName": {
-            "type": "string",
-            "description": [
-              "required",
-              "isDomain"
-            ]
-          }
+        "clusterName": {
+          "type": "string",
+          "description": [
+            "required",
+            "isDomain"
+          ]
         }
       }
     },
     {
       "name": "reject",
       "input": {
-        "type": "rejection"
-      },
-      "output": {},
-      "subResources": {
-        "rejection": {
-          "reason": {
-            "type": "string"
-          }
+        "reason": {
+          "type": "string"
         }
       }
     }

@@ -233,9 +233,11 @@
   "resourceActions": [
     {
       "name": "history",
-      "input": {},
       "output": {
-        "type": "versionHistory"
+        "history": {
+          "type": "array",
+          "elemType": "versionInfo"
+        }
       },
       "subResources": {
         "container": {
@@ -296,12 +298,6 @@
             "type": "string"
           }
         },
-        "versionHistory": {
-          "history": {
-            "type": "array",
-            "elemType": "versionInfo"
-          }
-        },
         "versionInfo": {
           "changeReason": {
             "type": "string"
@@ -344,39 +340,33 @@
     {
       "name": "rollback",
       "input": {
-        "type": "rollBackVersion"
-      },
-      "output": {},
-      "subResources": {
-        "rollBackVersion": {
-          "memo": {
-            "type": "string"
-          },
-          "version": {
-            "type": "int",
-            "description": [
-              "required"
-            ]
-          }
+        "memo": {
+          "type": "string"
+        },
+        "version": {
+          "type": "int",
+          "description": [
+            "required"
+          ]
         }
       }
     },
     {
       "name": "setPodCount",
       "input": {
-        "type": "setPodCount"
+        "replicas": {
+          "type": "int",
+          "description": [
+            "required"
+          ]
+        }
       },
       "output": {
-        "type": "setPodCount"
-      },
-      "subResources": {
-        "setPodCount": {
-          "replicas": {
-            "type": "int",
-            "description": [
-              "required"
-            ]
-          }
+        "replicas": {
+          "type": "int",
+          "description": [
+            "required"
+          ]
         }
       }
     }

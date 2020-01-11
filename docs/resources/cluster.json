@@ -345,9 +345,7 @@
   ],
   "resourceActions": [
     {
-      "name": "cancel",
-      "input": {},
-      "output": {}
+      "name": "cancel"
     }
   ]
 }

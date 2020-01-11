@@ -114,24 +114,16 @@
     {
       "name": "searchPod",
       "input": {
-        "type": "podToSearch"
+        "name": {
+          "type": "string"
+        }
       },
       "output": {
-        "type": "podInfo"
-      },
-      "subResources": {
-        "podInfo": {
-          "kind": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
+        "kind": {
+          "type": "string"
         },
-        "podToSearch": {
-          "name": {
-            "type": "string"
-          }
+        "name": {
+          "type": "string"
         }
       }
     }

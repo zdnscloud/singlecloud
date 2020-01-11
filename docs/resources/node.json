@@ -137,19 +137,13 @@
   ],
   "resourceActions": [
     {
-      "name": "cordon",
-      "input": {},
-      "output": {}
+      "name": "cordon"
     },
     {
-      "name": "uncordon",
-      "input": {},
-      "output": {}
+      "name": "uncordon"
     },
     {
-      "name": "drain",
-      "input": {},
-      "output": {}
+      "name": "drain"
     }
   ]
 }

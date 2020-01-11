@@ -52,38 +52,24 @@
     {
       "name": "login",
       "input": {
-        "type": "userPassword"
+        "password": {
+          "type": "string"
+        }
       },
       "output": {
-        "type": "loginInfo"
-      },
-      "subResources": {
-        "loginInfo": {
-          "token": {
-            "type": "string"
-          }
-        },
-        "userPassword": {
-          "password": {
-            "type": "string"
-          }
+        "token": {
+          "type": "string"
         }
       }
     },
     {
       "name": "resetPassword",
       "input": {
-        "type": "resetPassword"
-      },
-      "output": {},
-      "subResources": {
-        "resetPassword": {
-          "newPassword": {
-            "type": "string"
-          },
-          "oldPassword": {
-            "type": "string"
-          }
+        "newPassword": {
+          "type": "string"
+        },
+        "oldPassword": {
+          "type": "string"
         }
       }
     }
