@@ -316,17 +316,17 @@ func (m *NamespaceManager) searchPod(ctx *resource.Context) (interface{}, *reste
 	}
 
 	if len(pod.OwnerReferences) != 1 {
-		return map[string]string{
-			"kind": "pod",
-			"name": pod.Name,
+		return &types.PodInfo{
+			Kind: "pod",
+			Name: pod.Name,
 		}, nil
 	}
 
 	owner := pod.OwnerReferences[0]
 	if owner.Kind != "ReplicaSet" {
-		return map[string]string{
-			"kind": owner.Kind,
-			"name": owner.Name,
+		return &types.PodInfo{
+			Kind: owner.Kind,
+			Name: owner.Name,
 		}, nil
 	}
 
@@ -341,8 +341,8 @@ func (m *NamespaceManager) searchPod(ctx *resource.Context) (interface{}, *reste
 	}
 
 	owner = rs.OwnerReferences[0]
-	return map[string]string{
-		"kind": owner.Kind,
-		"name": owner.Name,
+	return &types.PodInfo{
+		Kind: owner.Kind,
+		Name: owner.Name,
 	}, nil
 }

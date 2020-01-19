@@ -31,23 +31,6 @@ func (s StatefulSet) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
-func (s StatefulSet) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionGetHistory:
-		return &resource.Action{
-			Name: ActionGetHistory,
-		}
-	case ActionRollback:
-		return &resource.Action{
-			Name:  ActionRollback,
-			Input: &RollBackVersion{},
-		}
-	case ActionSetPodCount:
-		return &resource.Action{
-			Name:  ActionSetPodCount,
-			Input: &SetPodCount{},
-		}
-	default:
-		return nil
-	}
+func (s StatefulSet) GetActions() []resource.Action {
+	return DeploymentActions
 }
