@@ -7,6 +7,7 @@ import (
 type DaemonSet struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string                     `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	Replicas              int                        `json:"replicas" rest:"description=readonly"`
 	Containers            []Container                `json:"containers" rest:"required=true"`
 	AdvancedOptions       AdvancedOptions            `json:"advancedOptions,omitempty" rest:"description=immutable"`
 	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes,omitempty"`

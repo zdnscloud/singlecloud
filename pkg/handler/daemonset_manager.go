@@ -229,6 +229,7 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 
 	daemonSet := &types.DaemonSet{
 		Name:              k8sDaemonSet.Name,
+		Replicas:          int(k8sDaemonSet.Status.DesiredNumberScheduled),
 		Containers:        containers,
 		AdvancedOptions:   advancedOpts,
 		PersistentVolumes: pvs,
