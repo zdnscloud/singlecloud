@@ -105,7 +105,11 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register k8s event watcher failed:%s", err.Error())
 	}
 
-	alarmMgr := alarm.NewAlarmManager(eventBus)
+	alarmMgr, err := alarm.NewAlarmManager(eventBus, dbClient)
+	if err != nil {
+		log.Fatalf("create alarm failed:%s", err.Error())
+	}
+
 	if err := server.RegisterHandler(alarmMgr); err != nil {
 		log.Fatalf("register k8s event watcher failed:%s", err.Error())
 	}

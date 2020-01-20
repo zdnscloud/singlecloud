@@ -8,9 +8,9 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/pubsub"
-	"github.com/zdnscloud/gok8s/client"
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -20,28 +20,30 @@ var eventBus *pubsub.PubSub
 var UpdateErr = gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
 
 const (
-	MaxEventCount = 100
+	MaxEventCount          = 100
+	ThresholdTable         = "threshold"
+	ThresholdConfigmapName = "resource-threshold"
 )
 
 type AlarmManager struct {
 	lock              sync.Mutex
 	cache             *AlarmCache
-	clusterClient     map[string]client.Client
 	clusterEventCache map[string]*EventCache
 }
 
-func NewAlarmManager(eBus *pubsub.PubSub) *AlarmManager {
+func NewAlarmManager(eBus *pubsub.PubSub, db kvzoo.DB) (*AlarmManager, error) {
 	eventBus = eBus
-	clients := make(map[string]client.Client)
-	events := make(map[string]*EventCache)
-	cache := NewAlarmCache(MaxEventCount, clients)
+	tn, _ := kvzoo.TableNameFromSegments(ThresholdTable)
+	table, err := db.CreateOrGetTable(tn)
+	if err != nil {
+		return nil, fmt.Errorf("create or get table %s failed: %s", ThresholdTable, err.Error())
+	}
 	mgr := &AlarmManager{
-		cache:             cache,
-		clusterClient:     clients,
-		clusterEventCache: events,
+		cache:             NewAlarmCache(MaxEventCount, table),
+		clusterEventCache: make(map[string]*EventCache),
 	}
 	go mgr.eventLoop()
-	return mgr
+	return mgr, nil
 }
 
 func (mgr *AlarmManager) eventLoop() {
@@ -52,17 +54,11 @@ func (mgr *AlarmManager) eventLoop() {
 		case zke.AddCluster:
 			cluster := e.Cluster
 			mgr.lock.Lock()
-			mgr.clusterClient[cluster.Name] = cluster.KubeClient
 			mgr.clusterEventCache[cluster.Name] = NewEventCache(cluster.Name, cluster.Cache, mgr.cache)
 			mgr.lock.Unlock()
 		case zke.DeleteCluster:
 			cluster := e.Cluster
 			mgr.lock.Lock()
-			if _, ok := mgr.clusterClient[cluster.Name]; ok {
-				delete(mgr.clusterClient, cluster.Name)
-			} else {
-				log.Warnf("can not found client for cluster %s", cluster.Name)
-			}
 			if cache, ok := mgr.clusterEventCache[cluster.Name]; ok {
 				cache.Stop()
 				delete(mgr.clusterEventCache, cluster.Name)

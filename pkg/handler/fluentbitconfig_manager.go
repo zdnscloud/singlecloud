@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	FluentBitConfigMapNamespace    = "zcloud"
 	FluentBitConfigMapPrefix       = "efk"
 	FluentBitConfigMapSuffix       = "fluent-bit-config"
 	FluentBitConfigFileName        = "fluent-bit.conf"
@@ -175,7 +174,7 @@ func replenishConf(ctx *resource.Context, conf *types.FluentBitConfig) {
 
 func getFluentBitConfigMap(cli client.Client) (corev1.ConfigMap, error) {
 	cms := corev1.ConfigMapList{}
-	if err := cli.List(context.TODO(), &client.ListOptions{Namespace: FluentBitConfigMapNamespace}, &cms); err != nil {
+	if err := cli.List(context.TODO(), &client.ListOptions{Namespace: ZCloudNamespace}, &cms); err != nil {
 		return corev1.ConfigMap{}, fmt.Errorf("get fluent-bit configmap failed, %v", err)
 	}
 	for _, cm := range cms.Items {

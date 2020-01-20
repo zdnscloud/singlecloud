@@ -6,22 +6,23 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
-	"github.com/zdnscloud/gok8s/client"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type AlarmCache struct {
-	eventID       uint64
-	maxSize       uint
-	lock          sync.RWMutex
-	cond          *sync.Cond
-	alarmList     *list.List
-	ackList       *list.List
-	stopCh        chan struct{}
-	unAckNumber   uint64
-	ackCh         chan int
-	clusterClient map[string]client.Client
+	eventID        uint64
+	maxSize        uint
+	lock           sync.RWMutex
+	cond           *sync.Cond
+	alarmList      *list.List
+	ackList        *list.List
+	stopCh         chan struct{}
+	unAckNumber    uint64
+	ackCh          chan int
+	ThresholdTable kvzoo.Table
 }
 
 type AlarmListener struct {
@@ -30,16 +31,16 @@ type AlarmListener struct {
 	alarmCh chan interface{}
 }
 
-func NewAlarmCache(size uint, clusterClient map[string]client.Client) *AlarmCache {
+func NewAlarmCache(size uint, table kvzoo.Table) *AlarmCache {
 	stop := make(chan struct{})
 	ac := &AlarmCache{
-		eventID:       0,
-		maxSize:       size,
-		alarmList:     list.New(),
-		ackList:       list.New(),
-		stopCh:        stop,
-		ackCh:         make(chan int),
-		clusterClient: clusterClient,
+		eventID:        0,
+		maxSize:        size,
+		alarmList:      list.New(),
+		ackList:        list.New(),
+		stopCh:         stop,
+		ackCh:          make(chan int),
+		ThresholdTable: table,
 	}
 	ac.cond = sync.NewCond(&ac.lock)
 	go subscribeAlarmEvent(ac, stop)
@@ -131,8 +132,8 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 		alarm.Namespace = ""
 	}
-	if cli, ok := ac.clusterClient[alarm.Cluster]; ok {
-		SendMail(cli, alarm)
+	if err := SendMail(alarm, ac.ThresholdTable); err != nil {
+		log.Warnf("send mail failed: %s", err)
 	}
 	ac.alarmList.PushBack(alarm)
 	if uint(ac.alarmList.Len()) > ac.maxSize {

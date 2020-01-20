@@ -109,7 +109,11 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 		return err
 	}
 	schemas.MustImport(&Version, types.Registry{}, registryManager)
-	schemas.MustImport(&Version, types.Threshold{}, newThresholdManager(a.clusterManager))
+	thresholdManager, err := newThresholdManager(a.clusterManager)
+	if err != nil {
+		return err
+	}
+	schemas.MustImport(&Version, types.Threshold{}, thresholdManager)
 
 	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.MustImport(&Version, types.User{}, userManager)
