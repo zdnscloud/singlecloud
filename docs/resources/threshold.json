@@ -42,5 +42,8 @@
   "resourceMethods": [
     "GET",
     "PUT"
+  ],
+  "collectionMethods": [
+    "GET"
   ]
 }

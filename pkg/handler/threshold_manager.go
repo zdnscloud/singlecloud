@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	restresource "github.com/zdnscloud/gorest/resource"
@@ -21,14 +19,14 @@ import (
 )
 
 const (
-	ThresholdTable         = "threshold"
-	ThresholdConfigmapName = "resource-threshold"
-	CpuConfigName          = "cpu"
-	MemoryConfigName       = "memory"
-	StorageConfigName      = "storage"
-	PodCountConfigName     = "podCount"
-	MailFromConfigName     = "mailFrom"
-	MailToConfigName       = "mailTo"
+	CpuConfigName      = "cpu"
+	MemoryConfigName   = "memory"
+	StorageConfigName  = "storage"
+	PodCountConfigName = "podCount"
+	DefaultCpu         = 80
+	DefaultMemory      = 80
+	DefaultStorage     = 80
+	DefaultPodCount    = 80
 )
 
 type ThresholdManager struct {
@@ -51,17 +49,20 @@ func newThresholdManager(clusters *ClusterManager) (*ThresholdManager, error) {
 }
 
 func (m *ThresholdManager) initThreshold() error {
-	tn, _ := kvzoo.TableNameFromSegments(ThresholdTable)
+	tn, _ := kvzoo.TableNameFromSegments(types.ThresholdTable)
 	table, err := m.clusters.GetDB().CreateOrGetTable(tn)
 	if err != nil {
-		return fmt.Errorf("create or get table %s failed: %s", ThresholdTable, err.Error())
+		return fmt.Errorf("create or get table %s failed: %s", types.ThresholdTable, err.Error())
 	}
 	m.table = table
 	var threshold *types.Threshold
-	if threshold, err = getThresholdFromDB(table, ThresholdConfigmapName); err != nil {
-		log.Infof("get threshold from DB failed, create it now by default")
-		if threshold, err = createDefaultThreshold(table, ThresholdConfigmapName); err != nil {
-			return fmt.Errorf("create default threshold failed: %s", err.Error())
+	if threshold, err = getThresholdFromDB(table, types.ThresholdTable); err != nil {
+		if err == kvzoo.ErrNotFound {
+			if threshold, err = createDefaultThreshold(table, types.ThresholdTable); err != nil {
+				return fmt.Errorf("create default threshold failed: %s", err.Error())
+			}
+		} else {
+			return fmt.Errorf("get threshold from DB failed: %s", err.Error())
 		}
 	}
 	m.threshold = threshold
@@ -88,13 +89,12 @@ func getThresholdFromDB(table kvzoo.Table, name string) (*types.Threshold, error
 
 func createDefaultThreshold(table kvzoo.Table, name string) (*types.Threshold, error) {
 	threshold := &types.Threshold{
-		Cpu:      types.DefaultCpu,
-		Memory:   types.DefaultMemory,
-		Storage:  types.DefaultStorage,
-		PodCount: types.DefaultPodCount,
+		Cpu:      DefaultCpu,
+		Memory:   DefaultMemory,
+		Storage:  DefaultStorage,
+		PodCount: DefaultPodCount,
 	}
 	threshold.SetID(name)
-	threshold.SetCreationTimestamp(time.Now())
 	if err := addOrUpdateThresholdToDB(table, threshold, "add"); err != nil {
 		return nil, err
 	}
@@ -132,29 +132,19 @@ func (m *ThresholdManager) eventLoop() {
 		switch e := event.(type) {
 		case zke.AddCluster:
 			cluster := e.Cluster
-			go func() {
-				if err := createThresholdConfigMap(cluster.KubeClient, m.threshold); err != nil {
-					log.Warnf("create configmap in cluster %s failed for threshold: %s", cluster.Name, err.Error())
-					alarm.New().
-						Cluster(cluster.Name).
-						Namespace(ZCloudNamespace).
-						Kind("Threshold").
-						Name(m.threshold.GetID()).
-						Reason(err.Error()).
-						Message(fmt.Sprintf("failed to apply threshold to cluster %s", cluster.Name)).
-						Publish()
-				}
-			}()
+			if err := createConfigMap(cluster.KubeClient, ZCloudNamespace, thresholdToConfigmap(m.threshold)); err != nil {
+				log.Warnf("create configmap in cluster %s failed for threshold: %s", cluster.Name, err.Error())
+				alarm.New().
+					Cluster(cluster.Name).
+					Namespace(ZCloudNamespace).
+					Kind("Threshold").
+					Name(m.threshold.GetID()).
+					Reason(err.Error()).
+					Message(fmt.Sprintf("failed to apply threshold to cluster %s", cluster.Name)).
+					Publish()
+			}
 		}
 	}
-}
-
-func createThresholdConfigMap(cli client.Client, threshold *types.Threshold) error {
-	sccm, err := thresholdToConfigmap(threshold)
-	if err != nil {
-		return err
-	}
-	return createConfigMap(cli, ZCloudNamespace, sccm)
 }
 
 func (m *ThresholdManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
@@ -174,9 +164,11 @@ func updateThreshold(clusters *ClusterManager, threshold *types.Threshold, table
 		return err
 	}
 	for _, c := range clusters.zkeManager.List() {
-		if err := updateThresholdConfigMap(c.KubeClient, threshold); err != nil {
+		sccm := thresholdToConfigmap(threshold)
+		sccm.SetID(sccm.Name)
+		if err := updateConfigMap(c.KubeClient, ZCloudNamespace, sccm); err != nil {
 			if apierrors.IsNotFound(err) {
-				if err := createThresholdConfigMap(c.KubeClient, threshold); err != nil {
+				if err := createConfigMap(c.KubeClient, ZCloudNamespace, sccm); err != nil {
 					return fmt.Errorf("cluster %s doesn't have threshold, create it first but failed: %v", c.Name, err)
 				}
 			} else {
@@ -187,15 +179,6 @@ func updateThreshold(clusters *ClusterManager, threshold *types.Threshold, table
 	return nil
 }
 
-func updateThresholdConfigMap(cli client.Client, threshold *types.Threshold) error {
-	sccm, err := thresholdToConfigmap(threshold)
-	if err != nil {
-		return err
-	}
-	sccm.SetID(sccm.Name)
-	return updateConfigMap(cli, ZCloudNamespace, sccm)
-}
-
 func (m *ThresholdManager) Get(ctx *restresource.Context) restresource.Resource {
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return nil
@@ -203,17 +186,16 @@ func (m *ThresholdManager) Get(ctx *restresource.Context) restresource.Resource 
 	return m.threshold
 }
 
-func thresholdToConfigmap(threshold *types.Threshold) (*types.ConfigMap, error) {
-	mailFrom, err := json.Marshal(threshold.MailFrom)
-	if err != nil {
-		return nil, err
+func (m *ThresholdManager) List(ctx *restresource.Context) interface{} {
+	if isAdmin(getCurrentUser(ctx)) == false {
+		return nil
 	}
-	mailTo, err := json.Marshal(threshold.MailTo)
-	if err != nil {
-		return nil, err
-	}
+	return []*types.Threshold{m.threshold}
+}
+
+func thresholdToConfigmap(threshold *types.Threshold) *types.ConfigMap {
 	return &types.ConfigMap{
-		Name: ThresholdConfigmapName,
+		Name: types.ThresholdTable,
 		Configs: []types.Config{
 			types.Config{
 				Name: CpuConfigName,
@@ -231,14 +213,6 @@ func thresholdToConfigmap(threshold *types.Threshold) (*types.ConfigMap, error) 
 				Name: PodCountConfigName,
 				Data: strconv.Itoa(threshold.PodCount),
 			},
-			types.Config{
-				Name: MailFromConfigName,
-				Data: string(mailFrom),
-			},
-			types.Config{
-				Name: MailToConfigName,
-				Data: string(mailTo),
-			},
 		},
-	}, nil
+	}
 }

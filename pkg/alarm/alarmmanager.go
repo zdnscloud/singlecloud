@@ -20,9 +20,7 @@ var eventBus *pubsub.PubSub
 var UpdateErr = gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
 
 const (
-	MaxEventCount          = 100
-	ThresholdTable         = "threshold"
-	ThresholdConfigmapName = "resource-threshold"
+	MaxEventCount = 100
 )
 
 type AlarmManager struct {
@@ -33,10 +31,10 @@ type AlarmManager struct {
 
 func NewAlarmManager(eBus *pubsub.PubSub, db kvzoo.DB) (*AlarmManager, error) {
 	eventBus = eBus
-	tn, _ := kvzoo.TableNameFromSegments(ThresholdTable)
+	tn, _ := kvzoo.TableNameFromSegments(types.ThresholdTable)
 	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
-		return nil, fmt.Errorf("create or get table %s failed: %s", ThresholdTable, err.Error())
+		return nil, fmt.Errorf("create or get table %s failed: %s", types.ThresholdTable, err.Error())
 	}
 	mgr := &AlarmManager{
 		cache:             NewAlarmCache(MaxEventCount, table),

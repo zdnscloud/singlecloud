@@ -17,7 +17,7 @@ const (
 var ClusterKinds = []string{"Node", "node", "Cluster", "cluster"}
 
 func SendMail(alarm *types.Alarm, table kvzoo.Table) error {
-	threshold, err := getThresholdFromDB(table, ThresholdConfigmapName)
+	threshold, err := getThresholdFromDB(table, types.ThresholdTable)
 	if err != nil {
 		return fmt.Errorf("get threshold %s failed: %s", err.Error())
 	}

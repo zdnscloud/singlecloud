@@ -5,10 +5,7 @@ import (
 )
 
 const (
-	DefaultCpu      = 80
-	DefaultMemory   = 80
-	DefaultStorage  = 80
-	DefaultPodCount = 80
+	ThresholdTable = "threshold"
 )
 
 type Threshold struct {
