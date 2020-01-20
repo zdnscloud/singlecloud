@@ -4,7 +4,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/controller"
 	"github.com/zdnscloud/gok8s/event"
@@ -12,6 +11,10 @@ import (
 	"github.com/zdnscloud/gok8s/predicate"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+)
+
+const (
+	eventReason = "resource shortage"
 )
 
 var EventLevelFilter = []string{corev1.EventTypeWarning}
@@ -82,7 +85,7 @@ func (ec *EventCache) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 }
 
 func checkEventTypeAndKind(event *corev1.Event) bool {
-	return slice.SliceIndex(EventLevelFilter, event.Type) >= 0 && slice.SliceIndex(EventKindFilter, event.InvolvedObject.Kind) >= 0
+	return event.Reason == eventReason
 }
 
 func (ec *EventCache) k8sEventToAlarm(event *corev1.Event) *types.Alarm {

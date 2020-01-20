@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"gopkg.in/gomail.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -13,32 +12,25 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
-	Subject                               = "Singlecloud Alarm"
-	ClusterThresholdConfigmapName         = "resource-threshold"
-	NamespaceThresholdConfigmapNamePrefix = "resource-threshold-"
-	ThresholdConfigmapNamespace           = "zcloud"
+	Subject                     = "Singlecloud Alarm"
+	ThresholdConfigmapName      = "resource-threshold"
+	ThresholdConfigmapNamespace = "zcloud"
 )
 
 var ClusterKinds = []string{"Node", "node", "Cluster", "cluster"}
 
 func SendMail(cli client.Client, alarm *types.Alarm) {
-	mailConn, err := getSender(cli)
+	mailConn, mailTo, err := getAdminMail(cli)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return
 		}
 		log.Warnf("get mail sender failed. %s", err)
-		return
-	}
-	mailTo, err := getRecipient(cli, alarm)
-	if err != nil {
-		log.Warnf("get mail recipient failed. %s", err)
 		return
 	}
 
@@ -56,52 +48,28 @@ func SendMail(cli client.Client, alarm *types.Alarm) {
 	return
 }
 
-func getSender(cli client.Client) (*types.Mail, error) {
-	cm, err := getConfigMap(cli, ClusterThresholdConfigmapName)
+func getAdminMail(cli client.Client) (types.Mail, []string, error) {
+	var mailFrom types.Mail
+	var mailTo []string
+	cm, err := getConfigMap(cli, ThresholdConfigmapName)
 	if err != nil {
-		return nil, err
+		return mailFrom, mailTo, err
 	}
 	if data, ok := cm.Data["mailFrom"]; ok {
-		var mail *types.Mail
-		if err := json.Unmarshal([]byte(data), mail); err != nil {
-			return nil, err
+		if err := json.Unmarshal([]byte(data), &mailFrom); err != nil {
+			return mailFrom, mailTo, err
 		}
-		return mail, nil
 	} else {
-		return nil, fmt.Errorf("can not found mailFrom in configmap %s", ClusterThresholdConfigmapName)
+		return mailFrom, mailTo, fmt.Errorf("can not found mailFrom in configmap %s", ThresholdConfigmapName)
 	}
-}
-
-func getRecipient(cli client.Client, alarm *types.Alarm) ([]string, error) {
-	var recipient []string
-	var configMaps []*corev1.ConfigMap
-	clusterCm, err := getConfigMap(cli, ClusterThresholdConfigmapName)
-	if err != nil {
-		return nil, err
-	}
-	configMaps = append(configMaps, clusterCm)
-	if slice.SliceIndex(ClusterKinds, alarm.Kind) == -1 && len(alarm.Namespace) != 0 {
-		namespaceCm, err := getConfigMap(cli, NamespaceThresholdConfigmapNamePrefix+alarm.Namespace)
-		if err == nil {
-			configMaps = append(configMaps, namespaceCm)
-		}
-		if err != nil && !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-	}
-	for _, cm := range configMaps {
-		recipient = append(recipient, genMailTo(cm)...)
-	}
-	return recipient, nil
-}
-
-func genMailTo(cm *corev1.ConfigMap) []string {
 	if data, ok := cm.Data["mailTo"]; ok {
-		data := strings.Trim(data, "[]\"")
-		return strings.Split(data, "\",\"")
+		if err := json.Unmarshal([]byte(data), &mailTo); err != nil {
+			return mailFrom, mailTo, err
+		}
 	} else {
-		return nil
+		return mailFrom, mailTo, fmt.Errorf("can not found mailTo in configmap %s", ThresholdConfigmapName)
 	}
+	return mailFrom, mailTo, nil
 }
 
 func genMessage(alarm *types.Alarm) string {

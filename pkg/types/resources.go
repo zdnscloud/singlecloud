@@ -42,7 +42,6 @@ func Resources() []resource.ResourceKind {
 		User{},
 		HorizontalPodAutoscaler{},
 		FluentBitConfig{},
-		NamespaceThreshold{},
-		ClusterThreshold{},
+		Threshold{},
 	}
 }
