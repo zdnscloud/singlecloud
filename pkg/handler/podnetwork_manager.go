@@ -23,7 +23,7 @@ func (m *PodNetworkManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
-	resp, err := getPodNetworks(cluster.Name, m.clusters.Agent)
+	resp, err := getPodNetworks(cluster.Name, clusteragent.GetAgent())
 	if err != nil {
 		log.Warnf("get podnetworks info failed:%s", err.Error())
 		return nil

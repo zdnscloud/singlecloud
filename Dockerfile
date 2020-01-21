@@ -6,10 +6,10 @@ ARG buildtime
 RUN mkdir -p /go/src/github.com/zdnscloud/singlecloud
 COPY . /go/src/github.com/zdnscloud/singlecloud
 WORKDIR /go/src/github.com/zdnscloud/singlecloud
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-w -s -X main.version=$version -X main.build=$buildtime" cmd/singlecloud/singlecloud.go
 
-FROM alpine:3.10.2
-RUN apk --no-cache add ca-certificates
-COPY --from=build /go/src/github.com/zdnscloud/singlecloud/singlecloud /usr/local/bin/
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-w -s -X main.version=$version -X main.build=$buildtime -X github.com/zdnscloud/singlecloud/pkg/zke.singleCloudVersion=$version -X 'github.com/zdnscloud/singlecloud/vendor/github.com/zdnscloud/zke/types.imageConfig=`cat zke_image.yml`'" cmd/singlecloud/singlecloud.go
 
-ENTRYPOINT ["singlecloud"]
+
+FROM scratch
+COPY --from=build /go/src/github.com/zdnscloud/singlecloud/singlecloud /
+ENTRYPOINT ["/singlecloud"]

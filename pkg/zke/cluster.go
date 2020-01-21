@@ -23,6 +23,7 @@ import (
 type Cluster struct {
 	Name       string
 	CreateTime time.Time
+	DeleteTime time.Time
 	KubeClient client.Client
 	Cache      cache.Cache
 	K8sConfig  *rest.Config
@@ -299,6 +300,7 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 
 	sc.SetID(c.Name)
 	sc.SetCreationTimestamp(c.CreateTime)
+	sc.SetDeletionTimestamp(c.DeleteTime)
 	sc.Status = c.getStatus()
 	return sc
 }

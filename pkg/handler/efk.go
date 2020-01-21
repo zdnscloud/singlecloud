@@ -48,7 +48,7 @@ func (m *EFKManager) Create(ctx *restresource.Context) (restresource.Resource, *
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
-	if err := createSysApplication(ctx, m.clusters.GetDB(), m.apps, cluster, efkChartName, app, efk.StorageClass, efkAppNamePrefix); err != nil {
+	if err := createSysApplication(ctx, m.apps, cluster, efkChartName, app, efk.StorageClass, efkAppNamePrefix); err != nil {
 		return nil, err
 	}
 
@@ -62,7 +62,7 @@ func (m *EFKManager) Delete(ctx *restresource.Context) *resterr.APIError {
 		return resterr.NewAPIError(resterr.NotFound, "efk doesn't exist")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	return deleteApplicationByChartName(m.clusters.GetDB(), cluster, efkChartName)
+	return deleteApplicationByChartName(cluster, efkChartName)
 }
 
 func (m *EFKManager) List(ctx *restresource.Context) interface{} {
@@ -88,7 +88,7 @@ func (m *EFKManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), cluster.Name, efkChartName)
+	app, err := getApplicationFromDBByChartName(cluster.Name, efkChartName)
 	if err != nil {
 		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, efkChartName, err.Error())
 		return nil
@@ -118,7 +118,8 @@ func genEFKFromApp(ctx *restresource.Context, cluster string, app *types.Applica
 		Status:        app.Status,
 	}
 	efk.SetID(efkAppNamePrefix)
-	efk.CreationTimestamp = app.CreationTimestamp
+	efk.SetCreationTimestamp(time.Time(app.CreationTimestamp))
+	efk.SetDeletionTimestamp(time.Time(app.DeletionTimestamp))
 	return &efk, nil
 }
 

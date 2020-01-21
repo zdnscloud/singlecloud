@@ -12,7 +12,11 @@
       "valueType": "string"
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required",
+        "isDomain"
+      ]
     },
     "status": {
       "type": "resourceQuotaStatus",

@@ -5,6 +5,7 @@ import (
 
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -52,5 +53,5 @@ func (a *AlarmEvent) Reason(reason string) *AlarmEvent {
 }
 
 func (a *AlarmEvent) Publish() {
-	eventBus.Pub(&a.Alarm, eventbus.AlarmEvent)
+	eb.GetEventBus().Pub(&a.Alarm, eventbus.AlarmEvent)
 }

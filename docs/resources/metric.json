@@ -1,0 +1,53 @@
+{
+  "resourceType": "metric",
+  "collectionName": "metrics",
+  "parentResources": [
+    "deployment",
+    "daemonset",
+    "statefulset"
+  ],
+  "goStructName": "Metric",
+  "resourceFields": {
+    "help": {
+      "type": "string"
+    },
+    "metrics": {
+      "type": "array",
+      "elemType": "metricFamily"
+    },
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    }
+  },
+  "subResources": {
+    "counter": {
+      "value": {
+        "type": "int"
+      }
+    },
+    "gauge": {
+      "value": {
+        "type": "int"
+      }
+    },
+    "metricFamily": {
+      "counter": {
+        "type": "counter"
+      },
+      "gauge": {
+        "type": "gauge"
+      },
+      "labels": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "string"
+      }
+    }
+  },
+  "collectionMethods": [
+    "GET"
+  ]
+}

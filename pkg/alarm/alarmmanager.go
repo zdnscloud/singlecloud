@@ -7,16 +7,14 @@ import (
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/pubsub"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
-var eventBus *pubsub.PubSub
 var UpdateErr = gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
 
 const (
@@ -29,15 +27,13 @@ type AlarmManager struct {
 	clusterEventCache map[string]*EventCache
 }
 
-func NewAlarmManager(eBus *pubsub.PubSub, db kvzoo.DB) (*AlarmManager, error) {
-	eventBus = eBus
-	tn, _ := kvzoo.TableNameFromSegments(types.ThresholdTable)
-	table, err := db.CreateOrGetTable(tn)
-	if err != nil {
-		return nil, fmt.Errorf("create or get table %s failed: %s", types.ThresholdTable, err.Error())
+func NewAlarmManager() (*AlarmManager, error) {
+    alarmCache,err := NewAlarmCache(MaxEventCount)
+	if err !=nil{
+		return nil,err
 	}
 	mgr := &AlarmManager{
-		cache:             NewAlarmCache(MaxEventCount, table),
+		cache:             alarmCache,
 		clusterEventCache: make(map[string]*EventCache),
 	}
 	go mgr.eventLoop()
@@ -45,7 +41,7 @@ func NewAlarmManager(eBus *pubsub.PubSub, db kvzoo.DB) (*AlarmManager, error) {
 }
 
 func (mgr *AlarmManager) eventLoop() {
-	clusterEventCh := eventBus.Sub(eventbus.ClusterEvent)
+	clusterEventCh := eb.GetEventBus().Sub(eventbus.ClusterEvent)
 	for {
 		event := <-clusterEventCh
 		switch e := event.(type) {

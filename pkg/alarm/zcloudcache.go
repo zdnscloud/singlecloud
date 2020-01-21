@@ -3,10 +3,11 @@ package alarm
 import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 )
 
 func subscribeAlarmEvent(cache *AlarmCache, stop chan struct{}) {
-	alarmEventCh := eventBus.Sub(eventbus.AlarmEvent)
+	alarmEventCh := eb.GetEventBus().Sub(eventbus.AlarmEvent)
 	for {
 		select {
 		case <-stop:

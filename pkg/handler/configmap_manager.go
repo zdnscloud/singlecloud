@@ -78,7 +78,7 @@ func (m *ConfigMapManager) List(ctx *resource.Context) interface{} {
 	k8sConfigMaps, err := getConfigMaps(cluster.KubeClient, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list deployment info failed:%s", err.Error())
+			log.Warnf("list configmap info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -101,7 +101,7 @@ func (m ConfigMapManager) Get(ctx *resource.Context) resource.Resource {
 	k8sConfigMap, err := getConfigMap(cluster.KubeClient, namespace, cm.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get deployment info failed:%s", err.Error())
+			log.Warnf("get configmap info failed:%s", err.Error())
 		}
 		return nil
 	}
@@ -204,5 +204,8 @@ func k8sConfigMapToSCConfigMap(k8sConfigMap *corev1.ConfigMap) *types.ConfigMap 
 	}
 	cm.SetID(k8sConfigMap.Name)
 	cm.SetCreationTimestamp(k8sConfigMap.CreationTimestamp.Time)
+	if k8sConfigMap.GetDeletionTimestamp() != nil {
+		cm.SetDeletionTimestamp(k8sConfigMap.DeletionTimestamp.Time)
+	}
 	return cm
 }

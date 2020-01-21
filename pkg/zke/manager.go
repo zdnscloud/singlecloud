@@ -7,18 +7,22 @@ import (
 	"time"
 
 	"github.com/zdnscloud/kvzoo"
-	"github.com/zdnscloud/singlecloud/pkg/types"
-
 	"github.com/zdnscloud/cement/log"
 	resterr "github.com/zdnscloud/gorest/error"
 	restsource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
+
+	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/db"
+
 )
 
 const (
 	clusterEventBufferCount = 10
 )
+
+var singleCloudVersion string
 
 type ZKEManager struct {
 	PubEventCh   chan interface{}
@@ -33,19 +37,25 @@ type NodeListener interface {
 	IsStorageNode(cluster *Cluster, node string) (bool, error)
 }
 
-func New(db kvzoo.DB, scVersion string, nl NodeListener) (*ZKEManager, error) {
+func New(nl NodeListener) (*ZKEManager, error) {
+    return newZKEManager(db.GetGlobalDB(), nl)
+}
+
+func newZKEManager(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
 	tn, _ := kvzoo.TableNameFromSegments(ZKEManagerDBTable)
 	table, err := db.CreateOrGetTable(tn)
 	if err != nil {
 		return nil, fmt.Errorf("create or get db table failed %s", err.Error())
 	}
+
 	mgr := &ZKEManager{
 		clusters:     make([]*Cluster, 0),
 		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
 		dbTable:      table,
-		scVersion:    scVersion,
+		scVersion:    singleCloudVersion,
 		nodeListener: nl,
 	}
+
 	if err := mgr.loadDB(); err != nil {
 		return mgr, err
 	}
@@ -217,11 +227,7 @@ func (m *ZKEManager) List() []*Cluster {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	var clusters []*Cluster
-	for _, c := range m.clusters {
-		clusters = append(clusters, c)
-	}
-	return clusters
+	return m.clusters
 }
 
 func (m *ZKEManager) Delete(id string) *resterr.APIError {
@@ -248,7 +254,14 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 
 	if state.Created {
 		close(toDelete.stopCh)
-		m.PubEventCh <- DeleteCluster{Cluster: toDelete}
+		m.SendEvent(DeleteCluster{Cluster: toDelete})
+	}
+
+	tm := time.Now()
+	toDelete.DeleteTime = tm
+	state.DeleteTime = tm
+	if err := createOrUpdateClusterFromDB(id, state, m.dbTable); err != nil {
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
 	}
 	go toDelete.Destroy(context.TODO(), m)
 	return nil

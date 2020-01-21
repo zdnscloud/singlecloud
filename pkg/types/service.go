@@ -7,20 +7,20 @@ import (
 )
 
 type ServicePort struct {
-	Name       string             `json:"name"`
-	Port       int                `json:"port"`
-	TargetPort intstr.IntOrString `json:"targetPort"`
-	Protocol   string             `json:"protocol"`
+	Name       string             `json:"name" rest:"required=true,isDomain=true"`
+	Port       int                `json:"port" rest:"required=true"`
+	TargetPort intstr.IntOrString `json:"targetPort" rest:"required=true"`
+	Protocol   string             `json:"protocol" rest:"required=true,options=tcp|udp"`
 	NodePort   int                `json:"nodePort,omitempty"`
 }
 
 type Service struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string        `json:"name"`
-	ServiceType           string        `json:"serviceType"`
+	Name                  string        `json:"name" rest:"required=true,isDomain=true"`
+	ServiceType           string        `json:"serviceType" rest:"required=true,options=clusterip|nodeport"`
 	Headless              bool          `json:"headless"`
 	ClusterIP             string        `json:"clusterIP,omitempty"`
-	ExposedPorts          []ServicePort `json:"exposedPorts,omitempty"`
+	ExposedPorts          []ServicePort `json:"exposedPorts" rest:"required=true"`
 }
 
 func (s Service) GetParents() []resource.ResourceKind {

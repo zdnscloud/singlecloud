@@ -4,12 +4,14 @@ import (
 	"container/list"
 	"strconv"
 	"sync"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/db"
 )
 
 type AlarmCache struct {
@@ -31,7 +33,12 @@ type AlarmListener struct {
 	alarmCh chan interface{}
 }
 
-func NewAlarmCache(size uint, table kvzoo.Table) *AlarmCache {
+func NewAlarmCache(size uint) (*AlarmCache,error) {
+	tn, _ := kvzoo.TableNameFromSegments(types.ThresholdTable)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
+	if err != nil {
+		return nil, fmt.Errorf("create or get table %s failed: %s", types.ThresholdTable, err.Error())
+	}
 	stop := make(chan struct{})
 	ac := &AlarmCache{
 		eventID:        0,
@@ -44,7 +51,7 @@ func NewAlarmCache(size uint, table kvzoo.Table) *AlarmCache {
 	}
 	ac.cond = sync.NewCond(&ac.lock)
 	go subscribeAlarmEvent(ac, stop)
-	return ac
+	return ac,nil
 }
 
 func (ac *AlarmCache) Stop() {

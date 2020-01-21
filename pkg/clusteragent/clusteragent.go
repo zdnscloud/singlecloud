@@ -19,8 +19,14 @@ type AgentManager struct {
 	server *goproxy.Server
 }
 
-func New() *AgentManager {
-	return &AgentManager{
+var clusterAgent *AgentManager
+
+func GetAgent() *AgentManager {
+	return clusterAgent
+}
+
+func init() {
+	clusterAgent = &AgentManager{
 		server: goproxy.New(authorizer),
 	}
 }

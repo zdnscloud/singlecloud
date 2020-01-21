@@ -24,7 +24,7 @@ func (m *InnerServiceManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	resp, err := getInnerServices(cluster.Name, m.clusters.Agent, namespace)
+	resp, err := getInnerServices(cluster.Name, clusteragent.GetAgent(), namespace)
 	if err != nil {
 		log.Warnf("get innerservices info failed:%s", err.Error())
 		return nil

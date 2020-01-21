@@ -15,7 +15,8 @@
     "ingressDomain": {
       "type": "string",
       "description": [
-        "immutable"
+        "immutable",
+        "isDomain"
       ]
     },
     "redirectUrl": {

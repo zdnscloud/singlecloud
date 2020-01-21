@@ -25,6 +25,7 @@ import (
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/immense/pkg/common"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -76,7 +77,7 @@ func (m StorageClusterManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 
-	return k8sStorageToSCStorageDetail(cluster, m.clusters.Agent, k8sStorageCluster)
+	return k8sStorageToSCStorageDetail(cluster, clusteragent.GetAgent(), k8sStorageCluster)
 }
 
 func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIError {
@@ -111,7 +112,7 @@ func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource,
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
-	if err := createStorageCluster(cluster, m.clusters.Agent, storagecluster); err != nil {
+	if err := createStorageCluster(cluster, clusteragent.GetAgent(), storagecluster); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, gorestError.NewAPIError(gorestError.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
 		} else if strings.Contains(err.Error(), "storagecluster has already exists") || strings.Contains(err.Error(), "can not be used for") {
@@ -134,7 +135,7 @@ func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource,
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
-	if err := updateStorageCluster(cluster, m.clusters.Agent, storagecluster); err != nil {
+	if err := updateStorageCluster(cluster, clusteragent.GetAgent(), storagecluster); err != nil {
 		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "can not be used for") || strings.Contains(err.Error(), "Creating") {
 			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
 		} else {
@@ -161,8 +162,8 @@ func deleteStorageCluster(cli client.Client, name string) error {
 	if err != nil {
 		return err
 	}
-	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
-		return errors.New("storagecluster in Creating or Updating, not allowed delete")
+	if k8sStorageCluster.Status.Phase == storagev1.Creating || k8sStorageCluster.Status.Phase == storagev1.Updating || k8sStorageCluster.Status.Phase == storagev1.Deleting {
+		return errors.New("storagecluster in Creating, Updating or Deleting, not allowed delete")
 	}
 
 	if err := checkFinalizers(cli, name); err != nil {
@@ -194,8 +195,11 @@ func updateStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager
 	if err != nil {
 		return err
 	}
-	if k8sStorageCluster.Status.Phase == "Creating" || k8sStorageCluster.Status.Phase == "Updating" {
-		return errors.New("storagecluster in Creating or Updating, not allowed update")
+	if k8sStorageCluster.Status.Phase == storagev1.Creating || k8sStorageCluster.Status.Phase == storagev1.Updating || k8sStorageCluster.Status.Phase == storagev1.Deleting {
+		return errors.New("storagecluster in Creating, Updating or Deleting, not allowed update")
+	}
+	if k8sStorageCluster.GetDeletionTimestamp() != nil {
+		return errors.New("storagecluster in Deleting, not allowed update")
 	}
 	if storagecluster.StorageType != k8sStorageCluster.Spec.StorageType {
 		return errors.New("storagecluster type can not be modify")
@@ -241,6 +245,9 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cl
 	}
 	storagecluster.SetID(k8sStorageCluster.Name)
 	storagecluster.SetCreationTimestamp(k8sStorageCluster.CreationTimestamp.Time)
+	if k8sStorageCluster.GetDeletionTimestamp() != nil {
+		storagecluster.SetDeletionTimestamp(k8sStorageCluster.DeletionTimestamp.Time)
+	}
 	return storagecluster
 }
 
@@ -293,10 +300,12 @@ func checkFinalizers(cli client.Client, name string) error {
 		return err
 	}
 	metaObj := obj.(metav1.Object)
-	if len(metaObj.GetFinalizers()) > 0 {
+	finalizers := metaObj.GetFinalizers()
+	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.ClusterPrestopHookFinalizer) == 0) {
+		return nil
+	} else {
 		return errors.New(fmt.Sprintf("The storagecluster %s is used by some pods, you should stop those pods first", name))
 	}
-	return nil
 }
 
 func sToi(size string) int64 {

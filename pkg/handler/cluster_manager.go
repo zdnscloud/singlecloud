@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
@@ -12,13 +11,11 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
-	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/kvzoo"
 )
 
 const (
@@ -29,45 +26,34 @@ const (
 )
 
 type ClusterManager struct {
-	eventBus      *pubsub.PubSub
 	authorizer    *authorization.Authorizer
 	authenticator *authentication.Authenticator
 	zkeManager    *zke.ZKEManager
-	db            kvzoo.DB
-	Agent         *clusteragent.AgentManager
 }
 
-func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db kvzoo.DB, scVersion string) (*ClusterManager, error) {
+func newClusterManager(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer) (*ClusterManager, error) {
 	clusterMgr := &ClusterManager{
 		authorizer:    authorizer,
 		authenticator: authenticator,
-		eventBus:      eventBus,
-		db:            db,
-		Agent:         agent,
 	}
+
 	storageNodeListener := &StorageNodeListener{
 		clusters: clusterMgr,
 	}
-	zkeMgr, err := zke.New(db, scVersion, storageNodeListener)
+
+	zkeMgr, err := zke.New(storageNodeListener)
 	if err != nil {
 		log.Errorf("create zke-manager failed %s", err.Error())
 		return nil, err
 	}
+
 	clusterMgr.zkeManager = zkeMgr
 	go clusterMgr.eventLoop()
 	return clusterMgr, nil
 }
 
-func (m *ClusterManager) GetDB() kvzoo.DB {
-	return m.db
-}
-
 func (m *ClusterManager) GetAuthorizer() *authorization.Authorizer {
 	return m.authorizer
-}
-
-func (m *ClusterManager) GetEventBus() *pubsub.PubSub {
-	return m.eventBus
 }
 
 func (m *ClusterManager) GetClusterForSubResource(obj restresource.Resource) *zke.Cluster {
@@ -245,7 +231,7 @@ func (m *ClusterManager) eventLoop() {
 		case zke.AlarmCluster:
 			alarm.New().Kind("cluster").Cluster(obj.Cluster).Name(obj.Cluster).Reason(obj.Reason).Message(obj.Message).Publish()
 		default:
-			m.eventBus.Pub(obj, eventbus.ClusterEvent)
+			eb.GetEventBus().Pub(obj, eb.ClusterEvent)
 		}
 	}
 }

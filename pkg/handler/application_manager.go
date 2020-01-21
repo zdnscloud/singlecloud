@@ -10,6 +10,11 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -31,7 +36,8 @@ import (
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	"github.com/zdnscloud/singlecloud/pkg/db"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
@@ -71,7 +77,7 @@ func newApplicationManager(clusters *ClusterManager, chartDir string) *Applicati
 	m := &ApplicationManager{
 		clusters:       clusters,
 		chartDir:       chartDir,
-		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
+		clusterEventCh: eb.GetEventBus().Sub(eb.ClusterEvent),
 	}
 	go m.eventLoop()
 	return m
@@ -83,7 +89,7 @@ func (m *ApplicationManager) eventLoop() {
 		switch e := event.(type) {
 		case zke.DeleteCluster:
 			tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, e.Cluster.Name)
-			if err := m.clusters.GetDB().DeleteTable(tn); err != nil {
+			if err := db.GetGlobalDB().DeleteTable(tn); err != nil {
 				log.Warnf("delete /application/cluster %s table failed: %s", e.Cluster.Name, err.Error())
 			}
 		}
@@ -150,7 +156,7 @@ func (m *ApplicationManager) createApplication(ctx *resource.Context, cluster *z
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
 	app.ChartIcon = genChartIcon(iconPrefixForReturn, app.ChartName)
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return err
 	}
@@ -181,9 +187,9 @@ func publishApplicationEvent(cluster, namespace, name, reason, msg string) {
 		Publish()
 }
 
-func createOrGetAppTable(db kvzoo.DB, clusterName, namespace string) (kvzoo.Table, kvzoo.TableName, error) {
+func createOrGetAppTable(clusterName, namespace string) (kvzoo.Table, kvzoo.TableName, error) {
 	tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, clusterName, namespace)
-	table, err := db.CreateOrGetTable(tn)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
 	if err != nil {
 		return nil, tn, fmt.Errorf("create or get table %s failed: %s", tn, err.Error())
 	}
@@ -199,13 +205,7 @@ func genUrlPrefix(ctx *resource.Context, clusterName string) string {
 	}
 
 	urls := strings.SplitAfterN(req.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", clusterName), 2)
-	if len(urls) == 2 {
-		return fmt.Sprintf("%s://%s%s", scheme, req.Host, urls[0])
-	} else {
-		return path.Join(fmt.Sprintf("%s://%s", scheme, req.Host),
-			resource.GroupPrefix, Version.Group, Version.Version,
-			fmt.Sprintf("/clusters/%s/namespaces/", clusterName))
-	}
+	return fmt.Sprintf("%s://%s%s", scheme, req.Host, urls[0])
 }
 
 func parseChartConfigs(chartVersionDir string, configRaw json.RawMessage) (map[string]interface{}, error) {
@@ -388,7 +388,7 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return err
 	}
@@ -402,11 +402,7 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	var apps types.Applications
 	for _, app := range allApps {
 		if app.SystemChart == false {
-			if err := getAppResources(cluster.KubeClient, namespace, app); err != nil {
-				log.Warnf("list applications when get application %s resources failed: %s", app.Name, err.Error())
-				continue
-			}
-
+			getAppResources(cluster.KubeClient, namespace, app)
 			apps = append(apps, genReturnApplication(app))
 		}
 	}
@@ -448,70 +444,79 @@ func getApplicationsFromDB(table kvzoo.Table) (types.Applications, error) {
 	return apps, nil
 }
 
-func getAppResources(cli client.Client, namespace string, app *types.Application) error {
-	for i, resource := range app.AppResources {
-		switch resource.Type {
+func getAppResources(cli client.Client, namespace string, app *types.Application) {
+	var resources types.AppResources
+	for _, r := range app.AppResources {
+		var err error
+		var k8sResource interface{}
+		switch r.Type {
 		case types.ResourceTypeDeployment:
-			k8sDeploy, err := getDeployment(cli, namespace, resource.Name)
-			if err != nil {
-				return err
-			}
-
-			app.AppResources[i].Replicas = int(*k8sDeploy.Spec.Replicas)
-			app.AppResources[i].ReadyReplicas = int(k8sDeploy.Status.ReadyReplicas)
-			if *k8sDeploy.Spec.Replicas == k8sDeploy.Status.ReadyReplicas {
-				app.ReadyWorkloadCount += 1
+			k8sResource, err = getDeployment(cli, namespace, r.Name)
+			if err == nil {
+				r.Replicas = int(*k8sResource.(*appsv1.Deployment).Spec.Replicas)
+				r.ReadyReplicas = int(k8sResource.(*appsv1.Deployment).Status.ReadyReplicas)
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*appsv1.Deployment).CreationTimestamp.Time)
 			}
 		case types.ResourceTypeDaemonSet:
-			k8sDaemonSet, err := getDaemonSet(cli, namespace, resource.Name)
-			if err != nil {
-				return err
-			}
-
-			app.AppResources[i].Replicas = int(k8sDaemonSet.Status.DesiredNumberScheduled)
-			app.AppResources[i].ReadyReplicas = int(k8sDaemonSet.Status.NumberReady)
-			if k8sDaemonSet.Status.DesiredNumberScheduled == k8sDaemonSet.Status.NumberReady {
-				app.ReadyWorkloadCount += 1
+			k8sResource, err = getDaemonSet(cli, namespace, r.Name)
+			if err == nil {
+				r.Replicas = int(k8sResource.(*appsv1.DaemonSet).Status.DesiredNumberScheduled)
+				r.ReadyReplicas = int(k8sResource.(*appsv1.DaemonSet).Status.NumberReady)
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*appsv1.DaemonSet).CreationTimestamp.Time)
 			}
 		case types.ResourceTypeStatefulSet:
-			k8sStatefulSet, err := getStatefulSet(cli, namespace, resource.Name)
-			if err != nil {
-				return err
-			}
-
-			app.AppResources[i].Replicas = int(*k8sStatefulSet.Spec.Replicas)
-			app.AppResources[i].ReadyReplicas = int(k8sStatefulSet.Status.ReadyReplicas)
-			if *k8sStatefulSet.Spec.Replicas == k8sStatefulSet.Status.ReadyReplicas {
-				app.ReadyWorkloadCount += 1
+			k8sResource, err = getStatefulSet(cli, namespace, r.Name)
+			if err == nil {
+				r.Replicas = int(*k8sResource.(*appsv1.StatefulSet).Spec.Replicas)
+				r.ReadyReplicas = int(k8sResource.(*appsv1.StatefulSet).Status.ReadyReplicas)
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*appsv1.StatefulSet).CreationTimestamp.Time)
 			}
 		case types.ResourceTypeCronJob:
-			if _, err := getCronJob(cli, namespace, resource.Name); err != nil {
-				return err
+			k8sResource, err = getCronJob(cli, namespace, r.Name)
+			if err == nil {
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*batchv1beta1.CronJob).CreationTimestamp.Time)
 			}
 		case types.ResourceTypeJob:
-			if _, err := getJob(cli, namespace, resource.Name); err != nil {
-				return err
+			k8sResource, err = getJob(cli, namespace, r.Name)
+			if err == nil {
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*batchv1.Job).CreationTimestamp.Time)
 			}
 		case types.ResourceTypeConfigMap:
-			if _, err := getConfigMap(cli, namespace, resource.Name); err != nil {
-				return err
+			k8sResource, err = getConfigMap(cli, namespace, r.Name)
+			if err == nil {
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*corev1.ConfigMap).CreationTimestamp.Time)
 			}
 		case types.ResourceTypeSecret:
-			if _, err := getSecret(cli, namespace, resource.Name); err != nil {
-				return err
+			k8sResource, err = getSecret(cli, namespace, r.Name)
+			if err == nil {
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*corev1.Secret).CreationTimestamp.Time)
 			}
 		case types.ResourceTypeService:
-			if _, err := getService(cli, namespace, resource.Name); err != nil {
-				return err
+			k8sResource, err = getService(cli, namespace, r.Name)
+			if err == nil {
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*corev1.Service).CreationTimestamp.Time)
 			}
 		case types.ResourceTypeIngress:
-			if _, err := getIngress(cli, namespace, resource.Name); err != nil {
-				return err
+			k8sResource, err = getIngress(cli, namespace, r.Name)
+			if err == nil {
+				r.CreationTimestamp = resource.ISOTime(k8sResource.(*extv1beta1.Ingress).CreationTimestamp.Time)
 			}
 		}
+
+		if err != nil {
+			log.Warnf("get application %s resource %s/%s failed %s", app.Name, r.Type, r.Name, err.Error())
+			r.Link = ""
+		} else {
+			r.Exists = true
+			if r.ReadyReplicas != 0 && r.ReadyReplicas == r.Replicas {
+				app.ReadyWorkloadCount += 1
+			}
+		}
+
+		resources = append(resources, r)
 	}
 
-	return nil
+	app.AppResources = resources
 }
 
 func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
@@ -521,7 +526,7 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		log.Warnf("get application %s failed %s", ctx.Resource.GetID(), err.Error())
 		return nil
@@ -533,11 +538,7 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 
-	if err := getAppResources(cluster.KubeClient, namespace, app); err != nil {
-		log.Warnf("get application %s resources failed %s", ctx.Resource.GetID(), err.Error())
-		return nil
-	}
-
+	getAppResources(cluster.KubeClient, namespace, app)
 	return genReturnApplication(app)
 }
 
@@ -562,7 +563,7 @@ func getApplicationFromDBTx(tx kvzoo.Transaction, appName string, isSystemChart 
 		return nil, err
 	}
 
-	//all user can`t access system chart, system chart operate is another logic and in alone page
+	//all user can`t access system chart, system chart operate is another logic
 	if app.SystemChart != isSystemChart {
 		return nil, fmt.Errorf("user no authority to access application %s", appName)
 	}
@@ -578,7 +579,7 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
@@ -643,6 +644,7 @@ func updateAppStatusToDeleteFromDB(table kvzoo.Table, name string, isSystemChart
 	}
 
 	app.Status = types.AppStatusDelete
+	app.SetDeletionTimestamp(time.Now())
 	value, err := json.Marshal(app)
 	if err != nil {
 		return nil, err
@@ -700,8 +702,8 @@ func deleteApplicationFromDB(table kvzoo.Table, name string) error {
 	return tx.Commit()
 }
 
-func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace string) error {
-	table, tableName, err := createOrGetAppTable(db, clusterName, namespace)
+func clearApplications(cli client.Client, clusterName, namespace string) error {
+	table, tableName, err := createOrGetAppTable(clusterName, namespace)
 	if err != nil {
 		return err
 	}
@@ -722,7 +724,7 @@ func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace st
 		}
 	}
 
-	if err := db.DeleteTable(tableName); err != nil {
+	if err := db.GetGlobalDB().DeleteTable(tableName); err != nil {
 		return fmt.Errorf("delete application table %s failed: %s", tableName, err.Error())
 	}
 
@@ -745,10 +747,6 @@ func isCRDReady(crd apiextv1beta1.CustomResourceDefinition) bool {
 			}
 		case apiextv1beta1.NamesAccepted:
 			if cond.Status == apiextv1beta1.ConditionFalse {
-				// This indicates a naming conflict, but it's probably not the
-				// job of this function to fail because of that. Instead,
-				// we treat it as a success, since the process should be able to
-				// continue.
 				return true
 			}
 		}

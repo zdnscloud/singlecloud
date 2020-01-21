@@ -23,7 +23,7 @@ func (m *NodeNetworkManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
-	resp, err := getNodeNetworks(cluster.Name, m.clusters.Agent)
+	resp, err := getNodeNetworks(cluster.Name, clusteragent.GetAgent())
 	if err != nil {
 		log.Warnf("get nodenetworks info failed:%s", err.Error())
 		return nil

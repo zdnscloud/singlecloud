@@ -14,7 +14,10 @@
     },
     "containers": {
       "type": "array",
-      "elemType": "container"
+      "elemType": "container",
+      "description": [
+        "required"
+      ]
     },
     "memo": {
       "type": "string"
@@ -22,6 +25,8 @@
     "name": {
       "type": "string",
       "description": [
+        "required",
+        "isDomain",
         "immutable"
       ]
     },
@@ -66,10 +71,17 @@
         "elemType": "containerPort"
       },
       "image": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "required"
+        ]
       },
       "name": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "required",
+          "isDomain"
+        ]
       },
       "volumes": {
         "type": "array",
@@ -84,7 +96,11 @@
         "type": "int"
       },
       "protocol": {
-        "type": "string"
+        "type": "enum",
+        "validValues": [
+          "tcp",
+          "udp"
+        ]
       }
     },
     "daemonSetStatus": {
@@ -138,13 +154,21 @@
     },
     "persistentVolumeTemplate": {
       "name": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "isDomain"
+        ]
       },
       "size": {
         "type": "string"
       },
       "storageClassName": {
-        "type": "string"
+        "type": "enum",
+        "validValues": [
+          "lvm",
+          "cephfs",
+          "temporary"
+        ]
       }
     },
     "volume": {
@@ -152,10 +176,18 @@
         "type": "string"
       },
       "name": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "isDomain"
+        ]
       },
       "type": {
-        "type": "string"
+        "type": "enum",
+        "validValues": [
+          "configmap",
+          "secret",
+          "persistentVolume"
+        ]
       }
     },
     "workloadCondition": {

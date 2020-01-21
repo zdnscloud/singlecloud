@@ -184,5 +184,8 @@ func k8sServiceToSCService(k8sService *corev1.Service) *types.Service {
 	}
 	service.SetID(k8sService.Name)
 	service.SetCreationTimestamp(k8sService.CreationTimestamp.Time)
+	if k8sService.GetDeletionTimestamp() != nil {
+		service.SetDeletionTimestamp(k8sService.DeletionTimestamp.Time)
+	}
 	return service
 }

@@ -662,9 +662,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2acaae9b07303e00609a515ef14d7031268e453a22cc1d01ce2e692665ae4790"
+  digest = "1:4a41bcc46ad4254c4d47e0e4182aa4dc0618e1f385933e43c510e42cf584eaf9"
   name = "github.com/zdnscloud/immense"
-  packages = ["pkg/apis/zcloud/v1"]
+  packages = [
+    "pkg/apis/zcloud/v1",
+    "pkg/common",
+  ]
   pruneopts = "UT"
   revision = "e95fae7ebb2a35585ba34353ccf315a8b6fb3178"
 
@@ -1245,6 +1248,7 @@
     "github.com/zdnscloud/gorest/resource/schema/resourcefield",
     "github.com/zdnscloud/gorest/util",
     "github.com/zdnscloud/immense/pkg/apis/zcloud/v1",
+    "github.com/zdnscloud/immense/pkg/common",
     "github.com/zdnscloud/iniconfig",
     "github.com/zdnscloud/kvzoo",
     "github.com/zdnscloud/kvzoo/backend/bolt",
@@ -1282,7 +1286,6 @@
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/intstr",
-    "k8s.io/apimachinery/pkg/util/validation",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/remotecommand",

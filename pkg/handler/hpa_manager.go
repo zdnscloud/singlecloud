@@ -1,9 +1,15 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
+
+	yaml "gopkg.in/yaml.v2"
 
 	asv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +25,28 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
-const workloadAPIVersion = "apps/v1"
+const (
+	WorkloadAPIVersion                = "apps/v1"
+	PrometheusAdapterNamespace        = "zcloud"
+	PrometheusAdapter                 = "prometheus-adapter"
+	PrometheusAdapterConfigMapDataKey = "config.yaml"
+
+	SeriesQueryTemplate   = "{__name__=~\"%s\",kubernetes_pod_name!=\"\",kubernetes_namespace=\"%s\"}"
+	NameMatchesTemplate   = "^%s$"
+	NameAsTemplate        = "%s_%s_%s_%s"
+	MetricsQueryTemplate  = "sum(%s{%s}) by (<<.GroupBy>>)"
+	LabelMatchersTemplate = "%s=\"%s\","
+)
+
+var DefaultRuleResources = RuleResources{
+	Overrides: map[string]map[string]string{
+		"kubernetes_namespace": map[string]string{
+			"resource": "namespace",
+		},
+		"kubernetes_pod_name": map[string]string{
+			"resource": "pod",
+		}},
+}
 
 type HorizontalPodAutoscalerManager struct {
 	clusters *ClusterManager
@@ -40,10 +67,10 @@ func (m *HorizontalPodAutoscalerManager) Create(ctx *resource.Context) (resource
 	if err := createHPA(cluster.KubeClient, namespace, hpa); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource,
-				fmt.Sprintf("duplicate horizontalpodautoscaler name %s", hpa.Name))
+				fmt.Sprintf("duplicate horizontalpodautoscaler name %s with namespace %s", hpa.Name, namespace))
 		} else {
 			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("create horizontalpodautoscaler failed %s", err.Error()))
+				fmt.Sprintf("create horizontalpodautoscaler %s with namespace %s failed %s", hpa.Name, namespace, err.Error()))
 		}
 	}
 
@@ -52,39 +79,64 @@ func (m *HorizontalPodAutoscalerManager) Create(ctx *resource.Context) (resource
 }
 
 func createHPA(cli client.Client, namespace string, hpa *types.HorizontalPodAutoscaler) error {
-	k8sHpaSpec, err := scHPAToK8sHPASpec(hpa)
+	k8sHpas, err := getHPAs(cli, namespace)
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return fmt.Errorf("list horizontalpodautoscalers failed:%s", err.Error())
+		}
+	}
+
+	for _, item := range k8sHpas.Items {
+		if item.Name == hpa.Name ||
+			(item.Spec.ScaleTargetRef.Kind == string(hpa.ScaleTargetKind) &&
+				item.Spec.ScaleTargetRef.Name == hpa.ScaleTargetName) {
+			return fmt.Errorf("duplicate horizontalpodautoscaler %s for %s/%s", item.Name, hpa.ScaleTargetKind, hpa.ScaleTargetName)
+		}
+	}
+
+	k8sHpaSpec, rules, err := scHPAToK8sHPASpec(namespace, hpa)
 	if err != nil {
 		return err
 	}
 
-	k8sHpa := &asv2beta2.HorizontalPodAutoscaler{
+	if err := updatePrometheusAdapterConfigMap(cli, nil, rules); err != nil {
+		return err
+	}
+
+	return cli.Create(context.TODO(), &asv2beta2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      hpa.Name,
 			Namespace: namespace,
 		},
 		Spec: k8sHpaSpec,
-	}
-
-	return cli.Create(context.TODO(), k8sHpa)
+	})
 }
 
-func scHPAToK8sHPASpec(hpa *types.HorizontalPodAutoscaler) (asv2beta2.HorizontalPodAutoscalerSpec, error) {
+func scHPAToK8sHPASpec(namespace string, hpa *types.HorizontalPodAutoscaler) (asv2beta2.HorizontalPodAutoscalerSpec, []Rule, error) {
 	var metrics []asv2beta2.MetricSpec
 	for _, metric := range hpa.ResourceMetrics {
 		metricSpec, err := scResourceMetricSpecToK8sMetricSpec(metric)
 		if err != nil {
-			return asv2beta2.HorizontalPodAutoscalerSpec{}, err
+			return asv2beta2.HorizontalPodAutoscalerSpec{}, nil, err
 		}
 
 		metrics = append(metrics, metricSpec)
 	}
 
+	var rules []Rule
 	for _, metric := range hpa.CustomMetrics {
-		metricSpec, err := scCustomMetricSpecToK8sMetricSpec(metric)
+		rule, metricName, err := genPrometheusAdapterConfigMapRule(namespace, hpa.Name, metric)
 		if err != nil {
-			return asv2beta2.HorizontalPodAutoscalerSpec{}, err
+			return asv2beta2.HorizontalPodAutoscalerSpec{}, nil, err
 		}
+
+		metricSpec, err := scCustomMetricSpecToK8sMetricSpec(metricName, metric)
+		if err != nil {
+			return asv2beta2.HorizontalPodAutoscalerSpec{}, nil, err
+		}
+
 		metrics = append(metrics, metricSpec)
+		rules = append(rules, rule)
 	}
 
 	minReplicas := int32(hpa.MinReplicas)
@@ -92,12 +144,12 @@ func scHPAToK8sHPASpec(hpa *types.HorizontalPodAutoscaler) (asv2beta2.Horizontal
 		MinReplicas: &minReplicas,
 		MaxReplicas: int32(hpa.MaxReplicas),
 		ScaleTargetRef: asv2beta2.CrossVersionObjectReference{
-			APIVersion: workloadAPIVersion,
+			APIVersion: WorkloadAPIVersion,
 			Kind:       string(hpa.ScaleTargetKind),
 			Name:       hpa.ScaleTargetName,
 		},
 		Metrics: metrics,
-	}, nil
+	}, rules, nil
 }
 
 func scResourceMetricSpecToK8sMetricSpec(metric types.ResourceMetricSpec) (asv2beta2.MetricSpec, error) {
@@ -120,7 +172,42 @@ func scResourceMetricSpecToK8sMetricSpec(metric types.ResourceMetricSpec) (asv2b
 	}, nil
 }
 
-func scCustomMetricSpecToK8sMetricSpec(metric types.CustomMetricSpec) (asv2beta2.MetricSpec, error) {
+func genPrometheusAdapterConfigMapRule(namespace, hpaName string, metric types.CustomMetricSpec) (Rule, string, error) {
+	labelsHash, err := hashMetricLabel(metric.Labels)
+	if err != nil {
+		return Rule{}, "", fmt.Errorf("hash custom metric labels failed: %s", err.Error())
+	}
+
+	metricName := fmt.Sprintf(NameAsTemplate, metric.MetricName, labelsHash, namespace, hpaName)
+	return Rule{
+		SeriesQuery: fmt.Sprintf(SeriesQueryTemplate, metric.MetricName, namespace),
+		Resources:   DefaultRuleResources,
+		Name: RuleName{
+			Matches: fmt.Sprintf(NameMatchesTemplate, metric.MetricName),
+			As:      metricName,
+		},
+		MetricsQuery: fmt.Sprintf(MetricsQueryTemplate, metric.MetricName, labelsToString(metric.Labels)),
+	}, metricName, nil
+}
+
+func hashMetricLabel(labels map[string]string) (string, error) {
+	data, err := json.Marshal(labels)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", sha256.Sum256(data))[:12], nil
+}
+
+func labelsToString(labels map[string]string) string {
+	var b bytes.Buffer
+	for name, value := range labels {
+		b.WriteString(fmt.Sprintf(LabelMatchersTemplate, name, value))
+	}
+	return strings.TrimSuffix(b.String(), ",")
+}
+
+func scCustomMetricSpecToK8sMetricSpec(metricName string, metric types.CustomMetricSpec) (asv2beta2.MetricSpec, error) {
 	target, err := scMetricValueToK8sMetricTarget(types.MetricTargetTypeAverageValue, metric.AverageValue, 0)
 	if err != nil {
 		return asv2beta2.MetricSpec{}, err
@@ -130,7 +217,8 @@ func scCustomMetricSpecToK8sMetricSpec(metric types.CustomMetricSpec) (asv2beta2
 		Type: asv2beta2.PodsMetricSourceType,
 		Pods: &asv2beta2.PodsMetricSource{
 			Metric: asv2beta2.MetricIdentifier{
-				Name: metric.MetricName,
+				Name:     metricName,
+				Selector: &metav1.LabelSelector{MatchLabels: metric.Labels},
 			},
 			Target: target,
 		},
@@ -166,6 +254,81 @@ func scMetricValueToK8sMetricTarget(typ types.MetricTargetType, value string, ut
 	default:
 		return asv2beta2.MetricTarget{}, fmt.Errorf("metric target type %s is unsupported", typ)
 	}
+}
+
+func updatePrometheusAdapterConfigMap(cli client.Client, oldRules, newRules []Rule) error {
+	if len(oldRules) == 0 && len(newRules) == 0 {
+		return nil
+	}
+
+	k8sConfigMap, err := getConfigMap(cli, PrometheusAdapterNamespace, PrometheusAdapter)
+	if err != nil {
+		return fmt.Errorf("get prometheus-adapter configmap failed: %s", err.Error())
+	}
+
+	rulesRaw, ok := k8sConfigMap.Data[PrometheusAdapterConfigMapDataKey]
+	if ok == false {
+		return fmt.Errorf("no found %s in prometheus-adapter configmap data", PrometheusAdapterConfigMapDataKey)
+	}
+
+	var config PrometheusAdapterConfig
+	if err := yaml.Unmarshal([]byte(rulesRaw), &config); err != nil {
+		return fmt.Errorf("unmarshal prometheus-adapter configmap data rules failed: %s", err.Error())
+	}
+
+	for _, oldRule := range oldRules {
+		exists := false
+		for i, rule := range config.Rules {
+			if rule.Name.As == oldRule.Name.As {
+				exists = true
+				config.Rules = append(config.Rules[:i], config.Rules[i+1:]...)
+				break
+			}
+		}
+
+		if exists == false {
+			return fmt.Errorf("no found hpa custom metric alias name %s in prometheus-adapter configmap", oldRule.Name.As)
+		}
+	}
+
+	for _, newRule := range newRules {
+		exists := false
+		for _, rule := range config.Rules {
+			if rule.Name.As == newRule.Name.As {
+				exists = true
+				break
+			}
+		}
+
+		if exists {
+			return fmt.Errorf("duplicate hpa custom metric alias name %s in prometheus-adapter configmap", newRule.Name.As)
+		}
+
+		config.Rules = append(config.Rules, newRule)
+	}
+
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("marshal new prometheus-adapter configmap data failed: %s", err.Error())
+	}
+
+	k8sConfigMap.Data[PrometheusAdapterConfigMapDataKey] = string(data)
+	if err := cli.Update(context.TODO(), k8sConfigMap); err != nil {
+		return fmt.Errorf("update prometheus-adapter configmap failed: %s", err.Error())
+	}
+
+	k8sPods, err := getOwnerPods(cli, PrometheusAdapterNamespace, types.ResourceTypeDeployment, PrometheusAdapter)
+	if err != nil {
+		return fmt.Errorf("get prometheus-adapter pods failed: %s", err.Error())
+	}
+
+	for _, pod := range k8sPods.Items {
+		if err := deletePod(cli, PrometheusAdapterNamespace, pod.Name); err != nil {
+			return fmt.Errorf("restart prometheus-adapter pod %s failed: %s", pod.Name, err.Error())
+		}
+	}
+
+	return nil
 }
 
 func (m *HorizontalPodAutoscalerManager) List(ctx *resource.Context) interface{} {
@@ -216,8 +379,8 @@ func k8sHpaToScHpa(k8sHpa *asv2beta2.HorizontalPodAutoscaler) *types.HorizontalP
 			resourceMetricSpec.TargetType = types.MetricTargetType(k8sMetric.Resource.Target.Type)
 			resourceMetrics = append(resourceMetrics, resourceMetricSpec)
 		} else if k8sMetric.Type == asv2beta2.PodsMetricSourceType && k8sMetric.Pods != nil {
-			customMetrics = append(customMetrics, k8sMetricSpecToScCustomMetricSpec(k8sMetric.Pods.Metric.Name,
-				k8sMetric.Pods.Target.AverageValue))
+			customMetrics = append(customMetrics, k8sMetricSpecToScCustomMetricSpec(k8sHpa.Namespace, k8sHpa.Name,
+				k8sMetric.Pods.Metric.Name, k8sMetric.Pods.Metric.Selector, k8sMetric.Pods.Target.AverageValue))
 		}
 	}
 
@@ -231,8 +394,8 @@ func k8sHpaToScHpa(k8sHpa *asv2beta2.HorizontalPodAutoscaler) *types.HorizontalP
 			currentMetrics.ResourceMetrics = append(currentMetrics.ResourceMetrics, k8sMetricSpecToScResourceMetricSpec(
 				k8sCurrent.Resource.Name, k8sCurrent.Resource.Current.AverageValue, k8sCurrent.Resource.Current.AverageUtilization))
 		} else if k8sCurrent.Type == asv2beta2.PodsMetricSourceType && k8sCurrent.Pods != nil {
-			currentMetrics.CustomMetrics = append(currentMetrics.CustomMetrics, k8sMetricSpecToScCustomMetricSpec(
-				k8sCurrent.Pods.Metric.Name, k8sCurrent.Pods.Current.AverageValue))
+			currentMetrics.CustomMetrics = append(currentMetrics.CustomMetrics, k8sMetricSpecToScCustomMetricSpec(k8sHpa.Namespace,
+				k8sHpa.Name, k8sCurrent.Pods.Metric.Name, k8sCurrent.Pods.Metric.Selector, k8sCurrent.Pods.Current.AverageValue))
 		}
 	}
 
@@ -252,6 +415,9 @@ func k8sHpaToScHpa(k8sHpa *asv2beta2.HorizontalPodAutoscaler) *types.HorizontalP
 	}
 	hpa.SetID(k8sHpa.Name)
 	hpa.SetCreationTimestamp(k8sHpa.CreationTimestamp.Time)
+	if k8sHpa.GetDeletionTimestamp() != nil {
+		hpa.SetDeletionTimestamp(k8sHpa.DeletionTimestamp.Time)
+	}
 	return hpa
 }
 
@@ -278,14 +444,16 @@ func k8sMetricSpecToScResourceMetricSpec(k8sResourceName corev1.ResourceName, k8
 	}
 }
 
-func k8sMetricSpecToScCustomMetricSpec(metricName string, k8sAverageValue *apiresource.Quantity) types.CustomMetricSpec {
+func k8sMetricSpecToScCustomMetricSpec(namespace, hpaName, metricName string, selector *metav1.LabelSelector, k8sAverageValue *apiresource.Quantity) types.CustomMetricSpec {
 	var averageValue string
 	if k8sAverageValue != nil {
 		averageValue = strconv.Itoa(int(k8sAverageValue.Value()))
 	}
 
+	labelsHash, _ := hashMetricLabel(selector.MatchLabels)
 	return types.CustomMetricSpec{
-		MetricName:   metricName,
+		MetricName:   strings.TrimSuffix(metricName, fmt.Sprintf(NameAsTemplate, "", labelsHash, namespace, hpaName)),
+		Labels:       selector.MatchLabels,
 		AverageValue: averageValue,
 	}
 }
@@ -323,28 +491,31 @@ func (m *HorizontalPodAutoscalerManager) Update(ctx *resource.Context) (resource
 
 	namespace := ctx.Resource.GetParent().GetID()
 	hpa := ctx.Resource.(*types.HorizontalPodAutoscaler)
-	k8sHpa, err := getHPA(cluster.KubeClient, namespace, hpa.GetID())
-	if err != nil {
+	if err := updateHPA(cluster.KubeClient, namespace, hpa); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("horizontalpodautoscaler %s with namespace %s doesn't exist", hpa.GetID(), namespace))
 		} else {
 			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("get horizontalpodautoscaler failed %s", err.Error()))
+				fmt.Sprintf("update horizontalpodautoscaler failed %s", err.Error()))
 		}
-	}
-
-	if err := updateHPA(cluster.KubeClient, k8sHpa, hpa); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("update horizontalpodautoscaler failed %s", err.Error()))
 	}
 
 	return hpa, nil
 }
 
-func updateHPA(cli client.Client, k8sHpa *asv2beta2.HorizontalPodAutoscaler, hpa *types.HorizontalPodAutoscaler) error {
-	k8sHpaSpec, err := scHPAToK8sHPASpec(hpa)
+func updateHPA(cli client.Client, namespace string, hpa *types.HorizontalPodAutoscaler) error {
+	k8sHpa, err := getHPA(cli, namespace, hpa.GetID())
 	if err != nil {
+		return err
+	}
+
+	k8sHpaSpec, newRules, err := scHPAToK8sHPASpec(namespace, hpa)
+	if err != nil {
+		return err
+	}
+
+	if err := updatePrometheusAdapterConfigMap(cli, getOldRules(k8sHpa.Spec.Metrics), newRules); err != nil {
 		return err
 	}
 
@@ -374,8 +545,55 @@ func (m *HorizontalPodAutoscalerManager) Delete(ctx *resource.Context) *resterro
 }
 
 func deleteHPA(cli client.Client, namespace, name string) error {
-	hpa := &asv2beta2.HorizontalPodAutoscaler{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+	k8sHpa, err := getHPA(cli, namespace, name)
+	if err != nil {
+		return err
 	}
-	return cli.Delete(context.TODO(), hpa)
+
+	if err := updatePrometheusAdapterConfigMap(cli, getOldRules(k8sHpa.Spec.Metrics), nil); err != nil {
+		return err
+	}
+
+	return cli.Delete(context.TODO(), k8sHpa)
+}
+
+func getOldRules(k8sHpaSpecMetrics []asv2beta2.MetricSpec) []Rule {
+	var rules []Rule
+	for _, k8sMetric := range k8sHpaSpecMetrics {
+		if k8sMetric.Type == asv2beta2.PodsMetricSourceType && k8sMetric.Pods != nil {
+			rules = append(rules, Rule{
+				Name: RuleName{
+					As: k8sMetric.Pods.Metric.Name,
+				},
+			})
+		}
+	}
+	return rules
+}
+
+type PrometheusAdapterConfig struct {
+	Rules []Rule `yaml:"rules"`
+}
+
+type Rule struct {
+	SeriesQuery   string         `yaml:"seriesQuery"`
+	SeriesFilters []SeriesFilter `yaml:"seriesFilters"`
+	Resources     RuleResources  `yaml:"resources"`
+	Name          RuleName       `yaml:"name"`
+	MetricsQuery  string         `yaml:"metricsQuery"`
+}
+
+type SeriesFilter struct {
+	IsNot string `yaml:"isNot,omitempty"`
+	Is    string `yaml:"is,omitempty"`
+}
+
+type RuleResources struct {
+	Template  string                       `yaml:"template,omitempty"`
+	Overrides map[string]map[string]string `yaml:"overrides,omitempty"`
+}
+
+type RuleName struct {
+	Matches string `yaml:"matches"`
+	As      string `yaml:"as"`
 }

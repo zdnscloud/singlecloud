@@ -96,7 +96,7 @@ func (m *LimitRangeManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.GetParent().GetID()
 	limitRange := ctx.Resource.(*types.LimitRange)
 	if err := deleteLimitRange(cluster.KubeClient, namespace, limitRange.GetID()); err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("limitRange %s with namespace %s desn't exist", limitRange.GetID(), namespace))
 		} else {
@@ -192,6 +192,9 @@ func k8sLimitRangeToSCLimitRange(k8sLimitRange *corev1.LimitRange) *types.LimitR
 
 	limitRange.SetID(k8sLimitRange.Name)
 	limitRange.SetCreationTimestamp(k8sLimitRange.CreationTimestamp.Time)
+	if k8sLimitRange.GetDeletionTimestamp() != nil {
+		limitRange.SetDeletionTimestamp(k8sLimitRange.DeletionTimestamp.Time)
+	}
 	return limitRange
 }
 

@@ -24,7 +24,7 @@ func (m *OuterServiceManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
-	resp, err := getOuterServices(cluster.Name, m.clusters.Agent, namespace)
+	resp, err := getOuterServices(cluster.Name, clusteragent.GetAgent(), namespace)
 	if err != nil {
 		log.Warnf("get innerservices info failed:%s", err.Error())
 		return nil

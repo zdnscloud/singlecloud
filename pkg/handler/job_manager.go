@@ -98,7 +98,7 @@ func (m *JobManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.GetParent().GetID()
 	job := ctx.Resource.(*types.Job)
 	if err := deleteJob(cluster.KubeClient, namespace, job.GetID()); err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("job %s with namespace %s desn't exist", job.GetID(), namespace))
 		} else {
@@ -190,6 +190,9 @@ func k8sJobToSCJob(k8sJob *batchv1.Job) *types.Job {
 	}
 	job.SetID(k8sJob.Name)
 	job.SetCreationTimestamp(k8sJob.CreationTimestamp.Time)
+	if k8sJob.GetDeletionTimestamp() != nil {
+		job.SetDeletionTimestamp(k8sJob.DeletionTimestamp.Time)
+	}
 	return job
 }
 

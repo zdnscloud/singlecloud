@@ -27,9 +27,9 @@ var (
 
 type Application struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string          `json:"name"`
-	ChartName             string          `json:"chartName"`
-	ChartVersion          string          `json:"chartVersion"`
+	Name                  string          `json:"name" rest:"required=true,isDomain=true"`
+	ChartName             string          `json:"chartName" rest:"required=true"`
+	ChartVersion          string          `json:"chartVersion" rest:"required=true"`
 	ChartIcon             string          `json:"chartIcon" rest:"description=readonly"`
 	Status                string          `json:"status" rest:"description=readonly"`
 	WorkloadCount         int             `json:"workloadCount,omitempty" rest:"description=readonly"`
@@ -41,11 +41,13 @@ type Application struct {
 }
 
 type AppResource struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Link          string `json:"link"`
-	Replicas      int    `json:"replicas,omitempty"`
-	ReadyReplicas int    `json:"readyReplicas,omitempty"`
+	Name              string           `json:"name"`
+	Type              string           `json:"type"`
+	Link              string           `json:"link,omitempty"`
+	Replicas          int              `json:"replicas,omitempty"`
+	ReadyReplicas     int              `json:"readyReplicas,omitempty"`
+	Exists            bool             `json:"exists,omitempty"`
+	CreationTimestamp resource.ISOTime `json:"creationTimestamp,omitempty"`
 }
 
 type Manifest struct {

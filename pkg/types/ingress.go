@@ -5,16 +5,18 @@ import (
 )
 
 type IngressRule struct {
-	Host        string `json:"host"`
-	Path        string `json:"path,omitempty"`
-	ServiceName string `json:"serviceName"`
-	ServicePort int    `json:"servicePort"`
+	Host        string `json:"host" rest:"required=true,isDomain=true"`
+	Path        string `json:"path" rest:"required=true"`
+	ServiceName string `json:"serviceName" rest:"required=true,isDomain=true"`
+	ServicePort int    `json:"servicePort" rest:"required=true"`
 }
 
 type Ingress struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string        `json:"name" rest:"description=immutable"`
-	Rules                 []IngressRule `json:"rules"`
+	Name                  string        `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	Rules                 []IngressRule `json:"rules" rest:"required=true"`
+	MaxBodySize           int           `json:"maxBodySize"`
+	MaxBodySizeUnit       string        `json:"maxBodySizeUnit" rest:"options=m|k"`
 }
 
 func (i Ingress) GetParents() []resource.ResourceKind {

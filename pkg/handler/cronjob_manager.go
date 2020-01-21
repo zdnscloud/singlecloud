@@ -97,7 +97,7 @@ func (m *CronJobManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.GetParent().GetID()
 	cronJob := ctx.Resource.(*types.CronJob)
 	if err := deleteCronJob(cluster.KubeClient, namespace, cronJob.GetID()); err != nil {
-		if apierrors.IsNotFound(err) == false {
+		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("cronJob %s with namespace %s desn't exist", cronJob.GetID(), namespace))
 		} else {
@@ -189,5 +189,8 @@ func k8sCronJobToScCronJob(k8sCronJob *batchv1beta1.CronJob) *types.CronJob {
 	}
 	cronJob.SetID(k8sCronJob.Name)
 	cronJob.SetCreationTimestamp(k8sCronJob.CreationTimestamp.Time)
+	if k8sCronJob.GetDeletionTimestamp() != nil {
+		cronJob.SetDeletionTimestamp(k8sCronJob.DeletionTimestamp.Time)
+	}
 	return cronJob
 }

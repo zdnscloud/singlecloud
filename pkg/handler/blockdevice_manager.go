@@ -28,7 +28,7 @@ func (m *BlockDeviceManager) List(ctx *resource.Context) interface{} {
 	if cluster == nil {
 		return nil
 	}
-	resp, err := getBlockDevices(cluster.Name, cluster.KubeClient, m.clusters.Agent)
+	resp, err := getBlockDevices(cluster.Name, cluster.KubeClient, clusteragent.GetAgent())
 	if err != nil {
 		log.Warnf("get blockdevices info failed:%s", err.Error())
 		return nil

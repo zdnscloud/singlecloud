@@ -35,13 +35,13 @@ type Authenticator struct {
 	db       kvzoo.Table
 }
 
-func NewAuthenticator(db kvzoo.DB) (*Authenticator, error) {
+func NewAuthenticator() (*Authenticator, error) {
 	auth := &Authenticator{
 		repo:     NewTokenRepo(tokenSecret, tokenValidDuration),
 		sessions: session.New(SessionCookieName),
 	}
 
-	if err := auth.loadUsers(db); err != nil {
+	if err := auth.loadUsers(); err != nil {
 		return nil, err
 	}
 

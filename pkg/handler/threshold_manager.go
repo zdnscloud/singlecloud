@@ -9,6 +9,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	resterror "github.com/zdnscloud/gorest/error"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/gorest/resource"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/kvzoo"
@@ -16,6 +17,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/pkg/db"
 )
 
 const (
@@ -39,7 +41,7 @@ type ThresholdManager struct {
 func newThresholdManager(clusters *ClusterManager) (*ThresholdManager, error) {
 	m := &ThresholdManager{
 		clusters:       clusters,
-		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
+		clusterEventCh: eb.GetEventBus().Sub(eventbus.ClusterEvent),
 	}
 	if err := m.initThreshold(); err != nil {
 		return nil, err
@@ -50,7 +52,7 @@ func newThresholdManager(clusters *ClusterManager) (*ThresholdManager, error) {
 
 func (m *ThresholdManager) initThreshold() error {
 	tn, _ := kvzoo.TableNameFromSegments(types.ThresholdTable)
-	table, err := m.clusters.GetDB().CreateOrGetTable(tn)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
 	if err != nil {
 		return fmt.Errorf("create or get table %s failed: %s", types.ThresholdTable, err.Error())
 	}

@@ -23,7 +23,7 @@ func (m *ServiceNetworkManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
-	resp, err := getServiceNetworks(cluster.Name, m.clusters.Agent)
+	resp, err := getServiceNetworks(cluster.Name, clusteragent.GetAgent())
 	if err != nil {
 		log.Warnf("get servicenetworks info failed:%s", err.Error())
 		return nil

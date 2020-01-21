@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	fsmTestDbPath    = "fsm_tmp.db"
-	fsmTestCluster   = "fsmTest"
-	fsmTestScVersion = "v2.0.1"
+	fsmTestDbPath  = "fsm_tmp.db"
+	fsmTestCluster = "fsmTest"
 )
 
 func TestFsmCreateSuccessEvent(t *testing.T) {
@@ -22,7 +21,7 @@ func TestFsmCreateSuccessEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
 		cluster.event(CreateSucceedEvent, mgr, state)
@@ -36,7 +35,7 @@ func TestFsmCreateFailedEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
 		err = cluster.fsm.Event(CreateFailedEvent, mgr, state)
@@ -51,7 +50,7 @@ func TestFsmCreateCanceledEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
 		cluster.event(CreateCanceledEvent, mgr, state)
@@ -65,7 +64,7 @@ func TestFsmContinueCreateEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
 		cluster.event(ContinuteCreateEvent, mgr, state)
@@ -79,7 +78,7 @@ func TestFsmUpdateCompletedEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
 		cluster.event(UpdateCompletedEvent, mgr, state)
@@ -93,7 +92,7 @@ func TestFsmUpdateCanceledEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
 		cluster.event(UpdateCanceledEvent, mgr, state)
@@ -106,7 +105,7 @@ func TestFsmGetInfoSuccessEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
 		cluster.Event(GetInfoSucceedEvent)
@@ -119,7 +118,7 @@ func TestFsmGetInfoFailedEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
 		cluster.Event(GetInfoFailedEvent)
@@ -133,7 +132,7 @@ func TestFsmDeleteEventWhenRunning(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
 		cluster.event(DeleteEvent, mgr, state)
@@ -147,7 +146,7 @@ func TestFsmDeleteEventWhenUnreached(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
 		cluster.event(DeleteEvent, mgr, state)
@@ -161,7 +160,7 @@ func TestFsmDeleteEventWhenCreateFailed(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
 		cluster.event(DeleteEvent, mgr, state)
@@ -175,7 +174,7 @@ func TestFsmDeleteCompleteEvent(t *testing.T) {
 	ut.WithTempFile(t, fsmTestDbPath, func(t *testing.T, f *os.File) {
 		db, err := bolt.New(f.Name())
 		ut.Assert(t, err == nil, "create db should succeed: %s", err)
-		mgr, err := New(db, fsmTestScVersion, nil)
+		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
 		cluster.event(DeleteCompletedEvent, mgr, state)

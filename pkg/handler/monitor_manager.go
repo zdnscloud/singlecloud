@@ -53,7 +53,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
-	if err := createSysApplication(ctx, m.clusters.GetDB(), m.apps, cluster, monitorChartName, app, monitor.StorageClass, monitorAppNamePrefix); err != nil {
+	if err := createSysApplication(ctx, m.apps, cluster, monitorChartName, app, monitor.StorageClass, monitorAppNamePrefix); err != nil {
 		return nil, err
 	}
 
@@ -62,8 +62,8 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 	return monitor, nil
 }
 
-func createSysApplication(ctx *restresource.Context, db kvzoo.DB, appManager *ApplicationManager, cluster *zke.Cluster, chartName string, app *types.Application, requiredStorageClass string, appNamePrefix string) *resterr.APIError {
-	table, _, err := createOrGetAppTable(db, cluster.Name, ZCloudNamespace)
+func createSysApplication(ctx *restresource.Context, appManager *ApplicationManager, cluster *zke.Cluster, chartName string, app *types.Application, requiredStorageClass string, appNamePrefix string) *resterr.APIError {
+	table, _, err := createOrGetAppTable(cluster.Name, ZCloudNamespace)
 	if err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get %s application from db failed %s", chartName, err.Error()))
 	}
@@ -115,7 +115,7 @@ func (m *MonitorManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	app, err := getApplicationFromDBByChartName(m.clusters.GetDB(), cluster.Name, monitorChartName)
+	app, err := getApplicationFromDBByChartName(cluster.Name, monitorChartName)
 	if err != nil {
 		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
 		return nil
@@ -136,14 +136,14 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 		return resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	return deleteApplicationByChartName(m.clusters.GetDB(), cluster, monitorChartName)
+	return deleteApplicationByChartName(cluster, monitorChartName)
 }
 
-func deleteApplicationByChartName(db kvzoo.DB, cluster *zke.Cluster, chartName string) *resterr.APIError {
+func deleteApplicationByChartName(cluster *zke.Cluster, chartName string) *resterr.APIError {
 	if cluster == nil {
 		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
-	table, _, err := createOrGetAppTable(db, cluster.Name, ZCloudNamespace)
+	table, _, err := createOrGetAppTable(cluster.Name, ZCloudNamespace)
 	if err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get cluster %s application %s from db failed %s", cluster.Name, chartName, err.Error()))
 	}
@@ -237,7 +237,8 @@ func genRetrunMonitorFromApplication(cluster string, app *types.Application) (*t
 		Status:              app.Status,
 	}
 	m.SetID(monitorAppNamePrefix)
-	m.CreationTimestamp = app.CreationTimestamp
+	m.SetCreationTimestamp(time.Time(app.CreationTimestamp))
+	m.SetDeletionTimestamp(time.Time(app.DeletionTimestamp))
 	return &m, nil
 }
 
@@ -263,8 +264,8 @@ func ensureApplicationSucceedOrDie(table kvzoo.Table, cluster *zke.Cluster, appN
 	}
 }
 
-func getApplicationFromDBByChartName(db kvzoo.DB, clusterName, chartName string) (*types.Application, error) {
-	table, _, err := createOrGetAppTable(db, clusterName, ZCloudNamespace)
+func getApplicationFromDBByChartName(clusterName, chartName string) (*types.Application, error) {
+	table, _, err := createOrGetAppTable(clusterName, ZCloudNamespace)
 	if err != nil {
 		return nil, err
 	}
