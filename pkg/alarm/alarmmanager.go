@@ -7,10 +7,10 @@ import (
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
-	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
@@ -28,9 +28,9 @@ type AlarmManager struct {
 }
 
 func NewAlarmManager() (*AlarmManager, error) {
-    alarmCache,err := NewAlarmCache(MaxEventCount)
-	if err !=nil{
-		return nil,err
+	alarmCache, err := NewAlarmCache(MaxEventCount)
+	if err != nil {
+		return nil, err
 	}
 	mgr := &AlarmManager{
 		cache:             alarmCache,

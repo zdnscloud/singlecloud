@@ -110,7 +110,7 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}
 
-	app, err := handler.NewApp(authenticator, authorizer, conf,alarmMgr)
+	app, err := handler.NewApp(authenticator, authorizer, conf, alarmMgr)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}

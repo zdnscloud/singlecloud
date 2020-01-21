@@ -30,7 +30,7 @@ type App struct {
 	alarmManager   *alarm.AlarmManager
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, conf *config.SinglecloudConf,alarmMgr *alarm.AlarmManager) (*App, error) {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, conf *config.SinglecloudConf, alarmMgr *alarm.AlarmManager) (*App, error) {
 	clusterMgr, err := newClusterManager(authenticator, authorizer)
 	if err != nil {
 		return nil, err
