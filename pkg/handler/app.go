@@ -27,10 +27,9 @@ var (
 type App struct {
 	clusterManager *ClusterManager
 	conf           *config.SinglecloudConf
-	alarmManager   *alarm.AlarmManager
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, conf *config.SinglecloudConf, alarmMgr *alarm.AlarmManager) (*App, error) {
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, conf *config.SinglecloudConf) (*App, error) {
 	clusterMgr, err := newClusterManager(authenticator, authorizer)
 	if err != nil {
 		return nil, err
@@ -38,7 +37,6 @@ func NewApp(authenticator *authentication.Authenticator, authorizer *authorizati
 	return &App{
 		clusterManager: clusterMgr,
 		conf:           conf,
-		alarmManager:   alarmMgr,
 	}, nil
 }
 
@@ -53,7 +51,7 @@ func (a *App) RegisterHandler(router gin.IRoutes) error {
 func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas := schema.NewSchemaManager()
 	schemas.MustImport(&Version, types.Cluster{}, a.clusterManager)
-	schemas.MustImport(&Version, types.Alarm{}, a.alarmManager)
+	schemas.MustImport(&Version, types.Alarm{}, alarm.GetAlarmManager())
 	schemas.MustImport(&Version, types.Node{}, newNodeManager(a.clusterManager))
 	schemas.MustImport(&Version, types.PodNetwork{}, newPodNetworkManager(a.clusterManager))
 	schemas.MustImport(&Version, types.NodeNetwork{}, newNodeNetworkManager(a.clusterManager))

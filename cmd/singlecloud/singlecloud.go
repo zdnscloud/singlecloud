@@ -92,12 +92,11 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register k8s event watcher failed:%s", err.Error())
 	}
 
-	alarmMgr, err := alarm.NewAlarmManager()
-	if err != nil {
+	if err := alarm.NewAlarmManager(); err != nil {
 		log.Fatalf("create alarm failed:%s", err.Error())
 	}
 
-	if err := server.RegisterHandler(alarmMgr); err != nil {
+	if err := server.RegisterHandler(alarm.GetAlarmManager()); err != nil {
 		log.Fatalf("register alarm failed:%s", err.Error())
 	}
 
@@ -110,7 +109,7 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}
 
-	app, err := handler.NewApp(authenticator, authorizer, conf, alarmMgr)
+	app, err := handler.NewApp(authenticator, authorizer, conf)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}

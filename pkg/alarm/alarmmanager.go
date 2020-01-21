@@ -16,10 +16,15 @@ import (
 )
 
 var UpdateErr = gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
+var alarmManager *AlarmManager
 
 const (
 	MaxEventCount = 100
 )
+
+func GetAlarmManager() *AlarmManager {
+	return alarmManager
+}
 
 type AlarmManager struct {
 	lock              sync.Mutex
@@ -27,17 +32,17 @@ type AlarmManager struct {
 	clusterEventCache map[string]*EventCache
 }
 
-func NewAlarmManager() (*AlarmManager, error) {
+func NewAlarmManager() error {
 	alarmCache, err := NewAlarmCache(MaxEventCount)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	mgr := &AlarmManager{
+	alarmManager = &AlarmManager{
 		cache:             alarmCache,
 		clusterEventCache: make(map[string]*EventCache),
 	}
-	go mgr.eventLoop()
-	return mgr, nil
+	go alarmManager.eventLoop()
+	return nil
 }
 
 func (mgr *AlarmManager) eventLoop() {
