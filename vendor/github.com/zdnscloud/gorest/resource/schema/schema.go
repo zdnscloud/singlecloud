@@ -138,19 +138,21 @@ func (s *Schema) parseAction(name string, body []byte) (*resource.Action, *gores
 		return nil, goresterr.NewAPIError(goresterr.NotFound,
 			fmt.Sprintf("no handler for action %s", name))
 	}
-
-	if action := s.resourceKind.CreateAction(name); action != nil {
-		if action.Input != nil {
-			if err := json.Unmarshal(body, action.Input); err != nil {
-				return nil, goresterr.NewAPIError(goresterr.InvalidBodyContent,
-					fmt.Sprintf("failed to parse action params: %s", err.Error()))
+	actions := s.resourceKind.GetActions()
+	for i, action := range actions {
+		if action.Name == name {
+			if action.Input != nil {
+				if err := json.Unmarshal(body, action.Input); err != nil {
+					return nil, goresterr.NewAPIError(goresterr.InvalidBodyContent,
+						fmt.Sprintf("failed to parse action params: %s", err.Error()))
+				}
 			}
+			a := actions[i]
+			return &a, nil
 		}
-		return action, nil
-	} else {
-		return nil, goresterr.NewAPIError(goresterr.NotFound,
-			fmt.Sprintf("unknown action %s", name))
 	}
+	return nil, goresterr.NewAPIError(goresterr.NotFound,
+		fmt.Sprintf("unknown action %s", name))
 }
 
 func (s *Schema) AddChild(child *Schema) error {

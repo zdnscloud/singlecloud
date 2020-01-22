@@ -25,7 +25,7 @@ func (r ResourceBase) CreateDefaultResource() Resource {
 	return nil
 }
 
-func (r ResourceBase) CreateAction(name string) *Action {
+func (r ResourceBase) GetActions() []Action {
 	return nil
 }
 

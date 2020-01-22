@@ -178,8 +178,6 @@ func (m *ClusterManager) Action(ctx *restresource.Context) (interface{}, *rester
 	switch action.Name {
 	case types.CSCancelAction:
 		return m.zkeManager.CancelCluster(id)
-	case types.CSImportAction:
-		return m.zkeManager.Import(ctx)
 	default:
 		return nil, nil
 	}

@@ -48,7 +48,7 @@ func getType(t reflect.Type) string {
 		return Array
 	case util.Struct:
 		return LowerFirstCharacter(t.Name())
-	case util.StructPtr:
+	case util.StructPtr, util.BoolPtr:
 		return LowerFirstCharacter(t.Elem().Name())
 	default:
 		return Unknow

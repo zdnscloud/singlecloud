@@ -35,6 +35,7 @@ type ResourceDocument struct {
 	SubResources      map[string]ResourceFields `json:"subResources,omitempty"`
 	ResourceMethods   []resource.HttpMethod     `json:"resourceMethods,omitempty"`
 	CollectionMethods []resource.HttpMethod     `json:"collectionMethods,omitempty"`
+	ResourceActions   []ResourceAction          `json:"resourceActions,omitempty"`
 }
 
 type ResourceFields map[string]ResourceField
@@ -58,10 +59,15 @@ func NewResourceDocument(name string, kind resource.ResourceKind, handler resour
 		ResourceMethods:   resource.GetResourceMethods(handler),
 		CollectionMethods: resource.GetCollectionMethods(handler),
 	}
-	if resourceFields, err := buildResourceFields(resource, reflect.TypeOf(kind)); err != nil {
+	if resourceFields, err := buildResourceFields(resource.SubResources, reflect.TypeOf(kind)); err != nil {
 		return resource, fmt.Errorf("build resource %s failed, %s", name, err.Error())
 	} else {
 		resource.ResourceFields = resourceFields
+	}
+	if resourceActions, err := genActions(kind); err != nil {
+		return resource, fmt.Errorf("parse resource %s actions failed, %s", name, err.Error())
+	} else {
+		resource.ResourceActions = resourceActions
 	}
 	return resource, nil
 }
@@ -82,7 +88,7 @@ func (r *ResourceDocument) WriteJsonFile(targetPath string) error {
 	return err
 }
 
-func buildResourceFields(resource *ResourceDocument, t reflect.Type) (ResourceFields, error) {
+func buildResourceFields(subResources map[string]ResourceFields, t reflect.Type) (ResourceFields, error) {
 	resourceFields := make(map[string]ResourceField)
 	for i := 0; i < t.NumField(); i++ {
 		name := t.Field(i).Name
@@ -93,17 +99,17 @@ func buildResourceFields(resource *ResourceDocument, t reflect.Type) (ResourceFi
 			continue
 		}
 		if resourceField, err := buildResourceField(typ, tag); err != nil {
-			return resourceFields, fmt.Errorf("field %s has %s", name, err.Error())
+			return nil, fmt.Errorf("field %s has %s", name, err.Error())
 		} else {
 			resourceFields[jsonName] = resourceField
 		}
 
 		if _, ignore := getIgnoreType(typ); !ignore {
 			if t := getStructType(typ); t != nil {
-				if resourceFields, err := buildResourceFields(resource, t); err != nil {
-					return resourceFields, err
+				if resourceFields, err := buildResourceFields(subResources, t); err != nil {
+					return nil, err
 				} else {
-					resource.SubResources[LowerFirstCharacter(t.Name())] = resourceFields
+					subResources[LowerFirstCharacter(t.Name())] = resourceFields
 				}
 			}
 		}

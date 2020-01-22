@@ -221,24 +221,6 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 		return nil, err
 	}
 
-	var collisionCount int
-	if k8sDaemonSet.Status.CollisionCount != nil {
-		collisionCount = int(*k8sDaemonSet.Status.CollisionCount)
-	}
-
-	daemonSetStatus := types.DaemonSetStatus{
-		CurrentNumberScheduled: int(k8sDaemonSet.Status.CurrentNumberScheduled),
-		NumberMisscheduled:     int(k8sDaemonSet.Status.NumberMisscheduled),
-		DesiredNumberScheduled: int(k8sDaemonSet.Status.DesiredNumberScheduled),
-		NumberReady:            int(k8sDaemonSet.Status.NumberReady),
-		ObservedGeneration:     int(k8sDaemonSet.Status.ObservedGeneration),
-		UpdatedNumberScheduled: int(k8sDaemonSet.Status.UpdatedNumberScheduled),
-		NumberAvailable:        int(k8sDaemonSet.Status.NumberAvailable),
-		NumberUnavailable:      int(k8sDaemonSet.Status.NumberUnavailable),
-		CollisionCount:         collisionCount,
-		Conditions:             k8sWorkloadConditionsToScWorkloadConditions(k8sDaemonSet.Status.Conditions, false),
-	}
-
 	var advancedOpts types.AdvancedOptions
 	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]
 	if ok {
@@ -247,11 +229,25 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 
 	daemonSet := &types.DaemonSet{
 		Name:              k8sDaemonSet.Name,
+		Replicas:          int(k8sDaemonSet.Status.DesiredNumberScheduled),
 		Containers:        containers,
 		AdvancedOptions:   advancedOpts,
 		PersistentVolumes: pvs,
-		Status:            daemonSetStatus,
+		Status:            types.WorkloadStatus{ReadyReplicas: int(k8sDaemonSet.Status.NumberReady)},
 	}
+
+	if daemonsetIsUpdate(k8sDaemonSet) {
+		daemonSet.Status.Updating = true
+		daemonSet.Status.UpdatingReplicas = int(k8sDaemonSet.Status.NumberUnavailable)
+		if k8sDaemonSet.Status.UpdatedNumberScheduled != 0 {
+			daemonSet.Status.CurrentReplicas = int(k8sDaemonSet.Status.DesiredNumberScheduled - k8sDaemonSet.Status.UpdatedNumberScheduled)
+			daemonSet.Status.UpdatedReplicas = int(k8sDaemonSet.Status.UpdatedNumberScheduled - k8sDaemonSet.Status.NumberUnavailable)
+		} else {
+			daemonSet.Status.CurrentReplicas = int(k8sDaemonSet.Status.DesiredNumberScheduled - k8sDaemonSet.Status.NumberUnavailable)
+		}
+	}
+
+	daemonSet.Status.Conditions = k8sWorkloadConditionsToScWorkloadConditions(k8sDaemonSet.Status.Conditions, false)
 	daemonSet.SetID(k8sDaemonSet.Name)
 	daemonSet.SetCreationTimestamp(k8sDaemonSet.CreationTimestamp.Time)
 	if k8sDaemonSet.GetDeletionTimestamp() != nil {
@@ -259,6 +255,18 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	}
 	daemonSet.AdvancedOptions.ExposedMetric = k8sAnnotationsToScExposedMetric(k8sDaemonSet.Spec.Template.Annotations)
 	return daemonSet, nil
+}
+
+func daemonsetIsUpdate(k8sDaemonSet *appsv1.DaemonSet) bool {
+	if k8sDaemonSet.Status.ObservedGeneration == 1 ||
+		(k8sDaemonSet.Status.DesiredNumberScheduled == k8sDaemonSet.Status.NumberAvailable &&
+			k8sDaemonSet.Status.NumberAvailable == k8sDaemonSet.Status.NumberReady &&
+			k8sDaemonSet.Status.NumberReady == k8sDaemonSet.Status.UpdatedNumberScheduled &&
+			k8sDaemonSet.Status.NumberUnavailable == 0) {
+		return false
+	}
+
+	return true
 }
 
 func (m *DaemonSetManager) getDaemonsetHistory(ctx *resource.Context) (interface{}, *resterror.APIError) {
