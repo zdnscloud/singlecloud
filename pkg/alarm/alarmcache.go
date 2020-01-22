@@ -129,6 +129,9 @@ func (ac *AlarmCache) getAlarmsAfterID(id uint64) []*types.Alarm {
 func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	ac.lock.Lock()
 	defer ac.lock.Unlock()
+	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
+		alarm.Namespace = ""
+	}
 	if elem := ac.alarmList.Back(); elem != nil {
 		if isRepeat(elem.Value.(*types.Alarm), alarm) {
 			return
@@ -136,9 +139,6 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	}
 	alarm.UID = atomic.AddUint64(&ac.eventID, 1)
 	alarm.SetID(strconv.Itoa(int(alarm.UID)))
-	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
-		alarm.Namespace = ""
-	}
 	if err := SendMail(alarm, ac.ThresholdTable); err != nil {
 		log.Warnf("send mail failed: %s", err)
 	}
