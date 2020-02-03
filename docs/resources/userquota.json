@@ -4,7 +4,10 @@
   "goStructName": "UserQuota",
   "resourceFields": {
     "clusterName": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "isDomain"
+      ]
     },
     "cpu": {
       "type": "string"
@@ -15,11 +18,17 @@
     "name": {
       "type": "string",
       "description": [
+        "required",
+        "isDomain",
         "immutable"
       ]
     },
     "namespace": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required",
+        "isDomain"
+      ]
     },
     "purpose": {
       "type": "string"
@@ -70,5 +79,27 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "approval",
+      "input": {
+        "clusterName": {
+          "type": "string",
+          "description": [
+            "required",
+            "isDomain"
+          ]
+        }
+      }
+    },
+    {
+      "name": "reject",
+      "input": {
+        "reason": {
+          "type": "string"
+        }
+      }
+    }
   ]
 }

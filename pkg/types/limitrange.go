@@ -6,7 +6,7 @@ import (
 
 type LimitRange struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string            `json:"name,omitempty"`
+	Name                  string            `json:"name" rest:"required=true,isDomain=true"`
 	Max                   map[string]string `json:"max,omitempty"`
 	Min                   map[string]string `json:"min,omitempty"`
 }

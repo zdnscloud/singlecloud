@@ -5,16 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/gorest"
 	"github.com/zdnscloud/gorest/adaptor"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/gorest/resource/schema"
-	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/config"
+	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
-	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
@@ -28,21 +26,17 @@ var (
 
 type App struct {
 	clusterManager *ClusterManager
-	chartDir       string
-	repoUrl        string
-	registryCAConf config.RegistryCAConf
+	conf           *config.SinglecloudConf
 }
 
-func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, eventBus *pubsub.PubSub, agent *clusteragent.AgentManager, db kvzoo.DB, chartDir, scVersion, repoUrl string, registryCAConf config.RegistryCAConf) (*App, error) {
-	clusterMgr, err := newClusterManager(authenticator, authorizer, eventBus, agent, db, scVersion)
+func NewApp(authenticator *authentication.Authenticator, authorizer *authorization.Authorizer, conf *config.SinglecloudConf) (*App, error) {
+	clusterMgr, err := newClusterManager(authenticator, authorizer)
 	if err != nil {
 		return nil, err
 	}
 	return &App{
 		clusterManager: clusterMgr,
-		chartDir:       chartDir,
-		repoUrl:        repoUrl,
-		registryCAConf: registryCAConf,
+		conf:           conf,
 	}, nil
 }
 
@@ -57,6 +51,7 @@ func (a *App) RegisterHandler(router gin.IRoutes) error {
 func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas := schema.NewSchemaManager()
 	schemas.MustImport(&Version, types.Cluster{}, a.clusterManager)
+	schemas.MustImport(&Version, types.Alarm{}, alarm.GetAlarmManager())
 	schemas.MustImport(&Version, types.Node{}, newNodeManager(a.clusterManager))
 	schemas.MustImport(&Version, types.PodNetwork{}, newPodNetworkManager(a.clusterManager))
 	schemas.MustImport(&Version, types.NodeNetwork{}, newNodeNetworkManager(a.clusterManager))
@@ -68,7 +63,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 		return err
 	}
 	schemas.MustImport(&Version, types.Namespace{}, namespaceManager)
-	schemas.MustImport(&Version, types.Chart{}, newChartManager(a.chartDir, a.repoUrl))
+	schemas.MustImport(&Version, types.Chart{}, newChartManager(a.conf.Chart.Path, a.conf.Chart.Repo))
 	schemas.MustImport(&Version, types.ConfigMap{}, newConfigMapManager(a.clusterManager))
 	schemas.MustImport(&Version, types.CronJob{}, newCronJobManager(a.clusterManager))
 	schemas.MustImport(&Version, types.DaemonSet{}, newDaemonSetManager(a.clusterManager))
@@ -91,22 +86,28 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.FluentBitConfig{}, newFluentBitConfigManager(a.clusterManager))
 	schemas.MustImport(&Version, types.SvcMeshWorkload{}, newSvcMeshWorkloadManager(a.clusterManager))
 	schemas.MustImport(&Version, types.SvcMeshPod{}, newSvcMeshPodManager(a.clusterManager))
+	schemas.MustImport(&Version, types.Metric{}, newMetricManager(a.clusterManager))
 
 	userQuotaManager, err := newUserQuotaManager(a.clusterManager)
 	if err != nil {
 		return err
 	}
 	schemas.MustImport(&Version, types.UserQuota{}, userQuotaManager)
-	appManager := newApplicationManager(a.clusterManager, a.chartDir)
+	appManager := newApplicationManager(a.clusterManager, a.conf.Chart.Path)
 	schemas.MustImport(&Version, types.Application{}, appManager)
 	schemas.MustImport(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appManager))
 	schemas.MustImport(&Version, types.EFK{}, newEFKManager(a.clusterManager, appManager))
 
-	registryManager, err := newRegistryManager(a.clusterManager, appManager, a.registryCAConf)
+	registryManager, err := newRegistryManager(a.clusterManager, appManager, a.conf.Registry)
 	if err != nil {
 		return err
 	}
 	schemas.MustImport(&Version, types.Registry{}, registryManager)
+	thresholdManager, err := newThresholdManager(a.clusterManager)
+	if err != nil {
+		return err
+	}
+	schemas.MustImport(&Version, types.Threshold{}, thresholdManager)
 
 	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.MustImport(&Version, types.User{}, userManager)

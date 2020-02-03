@@ -36,8 +36,10 @@ import (
 	"github.com/zdnscloud/gorest/resource/schema/resourcefield"
 	restutil "github.com/zdnscloud/gorest/util"
 	"github.com/zdnscloud/kvzoo"
+	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	"github.com/zdnscloud/singlecloud/pkg/db"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
@@ -55,8 +57,11 @@ const (
 	notesFileSuffix  = "NOTES.txt"
 	ApplicationTable = "application"
 
-	crdCheckTimes    = 20
-	crdCheckInterval = 5 * time.Second
+	crdCheckTimes        = 20
+	crdCheckInterval     = 5 * time.Second
+	createFailedReason   = "create failed"
+	updateDBFailedReason = "update database failed"
+	deleteFailedReason   = "delete failed"
 )
 
 type ApplicationManager struct {
@@ -74,7 +79,7 @@ func newApplicationManager(clusters *ClusterManager, chartDir string) *Applicati
 	m := &ApplicationManager{
 		clusters:       clusters,
 		chartDir:       chartDir,
-		clusterEventCh: clusters.GetEventBus().Sub(eventbus.ClusterEvent),
+		clusterEventCh: eb.GetEventBus().Sub(eb.ClusterEvent),
 	}
 	go m.eventLoop()
 	return m
@@ -86,7 +91,7 @@ func (m *ApplicationManager) eventLoop() {
 		switch e := event.(type) {
 		case zke.DeleteCluster:
 			tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, e.Cluster.Name)
-			if err := m.clusters.GetDB().DeleteTable(tn); err != nil {
+			if err := db.GetGlobalDB().DeleteTable(tn); err != nil {
 				log.Warnf("delete /application/cluster %s table failed: %s", e.Cluster.Name, err.Error())
 			}
 		}
@@ -102,7 +107,7 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 	namespace := ctx.Resource.GetParent().GetID()
 	app := ctx.Resource.(*types.Application)
 	app.SetID(app.Name)
-	if err := m.create(ctx, cluster, namespace, app, false); err != nil {
+	if err := m.createApplication(ctx, cluster, namespace, app, false); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource,
 				fmt.Sprintf("duplicate chart %s with name %s", app.ChartName, app.Name))
@@ -114,7 +119,7 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 	return genReturnApplication(app), nil
 }
 
-func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application, system bool) error {
+func (m *ApplicationManager) createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application, isSystemChart bool) error {
 	if hasNamespace(cluster.KubeClient, namespace) == false {
 		return fmt.Errorf("namespace %s is not found", namespace)
 	}
@@ -125,7 +130,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 		return fmt.Errorf("load chart %s with version %s info failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	if app.SystemChart = slice.SliceIndex(info.Keywords, KeywordZcloudSystem) != -1; app.SystemChart != system {
+	if app.SystemChart = slice.SliceIndex(info.Keywords, KeywordZcloudSystem) != -1; app.SystemChart != isSystemChart {
 		return fmt.Errorf("can`t use application interface create systemchart application with chart %s", app.ChartName)
 	}
 
@@ -151,7 +156,7 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	app.Status = types.AppStatusCreate
 	app.SetCreationTimestamp(time.Now())
 	app.ChartIcon = genChartIcon(iconPrefixForReturn, app.ChartName)
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return err
 	}
@@ -161,13 +166,31 @@ func (m *ApplicationManager) create(ctx *resource.Context, cluster *zke.Cluster,
 	}
 
 	urls := strings.SplitAfterN(ctx.Request.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", cluster.Name), 2)
-	go createApplication(table, cluster.KubeClient, isAdmin(getCurrentUser(ctx)), namespace, urls[0], app, crdManifests)
+	go func() {
+		if err := asyncCreateApplication(table, cluster.KubeClient, isAdmin(getCurrentUser(ctx)), namespace,
+			urls[0], app, crdManifests); err != nil {
+			log.Warnf("create application failed: %s", err.Error())
+			publishApplicationEvent(cluster.Name, namespace, app.Name, createFailedReason, err.Error())
+			updateAppStatusToFailed(table, cluster.Name, namespace, app)
+		}
+	}()
 	return nil
 }
 
-func createOrGetAppTable(db kvzoo.DB, clusterName, namespace string) (kvzoo.Table, kvzoo.TableName, error) {
+func publishApplicationEvent(cluster, namespace, name, reason, msg string) {
+	alarm.New().
+		Cluster(cluster).
+		Namespace(namespace).
+		Kind("Application").
+		Name(name).
+		Reason(reason).
+		Message(msg).
+		Publish()
+}
+
+func createOrGetAppTable(clusterName, namespace string) (kvzoo.Table, kvzoo.TableName, error) {
 	tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, clusterName, namespace)
-	table, err := db.CreateOrGetTable(tn)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
 	if err != nil {
 		return nil, tn, fmt.Errorf("create or get table %s failed: %s", tn, err.Error())
 	}
@@ -272,30 +295,28 @@ func addOrUpdateApplicationToDB(table kvzoo.Table, app *types.Application, isCre
 	return tx.Commit()
 }
 
-func createApplication(table kvzoo.Table, cli client.Client, isAdmin bool, namespace, urlPrefix string, app *types.Application, crdManifests []types.Manifest) {
+func asyncCreateApplication(table kvzoo.Table, cli client.Client, isAdmin bool, namespace, urlPrefix string, app *types.Application, crdManifests []types.Manifest) error {
 	if err := preInstallChartCRDs(cli, crdManifests); err != nil {
-		log.Warnf("create application %s crds failed: %s", app.Name, err.Error())
-		updateAppStatusToFailed(table, app)
-		return
+		return fmt.Errorf("create application %s crds failed: %s", app.Name, err.Error())
 	}
 
 	if err := createAppResources(cli, isAdmin, namespace, urlPrefix, app); err != nil {
-		log.Warnf("create application %s resources failed: %s", app.Name, err.Error())
-		updateAppStatusToFailed(table, app)
-		return
+		return fmt.Errorf("create application %s resources failed: %s", app.Name, err.Error())
 	}
 
 	app.Status = types.AppStatusSucceed
 	if err := updateApplicationToDB(table, app); err != nil {
-		log.Warnf("update application %s status to succeed failed: %s", app.Name, err.Error())
-		updateAppStatusToFailed(table, app)
+		return fmt.Errorf("update application %s status to succeed failed: %s", app.Name, err.Error())
 	}
+
+	return nil
 }
 
-func updateAppStatusToFailed(table kvzoo.Table, app *types.Application) {
+func updateAppStatusToFailed(table kvzoo.Table, clusterName, namespace string, app *types.Application) {
 	app.Status = types.AppStatusFailed
 	if err := updateApplicationToDB(table, app); err != nil {
 		log.Warnf("update application %s status to failed get error: %s", app.Name, err.Error())
+		publishApplicationEvent(clusterName, namespace, app.Name, updateDBFailedReason, err.Error())
 	}
 }
 
@@ -434,7 +455,7 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return err
 	}
@@ -572,7 +593,7 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		log.Warnf("get application %s failed %s", ctx.Resource.GetID(), err.Error())
 		return nil
@@ -624,13 +645,13 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
-	table, _, err := createOrGetAppTable(m.clusters.GetDB(), cluster.Name, namespace)
+	table, _, err := createOrGetAppTable(cluster.Name, namespace)
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed,
 			fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
 	}
 
-	if err := deleteApplication(table, cluster.KubeClient, namespace, appName, false); err != nil {
+	if err := deleteApplication(table, cluster, namespace, appName, false); err != nil {
 		if err == kvzoo.ErrNotFound {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, namespace))
@@ -643,36 +664,43 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 	return nil
 }
 
-func deleteApplication(table kvzoo.Table, cli client.Client, namespace, appName string, system bool) error {
-	app, err := updateAppStatusToDeleteFromDB(table, appName, system)
+func deleteApplication(table kvzoo.Table, cluster *zke.Cluster, namespace, appName string, isSystemChart bool) error {
+	app, err := updateAppStatusToDeleteFromDB(table, appName, isSystemChart)
 	if err != nil {
 		return err
 	}
 
 	go func() {
-		if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
-			log.Warnf("delete application %s resources failed: %s", app.Name, err.Error())
-			updateAppStatusToFailed(table, app)
-			return
-		}
-
-		if err := deleteApplicationFromDB(table, app.GetID()); err != nil {
-			log.Warnf("delete application %s from db failed: %s", app.Name, err.Error())
-			updateAppStatusToFailed(table, app)
+		if err := asyncDeleteApplication(table, cluster.KubeClient, namespace, app); err != nil {
+			log.Warnf("delete application failed: %s", err.Error())
+			publishApplicationEvent(cluster.Name, namespace, appName, deleteFailedReason, err.Error())
+			updateAppStatusToFailed(table, cluster.Name, namespace, app)
 		}
 	}()
 
 	return nil
 }
 
-func updateAppStatusToDeleteFromDB(table kvzoo.Table, name string, system bool) (*types.Application, error) {
+func asyncDeleteApplication(table kvzoo.Table, cli client.Client, namespace string, app *types.Application) error {
+	if err := deleteAppResources(cli, namespace, app.Manifests); err != nil {
+		return fmt.Errorf("delete application %s resources failed: %s", app.Name, err.Error())
+	}
+
+	if err := deleteApplicationFromDB(table, app.GetID()); err != nil {
+		return fmt.Errorf("delete application %s from db failed: %s", app.Name, err.Error())
+	}
+
+	return nil
+}
+
+func updateAppStatusToDeleteFromDB(table kvzoo.Table, name string, isSystemChart bool) (*types.Application, error) {
 	tx, err := table.Begin()
 	if err != nil {
 		return nil, err
 	}
 
 	defer tx.Rollback()
-	app, err := getApplicationFromDBTx(tx, name, system)
+	app, err := getApplicationFromDBTx(tx, name, isSystemChart)
 	if err != nil {
 		return nil, err
 	}
@@ -736,8 +764,8 @@ func deleteApplicationFromDB(table kvzoo.Table, name string) error {
 	return tx.Commit()
 }
 
-func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace string) error {
-	table, tableName, err := createOrGetAppTable(db, clusterName, namespace)
+func clearApplications(cli client.Client, clusterName, namespace string) error {
+	table, tableName, err := createOrGetAppTable(clusterName, namespace)
 	if err != nil {
 		return err
 	}
@@ -758,7 +786,7 @@ func clearApplications(db kvzoo.DB, cli client.Client, clusterName, namespace st
 		}
 	}
 
-	if err := db.DeleteTable(tableName); err != nil {
+	if err := db.GetGlobalDB().DeleteTable(tableName); err != nil {
 		return fmt.Errorf("delete application table %s failed: %s", tableName, err.Error())
 	}
 

@@ -18,12 +18,12 @@ const (
 type ContainerPort struct {
 	Name     string `json:"name"`
 	Port     int    `json:"port"`
-	Protocol string `json:"protocol"`
+	Protocol string `json:"protocol" rest:"options=tcp|udp"`
 }
 
 type Container struct {
-	Name         string          `json:"name"`
-	Image        string          `json:"image"`
+	Name         string          `json:"name" rest:"required=true,isDomain=true"`
+	Image        string          `json:"image" rest:"required=true"`
 	Command      []string        `json:"command,omitempty"`
 	Args         []string        `json:"args,omitempty"`
 	ExposedPorts []ContainerPort `json:"exposedPorts,omitempty"`
@@ -32,9 +32,9 @@ type Container struct {
 }
 
 type Volume struct {
-	Type      string `json:"type"`
-	Name      string `json:"name"`
-	MountPath string `json:"mountPath"`
+	Type      string `json:"type,omitempty" rest:"options=configmap|secret|persistentVolume"`
+	Name      string `json:"name,omitempty" rest:"isDomain=true"`
+	MountPath string `json:"mountPath,omitempty"`
 }
 
 type EnvVar struct {
@@ -43,65 +43,60 @@ type EnvVar struct {
 }
 
 type AdvancedOptions struct {
-	ExposedMetric               ExposedMetric `json:"exposedMetric"`
-	ReloadWhenConfigChange      bool          `json:"reloadWhenConfigChange"`
-	DeletePVsWhenDeleteWorkload bool          `json:"deletePVsWhenDeleteWorkload"`
-	InjectServiceMesh           bool          `json:"injectServiceMesh"`
+	ExposedMetric               ExposedMetric `json:"exposedMetric,omitempty"`
+	ReloadWhenConfigChange      bool          `json:"reloadWhenConfigChange,omitempty"`
+	DeletePVsWhenDeleteWorkload bool          `json:"deletePVsWhenDeleteWorkload,omitempty"`
+	InjectServiceMesh           bool          `json:"injectServiceMesh,omitempty"`
 }
 
 type Deployment struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string                     `json:"name,omitempty" rest:"description=immutable"`
-	Replicas              int                        `json:"replicas" rest:"min=0,max=50"`
-	Containers            []Container                `json:"containers"`
-	AdvancedOptions       AdvancedOptions            `json:"advancedOptions" rest:"description=immutable"`
-	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes"`
+	Name                  string                     `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	Replicas              int                        `json:"replicas" rest:"required=true,min=0,max=50"`
+	Containers            []Container                `json:"containers" rest:"required=true"`
+	AdvancedOptions       AdvancedOptions            `json:"advancedOptions,omitempty" rest:"description=immutable"`
+	PersistentVolumes     []PersistentVolumeTemplate `json:"persistentVolumes,omitempty"`
 	Status                WorkloadStatus             `json:"status,omitempty" rest:"description=readonly"`
 	Memo                  string                     `json:"memo,omitempty"`
 }
 
 type ExposedMetric struct {
-	Path string `json:"path"`
-	Port int    `json:"port"`
+	Path string `json:"path,omitempty"`
+	Port int    `json:"port,omitempty"`
 }
 
 func (d Deployment) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
-func (d Deployment) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionGetHistory:
-		return &resource.Action{
-			Name: ActionGetHistory,
-		}
-	case ActionRollback:
-		return &resource.Action{
-			Name:  ActionRollback,
-			Input: &RollBackVersion{},
-		}
-	case ActionSetPodCount:
-		return &resource.Action{
-			Name:  ActionSetPodCount,
-			Input: &SetPodCount{},
-		}
-	default:
-		return nil
-	}
+var DeploymentActions = []resource.Action{
+	resource.Action{
+		Name:   ActionGetHistory,
+		Output: &VersionHistory{},
+	},
+	resource.Action{
+		Name:  ActionRollback,
+		Input: &RollBackVersion{},
+	},
+	resource.Action{
+		Name:   ActionSetPodCount,
+		Input:  &SetPodCount{},
+		Output: &SetPodCount{},
+	},
+}
+
+func (d Deployment) GetActions() []resource.Action {
+	return DeploymentActions
+
 }
 
 type WorkloadStatus struct {
-	ObservedGeneration  int                 `json:"observedGeneration,omitempty"`
-	Replicas            int                 `json:"replicas,omitempty"`
-	ReadyReplicas       int                 `json:"readyReplicas,omitempty"`
-	UpdatedReplicas     int                 `json:"updatedReplicas,omitempty"`
-	AvailableReplicas   int                 `json:"availableReplicas,omitempty"`
-	UnavailableReplicas int                 `json:"unavailableReplicas,omitempty"`
-	CurrentReplicas     int                 `json:"currentReplicas,omitempty"`
-	CurrentRevision     string              `json:"currentRevision,omitempty"`
-	UpdateRevision      string              `json:"updateRevision,omitempty"`
-	CollisionCount      int                 `json:"collisionCount,omitempty"`
-	Conditions          []WorkloadCondition `json:"conditions,omitempty"`
+	ReadyReplicas    int                 `json:"readyReplicas,omitempty"`
+	Updating         bool                `json:"updating,omitempty"`
+	CurrentReplicas  int                 `json:"currentReplicas,omitempty"`
+	UpdatingReplicas int                 `json:"updatingReplicas,omitempty"`
+	UpdatedReplicas  int                 `json:"updatedReplicas,omitempty"`
+	Conditions       []WorkloadCondition `json:"conditions,omitempty"`
 }
 
 type WorkloadCondition struct {

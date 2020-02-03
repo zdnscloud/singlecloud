@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -88,13 +89,13 @@ func GetPodOwner(c cache.Cache, pod *corev1.Pod) (string, string, error) {
 
 	owner := pod.OwnerReferences[0]
 	if owner.Kind != "ReplicaSet" {
-		return owner.Kind, owner.Name, nil
+		return strings.ToLower(owner.Kind), owner.Name, nil
 	}
 
 	var k8srs appsv1.ReplicaSet
 	err := c.Get(context.TODO(), k8stypes.NamespacedName{pod.Namespace, owner.Name}, &k8srs)
 	if err != nil {
-		return owner.Kind, owner.Name, fmt.Errorf("get replicaset failed:%s", err.Error())
+		return "", "", fmt.Errorf("get replicaset failed:%s", err.Error())
 	}
 
 	if len(k8srs.OwnerReferences) != 1 {
@@ -105,5 +106,6 @@ func GetPodOwner(c cache.Cache, pod *corev1.Pod) (string, string, error) {
 	if owner.Kind != "Deployment" {
 		return "", "", fmt.Errorf("replicaset parent is not deployment but %v", owner.Kind)
 	}
-	return owner.Kind, owner.Name, nil
+
+	return strings.ToLower(owner.Kind), owner.Name, nil
 }

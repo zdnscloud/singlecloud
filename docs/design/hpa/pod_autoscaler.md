@@ -25,7 +25,8 @@ HPA为namespace下的子资源
 	}
 	
 	type CustomMetricSpec struct {
-    	MetricName   string            
+    	MetricName   string 
+    	Labels       map[string]string            
     	AverageValue string  
 	}
 	
@@ -34,7 +35,7 @@ HPA为namespace下的子资源
 * ScaleTargetKind支持deployment和statefulset，表明HPA对哪一种workload进行配置，即通过ScaleTargetKind和ScaleTargetName字段定位一个workload
 * MinReplicas和MaxReplicas表示这个workload的最小和最大replicas值
 * ResourceMetrics为HPA基础资源指标的配置，通过指定ResourceName表示以哪种资源为指标，ResourceName支持cpu和memory，TargetType支持Utilization和AverageValue
-* CustomMetrics是以自定义metric为指标，通过指定MetricName表示以哪一个自定义metric为指标，只支持AverageValue
+* CustomMetrics是以自定义metric为指标，通过指定MetricName以及Labels来确定采用哪个自定义metric，只支持AverageValue
 * 无论HPA如何动态调整workload的pods个数，所调整的pods个数都不会超过MinReplicas和MaxReplicas的范围。
 
 ## 配置范例
@@ -46,7 +47,11 @@ HPA为namespace下的子资源
     "maxReplicas": 5,
     "customMetrics":[
     	{
-    		"metricName": "zdns_vanguard_qps",
+    		"metricName": "zdns_vanguard_qps_by_view",
+    		"labels": {
+    			"module": "server",
+    			"view": "default"
+    		},
     		"averageValue": "2000"
     	}
     ]
@@ -63,6 +68,26 @@ HPA为namespace下的子资源
     	}
     ]
     
+## 自定义指标逻辑
+* prometheus采集的应用程序的metric，可以通过prometheus-adapter部署的自定义api server（custom.metrics.k8s.io）获取，prometheus-adapter通过配置其configmap确定采集哪些自定义metric
+* 配置customMetrics，通过选择metric name极其对应的labels确定使用哪一个自定义metric，然后修改prometheus-adapter的configmap，重启prometheus-adapter pod
+* 由于prometheus-adapter的configmap是针对所有namespace的，所以添加configmap配置时，使用metric.Name_labels哈希值前12位_namespace_hpa.Name作为configmap.Data中rule.Name.As的值，来区分不同namespace的hpa所采用的metric，prometheus-adapter的configmap配置范例如下：
+
+		- seriesQuery: '{__name__=~"zdns_vanguard_qps_by_view",kubernetes_pod_name!="",kubernetes_namespace="default"}'
+		  seriesFilters: [］
+		  resources:
+    		overrides:
+				kubernetes_namespace:
+        			resource: namespace
+        		kubernetes_pod_name:
+        			resource: pod
+          name:
+    		matches: ^zdns_vanguard_qps_by_view$
+    		as: zdns_vanguard_qps_by_view_820193bd2d60_default_vg
+    	  metricsQuery: sum(zdns_vanguard_qps_by_view{module="server",view="default"}) by (<<.GroupBy>>)
+
+* 使用name.as的名字创建hpa，当prometheus-adapter的pod重启完成，就可以从custom api server获取到对应metric的值
+
 ## 期待副本数计算
 * 从api server获取workload的metrics，每个pod的metrics为pod中所有container的metrics总量，但是获取到的metrics并不一定包含workload的所有pods，如zdns_vanguard_qps，如果流量从来没有到过某个pod，那么api server是拿不到这个pod的zdns_vanguard_qps
    * 如果指标类型为资源，从metrics.k8s.io获取metrics
@@ -94,7 +119,7 @@ HPA为namespace下的子资源
       * usageRatio < 1.0 且 newUsageRatio > 1.0
       * usageRatio > 1.0 且 newUsageRatio < 1.0
     * 期待副本数desiredReplicas 为 usageRatio * metrics个数的向上取整
-* 如果workload在进行缩容，那么距离上次变更的时间差必须大于controller manager 参数 horizontal-pod-autoscaler-downscale-stabilization配置的时间，才可以改变desiredReplicas， 否则还是使用原来的desiredReplicas 
+* 如果workload在进行缩容，那么距离上次变更的时间差必须大于controller manager 参数 horizontal-pod-autoscaler-downscale-stabilization配置置的时间，才可以改变desiredReplicas， 否则还是使用原来的desiredReplicas 
 * 由于k8s限制pods增长过快，设置了最大增长量scaleUpLimit，即在当前副本数*2 与 4 中取最大值
   * 如果hpa.MaxReplicas大于scaleUpLimit，那么此次允许的最大副本数maximumAllowedReplicas为scaleUpLimit
   * 如果hpa.MaxReplicas小于scaleUpLimit，那么此次允许的最大副本数maximumAllowedReplicas为hpa.MaxReplicas

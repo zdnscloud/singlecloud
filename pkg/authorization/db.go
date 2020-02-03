@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 
 	"github.com/zdnscloud/kvzoo"
+	"github.com/zdnscloud/singlecloud/pkg/db"
 )
 
 var (
 	AuthorizerTableName = "authorizer"
 )
 
-func (a *Authorizer) loadUsers(db kvzoo.DB) error {
+func (a *Authorizer) loadUsers() error {
 	tn, _ := kvzoo.TableNameFromSegments(AuthorizerTableName)
-	table, err := db.CreateOrGetTable(tn)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
 	if err != nil {
 		return err
 	}

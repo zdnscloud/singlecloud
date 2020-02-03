@@ -6,10 +6,10 @@ import (
 
 type Job struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string      `json:"name,omitempty"`
-	RestartPolicy         string      `json:"restartPolicy,omitempty"`
-	Containers            []Container `json:"containers"`
-	Status                JobStatus   `json:"status" rest:"description=readonly"`
+	Name                  string      `json:"name" rest:"required=true,isDomain=true"`
+	RestartPolicy         string      `json:"restartPolicy" rest:"required=true,options=OnFailure|Never"`
+	Containers            []Container `json:"containers" rest:"required=true"`
+	Status                JobStatus   `json:"status,omitempty" rest:"description=readonly"`
 }
 
 type JobStatus struct {

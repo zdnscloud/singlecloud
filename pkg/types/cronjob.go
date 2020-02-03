@@ -6,11 +6,11 @@ import (
 
 type CronJob struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string        `json:"name,omitempty"`
-	Schedule              string        `json:"schedule,omitempty"`
-	RestartPolicy         string        `json:"restartPolicy,omitempty"`
-	Containers            []Container   `json:"containers"`
-	Status                CronJobStatus `json:"status" rest:"description=readonly"`
+	Name                  string        `json:"name" rest:"required=true,isDomain=true"`
+	Schedule              string        `json:"schedule" rest:"required=true"`
+	RestartPolicy         string        `json:"restartPolicy" rest:"required=true,options=OnFailure|Never"`
+	Containers            []Container   `json:"containers" rest:"required=true"`
+	Status                CronJobStatus `json:"status,omitempty" rest:"description=readonly"`
 }
 
 type CronJobStatus struct {

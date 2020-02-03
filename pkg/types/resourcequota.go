@@ -6,7 +6,7 @@ import (
 
 type ResourceQuota struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string              `json:"name,omitempty"`
+	Name                  string              `json:"name" rest:"required=true,isDomain=true"`
 	Limits                map[string]string   `json:"limits,omitempty"`
 	Status                ResourceQuotaStatus `json:"status,omitempty" rest:"description=readonly"`
 }

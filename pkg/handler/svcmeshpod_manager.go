@@ -6,6 +6,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gorest/resource"
+	ca "github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -24,7 +25,7 @@ func (m *SvcMeshPodManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	pod := &types.SvcMeshPod{}
-	if err := m.clusters.Agent.GetResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), pod); err != nil {
+	if err := ca.GetAgent().GetResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), pod); err != nil {
 		log.Warnf("get svcmeshpod failed:%s", err.Error())
 		return nil
 	}

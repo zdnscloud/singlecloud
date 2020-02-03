@@ -6,11 +6,16 @@
     "name": {
       "type": "string",
       "description": [
+        "required",
+        "isDomain",
         "immutable"
       ]
     },
     "password": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
     "projects": {
       "type": "array",
@@ -20,10 +25,16 @@
   "subResources": {
     "project": {
       "cluster": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "isDomain"
+        ]
       },
       "namespace": {
-        "type": "string"
+        "type": "string",
+        "description": [
+          "isDomain"
+        ]
       }
     }
   },
@@ -36,5 +47,31 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "login",
+      "input": {
+        "password": {
+          "type": "string"
+        }
+      },
+      "output": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "name": "resetPassword",
+      "input": {
+        "newPassword": {
+          "type": "string"
+        },
+        "oldPassword": {
+          "type": "string"
+        }
+      }
+    }
   ]
 }

@@ -1,0 +1,65 @@
+{
+  "resourceType": "alarm",
+  "collectionName": "alarms",
+  "goStructName": "Alarm",
+  "resourceFields": {
+    "acknowledged": {
+      "type": "bool"
+    },
+    "cluster": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "namespace": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    },
+    "time": {
+      "type": "date",
+      "description": [
+        "readonly"
+      ]
+    },
+    "type": {
+      "type": "string",
+      "description": [
+        "readonly"
+      ]
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET"
+  ]
+}

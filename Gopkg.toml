@@ -93,3 +93,7 @@
 [[constraint]]
   branch = "add-servicemesh"
   name = "github.com/zdnscloud/zke"
+
+[[constraint]]
+  name = "gopkg.in/gomail.v2"
+  branch = "v2"

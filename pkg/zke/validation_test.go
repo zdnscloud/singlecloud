@@ -122,12 +122,6 @@ func TestValidateNodeNameRolesAndAddress(t *testing.T) {
 		Roles:   []types.NodeRole{types.RoleWorker},
 	}
 
-	n4 := types.Node{
-		Name:    "Worker..1",
-		Address: "xxxxx",
-		Roles:   []types.NodeRole{types.RoleWorker},
-	}
-
 	c1 := &types.Cluster{
 		Nodes: []types.Node{n1},
 	}
@@ -143,11 +137,6 @@ func TestValidateNodeNameRolesAndAddress(t *testing.T) {
 		Nodes: []types.Node{n3},
 	}
 	ut.NotEqual(t, validateNodeNameRoleAndAddress(c3), nil)
-	// test node name not rfc1123subdomain
-	c4 := &types.Cluster{
-		Nodes: []types.Node{n4},
-	}
-	ut.NotEqual(t, validateNodeNameRoleAndAddress(c4), nil)
 }
 
 func TestValidateScAddress(t *testing.T) {

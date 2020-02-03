@@ -6,11 +6,11 @@ import (
 
 type Pod struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string      `json:"name,omitempty"`
-	NodeName              string      `json:"nodeName,omitempty"`
+	Name                  string      `json:"name"`
+	NodeName              string      `json:"nodeName"`
 	State                 string      `json:"state"`
 	Containers            []Container `json:"containers"`
-	Status                PodStatus   `json:"status"`
+	Status                PodStatus   `json:"status,omitempty"`
 }
 
 type PodStatus struct {

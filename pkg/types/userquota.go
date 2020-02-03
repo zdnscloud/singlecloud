@@ -19,18 +19,18 @@ const (
 )
 
 type ClusterInfo struct {
-	ClusterName string `json:"clusterName"`
+	ClusterName string `json:"clusterName" rest:"required=true,isDomain=true"`
 }
 
 type Rejection struct {
-	Reason string `reason`
+	Reason string `json:"reason"`
 }
 
 type UserQuota struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string           `json:"name,omitempty" rest:"description=immutable"`
-	ClusterName           string           `json:"clusterName,omitempty"`
-	Namespace             string           `json:"namespace"`
+	Name                  string           `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	ClusterName           string           `json:"clusterName,omitempty" rest:"isDomain=true"`
+	Namespace             string           `json:"namespace" rest:"required=true,isDomain=true"`
 	UserName              string           `json:"userName" rest:"description=readonly"`
 	CPU                   string           `json:"cpu"`
 	Memory                string           `json:"memory"`
@@ -44,21 +44,19 @@ type UserQuota struct {
 	ResponseTimestamp     resource.ISOTime `json:"responseTimestamp,omitempty" rest:"description=readonly"`
 }
 
-func (uq UserQuota) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionApproval:
-		return &resource.Action{
-			Name:  ActionApproval,
-			Input: &ClusterInfo{},
-		}
-	case ActionRejection:
-		return &resource.Action{
-			Name:  ActionRejection,
-			Input: &Rejection{},
-		}
-	default:
-		return nil
-	}
+var UserQuotaActions = []resource.Action{
+	resource.Action{
+		Name:  ActionApproval,
+		Input: &ClusterInfo{},
+	},
+	resource.Action{
+		Name:  ActionRejection,
+		Input: &Rejection{},
+	},
+}
+
+func (uq UserQuota) GetActions() []resource.Action {
+	return UserQuotaActions
 }
 
 type UserQuotas []*UserQuota

@@ -6,6 +6,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gorest/resource"
+	ca "github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -24,8 +25,7 @@ func (m *SvcMeshWorkloadManager) List(ctx *resource.Context) interface{} {
 	}
 
 	var workloads types.SvcMeshWorkloads
-	if err := m.clusters.Agent.ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name),
-		&workloads); err != nil {
+	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &workloads); err != nil {
 		log.Warnf("list svcmeshworkloads info failed:%s", err.Error())
 		return nil
 	}
@@ -40,8 +40,7 @@ func (m *SvcMeshWorkloadManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	workload := &types.SvcMeshWorkload{}
-	if err := m.clusters.Agent.GetResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name),
-		workload); err != nil {
+	if err := ca.GetAgent().GetResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), workload); err != nil {
 		log.Warnf("get svcmeshworkload failed:%s", err.Error())
 		return nil
 	}

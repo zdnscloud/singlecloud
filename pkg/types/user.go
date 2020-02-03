@@ -22,29 +22,32 @@ type ResetPassword struct {
 
 type User struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string    `json:"name" rest:"description=immutable"`
-	Password              string    `json:"password,omitempty"`
+	Name                  string    `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	Password              string    `json:"password,omitempty" rest:"required=true"`
 	Projects              []Project `json:"projects"`
 }
 
 type Project struct {
-	Cluster   string `json:"cluster"`
-	Namespace string `json:"namespace"`
+	Cluster   string `json:"cluster" rest:"isDomain=true"`
+	Namespace string `json:"namespace" rest:"isDomain=true"`
 }
 
-func (u User) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionLogin:
-		return &resource.Action{
-			Name:  ActionLogin,
-			Input: &UserPassword{},
-		}
-	case ActionResetPassword:
-		return &resource.Action{
-			Name:  ActionResetPassword,
-			Input: &ResetPassword{},
-		}
-	default:
-		return nil
-	}
+type LoginInfo struct {
+	Token string `json:"token"`
+}
+
+var UserActions = []resource.Action{
+	resource.Action{
+		Name:   ActionLogin,
+		Input:  &UserPassword{},
+		Output: &LoginInfo{},
+	},
+	resource.Action{
+		Name:  ActionResetPassword,
+		Input: &ResetPassword{},
+	},
+}
+
+func (u User) GetActions() []resource.Action {
+	return UserActions
 }

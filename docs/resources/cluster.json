@@ -19,7 +19,8 @@
       "type": "string",
       "description": [
         "required",
-        "immutable"
+        "immutable",
+        "isDomain"
       ]
     },
     "clusterUpstreamDNS": {
@@ -93,6 +94,7 @@
       "type": "string",
       "description": [
         "required",
+        "isDomain",
         "immutable"
       ]
     },
@@ -197,7 +199,8 @@
       "address": {
         "type": "string",
         "description": [
-          "required"
+          "required",
+          "immutable"
         ]
       },
       "annotations": {
@@ -262,7 +265,8 @@
         "type": "string",
         "description": [
           "required",
-          "immutable"
+          "immutable",
+          "isDomain"
         ]
       },
       "operatingSystem": {
@@ -338,5 +342,10 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "cancel"
+    }
   ]
 }

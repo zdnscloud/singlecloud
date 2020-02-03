@@ -7,13 +7,23 @@
   "goStructName": "UDPIngress",
   "resourceFields": {
     "port": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "required"
+      ]
     },
     "serviceName": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required",
+        "isDomain"
+      ]
     },
     "servicePort": {
-      "type": "int"
+      "type": "int",
+      "description": [
+        "required"
+      ]
     }
   },
   "resourceMethods": [

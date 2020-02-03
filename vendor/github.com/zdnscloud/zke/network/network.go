@@ -154,6 +154,7 @@ func doDNSDeploy(ctx context.Context, c *core.Cluster, cli client.Client) error 
 
 func doIngressDeploy(ctx context.Context, c *core.Cluster, cli client.Client) error {
 	log.Infof(ctx, "[Network] Setting up %s ingress controller", c.Network.Ingress.Provider)
+	c.Network.Ingress.Options["hsts"] = "false"
 	ingressConfig := ingress.IngressOptions{
 		RBACConfig:     c.Authorization.Mode,
 		Options:        c.Network.Ingress.Options,

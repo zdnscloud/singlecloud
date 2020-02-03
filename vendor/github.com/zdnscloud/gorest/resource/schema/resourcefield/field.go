@@ -294,6 +294,11 @@ func (f *structField) Validate(val interface{}, raw map[string]interface{}) erro
 		if f.Field.IsRequired() && !ok {
 			return fmt.Errorf("struct field %s is missing", jsonName)
 		}
+		//field isn't speicifed
+		if !ok {
+			return nil
+		}
+
 		if nr, ok := jsonVal.(map[string]interface{}); ok {
 			raw = nr
 		} else {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,7 +20,8 @@ import (
 )
 
 const (
-	NginxAffinity = "nginx.ingress.kubernetes.io/affinity"
+	NginxAffinity      = "nginx.ingress.kubernetes.io/affinity"
+	NginxProxyBodySize = "nginx.ingress.kubernetes.io/proxy-body-size"
 )
 
 type IngressManager struct {
@@ -202,6 +204,11 @@ func scIngressTok8sIngress(namespace string, ingress *types.Ingress) (*extv1beta
 			},
 		},
 	}
+
+	if ingress.MaxBodySize > 0 && ingress.MaxBodySizeUnit != "" {
+		k8sIngress.ObjectMeta.Annotations[NginxProxyBodySize] = strconv.Itoa(ingress.MaxBodySize) + ingress.MaxBodySizeUnit
+	}
+
 	k8sIngress.Spec = extv1beta1.IngressSpec{
 		Rules: httpRules,
 	}
@@ -232,6 +239,22 @@ func k8sIngressToSCIngress(k8sIngress *extv1beta1.Ingress) *types.Ingress {
 		Name:  k8sIngress.Name,
 		Rules: rules,
 	}
+
+	if bss, ok := k8sIngress.ObjectMeta.Annotations[NginxProxyBodySize]; ok {
+		l := len(bss)
+		if l > 1 {
+			bs, err := strconv.Atoi(bss[0 : l-1])
+			if err == nil {
+				ingress.MaxBodySize = bs
+			} else {
+				log.Warnf("ingress has invalide annotation %s", bss)
+			}
+			ingress.MaxBodySizeUnit = bss[l-1:]
+		} else {
+			log.Warnf("ingress has invalide annotation %s", bss)
+		}
+	}
+
 	ingress.SetID(k8sIngress.Name)
 	ingress.SetCreationTimestamp(k8sIngress.CreationTimestamp.Time)
 	if k8sIngress.GetDeletionTimestamp() != nil {

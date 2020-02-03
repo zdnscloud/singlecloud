@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/zke/core"
 )
 
 type ClusterStatus string
@@ -19,7 +18,6 @@ const (
 	CSDeleted      ClusterStatus = "Deleted"
 
 	CSCancelAction = "cancel"
-	CSImportAction = "import"
 
 	DefaultNetworkPlugin       = "flannel"
 	DefaultClusterCIDR         = "10.42.0.0/16"
@@ -29,8 +27,6 @@ const (
 	DefaultSSHPort             = "22"
 	DefaultClusterUpstreamDNS1 = "223.5.5.5"
 	DefaultClusterUpstreamDNS2 = "114.114.114.114"
-
-	ScVersionImported = "imported"
 )
 
 type Cluster struct {
@@ -38,8 +34,8 @@ type Cluster struct {
 	Nodes                 []Node            `json:"nodes" rest:"required=true"`
 	Network               ClusterNetwork    `json:"network" rest:"description=immutable"`
 	PrivateRegistries     []PrivateRegistry `json:"privateRegistrys"`
-	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true,minLen=1,maxLen=128"`
-	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128,description=immutable"`
+	SingleCloudAddress    string            `json:"singleCloudAddress" rest:"required=true"`
+	Name                  string            `json:"name" rest:"required=true,isDomain=true,description=immutable"`
 	Status                ClusterStatus     `json:"status" rest:"description=readonly"`
 	NodesCount            int               `json:"nodeCount" rest:"description=readonly"`
 	Version               string            `json:"version" rest:"description=readonly"`
@@ -64,7 +60,7 @@ type Cluster struct {
 	IgnoreDockerVersion bool     `json:"ignoreDockerVersion" rest:"description=immutable"`
 	ClusterCidr         string   `json:"clusterCidr" rest:"description=immutable"`
 	ServiceCidr         string   `json:"serviceCidr" rest:"description=immutable"`
-	ClusterDomain       string   `json:"clusterDomain" rest:"required=true,description=immutable"`
+	ClusterDomain       string   `json:"clusterDomain" rest:"required=true,description=immutable,isDomain=true"`
 	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty" rest:"description=immutable"`
 	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS" rest:"description=immutable"`
 	DisablePortCheck    bool     `json:"disablePortCheck" rest:"description=immutable"`
@@ -96,20 +92,14 @@ func (c Cluster) CreateDefaultResource() resource.Resource {
 	}
 }
 
-func (c Cluster) CreateAction(name string) *resource.Action {
-	switch name {
-	case CSCancelAction:
-		return &resource.Action{
-			Name: CSCancelAction,
-		}
-	case CSImportAction:
-		return &resource.Action{
-			Name:  CSImportAction,
-			Input: &core.FullState{},
-		}
-	default:
-		return nil
-	}
+var ClusterActions = []resource.Action{
+	resource.Action{
+		Name: CSCancelAction,
+	},
+}
+
+func (c Cluster) GetActions() []resource.Action {
+	return ClusterActions
 }
 
 func (c *Cluster) TrimFieldSpace() {

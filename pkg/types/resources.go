@@ -44,5 +44,7 @@ func Resources() []resource.ResourceKind {
 		FluentBitConfig{},
 		SvcMeshWorkload{},
 		SvcMeshPod{},
+		Threshold{},
+		Metric{},
 	}
 }

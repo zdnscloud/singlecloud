@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -328,16 +328,16 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 		for _, spec := range c.ExposedPorts {
 			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
 			if err != nil {
-				return corev1.PodSpec{}, fmt.Errorf("invalid protocol for container port")
+				return corev1.PodSpec{}, fmt.Errorf("invalid protocol %s for container port", spec.Protocol)
 			}
 
-			if spec.Name == "" {
-				return corev1.PodSpec{}, fmt.Errorf("exposed port has no name")
+			if err := validatePortName(spec.Name); err != nil {
+				return corev1.PodSpec{}, fmt.Errorf("exposed port name %s invalid: %s", spec.Name, err.Error())
 			}
 
 			for _, pn := range portNames {
 				if pn == spec.Name {
-					return corev1.PodSpec{}, fmt.Errorf("duplicate container port name")
+					return corev1.PodSpec{}, fmt.Errorf("duplicate container port name %s", pn)
 				}
 			}
 			portNames = append(portNames, spec.Name)
@@ -377,6 +377,32 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 		Containers: k8sContainers,
 		Volumes:    k8sVolumes,
 	}, nil
+}
+
+var (
+	portNameCharsetRegex    = regexp.MustCompile("^[-a-z0-9]+$")
+	portNameOneLetterRegexp = regexp.MustCompile("[a-z]")
+)
+
+const maxPortNameLen = 15
+
+func validatePortName(name string) error {
+	if len(name) > maxPortNameLen {
+		return fmt.Errorf("must be no more than 15 characters")
+	}
+	if !portNameCharsetRegex.MatchString(name) {
+		return fmt.Errorf("must contain only alpha-numeric characters (a-z, 0-9), and hyphens (-)")
+	}
+	if !portNameOneLetterRegexp.MatchString(name) {
+		return fmt.Errorf("must contain at least one letter (a-z)")
+	}
+	if strings.Contains(name, "--") {
+		return fmt.Errorf("must not contain consecutive hyphens(--)")
+	}
+	if len(name) > 0 && (name[0] == '-' || name[len(name)-1] == '-') {
+		return fmt.Errorf("must not begin or end with a hyphen (-)")
+	}
+	return nil
 }
 
 func k8sPodSpecToScContainersAndVCTemplates(k8sContainers []corev1.Container, k8sVolumes []corev1.Volume) ([]types.Container, []types.PersistentVolumeTemplate) {
@@ -510,36 +536,6 @@ func k8sAnnotationsToScExposedMetric(annotations map[string]string) types.Expose
 		}
 	}
 	return types.ExposedMetric{}
-}
-
-func k8sWorkloadStatusToScWorkloadStatus(k8sStatus interface{}) types.WorkloadStatus {
-	_, isDeploy := k8sStatus.(*appsv1.DeploymentStatus)
-	structVal := reflect.ValueOf(k8sStatus).Elem()
-	k8sCollisionCount := structVal.FieldByName("CollisionCount").Interface().(*int32)
-	var collisionCount int
-	if k8sCollisionCount != nil {
-		collisionCount = int(*k8sCollisionCount)
-	}
-
-	status := types.WorkloadStatus{
-		ObservedGeneration: int(structVal.FieldByName("ObservedGeneration").Int()),
-		Replicas:           int(structVal.FieldByName("Replicas").Int()),
-		ReadyReplicas:      int(structVal.FieldByName("ReadyReplicas").Int()),
-		UpdatedReplicas:    int(structVal.FieldByName("UpdatedReplicas").Int()),
-		CollisionCount:     collisionCount,
-		Conditions:         k8sWorkloadConditionsToScWorkloadConditions(structVal.FieldByName("Conditions").Interface(), isDeploy),
-	}
-
-	if isDeploy {
-		status.AvailableReplicas = int(structVal.FieldByName("AvailableReplicas").Int())
-		status.UnavailableReplicas = int(structVal.FieldByName("UnavailableReplicas").Int())
-	} else {
-		status.CurrentReplicas = int(structVal.FieldByName("CurrentReplicas").Int())
-		status.CurrentRevision = structVal.FieldByName("CurrentRevision").String()
-		status.UpdateRevision = structVal.FieldByName("UpdateRevision").String()
-	}
-
-	return status
 }
 
 func k8sWorkloadConditionsToScWorkloadConditions(k8sConditions interface{}, isDeploy bool) []types.WorkloadCondition {

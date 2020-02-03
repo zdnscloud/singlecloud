@@ -45,6 +45,8 @@
     "name": {
       "type": "string",
       "description": [
+        "required",
+        "isDomain",
         "immutable"
       ]
     },
@@ -107,5 +109,23 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "searchPod",
+      "input": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "output": {
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    }
   ]
 }

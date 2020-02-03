@@ -20,10 +20,16 @@
       ]
     },
     "chartName": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
     "chartVersion": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required"
+      ]
     },
     "configs": {
       "type": "json"
@@ -39,7 +45,11 @@
       ]
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": [
+        "required",
+        "isDomain"
+      ]
     },
     "readyWorkloadCount": {
       "type": "int",

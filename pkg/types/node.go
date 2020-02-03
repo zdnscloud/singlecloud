@@ -31,9 +31,9 @@ const (
 
 type Node struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string            `json:"name" rest:"required=true,minLen=1,maxLen=128,description=immutable"`
+	Name                  string            `json:"name" rest:"required=true,description=immutable,isDomain=true"`
 	Status                NodeStatus        `json:"status" rest:"description=readonly"`
-	Address               string            `json:"address,omitempty" rest:"required=true,minLen=1,maxLen=128" rest:"description=immutable"`
+	Address               string            `json:"address,omitempty" rest:"required=true,description=immutable"`
 	Roles                 []NodeRole        `json:"roles,omitempty" rest:"required=true,options=controlplane|etcd|worker|edge"`
 	Labels                map[string]string `json:"labels,omitempty" rest:"description=readonly"`
 	Annotations           map[string]string `json:"annotations,omitempty" rest:"description=readonly"`
@@ -55,23 +55,20 @@ func (n Node) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
 }
 
-func (n Node) CreateAction(name string) *resource.Action {
-	switch name {
-	case NodeCordon:
-		return &resource.Action{
-			Name: NodeCordon,
-		}
-	case NodeUnCordon:
-		return &resource.Action{
-			Name: NodeUnCordon,
-		}
-	case NodeDrain:
-		return &resource.Action{
-			Name: NodeDrain,
-		}
-	default:
-		return nil
-	}
+var NodeActions = []resource.Action{
+	resource.Action{
+		Name: NodeCordon,
+	},
+	resource.Action{
+		Name: NodeUnCordon,
+	},
+	resource.Action{
+		Name: NodeDrain,
+	},
+}
+
+func (n Node) GetActions() []resource.Action {
+	return NodeActions
 }
 
 func (n *Node) HasRole(role NodeRole) bool {
