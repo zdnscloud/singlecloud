@@ -166,6 +166,9 @@ func updateThreshold(clusters *ClusterManager, threshold *types.Threshold, table
 		return err
 	}
 	for _, c := range clusters.zkeManager.List() {
+		if !c.IsReady() {
+			return fmt.Errorf("update threshold in cluster %s failed", c.Name)
+		}
 		sccm := thresholdToConfigmap(threshold)
 		sccm.SetID(sccm.Name)
 		if err := updateConfigMap(c.KubeClient, ZCloudNamespace, sccm); err != nil {
