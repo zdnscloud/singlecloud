@@ -25,7 +25,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/handler"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/server"
-	"github.com/zdnscloud/singlecloud/storage"
+	storage "github.com/zdnscloud/kvzoo/backend/bolt"
 )
 
 var (
