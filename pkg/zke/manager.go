@@ -6,16 +6,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/cement/log"
 	resterr "github.com/zdnscloud/gorest/error"
 	restsource "github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/zke/core"
 	"github.com/zdnscloud/zke/core/pki"
 
-	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/db"
-
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
@@ -38,7 +37,7 @@ type NodeListener interface {
 }
 
 func New(nl NodeListener) (*ZKEManager, error) {
-    return newZKEManager(db.GetGlobalDB(), nl)
+	return newZKEManager(db.GetGlobalDB(), nl)
 }
 
 func newZKEManager(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
@@ -187,6 +186,19 @@ func (m *ZKEManager) List() []*Cluster {
 	defer m.lock.Unlock()
 
 	return m.clusters
+}
+
+func (m *ZKEManager) ListReady() []*Cluster {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	clusters := []*Cluster{}
+	for _, c := range m.clusters {
+		if c.IsReady() {
+			clusters = append(clusters, c)
+		}
+	}
+	return clusters
 }
 
 func (m *ZKEManager) Delete(id string) *resterr.APIError {
