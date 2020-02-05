@@ -1,6 +1,8 @@
 package alarm
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -32,17 +34,19 @@ var EventKindFilter = []string{
 }
 
 type EventCache struct {
-	cluster string
-	cache   *AlarmCache
-	stopCh  chan struct{}
+	cluster   string
+	cache     *AlarmCache
+	stopCh    chan struct{}
+	startTime int64
 }
 
 func NewEventCache(name string, cache cache.Cache, alarmCache *AlarmCache) *EventCache {
 	stop := make(chan struct{})
 	eventCache := &EventCache{
-		cluster: name,
-		stopCh:  stop,
-		cache:   alarmCache,
+		cluster:   name,
+		stopCh:    stop,
+		cache:     alarmCache,
+		startTime: time.Now().Unix(),
 	}
 	ctrl := controller.New("eventWatcher", cache, scheme.Scheme)
 	ctrl.Watch(&corev1.Event{})
@@ -67,7 +71,7 @@ func (ec *EventCache) OnCreate(e event.CreateEvent) (handler.Result, error) {
 
 func (ec *EventCache) OnUpdate(e event.UpdateEvent) (handler.Result, error) {
 	if event, ok := e.ObjectNew.(*corev1.Event); ok {
-		if checkEventTypeAndKind(event) {
+		if ec.startTime < event.LastTimestamp.Time.Unix() && checkEventTypeAndKind(event) {
 			alarm := ec.k8sEventToAlarm(event)
 			ec.cache.Add(alarm)
 		}
