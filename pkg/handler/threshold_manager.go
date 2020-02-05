@@ -165,10 +165,7 @@ func updateThreshold(clusters *ClusterManager, threshold *types.Threshold, table
 	if err := addOrUpdateThresholdToDB(table, threshold, "update"); err != nil {
 		return err
 	}
-	for _, c := range clusters.zkeManager.List() {
-		if !c.IsReady() {
-			return fmt.Errorf("update threshold in cluster %s failed", c.Name)
-		}
+	for _, c := range clusters.zkeManager.ListReady() {
 		sccm := thresholdToConfigmap(threshold)
 		sccm.SetID(sccm.Name)
 		if err := updateConfigMap(c.KubeClient, ZCloudNamespace, sccm); err != nil {
@@ -177,7 +174,7 @@ func updateThreshold(clusters *ClusterManager, threshold *types.Threshold, table
 					return fmt.Errorf("cluster %s doesn't have threshold, create it first but failed: %v", c.Name, err)
 				}
 			} else {
-				return fmt.Errorf("update threshold in cluster %s failed: %v", c.Name, err)
+				return fmt.Errorf("in cluster %s failed: %v", c.Name, err)
 			}
 		}
 	}
