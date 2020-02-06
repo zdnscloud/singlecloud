@@ -224,7 +224,7 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 		log.Warnf("get alarms from db failed: %s", err)
 		return
 	}
-	if isRepeat(alarms[0], alarm) {
+	if len(alarms) > 0 && isRepeat(alarms[0], alarm) {
 		return
 	}
 
