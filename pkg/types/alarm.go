@@ -13,7 +13,7 @@ type AlarmType string
 
 type Alarm struct {
 	resource.ResourceBase `json:",inline"`
-	UID                   uint64           `json:"-"`
+	UID                   uint64           `json:"uid"`
 	Time                  resource.ISOTime `json:"time" rest:"description=readonly"`
 	Cluster               string           `json:"cluster" rest:"description=readonly"`
 	Type                  AlarmType        `json:"type" rest:"description=readonly"`
@@ -29,4 +29,4 @@ type Alarms []*Alarm
 
 func (s Alarms) Len() int           { return len(s) }
 func (s Alarms) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s Alarms) Less(i, j int) bool { return s[i].UID < s[j].UID }
+func (s Alarms) Less(i, j int) bool { return s[i].UID > s[j].UID }

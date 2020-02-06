@@ -1,8 +1,9 @@
 package alarm
 
 import (
-	"container/list"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -14,17 +15,20 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
+const (
+	AlarmTable = "alarm"
+)
+
 type AlarmCache struct {
 	eventID        uint64
 	maxSize        uint
 	lock           sync.RWMutex
 	cond           *sync.Cond
-	alarmList      *list.List
-	ackList        *list.List
 	stopCh         chan struct{}
 	unAckNumber    uint64
 	ackCh          chan int
 	ThresholdTable kvzoo.Table
+	alarmTable     kvzoo.Table
 }
 
 type AlarmListener struct {
@@ -34,24 +38,104 @@ type AlarmListener struct {
 }
 
 func NewAlarmCache(size uint) (*AlarmCache, error) {
-	tn, _ := kvzoo.TableNameFromSegments(types.ThresholdTable)
-	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
+	thresholdTable, err := genTable(types.ThresholdTable)
 	if err != nil {
-		return nil, fmt.Errorf("create or get table %s failed: %s", types.ThresholdTable, err.Error())
+		return nil, err
+	}
+	alarmTable, err := genTable(AlarmTable)
+	if err != nil {
+		return nil, err
 	}
 	stop := make(chan struct{})
 	ac := &AlarmCache{
-		eventID:        0,
 		maxSize:        size,
-		alarmList:      list.New(),
-		ackList:        list.New(),
 		stopCh:         stop,
 		ackCh:          make(chan int),
-		ThresholdTable: table,
+		ThresholdTable: thresholdTable,
+		alarmTable:     alarmTable,
 	}
+	alarms, err := getAlarmsFromDB(alarmTable)
+	if err != nil {
+		return nil, err
+	}
+	if len(alarms) > 0 {
+		ac.eventID = sortAlarms(alarms)[0].UID
+	}
+	ac.unAckNumber = getUnackAlarmsNumber(alarms)
 	ac.cond = sync.NewCond(&ac.lock)
 	go subscribeAlarmEvent(ac, stop)
 	return ac, nil
+}
+
+func getAlarmsFromDB(table kvzoo.Table) ([]*types.Alarm, error) {
+	tx, err := table.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Commit()
+	values, err := tx.List()
+	if err != nil {
+		return nil, err
+	}
+	var alarms types.Alarms
+	for _, value := range values {
+		var alarm types.Alarm
+		if err := json.Unmarshal(value, &alarm); err != nil {
+			return nil, err
+		}
+		alarms = append(alarms, &alarm)
+	}
+	sort.Sort(alarms)
+	return alarms, nil
+}
+
+func deleteAlarmFromDB(table kvzoo.Table, id string) error {
+	tx, err := table.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+	if err := tx.Delete(id); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func addOrUpdateAlarmToDB(table kvzoo.Table, alarm *types.Alarm, action string) error {
+	value, err := json.Marshal(alarm)
+	if err != nil {
+		return fmt.Errorf("marshal list %s failed: %s", alarm.UID, err.Error())
+	}
+
+	tx, err := table.Begin()
+	if err != nil {
+		return fmt.Errorf("begin transaction failed: %s", err.Error())
+	}
+
+	defer tx.Rollback()
+	switch action {
+	case "add":
+		if err = tx.Add(strconv.FormatInt(int64(alarm.UID), 10), value); err != nil {
+			return err
+		}
+	case "update":
+		if err = tx.Update(strconv.FormatInt(int64(alarm.UID), 10), value); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func genTable(name string) (kvzoo.Table, error) {
+	tn, _ := kvzoo.TableNameFromSegments(name)
+	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
+	if err != nil {
+		return nil, fmt.Errorf("create or get table %s failed: %s", name, err.Error())
+	}
+	return table, nil
 }
 
 func (ac *AlarmCache) Stop() {
@@ -88,7 +172,10 @@ func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 			return
 		default:
 		}
-		alarms := ac.getAlarmsAfterID(al.lastID)
+		alarms, err := ac.getAlarmsAfterID(al.lastID)
+		if err != nil {
+			continue
+		}
 		c := len(alarms)
 
 		if c == 0 {
@@ -109,21 +196,21 @@ func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 	}
 }
 
-func (ac *AlarmCache) getAlarmsAfterID(id uint64) []*types.Alarm {
+func (ac *AlarmCache) getAlarmsAfterID(id uint64) ([]*types.Alarm, error) {
 	ac.lock.RLock()
 	defer ac.lock.RUnlock()
-	var alarms types.Alarms
-	if ac.alarmList.Len() == 0 || id == ac.eventID {
-		return alarms
+	var res types.Alarms
+	alarms, err := getAlarmsFromDB(ac.alarmTable)
+	if err != nil {
+		return nil, err
 	}
-	for e := ac.alarmList.Back(); e != nil; e = e.Prev() {
-		alarm := e.Value.(*types.Alarm)
-		if alarm.UID <= id {
-			break
+	for _, alarm := range alarms {
+		if !alarm.Acknowledged && alarm.UID > id {
+			res = append(res, alarm)
 		}
-		alarms = append(alarms, alarm)
 	}
-	return alarms
+	sort.Sort(res)
+	return res, nil
 }
 
 func (ac *AlarmCache) Add(alarm *types.Alarm) {
@@ -132,23 +219,37 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 		alarm.Namespace = ""
 	}
-	if elem := ac.alarmList.Back(); elem != nil {
-		if isRepeat(elem.Value.(*types.Alarm), alarm) {
-			return
-		}
+	alarms, err := getAlarmsFromDB(ac.alarmTable)
+	if err != nil {
+		log.Warnf("get alarms from db failed: %s", err)
+		return
 	}
+	if isRepeat(alarms[0], alarm) {
+		return
+	}
+
 	alarm.UID = atomic.AddUint64(&ac.eventID, 1)
 	alarm.SetID(strconv.Itoa(int(alarm.UID)))
+	if err := addOrUpdateAlarmToDB(ac.alarmTable, alarm, "add"); err != nil {
+		log.Warnf("add alarm id %d to table failed: %s", alarm.UID, err)
+		return
+	}
 	if err := SendMail(alarm, ac.ThresholdTable); err != nil {
 		log.Warnf("send mail failed: %s", err)
 	}
-	ac.alarmList.PushBack(alarm)
-	if uint(ac.alarmList.Len()) > ac.maxSize {
-		elem := ac.alarmList.Front()
-		ac.alarmList.Remove(elem)
-	} else {
-		ac.SetUnAck(1)
+	ackNum := 1
+	for uint(len(alarms)+1) > ac.maxSize {
+		delAlarm := alarms[(len(alarms) - 1)]
+		if !delAlarm.Acknowledged {
+			ackNum -= 1
+		}
+		if err := deleteAlarmFromDB(ac.alarmTable, strconv.FormatInt(int64(delAlarm.UID), 10)); err != nil {
+			log.Warnf("delete alarm id %d from table failed: %s", alarm.UID, err)
+		}
+		alarms = append(alarms[:(len(alarms)-1)], alarms[len(alarms):]...)
 	}
+	ac.SetUnAck(ackNum)
+
 	ac.cond.Broadcast()
 }
 
@@ -165,19 +266,19 @@ func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
 		lastAlarm.Name == newAlarm.Name
 }
 
-func (ac *AlarmCache) ackListAdd(alarm *types.Alarm) {
-	if ac.ackList.Len() == 0 {
-		ac.ackList.PushBack(alarm)
-		return
-	}
-	if e := ac.ackList.Front(); alarm.UID < e.Value.(*types.Alarm).UID {
-		ac.ackList.PushFront(alarm)
-		return
-	}
-	for e := ac.ackList.Back(); e != nil; e = e.Prev() {
-		if alarm.UID > e.Value.(*types.Alarm).UID {
-			ac.ackList.InsertAfter(alarm, e)
-			return
+func sortAlarms(alarms []*types.Alarm) []*types.Alarm {
+	var res types.Alarms
+	res = alarms
+	sort.Sort(res)
+	return res
+}
+
+func getUnackAlarmsNumber(alarms []*types.Alarm) uint64 {
+	var i uint64
+	for _, alarm := range alarms {
+		if !alarm.Acknowledged {
+			i += 1
 		}
 	}
+	return i
 }
