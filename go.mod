@@ -31,7 +31,7 @@ require (
 	github.com/zdnscloud/iniconfig v0.0.0-20191105013537-c8624280493d
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7
 	github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d
-	github.com/zdnscloud/vanguard v0.0.0-20191127091955-d7bf8860bb40
+	github.com/zdnscloud/vanguard v0.0.0-20200206013336-68563ad4946b
 	github.com/zdnscloud/zke v0.0.0-20200205053350-570c9d92a05b
 	github.com/zsais/go-gin-prometheus v0.1.0
 	golang.org/x/crypto v0.0.0-20191219195013-becbf705a915 // indirect

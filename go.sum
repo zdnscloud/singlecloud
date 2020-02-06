@@ -118,6 +118,7 @@ github.com/golang/protobuf v1.3.3/go.mod h1:vzj43D7+SQXF/4pzW/hwtAqwc6iTitCiVSaW
 github.com/google/btree v1.0.0 h1:0udJVsspx3VBr5FwtLhQQtuAsVc79tTq0ocGIPAU6qo=
 github.com/google/btree v1.0.0/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
+github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.3.1 h1:Xye71clBPdm5HgqGwUkwhbynsUJZhDbS20FvLhQ2izg=
 github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.4.0 h1:xsAVV57WRhGj6kEIi8ReJzQlHHqcBYCElAvkovg3B/4=
@@ -244,10 +245,12 @@ github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:
 github.com/prometheus/client_model v0.2.0 h1:uq5h0d+GuxiXLJLNABMgp2qUWDPiLvgCzz2dUR+/W/M=
 github.com/prometheus/client_model v0.2.0/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/prometheus/common v0.4.1/go.mod h1:TNfzLD0ON7rHzMJeJkieUDPYmFC7Snx/y86RQel1bk4=
+github.com/prometheus/common v0.7.0/go.mod h1:DjGbpBbp5NYNiECxcL/VnbXCCaQpKd3tt26CguLLsqA=
 github.com/prometheus/common v0.9.1 h1:KOMtN28tlbam3/7ZKEYKHhKoJZYYj3gMH4uc62x7X7U=
 github.com/prometheus/common v0.9.1/go.mod h1:yhUN8i9wzaXS3w1O07YhxHEBxD+W35wd8bs7vj7HSQ4=
 github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d/go.mod h1:c3At6R/oaqEKCNdg8wHV1ftS6bRYblBhIjjI8uT2IGk=
 github.com/prometheus/procfs v0.0.2/go.mod h1:TjEm7ze935MbeOT/UhFTIMYKhuLP4wbCsTZCD3I8kEA=
+github.com/prometheus/procfs v0.0.5/go.mod h1:4A/X28fw3Fc593LaREMrKMqOKvUAntwMDaekg4FpcdQ=
 github.com/prometheus/procfs v0.0.8 h1:+fpWZdT24pJBiqJdAwYBjPSk+5YmQzYNPYzQsdzLkt8=
 github.com/prometheus/procfs v0.0.8/go.mod h1:7Qr8sr6344vo1JqZ6HhLceV9o3AJ1Ff+GxbHq6oeK9A=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
@@ -294,6 +297,7 @@ github.com/zdnscloud/cement v0.0.0-20200205075737-175eefa2a628 h1:DgH7ntrO6yRlhk
 github.com/zdnscloud/cement v0.0.0-20200205075737-175eefa2a628/go.mod h1:4LO5zUFsB9ne6BHQLy0DzXx2+kl7Jfc4eLxidz4oMJA=
 github.com/zdnscloud/g53 v0.0.0-20191119101753-eb2b1813bd52 h1:orJNDPgNlEDDLBIl5wK6veGcrkkD7SSd6lXGl95Mx4M=
 github.com/zdnscloud/g53 v0.0.0-20191119101753-eb2b1813bd52/go.mod h1:GrZWv638nfn+7y+E5OkKepRuyOeerwTPCNAtAQAdtec=
+github.com/zdnscloud/gok8s v0.0.0-20191015012744-bdb742d065f7/go.mod h1:KJFI/SWKXc6zk0yKVqQLWjz0OQS/wPHoib8GR1bqBBk=
 github.com/zdnscloud/gok8s v0.0.0-20191031092101-0f4b3df670cc/go.mod h1:KJFI/SWKXc6zk0yKVqQLWjz0OQS/wPHoib8GR1bqBBk=
 github.com/zdnscloud/gok8s v0.0.0-20200205030309-01bcca9746a5 h1:SCnK9rNO4CaHqkmcirZfeKfbIpngjmMPZXc/rrNjj98=
 github.com/zdnscloud/gok8s v0.0.0-20200205030309-01bcca9746a5/go.mod h1:QHXibTheNOJJwI7ZkzfnNOq2CIvRsVIE8FdMKZeG8A8=
@@ -310,8 +314,8 @@ github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7/go.mod h1:orbW6oeE
 github.com/zdnscloud/lvmd v0.0.0-20190911093443-19c3110dcb59/go.mod h1:5Rm+BMXxsrD5rzciVnYUXkMVjPsFcpWEBsp1k5cWFHY=
 github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d h1:W5S6RvIGqf6APQEDZ8t0/UhVt1Vr/fSqQTBlGeDFevc=
 github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d/go.mod h1:YXOpP5IUJ71o6ctiW+l5VPgaLlR2iT5CWv5wvz0Nj1o=
-github.com/zdnscloud/vanguard v0.0.0-20191127091955-d7bf8860bb40 h1:GeAafIA0UYvxFMlQMjd0GgCyuLepasx5vVm40dKjT3w=
-github.com/zdnscloud/vanguard v0.0.0-20191127091955-d7bf8860bb40/go.mod h1:WVC7QB/Fv3MVsvj0aKk6jmg398nRHTgxN1sukIinJvE=
+github.com/zdnscloud/vanguard v0.0.0-20200206013336-68563ad4946b h1:bqD8YLBJxgwr0cWwIT7VMupJGJgIPd8OiAe0T2of36k=
+github.com/zdnscloud/vanguard v0.0.0-20200206013336-68563ad4946b/go.mod h1:Pp+3ZqFAr6cfIXUYJD+wpQ7pGybWv34Zm/AXxGj0E0g=
 github.com/zdnscloud/zke v0.0.0-20200205053350-570c9d92a05b h1://8K+t44/P7ldET0uCjfdJU3TWVE2UQR9vh/C+BCQMA=
 github.com/zdnscloud/zke v0.0.0-20200205053350-570c9d92a05b/go.mod h1:3oO1HbEc09hhc7d+LHKZ9bLQ0wPlHZk3eKoQZMdFPfU=
 github.com/zsais/go-gin-prometheus v0.1.0 h1:bkLv1XCdzqVgQ36ScgRi09MA2UC1t3tAB6nsfErsGO4=
