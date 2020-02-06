@@ -1,4 +1,5 @@
-FROM golang:1.12.5-alpine3.9 AS build
+FROM golang:1.13.7-alpine3.11 AS build
+ENV GOPROXY=https://goproxy.cn
 
 ARG version
 ARG buildtime
