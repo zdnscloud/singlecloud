@@ -214,8 +214,6 @@ func (ac *AlarmCache) getAlarmsAfterID(id uint64) ([]*types.Alarm, error) {
 }
 
 func (ac *AlarmCache) Add(alarm *types.Alarm) {
-	ac.lock.Lock()
-	defer ac.lock.Unlock()
 	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 		alarm.Namespace = ""
 	}
@@ -228,7 +226,7 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 		return
 	}
 
-	alarm.UID = atomic.AddUint64(&ac.eventID, 1)
+	alarm.UID = ac.eventID + 1
 	alarm.SetID(strconv.Itoa(int(alarm.UID)))
 	if err := addOrUpdateAlarmToDB(ac.alarmTable, alarm, "add"); err != nil {
 		log.Warnf("add alarm id %d to table failed: %s", alarm.UID, err)
@@ -248,13 +246,21 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 		}
 		alarms = append(alarms[:(len(alarms)-1)], alarms[len(alarms):]...)
 	}
+	ac.eventIDAtomicAdd()
 	ac.SetUnAck(ackNum)
+}
 
-	ac.cond.Broadcast()
+func (ac *AlarmCache) eventIDAtomicAdd() {
+	ac.lock.Lock()
+	defer ac.lock.Unlock()
+	atomic.AddUint64(&ac.eventID, 1)
 }
 
 func (ac *AlarmCache) SetUnAck(u int) {
+	ac.lock.Lock()
+	defer ac.lock.Unlock()
 	atomic.AddUint64(&ac.unAckNumber, uint64(u))
+	ac.cond.Broadcast()
 }
 
 func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
