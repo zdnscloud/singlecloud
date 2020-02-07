@@ -121,7 +121,7 @@ func (m *DaemonSetManager) Update(ctx *resource.Context) (resource.Resource, *re
 
 	k8sDaemonSet.Spec.Template.Spec.Containers = k8sPodSpec.Containers
 	k8sDaemonSet.Spec.Template.Spec.Volumes = k8sPodSpec.Volumes
-	k8sDaemonSet.Annotations[ChangeCauseAnnotation] = daemonSet.Memo
+	k8sDaemonSet.Annotations = addWorkloadUpdateMemoToAnnotations(k8sDaemonSet.Annotations, daemonSet.Memo)
 	if err := cluster.KubeClient.Update(context.TODO(), k8sDaemonSet); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update daemonset failed %s", err.Error()))
 	}
@@ -222,8 +222,7 @@ func k8sDaemonSetToSCDaemonSet(cli client.Client, k8sDaemonSet *appsv1.DaemonSet
 	}
 
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
+	if opts, ok := k8sDaemonSet.Annotations[AnnkeyForWordloadAdvancedoption]; ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}
 

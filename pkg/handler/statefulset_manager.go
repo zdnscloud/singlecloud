@@ -112,7 +112,7 @@ func (m *StatefulSetManager) Update(ctx *resource.Context) (resource.Resource, *
 
 	k8sStatefulSet.Spec.Template.Spec.Containers = k8sPodSpec.Containers
 	k8sStatefulSet.Spec.Template.Spec.Volumes = k8sPodSpec.Volumes
-	k8sStatefulSet.Annotations[ChangeCauseAnnotation] = statefulSet.Memo
+	k8sStatefulSet.Annotations = addWorkloadUpdateMemoToAnnotations(k8sStatefulSet.Annotations, statefulSet.Memo)
 	if err := cluster.KubeClient.Update(context.TODO(), k8sStatefulSet); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update statefulset failed %s", err.Error()))
 	}
@@ -223,8 +223,7 @@ func deleteStatefulSet(cli client.Client, namespace, name string) error {
 
 func k8sStatefulSetToSCStatefulSet(k8sStatefulSet *appsv1.StatefulSet) *types.StatefulSet {
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sStatefulSet.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
+	if opts, ok := k8sStatefulSet.Annotations[AnnkeyForWordloadAdvancedoption]; ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}
 
