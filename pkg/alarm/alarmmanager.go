@@ -2,6 +2,7 @@ package alarm
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
@@ -16,7 +17,7 @@ import (
 var alarmManager *AlarmManager
 
 const (
-	MaxEventCount = 100
+	MaxEventCount = 10
 )
 
 func GetAlarmManager() *AlarmManager {
@@ -67,19 +68,18 @@ func (mgr *AlarmManager) eventLoop() {
 }
 
 func (m *AlarmManager) List(ctx *resource.Context) interface{} {
-	alarms, err := getAlarmsFromDB(m.cache.alarmTable)
-	if err != nil {
-		log.Warnf("get alarms from db failed: %s", err)
-		return nil
+	var alarms types.Alarms
+	for _, alarm := range m.cache.alarms {
+		alarms = append(alarms, alarm)
 	}
+	sort.Sort(alarms)
 	return alarms
 }
 
 func (m *AlarmManager) Update(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
 	alarm := ctx.Resource.(*types.Alarm)
-	if err := addOrUpdateAlarmToDB(m.cache.alarmTable, alarm, "update"); err != nil {
-		return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update alarm id %d to table %s failed: %s", alarm.UID, AlarmTable, err.Error()))
+	if err := m.cache.Update(alarm); err != nil {
+		return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update alarm id %d to table failed: %s", alarm.UID, err.Error()))
 	}
-	m.cache.SetUnAck(-1)
 	return alarm, nil
 }
