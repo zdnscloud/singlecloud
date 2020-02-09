@@ -1,7 +1,6 @@
 package alarm
 
 import (
-	"fmt"
 	"sort"
 	"strconv"
 	"sync"
@@ -146,17 +145,17 @@ func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 func (ac *AlarmCache) getAlarmsAfterID(id uint64) []*types.Alarm {
 	ac.lock.RLock()
 	defer ac.lock.RUnlock()
-	var res types.Alarms
-	for _, alarm := range ac.alarms {
-		if !alarm.Acknowledged && alarm.UID > id {
-			res = append(res, alarm)
-		}
+	var alarms types.Alarms
+	for i := id + 1; i <= ac.eventID; i++ {
+		alarms = append(alarms, ac.alarms[uintToStr(i)])
 	}
-	sort.Sort(res)
-	return res
+	sort.Sort(alarms)
+	return alarms
 }
 
 func (ac *AlarmCache) Add(alarm *types.Alarm) {
+	ac.lock.Lock()
+	defer ac.lock.Unlock()
 	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 		alarm.Namespace = ""
 	}
@@ -184,25 +183,20 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 		ackNum = ackNum - del
 	}
 
-	ac.eventIDAtomicAdd()
+	atomic.AddUint64(&ac.eventID, 1)
 	ac.SetUnAck(ackNum)
-}
-
-func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
-	return lastAlarm.Cluster == newAlarm.Cluster &&
-		lastAlarm.Namespace == newAlarm.Namespace &&
-		lastAlarm.Kind == newAlarm.Kind &&
-		lastAlarm.Reason == newAlarm.Reason &&
-		lastAlarm.Message == newAlarm.Message &&
-		lastAlarm.Name == newAlarm.Name
+	ac.cond.Broadcast()
 }
 
 func (ac *AlarmCache) Update(alarm *types.Alarm) error {
 	if err := addOrUpdateAlarmToDB(ac.alarmsTable, alarm, "update"); err != nil {
 		return err
 	}
+	ac.lock.Lock()
+	defer ac.lock.Unlock()
 	ac.alarms[uintToStr(alarm.UID)].Acknowledged = true
 	ac.SetUnAck(-1)
+	ac.cond.Broadcast()
 	return nil
 }
 
@@ -215,19 +209,19 @@ func (ac *AlarmCache) Del(id uint64) error {
 	return nil
 }
 
-func (ac *AlarmCache) eventIDAtomicAdd() {
-	ac.lock.Lock()
-	defer ac.lock.Unlock()
-	atomic.AddUint64(&ac.eventID, 1)
-}
-
 func (ac *AlarmCache) SetUnAck(u int) {
-	ac.lock.Lock()
-	defer ac.lock.Unlock()
 	atomic.AddUint64(&ac.unAckNumber, uint64(u))
-	ac.cond.Broadcast()
 }
 
 func uintToStr(uid uint64) string {
 	return strconv.FormatInt(int64(uid), 10)
+}
+
+func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
+	return lastAlarm.Cluster == newAlarm.Cluster &&
+		lastAlarm.Namespace == newAlarm.Namespace &&
+		lastAlarm.Kind == newAlarm.Kind &&
+		lastAlarm.Reason == newAlarm.Reason &&
+		lastAlarm.Message == newAlarm.Message &&
+		lastAlarm.Name == newAlarm.Name
 }

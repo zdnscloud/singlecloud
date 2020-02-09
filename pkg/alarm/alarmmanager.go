@@ -68,6 +68,8 @@ func (mgr *AlarmManager) eventLoop() {
 }
 
 func (m *AlarmManager) List(ctx *resource.Context) interface{} {
+	m.cache.lock.RLock()
+	defer m.cache.lock.RUnlock()
 	var alarms types.Alarms
 	for _, alarm := range m.cache.alarms {
 		alarms = append(alarms, alarm)

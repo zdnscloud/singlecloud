@@ -18,24 +18,6 @@ func genTable(name string) (kvzoo.Table, error) {
 	return table, nil
 }
 
-func getAlarmFromDB(table kvzoo.Table, id uint64) (*types.Alarm, error) {
-	tx, err := table.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	defer tx.Commit()
-	value, err := tx.Get(uintToStr(id))
-	if err != nil {
-		return nil, err
-	}
-	var alarm types.Alarm
-	if err := json.Unmarshal(value, &alarm); err != nil {
-		return nil, err
-	}
-	return &alarm, nil
-}
-
 func addOrUpdateAlarmToDB(table kvzoo.Table, alarm *types.Alarm, action string) error {
 	value, err := json.Marshal(alarm)
 	if err != nil {
