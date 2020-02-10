@@ -16,7 +16,7 @@ v1.13.10:
   ingress_backend: zdnscloud/nginx-ingress-controller-defaultbackend:1.4
   coredns: zdnscloud/coredns:1.2.6
   coredns_autoscaler: zdnscloud/cluster-proportional-autoscaler-amd64:1.0.0
-  cluster_agent: zdnscloud/cluster-agent:v3.1.4
+  cluster_agent: zdnscloud/cluster-agent:latest
   node_agent: zdnscloud/node-agent:v1.3.1
   metrics_server: zdnscloud/metrics-server-amd64:v0.3.3
   zke_remover: zdnscloud/zke-remove:v0.7
