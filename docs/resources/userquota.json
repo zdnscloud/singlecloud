@@ -79,5 +79,27 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "approval",
+      "input": {
+        "clusterName": {
+          "type": "string",
+          "description": [
+            "required",
+            "isDomain"
+          ]
+        }
+      }
+    },
+    {
+      "name": "reject",
+      "input": {
+        "reason": {
+          "type": "string"
+        }
+      }
+    }
   ]
 }

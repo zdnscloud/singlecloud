@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	resterr "github.com/zdnscloud/gorest/error"
-	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/cas"
 	"github.com/zdnscloud/singlecloud/pkg/authentication/jwt"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -15,8 +14,8 @@ type Authenticator struct {
 	CasAuth *cas.Authenticator
 }
 
-func New(casServer string, db kvzoo.DB) (*Authenticator, error) {
-	jwtAuth, err := jwt.NewAuthenticator(db)
+func New(casServer string) (*Authenticator, error) {
+	jwtAuth, err := jwt.NewAuthenticator()
 	if err != nil {
 		return nil, err
 	}

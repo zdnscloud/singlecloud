@@ -55,6 +55,9 @@
       "exposedMetric": {
         "type": "exposedMetric"
       },
+      "injectServiceMesh": {
+        "type": "bool"
+      },
       "reloadWhenConfigChange": {
         "type": "bool"
       }
@@ -184,12 +187,6 @@
       }
     },
     "workloadStatus": {
-      "availableReplicas": {
-        "type": "int"
-      },
-      "collisionCount": {
-        "type": "int"
-      },
       "conditions": {
         "type": "array",
         "elemType": "workloadCondition"
@@ -197,25 +194,16 @@
       "currentReplicas": {
         "type": "int"
       },
-      "currentRevision": {
-        "type": "string"
-      },
-      "observedGeneration": {
-        "type": "int"
-      },
       "readyReplicas": {
         "type": "int"
       },
-      "replicas": {
-        "type": "int"
-      },
-      "unavailableReplicas": {
-        "type": "int"
-      },
-      "updateRevision": {
-        "type": "string"
-      },
       "updatedReplicas": {
+        "type": "int"
+      },
+      "updating": {
+        "type": "bool"
+      },
+      "updatingReplicas": {
         "type": "int"
       }
     }
@@ -229,5 +217,146 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "history",
+      "output": {
+        "history": {
+          "type": "array",
+          "elemType": "versionInfo"
+        }
+      },
+      "subResources": {
+        "container": {
+          "args": {
+            "type": "array",
+            "elemType": "string"
+          },
+          "command": {
+            "type": "array",
+            "elemType": "string"
+          },
+          "env": {
+            "type": "array",
+            "elemType": "envVar"
+          },
+          "exposedPorts": {
+            "type": "array",
+            "elemType": "containerPort"
+          },
+          "image": {
+            "type": "string",
+            "description": [
+              "required"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": [
+              "required",
+              "isDomain"
+            ]
+          },
+          "volumes": {
+            "type": "array",
+            "elemType": "volume"
+          }
+        },
+        "containerPort": {
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "type": "int"
+          },
+          "protocol": {
+            "type": "enum",
+            "validValues": [
+              "tcp",
+              "udp"
+            ]
+          }
+        },
+        "envVar": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "versionInfo": {
+          "changeReason": {
+            "type": "string"
+          },
+          "containers": {
+            "type": "array",
+            "elemType": "container"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "version": {
+            "type": "int"
+          }
+        },
+        "volume": {
+          "mountPath": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": [
+              "isDomain"
+            ]
+          },
+          "type": {
+            "type": "enum",
+            "validValues": [
+              "configmap",
+              "secret",
+              "persistentVolume"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "rollback",
+      "input": {
+        "memo": {
+          "type": "string"
+        },
+        "version": {
+          "type": "int",
+          "description": [
+            "required"
+          ]
+        }
+      }
+    },
+    {
+      "name": "setPodCount",
+      "input": {
+        "replicas": {
+          "type": "int",
+          "description": [
+            "required"
+          ]
+        }
+      },
+      "output": {
+        "replicas": {
+          "type": "int",
+          "description": [
+            "required"
+          ]
+        }
+      }
+    }
   ]
 }

@@ -42,6 +42,9 @@ func Resources() []resource.ResourceKind {
 		User{},
 		HorizontalPodAutoscaler{},
 		FluentBitConfig{},
+		SvcMeshWorkload{},
+		SvcMeshPod{},
+		Threshold{},
 		Metric{},
 	}
 }

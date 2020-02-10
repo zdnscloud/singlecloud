@@ -2,13 +2,15 @@ package handler
 
 import (
 	"context"
+
+	corev1 "k8s.io/api/core/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
+
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	corev1 "k8s.io/api/core/v1"
-	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 type BlockDeviceManager struct {
@@ -26,8 +28,7 @@ func (m *BlockDeviceManager) List(ctx *resource.Context) interface{} {
 	if cluster == nil {
 		return nil
 	}
-
-	resp, err := getBlockDevices(cluster.Name, cluster.KubeClient, m.clusters.Agent)
+	resp, err := getBlockDevices(cluster.Name, cluster.KubeClient, clusteragent.GetAgent())
 	if err != nil {
 		log.Warnf("get blockdevices info failed:%s", err.Error())
 		return nil
@@ -45,7 +46,8 @@ func getBlockDevices(cluster string, cli client.Client, agent *clusteragent.Agen
 }
 
 func getAllDevices(cluster string, agent *clusteragent.AgentManager) ([]types.ClusterAgentBlockDevice, error) {
-	url := "/apis/agent.zcloud.cn/v1/blockdevices"
+	//url := "/apis/agent.zcloud.cn/v1/blockdevices"
+	url := "/blockdevices"
 	res := make([]types.ClusterAgentBlockDevice, 0)
 	if err := agent.ListResource(cluster, url, &res); err != nil {
 		return res, err

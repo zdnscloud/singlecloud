@@ -3,6 +3,7 @@ package zke
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -21,21 +22,22 @@ import (
 )
 
 type Cluster struct {
-	Name       string
-	CreateTime time.Time
-	DeleteTime time.Time
-	KubeClient client.Client
-	Cache      cache.Cache
-	K8sConfig  *rest.Config
-	stopCh     chan struct{}
-	config     *zketypes.ZKEConfig
-	logCh      chan string
-	logSession *websocket.Conn
-	cancel     context.CancelFunc
-	isCanceled bool
-	lock       sync.Mutex
-	fsm        *fsm.FSM
-	scVersion  string
+	Name           string
+	CreateTime     time.Time
+	DeleteTime     time.Time
+	KubeClient     client.Client
+	Cache          cache.Cache
+	K8sConfig      *rest.Config
+	stopCh         chan struct{}
+	config         *zketypes.ZKEConfig
+	logCh          chan string
+	logSession     *websocket.Conn
+	cancel         context.CancelFunc
+	isCanceled     bool
+	lock           sync.Mutex
+	fsm            *fsm.FSM
+	scVersion      string
+	KubeHttpClient *http.Client
 }
 
 type AddCluster struct {
@@ -44,6 +46,12 @@ type AddCluster struct {
 
 type DeleteCluster struct {
 	Cluster *Cluster
+}
+
+type AlarmCluster struct {
+	Cluster string
+	Reason  string
+	Message string
 }
 
 func newCluster(name string, initialStatus types.ClusterStatus) *Cluster {
@@ -64,8 +72,8 @@ func (c *Cluster) IsReady() bool {
 	return false
 }
 
-func (c *Cluster) event(e string, zkeMgr *ZKEManager, state clusterState) {
-	if err := c.fsm.Event(e, zkeMgr, state); err != nil {
+func (c *Cluster) event(e string, zkeMgr *ZKEManager, state clusterState, errMessage string) {
+	if err := c.fsm.Event(e, zkeMgr, state, errMessage); err != nil {
 		log.Warnf("send cluster %s fsm %s event failed %s", c.Name, e, err.Error())
 	}
 }
@@ -98,16 +106,8 @@ func (c *Cluster) Cancel() error {
 	return fmt.Errorf("can't cancel cluster %s on %s status", c.Name, status)
 }
 
-func (c *Cluster) CanUpdate() bool {
-	// doesn't support imported cluster update because no sshkey
-	if c.scVersion == types.ScVersionImported {
-		return false
-	}
-	return c.fsm.Can(UpdateEvent)
-}
-
-func (c *Cluster) CanDelete() bool {
-	return c.fsm.Can(DeleteEvent)
+func (c *Cluster) Can(operate string) bool {
+	return c.fsm.Can(operate)
 }
 
 func (c *Cluster) getStatus() types.ClusterStatus {
@@ -136,6 +136,11 @@ func (c *Cluster) Init(kubeConfig string) error {
 }
 
 func (c *Cluster) setCache(k8sConfig *rest.Config) error {
+	httpClient, err := c.newKubeHttpClient(k8sConfig)
+	if err != nil {
+		return err
+	}
+	c.KubeHttpClient = httpClient
 	c.stopCh = make(chan struct{})
 	c.K8sConfig = k8sConfig
 	cache, err := cache.New(k8sConfig, cache.Options{})
@@ -148,11 +153,22 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	return nil
 }
 
+func (c *Cluster) newKubeHttpClient(k8sConfig *rest.Config) (*http.Client, error) {
+	secureTransport, err := rest.TransportFor(k8sConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create kube http client failed: %s", err.Error())
+	}
+
+	return &http.Client{
+		Transport: secureTransport,
+	}, nil
+}
+
 func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManager) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("zke pannic info %s", r)
-			c.event(CreateFailedEvent, mgr, state)
+			err := log.Errorf("zke pannic info %s", r)
+			c.event(CreateFailedEvent, mgr, state, err.Error())
 		}
 	}()
 
@@ -163,30 +179,30 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 	zkeState, k8sConfig, kubeClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
-		c.event(CreateCanceledEvent, mgr, state)
+		c.event(CreateCanceledEvent, mgr, state, "")
 		return
 	}
 	if err != nil {
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
-		c.event(CreateFailedEvent, mgr, state)
+		c.event(CreateFailedEvent, mgr, state, err.Error())
 		return
 	}
 
 	c.KubeClient = kubeClient
 	if err := c.setCache(k8sConfig); err != nil {
-		c.event(CreateFailedEvent, mgr, state)
+		c.event(CreateFailedEvent, mgr, state, err.Error())
 		return
 	}
 	state.Created = true
-	c.event(CreateSucceedEvent, mgr, state)
+	c.event(CreateSucceedEvent, mgr, state, "")
 }
 
 func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManager) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("zke pannic info %s", r)
-			c.event(UpdateCompletedEvent, mgr, state)
+			err := log.Errorf("zke pannic info %s", r)
+			c.event(UpdateCompletedEvent, mgr, state, err.Error())
 		}
 	}()
 
@@ -198,9 +214,9 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 	state.FullState = zkeState
 	if c.isCanceled {
 		if state.Created {
-			c.event(UpdateCanceledEvent, mgr, state)
+			c.event(UpdateCanceledEvent, mgr, state, "")
 		} else {
-			c.event(CreateCanceledEvent, mgr, state)
+			c.event(CreateCanceledEvent, mgr, state, "")
 		}
 		return
 	}
@@ -208,30 +224,30 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
 		if state.Created {
-			c.event(UpdateCompletedEvent, mgr, state)
+			c.event(UpdateCompletedEvent, mgr, state, err.Error())
 		} else {
-			c.event(CreateFailedEvent, mgr, state)
+			c.event(CreateFailedEvent, mgr, state, err.Error())
 		}
 		return
 	}
 
 	if state.Created {
-		c.event(UpdateCompletedEvent, mgr, state)
+		c.event(UpdateCompletedEvent, mgr, state, "")
 	} else {
 		c.KubeClient = k8sClient
 		if err := c.setCache(k8sConfig); err != nil {
-			c.event(CreateFailedEvent, mgr, state)
+			c.event(CreateFailedEvent, mgr, state, err.Error())
 		}
 		state.Created = true
-		c.event(CreateSucceedEvent, mgr, state)
+		c.event(CreateSucceedEvent, mgr, state, "")
 	}
 }
 
 func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("zke pannic info %s", r)
-			c.event(DeleteCompletedEvent, mgr, clusterState{})
+			err := log.Errorf("zke pannic info %s", r)
+			c.event(DeleteCompletedEvent, mgr, clusterState{}, err.Error())
 		}
 	}()
 
@@ -239,11 +255,14 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 	defer logger.Close()
 	c.logCh = logCh
 
-	if err := removeZKECluster(ctx, c.config, logger); err != nil {
+	err := removeZKECluster(ctx, c.config, logger)
+	if err != nil {
 		log.Errorf("zke err info %s", err)
 		logger.Error(err.Error())
+		c.event(DeleteCompletedEvent, mgr, clusterState{}, err.Error())
+		return
 	}
-	c.event(DeleteCompletedEvent, mgr, clusterState{})
+	c.event(DeleteCompletedEvent, mgr, clusterState{}, "")
 }
 
 func (c *Cluster) ToTypesCluster() *types.Cluster {

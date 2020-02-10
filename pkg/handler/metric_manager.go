@@ -1,10 +1,9 @@
 package handler
 
 import (
-	"strings"
-
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gorest/resource"
+	ca "github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -22,9 +21,8 @@ func (m *MetricManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
-	url := "/apis/agent.zcloud.cn/v1" + strings.SplitAfterN(ctx.Request.URL.Path, "/clusters/"+cluster.Name, 2)[1]
 	var metrics []*types.Metric
-	if err := m.clusters.Agent.ListResource(cluster.Name, url, &metrics); err != nil {
+	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &metrics); err != nil {
 		log.Warnf("list metrics info failed: %s", err.Error())
 		return nil
 	}

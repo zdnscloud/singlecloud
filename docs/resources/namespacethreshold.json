@@ -1,0 +1,35 @@
+{
+  "resourceType": "namespacethreshold",
+  "collectionName": "namespacethresholds",
+  "parentResources": [
+    "namespace"
+  ],
+  "goStructName": "NamespaceThreshold",
+  "resourceFields": {
+    "cpu": {
+      "type": "int"
+    },
+    "mailTo": {
+      "type": "array",
+      "elemType": "string"
+    },
+    "memory": {
+      "type": "int"
+    },
+    "podStorage": {
+      "type": "int"
+    },
+    "storage": {
+      "type": "int"
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
+}

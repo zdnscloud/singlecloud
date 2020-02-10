@@ -47,5 +47,31 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "login",
+      "input": {
+        "password": {
+          "type": "string"
+        }
+      },
+      "output": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "name": "resetPassword",
+      "input": {
+        "newPassword": {
+          "type": "string"
+        },
+        "oldPassword": {
+          "type": "string"
+        }
+      }
+    }
   ]
 }

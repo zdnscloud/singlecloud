@@ -1,0 +1,49 @@
+{
+  "resourceType": "threshold",
+  "collectionName": "thresholds",
+  "goStructName": "Threshold",
+  "resourceFields": {
+    "cpu": {
+      "type": "int"
+    },
+    "mailFrom": {
+      "type": "mail"
+    },
+    "mailTo": {
+      "type": "array",
+      "elemType": "string"
+    },
+    "memory": {
+      "type": "int"
+    },
+    "podCount": {
+      "type": "int"
+    },
+    "storage": {
+      "type": "int"
+    }
+  },
+  "subResources": {
+    "mail": {
+      "host": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string"
+      },
+      "port": {
+        "type": "int"
+      },
+      "user": {
+        "type": "string"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "PUT"
+  ],
+  "collectionMethods": [
+    "GET"
+  ]
+}

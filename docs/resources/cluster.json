@@ -320,5 +320,10 @@
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "cancel"
+    }
   ]
 }

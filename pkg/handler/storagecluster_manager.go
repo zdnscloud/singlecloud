@@ -2,24 +2,22 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zdnscloud/cement/set"
-	"github.com/zdnscloud/cement/slice"
-	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime"
 	"math"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 
+	k8sstorage "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/set"
+	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -28,7 +26,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-	k8sstorage "k8s.io/api/storage/v1"
 )
 
 type StorageClusterManager struct {
@@ -77,7 +74,7 @@ func (m StorageClusterManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 
-	return k8sStorageToSCStorageDetail(cluster, m.clusters.Agent, k8sStorageCluster)
+	return k8sStorageToSCStorageDetail(cluster, clusteragent.GetAgent(), k8sStorageCluster)
 }
 
 func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIError {
@@ -112,7 +109,7 @@ func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource,
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
-	if err := createStorageCluster(cluster, m.clusters.Agent, storagecluster); err != nil {
+	if err := createStorageCluster(cluster, clusteragent.GetAgent(), storagecluster); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, gorestError.NewAPIError(gorestError.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
 		} else if strings.Contains(err.Error(), "storagecluster has already exists") || strings.Contains(err.Error(), "can not be used for") {
@@ -135,7 +132,7 @@ func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource,
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
-	if err := updateStorageCluster(cluster, m.clusters.Agent, storagecluster); err != nil {
+	if err := updateStorageCluster(cluster, clusteragent.GetAgent(), storagecluster); err != nil {
 		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "can not be used for") || strings.Contains(err.Error(), "Creating") {
 			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
 		} else {
@@ -195,7 +192,7 @@ func updateStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager
 	if err != nil {
 		return err
 	}
-	if k8sStorageCluster.Status.Phase == storagev1.Creating || k8sStorageCluster.Status.Phase == storagev1.Updating ||k8sStorageCluster.Status.Phase == storagev1.Deleting {
+	if k8sStorageCluster.Status.Phase == storagev1.Creating || k8sStorageCluster.Status.Phase == storagev1.Updating || k8sStorageCluster.Status.Phase == storagev1.Deleting {
 		return errors.New("storagecluster in Creating, Updating or Deleting, not allowed update")
 	}
 	if k8sStorageCluster.GetDeletionTimestamp() != nil {
@@ -252,31 +249,15 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cl
 }
 
 func k8sStorageToSCStorageDetail(cluster *zke.Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
-	info, err := getStatusInfo(cluster.Name, agent, k8sStorageCluster.Spec.StorageType)
-	if err != nil {
+	var info types.Storage
+	if err := agent.GetResource(cluster.Name, "/storages/"+k8sStorageCluster.Spec.StorageType, &info); err != nil {
 		log.Warnf("get storages from clusteragent failed:%s", err.Error())
 	}
+
 	storagecluster := k8sStorageToSCStorage(cluster, k8sStorageCluster)
 	storagecluster.Nodes = countSize(k8sStorageCluster)
 	storagecluster.PVs = info.PVs
 	return storagecluster
-}
-
-func getStatusInfo(cluster string, agent *clusteragent.AgentManager, storagetype string) (types.Storage, error) {
-	var info types.Storage
-	url := "/apis/agent.zcloud.cn/v1/storages/" + storagetype
-	req, err := http.NewRequest("GET", clusteragent.ClusterAgentServiceHost+url, nil)
-	if err != nil {
-		return info, err
-	}
-	resp, err := agent.ProxyRequest(cluster, req)
-	if err != nil {
-		return info, err
-	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &info)
-	defer resp.Body.Close()
-	return info, nil
 }
 
 func checkStorageClusterExist(cli client.Client, storageType string) error {

@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/zke/core"
 )
 
 type ClusterStatus string
@@ -19,7 +18,6 @@ const (
 	CSDeleted      ClusterStatus = "Deleted"
 
 	CSCancelAction = "cancel"
-	CSImportAction = "import"
 
 	DefaultNetworkPlugin       = "flannel"
 	DefaultClusterCIDR         = "10.42.0.0/16"
@@ -29,8 +27,6 @@ const (
 	DefaultSSHPort             = "22"
 	DefaultClusterUpstreamDNS1 = "223.5.5.5"
 	DefaultClusterUpstreamDNS2 = "114.114.114.114"
-
-	ScVersionImported = "imported"
 )
 
 type Cluster struct {
@@ -93,20 +89,14 @@ func (c Cluster) CreateDefaultResource() resource.Resource {
 	}
 }
 
-func (c Cluster) CreateAction(name string) *resource.Action {
-	switch name {
-	case CSCancelAction:
-		return &resource.Action{
-			Name: CSCancelAction,
-		}
-	case CSImportAction:
-		return &resource.Action{
-			Name:  CSImportAction,
-			Input: &core.FullState{},
-		}
-	default:
-		return nil
-	}
+var ClusterActions = []resource.Action{
+	resource.Action{
+		Name: CSCancelAction,
+	},
+}
+
+func (c Cluster) GetActions() []resource.Action {
+	return ClusterActions
 }
 
 func (c *Cluster) TrimFieldSpace() {

@@ -10,11 +10,10 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/g53"
 	"github.com/zdnscloud/gok8s/cache"
 
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
@@ -34,7 +33,7 @@ type GlobalDNS struct {
 	lock              sync.Mutex
 }
 
-func New(httpCmdAddr string, eventBus *pubsub.PubSub) error {
+func New(httpCmdAddr string) error {
 	if httpCmdAddr == "" {
 		return nil
 	}
@@ -45,7 +44,7 @@ func New(httpCmdAddr string, eventBus *pubsub.PubSub) error {
 	}
 
 	gdns := &GlobalDNS{
-		clusterEventCh:    eventBus.Sub(eventbus.ClusterEvent),
+		clusterEventCh:    eb.GetEventBus().Sub(eb.ClusterEvent),
 		clusterDNSSyncers: make(map[string]*ClusterDNSSyncer),
 		proxy:             proxy,
 	}

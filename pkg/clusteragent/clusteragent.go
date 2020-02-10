@@ -12,15 +12,22 @@ import (
 
 const (
 	AgentKey                = "_agent_key"
-	ClusterAgentServiceHost = "http://cluster-agent.zcloud.svc"
+	ClusterAgentServiceHost = "http://cluster-agent.zcloud.svc/apis/agent.zcloud.cn/v1"
+	MethodGet               = "GET"
 )
 
 type AgentManager struct {
 	server *goproxy.Server
 }
 
-func New() *AgentManager {
-	return &AgentManager{
+var clusterAgent *AgentManager
+
+func GetAgent() *AgentManager {
+	return clusterAgent
+}
+
+func init() {
+	clusterAgent = &AgentManager{
 		server: goproxy.New(authorizer),
 	}
 }
@@ -35,7 +42,7 @@ func (m *AgentManager) HandleAgentRegister(agentKey string, r *http.Request, w h
 	m.server.ServeHTTP(w, r)
 }
 
-func (m *AgentManager) ProxyRequest(cluster string, req *http.Request) (*http.Response, error) {
+func (m *AgentManager) proxyRequest(cluster string, req *http.Request) (*http.Response, error) {
 	dialer := m.server.GetAgentDialer(cluster, 15*time.Second)
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -47,21 +54,32 @@ func (m *AgentManager) ProxyRequest(cluster string, req *http.Request) (*http.Re
 	return resp, err
 }
 
-func (m *AgentManager) ListResource(cluster, url string, resources interface{}) error {
-	req, err := http.NewRequest("GET", ClusterAgentServiceHost+url, nil)
+func (m *AgentManager) processRequest(method, cluster, url string, resource interface{}) error {
+	req, err := http.NewRequest(method, ClusterAgentServiceHost+url, nil)
 	if err != nil {
 		return err
 	}
-	resp, err := m.ProxyRequest(cluster, req)
+	resp, err := m.proxyRequest(cluster, req)
 	if err != nil {
 		return err
 	}
 	body, _ := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 
+	return json.Unmarshal(body, resource)
+}
+
+func (m *AgentManager) GetResource(cluster, url string, resource interface{}) error {
+	return m.processRequest(MethodGet, cluster, url, resource)
+}
+
+func (m *AgentManager) ListResource(cluster, url string, resources interface{}) error {
 	var info Collection
 	info.Data = resources
-	json.Unmarshal(body, &info)
+	if err := m.processRequest(MethodGet, cluster, url, &info); err != nil {
+		return err
+	}
+
 	if info.Type != "collection" {
 		return errors.New("url wrong, must resource collection")
 	}

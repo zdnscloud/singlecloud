@@ -23,12 +23,19 @@ type Version struct {
 	Version string `json:"version"`
 }
 
-func RunAsMaster(conf *config.SinglecloudConf, stopCh chan struct{}) (kvzoo.DB, error) {
+var globalDB kvzoo.DB
+
+func GetGlobalDB() kvzoo.DB {
+    return globalDB
+}
+
+func RunAsMaster(conf *config.SinglecloudConf, stopCh chan struct{}) error {
 	dbServerAddr := fmt.Sprintf(":%d", conf.DB.Port)
 	db, err := server.NewWithBoltDB(dbServerAddr, path.Join(conf.DB.Path, DBFileName))
 	if err != nil {
-		return nil, err
+		return err
 	}
+
 	dbStarted := make(chan struct{})
 	go func() {
 		close(dbStarted)
@@ -40,10 +47,11 @@ func RunAsMaster(conf *config.SinglecloudConf, stopCh chan struct{}) (kvzoo.DB, 
 	if conf.DB.SlaveDBAddr != "" {
 		slaves = append(slaves, conf.DB.SlaveDBAddr)
 	}
-	dbClient, err := client.New(dbServerAddr, slaves)
+
+	globalDB, err = client.New(dbServerAddr, slaves)
 	if err != nil {
 		db.Stop()
-		return nil, err
+		return err
 	}
 
 	go func() {
@@ -51,17 +59,17 @@ func RunAsMaster(conf *config.SinglecloudConf, stopCh chan struct{}) (kvzoo.DB, 
 		db.Stop()
 	}()
 
-	if err := checkDBVersion(dbClient); err != nil {
-		return nil, err
+	if err := checkDBVersion(globalDB); err != nil {
+		return err
 	}
 
 	if conf.DB.SlaveDBAddr != "" {
-		if _, err := dbClient.Checksum(); err != nil {
-			return nil, err
+		if _, err := globalDB.Checksum(); err != nil {
+			return err
 		}
 	}
 
-	return dbClient, nil
+	return nil
 }
 
 func checkDBVersion(db kvzoo.DB) error {

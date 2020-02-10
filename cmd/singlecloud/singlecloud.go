@@ -2,12 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/pubsub"
 	"github.com/zdnscloud/singlecloud/config"
+	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
@@ -17,10 +18,6 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
 	"github.com/zdnscloud/singlecloud/pkg/k8sshell"
 	"github.com/zdnscloud/singlecloud/server"
-)
-
-const (
-	EventBufLen = 1000
 )
 
 var (
@@ -40,7 +37,7 @@ func main() {
 	log.InitLogger(log.Debug)
 
 	if showVersion {
-		log.Infof("singlecloud %s (build at %s)\n", version, build)
+		fmt.Printf("singlecloud %s (build at %s)\n", version, build)
 		return
 	}
 
@@ -64,25 +61,23 @@ func main() {
 }
 
 func runAsMaster(conf *config.SinglecloudConf) {
-	eventBus := pubsub.New(EventBufLen)
-
 	stopCh := make(chan struct{})
-	dbClient, err := db.RunAsMaster(conf, stopCh)
+	err := db.RunAsMaster(conf, stopCh)
 	if err != nil {
 		log.Fatalf("create database failed: %s", err.Error())
 	}
 	defer close(stopCh)
 
-	if err := globaldns.New(conf.Server.DNSAddr, eventBus); err != nil {
+	if err := globaldns.New(conf.Server.DNSAddr); err != nil {
 		log.Fatalf("create globaldns failed: %v", err.Error())
 	}
 
-	authenticator, err := authentication.New(conf.Server.CasAddr, dbClient)
+	authenticator, err := authentication.New(conf.Server.CasAddr)
 	if err != nil {
 		log.Fatalf("create authenticator failed:%s", err.Error())
 	}
 
-	authorizer, err := authorization.New(dbClient)
+	authorizer, err := authorization.New()
 	if err != nil {
 		log.Fatalf("create authorizer failed:%s", err.Error())
 	}
@@ -92,22 +87,29 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("create server failed:%s", err.Error())
 	}
 
-	watcher := k8seventwatcher.New(eventBus)
+	watcher := k8seventwatcher.New()
 	if err := server.RegisterHandler(watcher); err != nil {
 		log.Fatalf("register k8s event watcher failed:%s", err.Error())
 	}
 
-	shellExecutor := k8sshell.New(eventBus)
+	if err := alarm.NewAlarmManager(); err != nil {
+		log.Fatalf("create alarm failed:%s", err.Error())
+	}
+
+	if err := server.RegisterHandler(alarm.GetAlarmManager()); err != nil {
+		log.Fatalf("register alarm failed:%s", err.Error())
+	}
+
+	shellExecutor := k8sshell.New()
 	if err := server.RegisterHandler(shellExecutor); err != nil {
 		log.Fatalf("register shell executor failed:%s", err.Error())
 	}
 
-	agent := clusteragent.New()
-	if err := server.RegisterHandler(agent); err != nil {
+	if err := server.RegisterHandler(clusteragent.GetAgent()); err != nil {
 		log.Fatalf("register agent failed:%s", err.Error())
 	}
 
-	app, err := handler.NewApp(authenticator, authorizer, eventBus, agent, dbClient, conf.Chart.Path, version, conf.Chart.Repo, conf.Registry)
+	app, err := handler.NewApp(authenticator, authorizer, conf)
 	if err != nil {
 		log.Fatalf("create app failed %s", err.Error())
 	}

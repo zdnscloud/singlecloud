@@ -134,5 +134,16 @@
   ],
   "collectionMethods": [
     "GET"
+  ],
+  "resourceActions": [
+    {
+      "name": "cordon"
+    },
+    {
+      "name": "uncordon"
+    },
+    {
+      "name": "drain"
+    }
   ]
 }

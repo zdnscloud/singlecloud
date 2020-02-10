@@ -23,6 +23,7 @@ var (
 	ResourceTypeSecret      = resource.DefaultKindName(Secret{})
 	ResourceTypeService     = resource.DefaultKindName(Service{})
 	ResourceTypeIngress     = resource.DefaultKindName(Ingress{})
+	ResourceTypePod         = resource.DefaultKindName(Pod{})
 )
 
 type Application struct {
@@ -38,6 +39,7 @@ type Application struct {
 	Configs               json.RawMessage `json:"configs,omitempty"`
 	Manifests             []Manifest      `json:"manifests,omitempty" rest:"description=readonly"`
 	SystemChart           bool            `json:"systemChart,omitempty" rest:"description=readonly"`
+	InjectServiceMesh     bool            `json:"injectServiceMesh,omitempty"`
 }
 
 type AppResource struct {

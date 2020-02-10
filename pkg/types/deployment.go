@@ -46,6 +46,7 @@ type AdvancedOptions struct {
 	ExposedMetric               ExposedMetric `json:"exposedMetric,omitempty"`
 	ReloadWhenConfigChange      bool          `json:"reloadWhenConfigChange,omitempty"`
 	DeletePVsWhenDeleteWorkload bool          `json:"deletePVsWhenDeleteWorkload,omitempty"`
+	InjectServiceMesh           bool          `json:"injectServiceMesh,omitempty"`
 }
 
 type Deployment struct {
@@ -68,39 +69,34 @@ func (d Deployment) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
-func (d Deployment) CreateAction(name string) *resource.Action {
-	switch name {
-	case ActionGetHistory:
-		return &resource.Action{
-			Name: ActionGetHistory,
-		}
-	case ActionRollback:
-		return &resource.Action{
-			Name:  ActionRollback,
-			Input: &RollBackVersion{},
-		}
-	case ActionSetPodCount:
-		return &resource.Action{
-			Name:  ActionSetPodCount,
-			Input: &SetPodCount{},
-		}
-	default:
-		return nil
-	}
+var DeploymentActions = []resource.Action{
+	resource.Action{
+		Name:   ActionGetHistory,
+		Output: &VersionHistory{},
+	},
+	resource.Action{
+		Name:  ActionRollback,
+		Input: &RollBackVersion{},
+	},
+	resource.Action{
+		Name:   ActionSetPodCount,
+		Input:  &SetPodCount{},
+		Output: &SetPodCount{},
+	},
+}
+
+func (d Deployment) GetActions() []resource.Action {
+	return DeploymentActions
+
 }
 
 type WorkloadStatus struct {
-	ObservedGeneration  int                 `json:"observedGeneration,omitempty"`
-	Replicas            int                 `json:"replicas,omitempty"`
-	ReadyReplicas       int                 `json:"readyReplicas,omitempty"`
-	UpdatedReplicas     int                 `json:"updatedReplicas,omitempty"`
-	AvailableReplicas   int                 `json:"availableReplicas,omitempty"`
-	UnavailableReplicas int                 `json:"unavailableReplicas,omitempty"`
-	CurrentReplicas     int                 `json:"currentReplicas,omitempty"`
-	CurrentRevision     string              `json:"currentRevision,omitempty"`
-	UpdateRevision      string              `json:"updateRevision,omitempty"`
-	CollisionCount      int                 `json:"collisionCount,omitempty"`
-	Conditions          []WorkloadCondition `json:"conditions,omitempty"`
+	ReadyReplicas    int                 `json:"readyReplicas,omitempty"`
+	Updating         bool                `json:"updating,omitempty"`
+	CurrentReplicas  int                 `json:"currentReplicas,omitempty"`
+	UpdatingReplicas int                 `json:"updatingReplicas,omitempty"`
+	UpdatedReplicas  int                 `json:"updatedReplicas,omitempty"`
+	Conditions       []WorkloadCondition `json:"conditions,omitempty"`
 }
 
 type WorkloadCondition struct {
