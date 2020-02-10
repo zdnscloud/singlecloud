@@ -17,7 +17,7 @@ import (
 var alarmManager *AlarmManager
 
 const (
-	MaxEventCount = 10
+	MaxEventCount = 1000
 )
 
 func GetAlarmManager() *AlarmManager {
