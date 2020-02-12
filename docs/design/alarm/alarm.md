@@ -73,10 +73,10 @@ const (
 
   singlecloud运行后开始订阅eventbus.AlarmEvent，当有新消息时，则缓存到未读队列里，未读数加1，如果设置了邮箱便进行邮件报警
 - 集群创建后开始监听kubernetes的event，当有create事件时，检查
-
-  event.Reason为Cluster-agent创建event的reason "resource shortage"
   
-  如果都满足，则缓存到未读队列里，未读数加1，如果设置了邮箱便进行邮件报警
+  event.LastTimestamp 时间大于singlecloud的启动时间，且event.Reason为Cluster-agent创建event的reason "resource shortage"
+  
+  如果都满足，则存到数据库中(最多存储100条)，未读数加1，如果设置了邮箱便进行邮件报警
 
 > 如果前后两条报警的Cluster、Namespace、Kind、Reason、Message、Name都一样，则忽略后一条报警
 
@@ -103,22 +103,9 @@ if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 	websocket连接建立后，推送当前未读数，并开始检查缓存的未读队列是否有新的消息，如果有消息或者未读数发生变化，便推送到前端
 - 展示和标记
 
-	报警展示返回100条报警，优先返回未读队列，不足的再从已读队列取
-```
-        for e := m.cache.alarmList.Back(); e != nil; e = e.Prev() {
-                alarms = append(alarms, e.Value.(*types.Alarm))
-        }
-        for e := m.cache.ackList.Back(); len(alarms) < int(m.cache.maxSize) && e != nil; e = e.Prev() {
-                alarms = append(alarms, e.Value.(*types.Alarm))
-        }
-```
-  用户可批量设置报警为已读，会将报警项从未读队列移动到已读队列，未读数减1
-```
-                        m.cache.alarmList.Remove(e)
-                        m.cache.SetUnAck(-1)
-                        newAlarm.Acknowledged = true
-                        m.cache.ackListAdd(newAlarm)
-```
+	报警展示返回数据库中的报警消息
+
+  	用户可批量设置报警为已读，会将报警项在数据库中标记为已读，未读数减1
 
 # TODO
 - 根据权限定向报警

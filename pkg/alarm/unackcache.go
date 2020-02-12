@@ -3,7 +3,7 @@ package alarm
 func (ac *AlarmCache) publishAck(al *AlarmListener) {
 	num := ac.unAckNumber
 	for {
-		if ac.unAckNumber == 0 {
+		if num == ac.unAckNumber {
 			ac.lock.Lock()
 			ac.cond.Wait()
 			ac.lock.Unlock()

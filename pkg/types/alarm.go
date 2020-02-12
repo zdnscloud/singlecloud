@@ -13,7 +13,7 @@ type AlarmType string
 
 type Alarm struct {
 	resource.ResourceBase `json:",inline"`
-	UID                   uint64           `json:"-"`
+	UID                   uint64           `json:"uid"`
 	Time                  resource.ISOTime `json:"time" rest:"description=readonly"`
 	Cluster               string           `json:"cluster" rest:"description=readonly"`
 	Type                  AlarmType        `json:"type" rest:"description=readonly"`

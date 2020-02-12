@@ -60,7 +60,7 @@ func (ec *EventCache) Stop() {
 
 func (ec *EventCache) OnCreate(e event.CreateEvent) (handler.Result, error) {
 	if event, ok := e.Object.(*corev1.Event); ok {
-		if checkEventTypeAndKind(event) {
+		if ec.startTime < event.LastTimestamp.Time.Unix() && checkEventTypeAndKind(event) {
 			alarm := ec.k8sEventToAlarm(event)
 			ec.cache.Add(alarm)
 		}
