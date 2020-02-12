@@ -5,6 +5,7 @@
     "cluster"
   ],
   "goStructName": "PodNetwork",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "nodeName": {
       "type": "string"

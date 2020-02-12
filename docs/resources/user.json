@@ -2,6 +2,7 @@
   "resourceType": "user",
   "collectionName": "users",
   "goStructName": "User",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "name": {
       "type": "string",

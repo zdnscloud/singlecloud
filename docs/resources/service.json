@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "Service",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "clusterIP": {
       "type": "string"

@@ -2,6 +2,7 @@
   "resourceType": "cluster",
   "collectionName": "clusters",
   "goStructName": "Cluster",
+  "supportAsyncDelete": true,
   "resourceFields": {
     "clusterCidr": {
       "type": "string",

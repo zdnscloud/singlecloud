@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "UDPIngress",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "port": {
       "type": "int",

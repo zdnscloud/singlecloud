@@ -5,6 +5,7 @@
     "cluster"
   ],
   "goStructName": "PersistentVolume",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "claimRef": {
       "type": "claimRef",

@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "CronJob",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "containers": {
       "type": "array",

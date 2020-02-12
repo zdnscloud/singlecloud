@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "Job",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "containers": {
       "type": "array",

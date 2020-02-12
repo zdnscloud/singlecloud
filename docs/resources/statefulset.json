@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "StatefulSet",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "advancedOptions": {
       "type": "advancedOptions",

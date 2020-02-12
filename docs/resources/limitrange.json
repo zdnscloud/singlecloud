@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "LimitRange",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "max": {
       "type": "map",

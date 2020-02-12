@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "PersistentVolumeClaim",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "actualStorageSize": {
       "type": "string",

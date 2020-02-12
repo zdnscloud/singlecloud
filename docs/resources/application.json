@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "Application",
+  "supportAsyncDelete": true,
   "resourceFields": {
     "appResources": {
       "type": "array",

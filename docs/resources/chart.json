@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "Chart",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "description": {
       "type": "string"

@@ -2,6 +2,7 @@
   "resourceType": "threshold",
   "collectionName": "thresholds",
   "goStructName": "Threshold",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "cpu": {
       "type": "int"

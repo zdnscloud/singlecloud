@@ -5,6 +5,7 @@
     "cluster"
   ],
   "goStructName": "BlockDevice",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "blockDevices": {
       "type": "array",
