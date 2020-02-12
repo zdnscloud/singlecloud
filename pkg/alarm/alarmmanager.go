@@ -2,7 +2,6 @@ package alarm
 
 import (
 	"fmt"
-	"sort"
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
@@ -17,7 +16,7 @@ import (
 var alarmManager *AlarmManager
 
 const (
-	MaxEventCount = 1000
+	MaxAlarmCount = 1000
 )
 
 func GetAlarmManager() *AlarmManager {
@@ -31,7 +30,7 @@ type AlarmManager struct {
 }
 
 func NewAlarmManager() error {
-	alarmCache, err := NewAlarmCache(MaxEventCount)
+	alarmCache, err := NewAlarmCache()
 	if err != nil {
 		return err
 	}
@@ -68,13 +67,12 @@ func (mgr *AlarmManager) eventLoop() {
 }
 
 func (m *AlarmManager) List(ctx *resource.Context) interface{} {
+	alarms := make([]*types.Alarm, 0)
 	m.cache.lock.RLock()
-	defer m.cache.lock.RUnlock()
-	var alarms types.Alarms
-	for _, alarm := range m.cache.alarms {
-		alarms = append(alarms, alarm)
+	for elem := m.cache.alarmList.Back(); elem != nil; elem = elem.Prev() {
+		alarms = append(alarms, elem.Value.(*types.Alarm))
 	}
-	sort.Sort(alarms)
+	m.cache.lock.RUnlock()
 	return alarms
 }
 

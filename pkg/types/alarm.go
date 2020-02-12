@@ -29,4 +29,4 @@ type Alarms []*Alarm
 
 func (s Alarms) Len() int           { return len(s) }
 func (s Alarms) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s Alarms) Less(i, j int) bool { return s[i].UID > s[j].UID }
+func (s Alarms) Less(i, j int) bool { return s[i].UID < s[j].UID }

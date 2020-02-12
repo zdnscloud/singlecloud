@@ -1,10 +1,13 @@
 package alarm
 
 import (
+	"container/list"
+	"fmt"
 	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
@@ -22,11 +25,9 @@ type AlarmCache struct {
 	stopCh         chan struct{}
 	thresholdTable kvzoo.Table
 	alarmsTable    kvzoo.Table
-	firstID        uint64
-	eventID        uint64
-	maxSize        uint64
+	alarmList      *list.List
 	unAckNumber    uint64
-	alarms         map[string]*types.Alarm
+	eventID        uint64
 }
 
 type AlarmListener struct {
@@ -35,7 +36,7 @@ type AlarmListener struct {
 	alarmCh chan interface{}
 }
 
-func NewAlarmCache(size uint64) (*AlarmCache, error) {
+func NewAlarmCache() (*AlarmCache, error) {
 	thresholdTable, err := genTable(types.ThresholdTable)
 	if err != nil {
 		return nil, err
@@ -46,43 +47,40 @@ func NewAlarmCache(size uint64) (*AlarmCache, error) {
 	}
 	stop := make(chan struct{})
 	ac := &AlarmCache{
-		maxSize:        size,
 		stopCh:         stop,
 		thresholdTable: thresholdTable,
 		alarmsTable:    alarmsTable,
-		alarms:         make(map[string]*types.Alarm),
+		alarmList:      list.New(),
 	}
-
 	if err := ac.initFromDB(); err != nil {
 		return nil, err
 	}
-
 	ac.cond = sync.NewCond(&ac.lock)
 	go subscribeAlarmEvent(ac, stop)
 	return ac, nil
 }
 
 func (ac *AlarmCache) initFromDB() error {
-	alarms, err := getAlarmsFromDB(ac.alarmsTable)
+	alarmsInDB, err := getAlarmsFromDB(ac.alarmsTable)
 	if err != nil {
 		return err
 	}
-	if len(alarms) == 0 {
-		ac.firstID = 1
+	if len(alarmsInDB) == 0 {
 		return nil
 	}
-	ac.firstID = alarms[0].UID
-	for _, alarm := range alarms {
-		if alarm.UID < ac.firstID {
-			ac.firstID = alarm.UID
-		}
-		if alarm.UID >= ac.eventID {
-			ac.eventID = alarm.UID
-		}
+	var alarms types.Alarms
+	for _, alarm := range alarmsInDB {
+		alarms = append(alarms, alarm)
 		if !alarm.Acknowledged {
 			ac.unAckNumber += 1
 		}
-		ac.alarms[uintToStr(alarm.UID)] = alarm
+	}
+	sort.Sort(alarms)
+	for _, alarm := range alarms {
+		ac.alarmList.PushBack(alarm)
+	}
+	if ac.alarmList.Len() > 0 {
+		ac.eventID = ac.alarmList.Back().Value.(*types.Alarm).UID
 	}
 	return nil
 }
@@ -136,30 +134,33 @@ func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 			case <-al.stopCh:
 				al.stopCh <- struct{}{}
 				return
-			case al.alarmCh <- *alarm:
+			case al.alarmCh <- alarm:
 			}
 		}
 	}
 }
 
 func (ac *AlarmCache) getAlarmsAfterID(id uint64) []*types.Alarm {
-	ac.lock.RLock()
-	defer ac.lock.RUnlock()
 	var alarms types.Alarms
-	for i := id + 1; i <= ac.eventID; i++ {
-		alarms = append(alarms, ac.alarms[uintToStr(i)])
+	ac.lock.RLock()
+	for elem := ac.alarmList.Back(); elem != nil; elem = elem.Prev() {
+		if elem.Value.(*types.Alarm).UID > id {
+			alarms = append(alarms, elem.Value.(*types.Alarm))
+		} else {
+			break
+		}
 	}
+	ac.lock.RUnlock()
 	sort.Sort(alarms)
 	return alarms
 }
 
 func (ac *AlarmCache) Add(alarm *types.Alarm) {
-	ac.lock.Lock()
-	defer ac.lock.Unlock()
 	if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 		alarm.Namespace = ""
 	}
-	if len(ac.alarms) > 0 && isRepeat(ac.alarms[uintToStr(ac.eventID)], alarm) {
+	ac.lock.Lock()
+	if ac.alarmList.Len() > 0 && isRepeat(ac.alarmList.Back().Value.(*types.Alarm), alarm) {
 		return
 	}
 
@@ -169,23 +170,20 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 		log.Warnf("add alarm id %d to table failed: %s", alarm.UID, err)
 		return
 	}
-	ac.alarms[uintToStr(alarm.UID)] = alarm
+	ac.alarmList.PushBack(alarm)
+	ac.SetUnAck(1)
+	if uint64(ac.alarmList.Len()) > MaxAlarmCount {
+		if err := ac.deleteoldest(); err != nil {
+			log.Warnf("delete the alarm out of queue failed: %s", err)
+		}
+	}
+	ac.lock.Unlock()
+
+	atomic.AddUint64(&ac.eventID, 1)
+	ac.cond.Broadcast()
 	if err := SendMail(alarm, ac.thresholdTable); err != nil {
 		log.Warnf("send mail failed: %s", err)
 	}
-
-	ackNum := 1
-	if uint64(len(ac.alarms)) > ac.maxSize {
-		del, err := ac.delOver()
-		if err != nil {
-			log.Warnf("delete the alarm out of queue failed: %s", err)
-		}
-		ackNum = ackNum - del
-	}
-
-	atomic.AddUint64(&ac.eventID, 1)
-	ac.SetUnAck(ackNum)
-	ac.cond.Broadcast()
 }
 
 func (ac *AlarmCache) Update(alarm *types.Alarm) error {
@@ -193,19 +191,65 @@ func (ac *AlarmCache) Update(alarm *types.Alarm) error {
 		return err
 	}
 	ac.lock.Lock()
-	defer ac.lock.Unlock()
-	ac.alarms[uintToStr(alarm.UID)].Acknowledged = true
+	a := ac.getAlarmFromList(alarm.UID)
+	if a == nil {
+		return fmt.Errorf("can not find alarm id %d", alarm.UID)
+	}
+	a.Acknowledged = true
+	ac.lock.Unlock()
 	ac.SetUnAck(-1)
 	ac.cond.Broadcast()
 	return nil
 }
 
-func (ac *AlarmCache) Del(id uint64) error {
-	if err := deleteAlarmFromDB(ac.alarmsTable, uintToStr(id)); err != nil {
-		return err
+func (ac *AlarmCache) getAlarmFromList(id uint64) *types.Alarm {
+	begID := ac.alarmList.Front().Value.(*types.Alarm).UID
+	endID := ac.alarmList.Back().Value.(*types.Alarm).UID
+	if id-begID < endID-id {
+		return ac.getAlarmFromOutdated(id)
+	} else {
+		return ac.getAlarmFromLatest(id)
 	}
-	delete(ac.alarms, uintToStr(id))
-	ac.firstID += 1
+}
+
+func (ac *AlarmCache) getAlarmFromOutdated(id uint64) *types.Alarm {
+	for elem := ac.alarmList.Front(); elem != nil; elem = elem.Next() {
+		if elem.Value.(*types.Alarm).UID == id {
+			return elem.Value.(*types.Alarm)
+		}
+	}
+	return nil
+}
+
+func (ac *AlarmCache) getAlarmFromLatest(id uint64) *types.Alarm {
+	for elem := ac.alarmList.Back(); elem != nil; elem = elem.Prev() {
+		if elem.Value.(*types.Alarm).UID == id {
+			return elem.Value.(*types.Alarm)
+		}
+	}
+	return nil
+}
+
+func (ac *AlarmCache) deleteoldest() error {
+	oneMonthLater := time.Now().AddDate(0, -1, 0)
+	delNum := 1
+	for elem := ac.alarmList.Front().Next(); elem != nil; elem = elem.Next() {
+		if oneMonthLater.Before(time.Time(elem.Value.(*types.Alarm).Time)) {
+			break
+		}
+		delNum += 1
+	}
+	firstID := ac.alarmList.Front().Value.(*types.Alarm).UID
+	for i := 0; i < delNum; i++ {
+		if err := deleteAlarmFromDB(ac.alarmsTable, uintToStr(uint64(i)+firstID)); err != nil {
+			return err
+		}
+		elem := ac.alarmList.Front()
+		ac.alarmList.Remove(elem)
+		if !elem.Value.(*types.Alarm).Acknowledged {
+			ac.SetUnAck(-1)
+		}
+	}
 	return nil
 }
 

@@ -1,17 +1,21 @@
 package alarm
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
-	WSPrefix  = "/apis/ws.zcloud.cn/v1"
-	eventPath = WSPrefix + "/alarm"
+	WSPrefix            = "/apis/ws.zcloud.cn/v1"
+	eventPath           = WSPrefix + "/alarm"
+	alarmUpdateLink     = "/apis/zcloud.cn/v1/alarms/%s"
+	alarmCollectionLink = "/apis/zcloud.cn/v1/alarms"
 )
 
 func (mgr *AlarmManager) RegisterHandler(router gin.IRoutes) error {
@@ -42,9 +46,11 @@ func (mgr *AlarmManager) OpenAlarm(r *http.Request, w http.ResponseWriter) {
 		}
 		var msg Message
 		switch alarm.(type) {
-		case types.Alarm:
+		case *types.Alarm:
+			a := alarm.(*types.Alarm)
+			genLink(a)
 			msg.Type = UnackAlarm
-			msg.Payload = alarm.(types.Alarm)
+			msg.Payload = a
 		case uint64:
 			msg.Type = UnackNumber
 			msg.Payload = alarm.(uint64)
@@ -55,4 +61,11 @@ func (mgr *AlarmManager) OpenAlarm(r *http.Request, w http.ResponseWriter) {
 			break
 		}
 	}
+}
+
+func genLink(alarm *types.Alarm) {
+	links := make(map[resource.ResourceLinkType]resource.ResourceLink)
+	links[resource.CollectionLink] = alarmCollectionLink
+	links[resource.UpdateLink] = resource.ResourceLink(fmt.Sprintf(alarmUpdateLink, alarm.GetID()))
+	alarm.SetLinks(links)
 }
