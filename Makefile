@@ -3,7 +3,7 @@ BUILD=`date +%FT%T%z`
 BRANCH=`git branch | sed -n '/\* /s///p'`
 IMAGE_CONFIG=`cat zke_image.yml`
 
-LDFLAGS=-ldflags "-w -s -X main.version=${VERSION} -X main.build=${BUILD} -X github.com/zdnscloud/singlecloud/pkg/zke.singleCloudVersion=${VERSION} -X 'github.com/zdnscloud/singlecloud/vendor/github.com/zdnscloud/zke/types.imageConfig=${IMAGE_CONFIG}'"
+LDFLAGS=-ldflags "-w -s -X main.version=${VERSION} -X main.build=${BUILD} -X github.com/zdnscloud/singlecloud/pkg/zke.singleCloudVersion=${VERSION} -X 'github.com/zdnscloud/zke/types.imageConfig=${IMAGE_CONFIG}'"
 GOSRC = $(shell find . -type f -name '*.go')
 
 build: singlecloud

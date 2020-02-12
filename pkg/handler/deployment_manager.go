@@ -141,7 +141,7 @@ func (m *DeploymentManager) Update(ctx *resource.Context) (resource.Resource, *r
 
 	k8sDeploy.Spec.Template.Spec.Containers = k8sPodSpec.Containers
 	k8sDeploy.Spec.Template.Spec.Volumes = k8sPodSpec.Volumes
-	k8sDeploy.Annotations[ChangeCauseAnnotation] = deploy.Memo
+	k8sDeploy.Annotations = addWorkloadUpdateMemoToAnnotations(k8sDeploy.Annotations, deploy.Memo)
 	if err := cluster.KubeClient.Update(context.TODO(), k8sDeploy); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
 	}
@@ -245,8 +245,7 @@ func k8sDeployToSCDeploy(cli client.Client, k8sDeploy *appsv1.Deployment) (*type
 	}
 
 	var advancedOpts types.AdvancedOptions
-	opts, ok := k8sDeploy.Annotations[AnnkeyForWordloadAdvancedoption]
-	if ok {
+	if opts, ok := k8sDeploy.Annotations[AnnkeyForWordloadAdvancedoption]; ok {
 		json.Unmarshal([]byte(opts), &advancedOpts)
 	}
 

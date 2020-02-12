@@ -560,3 +560,12 @@ func k8sWorkloadConditionsToScWorkloadConditions(k8sConditions interface{}, isDe
 
 	return conditions
 }
+
+func addWorkloadUpdateMemoToAnnotations(annotations map[string]string, memo string) map[string]string {
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	annotations[ChangeCauseAnnotation] = memo
+	return annotations
+}
