@@ -102,6 +102,10 @@ func (c Cluster) GetActions() []resource.Action {
 	return ClusterActions
 }
 
+func (c Cluster) SupportAsyncDelete() bool {
+	return true
+}
+
 func (c *Cluster) TrimFieldSpace() {
 	c.Name = strings.TrimSpace(c.Name)
 	c.SSHUser = strings.TrimSpace(c.SSHUser)
