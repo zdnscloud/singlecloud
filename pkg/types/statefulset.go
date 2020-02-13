@@ -34,3 +34,7 @@ func (s StatefulSet) GetParents() []resource.ResourceKind {
 func (s StatefulSet) GetActions() []resource.Action {
 	return DeploymentActions
 }
+
+func (s StatefulSet) SupportAsyncDelete() bool {
+	return true
+}

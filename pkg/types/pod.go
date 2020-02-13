@@ -59,3 +59,7 @@ const (
 func (p Pod) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Deployment{}, DaemonSet{}, StatefulSet{}, Job{}, CronJob{}}
 }
+
+func (p Pod) SupportAsyncDelete() bool {
+	return true
+}

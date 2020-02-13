@@ -31,7 +31,3 @@ func (r Registry) CreateDefaultResource() resource.Resource {
 		AdminPassword: DefaultRegistryAdminPassWord,
 	}
 }
-
-func (r Registry) SupportAsyncDelete() bool {
-	return true
-}

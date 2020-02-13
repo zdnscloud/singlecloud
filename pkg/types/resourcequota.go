@@ -19,3 +19,7 @@ type ResourceQuotaStatus struct {
 func (r ResourceQuota) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (r ResourceQuota) SupportAsyncDelete() bool {
+	return true
+}

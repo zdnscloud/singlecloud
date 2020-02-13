@@ -90,6 +90,10 @@ func (d Deployment) GetActions() []resource.Action {
 
 }
 
+func (d Deployment) SupportAsyncDelete() bool {
+	return true
+}
+
 type WorkloadStatus struct {
 	ReadyReplicas    int                 `json:"readyReplicas,omitempty"`
 	Updating         bool                `json:"updating,omitempty"`

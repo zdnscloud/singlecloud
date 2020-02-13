@@ -20,3 +20,7 @@ type ConfigMap struct {
 func (c ConfigMap) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (c ConfigMap) SupportAsyncDelete() bool {
+	return true
+}

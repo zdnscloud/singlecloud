@@ -61,6 +61,10 @@ type HorizontalPodAutoscaler struct {
 	Status                HorizontalPodAutoscalerStatus `json:"status,omitempty" rest:"description=readonly"`
 }
 
-func (H HorizontalPodAutoscaler) GetParents() []resource.ResourceKind {
+func (h HorizontalPodAutoscaler) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
+}
+
+func (h HorizontalPodAutoscaler) SupportAsyncDelete() bool {
+	return true
 }

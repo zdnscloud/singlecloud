@@ -14,3 +14,7 @@ type LimitRange struct {
 func (l LimitRange) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (l LimitRange) SupportAsyncDelete() bool {
+	return true
+}
