@@ -23,6 +23,7 @@ const (
 
 	ZcloudLBVIPAnnotationKey    = "lb.zcloud.cn/vip"
 	ZcloudLBMethodAnnotationKey = "lb.zcloud.cn/method"
+	ZcloudDefaultLBMethod       = "rr"
 )
 
 type ServiceManager struct {
@@ -185,6 +186,7 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 func scServiceToLBK8sServiceAnnotation(s *types.Service) map[string]string {
 	result := map[string]string{}
 	result[ZcloudLBVIPAnnotationKey] = s.LoadBalanceVIP
+	result[ZcloudLBMethodAnnotationKey] = ZcloudDefaultLBMethod
 	if s.LoadBalanceMethod != "" {
 		result[ZcloudLBMethodAnnotationKey] = s.LoadBalanceMethod
 	}
