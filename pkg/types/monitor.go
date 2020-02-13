@@ -37,3 +37,7 @@ func (m Monitor) CreateDefaultResource() resource.Resource {
 		AdminPassword:       DefaultMonitorAdminPassword,
 	}
 }
+
+func (m Monitor) SupportAsyncDelete() bool {
+	return true
+}
