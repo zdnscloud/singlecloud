@@ -78,8 +78,8 @@ func validateLBConfig(c *types.Cluster) error {
 	if c.LoadBalance.BackupServer != "" && !isIPv4(c.LoadBalance.BackupServer) && !isIPv4Host(c.LoadBalance.BackupServer) {
 		return fmt.Errorf("loadbalance backup server must be an ipv4 address or an ipv4 host")
 	}
-	if c.LoadBalance.User == "" || c.LoadBalance.Password == "" {
-		return fmt.Errorf("loadbalance user and password can't be empty")
+	if c.LoadBalance.User == "" {
+		return fmt.Errorf("loadbalance user can't be empty")
 	}
 	return nil
 }

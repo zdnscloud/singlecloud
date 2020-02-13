@@ -105,6 +105,8 @@ func genZKEConfigForUpdate(config *zketypes.ZKEConfig, sc *types.Cluster) *zkety
 	newConfig.LoadBalance.MasterServer = sc.LoadBalance.MasterServer
 	newConfig.LoadBalance.BackupServer = sc.LoadBalance.BackupServer
 	newConfig.LoadBalance.User = sc.LoadBalance.User
-	newConfig.LoadBalance.Password = sc.LoadBalance.Password
+	if sc.LoadBalance.Password != "" {
+		newConfig.LoadBalance.Password = sc.LoadBalance.Password
+	}
 	return newConfig
 }

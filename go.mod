@@ -32,7 +32,7 @@ require (
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7
 	github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d
 	github.com/zdnscloud/vanguard v0.0.0-20200206013336-68563ad4946b
-	github.com/zdnscloud/zke v0.0.0-20200210062708-0f5d3253ee44
+	github.com/zdnscloud/zke v0.0.0-20200213081406-1288a44d5f11
 	github.com/zsais/go-gin-prometheus v0.1.0
 	golang.org/x/crypto v0.0.0-20191219195013-becbf705a915 // indirect
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
