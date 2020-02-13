@@ -5,7 +5,7 @@
     "namespace"
   ],
   "goStructName": "Ingress",
-  "supportAsyncDelete": false,
+  "supportAsyncDelete": true,
   "resourceFields": {
     "maxBodySize": {
       "type": "int"

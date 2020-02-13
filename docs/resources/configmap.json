@@ -5,7 +5,7 @@
     "namespace"
   ],
   "goStructName": "ConfigMap",
-  "supportAsyncDelete": false,
+  "supportAsyncDelete": true,
   "resourceFields": {
     "configs": {
       "type": "array",

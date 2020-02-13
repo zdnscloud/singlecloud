@@ -5,7 +5,7 @@
     "cluster"
   ],
   "goStructName": "Namespace",
-  "supportAsyncDelete": false,
+  "supportAsyncDelete": true,
   "resourceFields": {
     "cpu": {
       "type": "int",

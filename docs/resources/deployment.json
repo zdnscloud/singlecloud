@@ -5,7 +5,7 @@
     "namespace"
   ],
   "goStructName": "Deployment",
-  "supportAsyncDelete": false,
+  "supportAsyncDelete": true,
   "resourceFields": {
     "advancedOptions": {
       "type": "advancedOptions",
