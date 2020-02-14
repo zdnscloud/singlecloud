@@ -196,7 +196,7 @@ func getNodeMetrics(cli client.Client, name string) map[string]metricsapi.NodeMe
 var (
 	zkeRoleLabelPrefix = "node-role.kubernetes.io/"
 	zkeRoles           = []types.NodeRole{
-		types.RoleControlPlane, types.RoleEtcd, types.RoleWorker, types.RoleEdge, types.RoleStorage,
+		types.RoleControlPlane, types.RoleWorker, types.RoleEdge, types.RoleStorage,
 	}
 )
 

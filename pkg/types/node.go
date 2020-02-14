@@ -34,7 +34,7 @@ type Node struct {
 	Name                  string            `json:"name" rest:"required=true,description=immutable,isDomain=true"`
 	Status                NodeStatus        `json:"status" rest:"description=readonly"`
 	Address               string            `json:"address,omitempty" rest:"required=true,description=immutable"`
-	Roles                 []NodeRole        `json:"roles,omitempty" rest:"required=true,options=controlplane|etcd|worker|edge"`
+	Roles                 []NodeRole        `json:"roles,omitempty" rest:"required=true,options=controlplane|worker|edge"`
 	Labels                map[string]string `json:"labels,omitempty" rest:"description=readonly"`
 	Annotations           map[string]string `json:"annotations,omitempty" rest:"description=readonly"`
 	OperatingSystem       string            `json:"operatingSystem,omitempty" rest:"description=readonly"`
