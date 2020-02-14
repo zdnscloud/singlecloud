@@ -2,6 +2,7 @@
   "resourceType": "userquota",
   "collectionName": "userquotas",
   "goStructName": "UserQuota",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "clusterName": {
       "type": "string",

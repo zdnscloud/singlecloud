@@ -62,6 +62,10 @@ func (a Application) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
+func (a Application) SupportAsyncDelete() bool {
+	return true
+}
+
 type Applications []*Application
 
 func (a Applications) Len() int {

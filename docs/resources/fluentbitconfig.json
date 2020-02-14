@@ -7,6 +7,7 @@
     "statefulset"
   ],
   "goStructName": "FluentBitConfig",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "regexp": {
       "type": "string",

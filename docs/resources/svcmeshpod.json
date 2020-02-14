@@ -5,6 +5,7 @@
     "svcmeshworkload"
   ],
   "goStructName": "SvcMeshPod",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "inbound": {
       "type": "array",

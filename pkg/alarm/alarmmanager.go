@@ -2,8 +2,6 @@ package alarm
 
 import (
 	"fmt"
-	"sort"
-	"strconv"
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
@@ -15,11 +13,10 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
-var UpdateErr = gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update alarm failed. It's can not be find or has been acknowledged"))
 var alarmManager *AlarmManager
 
 const (
-	MaxEventCount = 100
+	MaxAlarmCount = 1000
 )
 
 func GetAlarmManager() *AlarmManager {
@@ -33,7 +30,7 @@ type AlarmManager struct {
 }
 
 func NewAlarmManager() error {
-	alarmCache, err := NewAlarmCache(MaxEventCount)
+	alarmCache, err := NewAlarmCache()
 	if err != nil {
 		return err
 	}
@@ -70,37 +67,19 @@ func (mgr *AlarmManager) eventLoop() {
 }
 
 func (m *AlarmManager) List(ctx *resource.Context) interface{} {
-	var alarms types.Alarms
-	for e := m.cache.alarmList.Back(); e != nil; e = e.Prev() {
-		alarms = append(alarms, e.Value.(*types.Alarm))
+	alarms := make([]*types.Alarm, 0)
+	m.cache.lock.RLock()
+	for elem := m.cache.alarmList.Back(); elem != nil; elem = elem.Prev() {
+		alarms = append(alarms, elem.Value.(*types.Alarm))
 	}
-	for e := m.cache.ackList.Back(); len(alarms) < int(m.cache.maxSize) && e != nil; e = e.Prev() {
-		alarms = append(alarms, e.Value.(*types.Alarm))
-	}
-	sort.Sort(sort.Reverse(alarms))
+	m.cache.lock.RUnlock()
 	return alarms
 }
 
 func (m *AlarmManager) Update(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
 	alarm := ctx.Resource.(*types.Alarm)
-	m.cache.lock.Lock()
-	defer m.cache.lock.Unlock()
-	if id, _ := strconv.Atoi(alarm.ID); id > int(m.cache.eventID) || m.cache.alarmList.Len() == 0 {
-		return nil, UpdateErr
+	if err := m.cache.Update(alarm); err != nil {
+		return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update alarm id %d to table failed: %s", alarm.UID, err.Error()))
 	}
-	for e := m.cache.alarmList.Back(); e != nil; e = e.Prev() {
-		newAlarm := e.Value.(*types.Alarm)
-		if newAlarm.ID == alarm.ID {
-			m.cache.alarmList.Remove(e)
-			m.cache.SetUnAck(-1)
-			newAlarm.Acknowledged = true
-			m.cache.ackListAdd(newAlarm)
-			if uint(m.cache.ackList.Len()) > m.cache.maxSize {
-				e = m.cache.ackList.Front()
-				m.cache.ackList.Remove(e)
-			}
-			return alarm, nil
-		}
-	}
-	return nil, UpdateErr
+	return alarm, nil
 }

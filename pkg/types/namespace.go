@@ -38,6 +38,10 @@ func (n Namespace) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
 }
 
+func (n Namespace) SupportAsyncDelete() bool {
+	return true
+}
+
 type PodToSearch struct {
 	Name string `json:"name"`
 }

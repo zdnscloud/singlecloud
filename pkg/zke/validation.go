@@ -103,21 +103,17 @@ func validateDuplicateNodes(c *types.Cluster) error {
 
 func validateNodeCount(c *types.Cluster) error {
 	var hasControlplane bool
-	var hasEtcd bool
 	var hasWorker bool
 	for _, n := range c.Nodes {
 		if n.HasRole(types.RoleControlPlane) {
 			hasControlplane = true
 		}
-		if n.HasRole(types.RoleEtcd) {
-			hasEtcd = true
-		}
 		if n.HasRole(types.RoleWorker) {
 			hasWorker = true
 		}
 	}
-	if !hasControlplane || !hasEtcd || !hasWorker {
-		return fmt.Errorf("a cluster must has at least one controlplane, one etcd and one worker node")
+	if !hasControlplane || !hasWorker {
+		return fmt.Errorf("a cluster must has at least one controlplane and one worker node")
 	}
 	return nil
 }
@@ -142,14 +138,10 @@ func validateNodeNameRoleAndAddress(c *types.Cluster) error {
 
 func validateCannotDeleteNode(oldCluster, newCluster *types.Cluster) error {
 	cpHosts := set.NewStringSet()
-	etcdHosts := set.NewStringSet()
 
 	for _, n := range newCluster.Nodes {
 		if n.HasRole(types.RoleControlPlane) {
 			cpHosts.Add(n.Address)
-		}
-		if n.HasRole(types.RoleEtcd) {
-			etcdHosts.Add(n.Address)
 		}
 	}
 
@@ -157,11 +149,6 @@ func validateCannotDeleteNode(oldCluster, newCluster *types.Cluster) error {
 		if n.HasRole(types.RoleControlPlane) {
 			if !cpHosts.Member(n.Address) {
 				return fmt.Errorf("controlplane node only can add, %s not in new config", n.Address)
-			}
-		}
-		if n.HasRole(types.RoleEtcd) {
-			if !etcdHosts.Member(n.Address) {
-				return fmt.Errorf("etcd node only can add, %s not in new config", n.Address)
 			}
 		}
 	}
@@ -186,7 +173,7 @@ func validateNodesRoleChanage(oldCluster, newCluster *types.Cluster) error {
 		for _, new := range newCluster.Nodes {
 			if old.Address == new.Address {
 				if isNodeRolesChanage(old, new) {
-					return fmt.Errorf("don't support chanage node roles [%s]", old.Address)
+					return fmt.Errorf("doesn't support chanage node roles [%s]", old.Address)
 				}
 			}
 		}
@@ -199,7 +186,7 @@ func validateNodesNameChanage(oldCluster, newCluster *types.Cluster) error {
 		for _, new := range newCluster.Nodes {
 			if old.Address == new.Address {
 				if old.Name != new.Name {
-					return fmt.Errorf("don't support chanage node name [%s]", old.Address)
+					return fmt.Errorf("doesn't support chanage node name [%s]", old.Address)
 				}
 			}
 		}

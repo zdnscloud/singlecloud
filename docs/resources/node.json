@@ -5,6 +5,7 @@
     "cluster"
   ],
   "goStructName": "Node",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "address": {
       "type": "string",
@@ -113,7 +114,6 @@
       "type": "enum",
       "validValues": [
         "controlplane",
-        "etcd",
         "worker",
         "edge"
       ],

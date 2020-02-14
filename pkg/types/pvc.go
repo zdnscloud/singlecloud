@@ -20,3 +20,7 @@ type PersistentVolumeClaim struct {
 func (pvc PersistentVolumeClaim) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (pvc PersistentVolumeClaim) SupportAsyncDelete() bool {
+	return true
+}

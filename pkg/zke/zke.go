@@ -68,6 +68,9 @@ func genZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 		}
 		for _, role := range node.Roles {
 			n.Role = append(n.Role, string(role))
+			if role == types.RoleControlPlane {
+				n.Role = append(n.Role, string(types.RoleEtcd))
+			}
 		}
 		config.Nodes = append(config.Nodes, n)
 	}
@@ -97,6 +100,9 @@ func genZKEConfigForUpdate(config *zketypes.ZKEConfig, sc *types.Cluster) *zkety
 		}
 		for _, role := range node.Roles {
 			n.Role = append(n.Role, string(role))
+			if role == types.RoleControlPlane {
+				n.Role = append(n.Role, string(types.RoleEtcd))
+			}
 		}
 		newConfig.Nodes = append(newConfig.Nodes, n)
 	}

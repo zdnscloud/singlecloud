@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "InnerService",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "name": {
       "type": "string"

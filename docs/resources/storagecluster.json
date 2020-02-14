@@ -5,6 +5,7 @@
     "cluster"
   ],
   "goStructName": "StorageCluster",
+  "supportAsyncDelete": true,
   "resourceFields": {
     "freeSize": {
       "type": "string",

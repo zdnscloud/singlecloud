@@ -87,7 +87,10 @@ var DeploymentActions = []resource.Action{
 
 func (d Deployment) GetActions() []resource.Action {
 	return DeploymentActions
+}
 
+func (d Deployment) SupportAsyncDelete() bool {
+	return true
 }
 
 type WorkloadStatus struct {

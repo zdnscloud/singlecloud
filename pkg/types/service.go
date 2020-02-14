@@ -28,3 +28,7 @@ type Service struct {
 func (s Service) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (s Service) SupportAsyncDelete() bool {
+	return true
+}

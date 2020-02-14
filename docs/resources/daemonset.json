@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "DaemonSet",
+  "supportAsyncDelete": true,
   "resourceFields": {
     "advancedOptions": {
       "type": "advancedOptions",

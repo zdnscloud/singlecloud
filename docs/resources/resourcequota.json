@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "ResourceQuota",
+  "supportAsyncDelete": true,
   "resourceFields": {
     "limits": {
       "type": "map",

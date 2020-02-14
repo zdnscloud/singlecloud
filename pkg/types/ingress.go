@@ -23,6 +23,10 @@ func (i Ingress) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
 
+func (i Ingress) SupportAsyncDelete() bool {
+	return true
+}
+
 /*
 ing_a ---> host1 ---> path1 --> svc/port
                       path2 --> svc/port

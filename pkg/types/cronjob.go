@@ -31,3 +31,7 @@ type ObjectReference struct {
 func (c CronJob) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (c CronJob) SupportAsyncDelete() bool {
+	return true
+}

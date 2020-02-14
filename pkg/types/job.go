@@ -33,3 +33,7 @@ type JobCondition struct {
 func (j Job) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (j Job) SupportAsyncDelete() bool {
+	return true
+}

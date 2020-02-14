@@ -9,6 +9,7 @@
     "cronjob"
   ],
   "goStructName": "Pod",
+  "supportAsyncDelete": true,
   "resourceFields": {
     "containers": {
       "type": "array",

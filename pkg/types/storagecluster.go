@@ -59,6 +59,10 @@ func (s StorageCluster) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Cluster{}}
 }
 
+func (s StorageCluster) SupportAsyncDelete() bool {
+	return true
+}
+
 type StorageNodes []StorageNode
 
 func (s StorageNodes) Len() int           { return len(s) }

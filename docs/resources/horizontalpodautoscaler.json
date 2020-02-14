@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "HorizontalPodAutoscaler",
+  "supportAsyncDelete": true,
   "resourceFields": {
     "customMetrics": {
       "type": "array",

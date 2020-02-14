@@ -33,3 +33,7 @@ var DaemonSetActions = []resource.Action{
 func (d DaemonSet) GetActions() []resource.Action {
 	return DaemonSetActions
 }
+
+func (d DaemonSet) SupportAsyncDelete() bool {
+	return true
+}

@@ -2,6 +2,7 @@
   "resourceType": "cluster",
   "collectionName": "clusters",
   "goStructName": "Cluster",
+  "supportAsyncDelete": true,
   "resourceFields": {
     "clusterCidr": {
       "type": "string",
@@ -295,7 +296,6 @@
         "type": "enum",
         "validValues": [
           "controlplane",
-          "etcd",
           "worker",
           "edge"
         ],

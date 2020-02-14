@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "SvcMeshWorkload",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "destinations": {
       "type": "array",

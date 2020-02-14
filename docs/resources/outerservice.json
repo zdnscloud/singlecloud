@@ -5,6 +5,7 @@
     "namespace"
   ],
   "goStructName": "OuterService",
+  "supportAsyncDelete": false,
   "resourceFields": {
     "entryPoint": {
       "type": "string"

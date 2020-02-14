@@ -18,3 +18,7 @@ type SecretData struct {
 func (s Secret) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (s Secret) SupportAsyncDelete() bool {
+	return true
+}
