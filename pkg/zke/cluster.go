@@ -277,6 +277,10 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	sc.ClusterUpstreamDNS = c.config.Option.ClusterUpstreamDNS
 	sc.SingleCloudAddress = c.config.SingleCloudAddress
 	sc.ScVersion = c.scVersion
+	sc.LoadBalance.Enable = c.config.LoadBalance.Enable
+	sc.LoadBalance.MasterServer = c.config.LoadBalance.MasterServer
+	sc.LoadBalance.BackupServer = c.config.LoadBalance.BackupServer
+	sc.LoadBalance.User = c.config.LoadBalance.User
 
 	sc.Network = types.ClusterNetwork{
 		Plugin: c.config.Network.Plugin,
@@ -297,19 +301,6 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 		sc.Nodes = append(sc.Nodes, n)
 	}
 	sc.NodesCount = len(sc.Nodes)
-
-	if c.config.PrivateRegistries != nil {
-		sc.PrivateRegistries = []types.PrivateRegistry{}
-		for _, pr := range c.config.PrivateRegistries {
-			npr := types.PrivateRegistry{
-				User:     pr.User,
-				Password: pr.Password,
-				URL:      pr.URL,
-				CAcert:   pr.CAcert,
-			}
-			sc.PrivateRegistries = append(sc.PrivateRegistries, npr)
-		}
-	}
 
 	sc.SetID(c.Name)
 	sc.SetCreationTimestamp(c.CreateTime)
