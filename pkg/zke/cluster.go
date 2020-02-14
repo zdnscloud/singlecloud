@@ -289,6 +289,9 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 			Address: node.Address,
 		}
 		for _, role := range node.Role {
+			if role == string(types.RoleEtcd) {
+				continue
+			}
 			n.Roles = append(n.Roles, types.NodeRole(role))
 		}
 		sc.Nodes = append(sc.Nodes, n)
