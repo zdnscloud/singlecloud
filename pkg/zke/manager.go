@@ -25,7 +25,6 @@ const (
 var singleCloudVersion string
 
 type ZKEManager struct {
-	AlarmEventCh chan AlarmCluster
 	clusters     []*Cluster
 	dbTable      kvzoo.Table
 	lock         sync.Mutex
@@ -50,7 +49,6 @@ func newZKEManager(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
 
 	mgr := &ZKEManager{
 		clusters:     make([]*Cluster, 0),
-		AlarmEventCh: make(chan AlarmCluster, alarmEventBufferCount),
 		dbTable:      table,
 		scVersion:    singleCloudVersion,
 		nodeListener: nl,
@@ -116,7 +114,7 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", typesCluster.Name))
 	}
 
-	if err := validateConfigForUpdate(existCluster.ToTypesCluster(), typesCluster, m.nodeListener, existCluster); err != nil {
+	if err := validateConfigForUpdate(existCluster.ToScCluster(), typesCluster, m.nodeListener, existCluster); err != nil {
 		return nil, resterr.NewAPIError(resterr.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 	config := genZKEConfigForUpdate(existCluster.config, typesCluster)
@@ -226,7 +224,7 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 
 	if state.Created {
 		close(toDelete.stopCh)
-		eventbus.PublishResourceDeleteEvent(toDelete.ToTypesCluster())
+		eventbus.PublishResourceDeleteEvent(toDelete.ToScCluster())
 	}
 
 	tm := time.Now()
@@ -270,7 +268,7 @@ func (m *ZKEManager) loadDB() error {
 				continue
 			}
 			m.add(cluster)
-			eventbus.PublishResourceCreateEvent(cluster.ToTypesCluster())
+			eventbus.PublishResourceCreateEvent(cluster.ToScCluster())
 		} else {
 			cluster := newCluster(k, types.CSCreateFailed)
 			cluster.config = v.ZKEConfig
@@ -284,10 +282,6 @@ func (m *ZKEManager) loadDB() error {
 
 func (m *ZKEManager) add(c *Cluster) {
 	m.clusters = append(m.clusters, c)
-}
-
-func (m *ZKEManager) Alarm(c AlarmCluster) {
-	m.AlarmEventCh <- c
 }
 
 func (m *ZKEManager) GetDBTable() kvzoo.Table {

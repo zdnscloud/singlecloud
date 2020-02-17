@@ -87,7 +87,7 @@ func (m *ClusterManager) Get(ctx *restresource.Context) restresource.Resource {
 	}
 	cluster := m.zkeManager.Get(id)
 	if cluster != nil {
-		sc := cluster.ToTypesCluster()
+		sc := cluster.ToScCluster()
 		if cluster.IsReady() {
 			return getClusterInfo(cluster, sc)
 		}
@@ -146,7 +146,7 @@ func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
 
 	for _, c := range m.zkeManager.List() {
 		if m.authorizer.Authorize(user, c.Name, "") {
-			sc := c.ToTypesCluster()
+			sc := c.ToScCluster()
 			allClusters = append(allClusters, sc)
 			if c.IsReady() {
 				readyClusters = append(readyClusters, sc)
@@ -220,13 +220,6 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 			}
 		}
 		return nil
-	}
-}
-
-func (m *ClusterManager) eventLoop() {
-	for {
-		e := <-m.zkeManager.AlarmEventCh
-		alarm.New().Kind("cluster").Cluster(obj.Cluster).Name(obj.Cluster).Reason(obj.Reason).Message(obj.Message).Publish()
 	}
 }
 

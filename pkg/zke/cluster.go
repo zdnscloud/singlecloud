@@ -40,25 +40,19 @@ type Cluster struct {
 	KubeHttpClient *http.Client
 }
 
-type clusterKubeProvider struct {
-	client client.Client
-	cache  cache.Cache
-	config *rest.Config
+func (c *Cluster) GetClient() client.Client {
+	return c.KubeClient
 }
 
-func (p *clusterKubeProvider) GetClient() client.Client {
-	return p.client
+func (c *Cluster) GetCache() cache.Cache {
+	return c.Cache
 }
 
-func (p *clusterKubeProvider) GetCache() cache.Cache {
-	return p.cache
+func (c *Cluster) GetConfig() *rest.Config {
+	return c.K8sConfig
 }
 
-func (p *clusterKubeProvider) GetConfig() *rest.Config {
-	return p.config
-}
-
-var _ types.KubeProvider = &clusterKubeProvider{}
+var _ types.KubeProvider = &Cluster{}
 
 type AlarmCluster struct {
 	Cluster string
@@ -84,14 +78,6 @@ func (c *Cluster) IsReady() bool {
 	return false
 }
 
-func (c *Cluster) GetKubeProvider() types.KubeProvider {
-	return &clusterKubeProvider{
-		client: c.KubeClient,
-		cache:  c.Cache,
-		config: c.K8sConfig,
-	}
-}
-
 func (c *Cluster) event(e string, zkeMgr *ZKEManager, state clusterState, errMessage string) {
 	if err := c.fsm.Event(e, zkeMgr, state, errMessage); err != nil {
 		log.Warnf("send cluster %s fsm %s event failed %s", c.Name, e, err.Error())
@@ -104,7 +90,7 @@ func (c *Cluster) Event(e string) error {
 
 func (c *Cluster) GetNodeIpsByRole(role types.NodeRole) []string {
 	ips := []string{}
-	cluster := c.ToTypesCluster()
+	cluster := c.ToScCluster()
 	for _, n := range cluster.Nodes {
 		if n.HasRole(role) {
 			ips = append(ips, n.Address)
@@ -285,7 +271,7 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 	c.event(DeleteCompletedEvent, mgr, clusterState{}, "")
 }
 
-func (c *Cluster) ToTypesCluster() *types.Cluster {
+func (c *Cluster) ToScCluster() *types.Cluster {
 	sc := &types.Cluster{}
 	sc.Name = c.Name
 	sc.SSHUser = c.config.Option.SSHUser
@@ -335,7 +321,7 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	sc.SetCreationTimestamp(c.CreateTime)
 	sc.SetDeletionTimestamp(c.DeleteTime)
 	sc.Status = c.getStatus()
-	sc.KubeProvider = c.GetKubeProvider()
+	sc.KubeProvider = c
 	return sc
 }
 

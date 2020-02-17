@@ -54,7 +54,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
-				eventbus.PublishResourceCreateEvent(cluster.ToTypesCluster())
+				eventbus.PublishResourceCreateEvent(cluster.ToScCluster())
 			},
 			CreateFailedEvent: func(e *fsm.Event) {
 				mgr, state, errMsg, err := getFsmEventArgs(e)
@@ -64,7 +64,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				}
 
 				if errMsg != "" {
-					mgr.Alarm(AlarmCluster{Cluster: cluster.Name, Reason: CreateFailedEvent, Message: errMsg})
+					// mgr.Alarm(AlarmCluster{Cluster: cluster.Name, Reason: CreateFailedEvent, Message: errMsg})
 				}
 
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
@@ -92,7 +92,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 
 				cluster.logCh = nil
 				if errMsg != "" {
-					mgr.Alarm(AlarmCluster{Cluster: cluster.Name, Reason: UpdateFailedEvent, Message: errMsg})
+					// mgr.Alarm(AlarmCluster{Cluster: cluster.Name, Reason: UpdateFailedEvent, Message: errMsg})
 				}
 
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
@@ -119,7 +119,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				}
 
 				if errMsg != "" {
-					mgr.Alarm(AlarmCluster{Cluster: cluster.Name, Reason: DeleteFailedEvent, Message: errMsg})
+					// mgr.Alarm(AlarmCluster{Cluster: cluster.Name, Reason: DeleteFailedEvent, Message: errMsg})
 				}
 
 				mgr.Remove(cluster)
