@@ -3,7 +3,10 @@ package types
 import (
 	"strings"
 
+	"github.com/zdnscloud/gok8s/cache"
+	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gorest/resource"
+	"k8s.io/client-go/rest"
 )
 
 type ClusterStatus string
@@ -64,6 +67,8 @@ type Cluster struct {
 	ClusterDNSServiceIP string   `json:"clusterDNSServiceIP,omitempty" rest:"description=immutable"`
 	ClusterUpstreamDNS  []string `json:"clusterUpstreamDNS" rest:"description=immutable"`
 	DisablePortCheck    bool     `json:"disablePortCheck" rest:"description=immutable"`
+
+	KubeProvider KubeProvider `json:"-"`
 }
 
 type ClusterNetwork struct {
@@ -76,6 +81,12 @@ type PrivateRegistry struct {
 	User     string `json:"user"`
 	Password string `json:"password"`
 	CAcert   string `json:"caCert"`
+}
+
+type KubeProvider interface {
+	GetClient() client.Client
+	GetCache() cache.Cache
+	GetConfig() *rest.Config
 }
 
 func (c Cluster) CreateDefaultResource() resource.Resource {

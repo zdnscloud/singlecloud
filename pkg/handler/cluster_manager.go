@@ -134,6 +134,7 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 	if sc.Pod > 0 {
 		sc.PodUsedRatio = fmt.Sprintf("%.2f", float64(sc.PodUsed)/float64(sc.Pod))
 	}
+
 	return sc
 }
 
@@ -224,13 +225,8 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 
 func (m *ClusterManager) eventLoop() {
 	for {
-		e := <-m.zkeManager.PubEventCh
-		switch obj := e.(type) {
-		case zke.AlarmCluster:
-			alarm.New().Kind("cluster").Cluster(obj.Cluster).Name(obj.Cluster).Reason(obj.Reason).Message(obj.Message).Publish()
-		default:
-			eb.GetEventBus().Pub(obj, eb.ClusterEvent)
-		}
+		e := <-m.zkeManager.AlarmEventCh
+		alarm.New().Kind("cluster").Cluster(obj.Cluster).Name(obj.Cluster).Reason(obj.Reason).Message(obj.Message).Publish()
 	}
 }
 

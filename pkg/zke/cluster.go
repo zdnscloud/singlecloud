@@ -40,13 +40,25 @@ type Cluster struct {
 	KubeHttpClient *http.Client
 }
 
-type AddCluster struct {
-	Cluster *Cluster
+type clusterKubeProvider struct {
+	client client.Client
+	cache  cache.Cache
+	config *rest.Config
 }
 
-type DeleteCluster struct {
-	Cluster *Cluster
+func (p *clusterKubeProvider) GetClient() client.Client {
+	return p.client
 }
+
+func (p *clusterKubeProvider) GetCache() cache.Cache {
+	return p.cache
+}
+
+func (p *clusterKubeProvider) GetConfig() *rest.Config {
+	return p.config
+}
+
+var _ types.KubeProvider = &clusterKubeProvider{}
 
 type AlarmCluster struct {
 	Cluster string
@@ -70,6 +82,14 @@ func (c *Cluster) IsReady() bool {
 		return true
 	}
 	return false
+}
+
+func (c *Cluster) GetKubeProvider() types.KubeProvider {
+	return &clusterKubeProvider{
+		client: c.KubeClient,
+		cache:  c.Cache,
+		config: c.K8sConfig,
+	}
 }
 
 func (c *Cluster) event(e string, zkeMgr *ZKEManager, state clusterState, errMessage string) {
@@ -315,6 +335,7 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	sc.SetCreationTimestamp(c.CreateTime)
 	sc.SetDeletionTimestamp(c.DeleteTime)
 	sc.Status = c.getStatus()
+	sc.KubeProvider = c.GetKubeProvider()
 	return sc
 }
 

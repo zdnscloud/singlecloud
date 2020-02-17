@@ -14,17 +14,18 @@ import (
 	"github.com/zdnscloud/zke/core/pki"
 
 	"github.com/zdnscloud/singlecloud/pkg/db"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
-	clusterEventBufferCount = 10
+	alarmEventBufferCount = 10
 )
 
 var singleCloudVersion string
 
 type ZKEManager struct {
-	PubEventCh   chan interface{}
+	AlarmEventCh chan AlarmCluster
 	clusters     []*Cluster
 	dbTable      kvzoo.Table
 	lock         sync.Mutex
@@ -49,7 +50,7 @@ func newZKEManager(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
 
 	mgr := &ZKEManager{
 		clusters:     make([]*Cluster, 0),
-		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
+		AlarmEventCh: make(chan AlarmCluster, alarmEventBufferCount),
 		dbTable:      table,
 		scVersion:    singleCloudVersion,
 		nodeListener: nl,
@@ -225,7 +226,7 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 
 	if state.Created {
 		close(toDelete.stopCh)
-		m.SendEvent(DeleteCluster{Cluster: toDelete})
+		eventbus.PublishResourceDeleteEvent(toDelete.ToTypesCluster())
 	}
 
 	tm := time.Now()
@@ -269,7 +270,7 @@ func (m *ZKEManager) loadDB() error {
 				continue
 			}
 			m.add(cluster)
-			m.SendEvent(AddCluster{Cluster: cluster})
+			eventbus.PublishResourceCreateEvent(cluster.ToTypesCluster())
 		} else {
 			cluster := newCluster(k, types.CSCreateFailed)
 			cluster.config = v.ZKEConfig
@@ -285,8 +286,8 @@ func (m *ZKEManager) add(c *Cluster) {
 	m.clusters = append(m.clusters, c)
 }
 
-func (m *ZKEManager) SendEvent(e interface{}) {
-	m.PubEventCh <- e
+func (m *ZKEManager) Alarm(c AlarmCluster) {
+	m.AlarmEventCh <- c
 }
 
 func (m *ZKEManager) GetDBTable() kvzoo.Table {
