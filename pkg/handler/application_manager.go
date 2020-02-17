@@ -79,7 +79,7 @@ func newApplicationManager(clusters *ClusterManager, chartDir string) *Applicati
 	m := &ApplicationManager{
 		clusters:       clusters,
 		chartDir:       chartDir,
-		clusterEventCh: eb.GetEventBus().Sub(eb.ClusterEvent),
+		clusterEventCh: eb.SubscribeResourceEvent(types.Cluster{}),
 	}
 	go m.eventLoop()
 	return m
@@ -89,10 +89,10 @@ func (m *ApplicationManager) eventLoop() {
 	for {
 		event := <-m.clusterEventCh
 		switch e := event.(type) {
-		case zke.DeleteCluster:
-			tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, e.Cluster.Name)
+		case eb.ResourceDeleteEvent:
+			tn, _ := kvzoo.TableNameFromSegments(ApplicationTable, e.Resource.GetID())
 			if err := db.GetGlobalDB().DeleteTable(tn); err != nil {
-				log.Warnf("delete /application/cluster %s table failed: %s", e.Cluster.Name, err.Error())
+				log.Warnf("delete /application/cluster %s table failed: %s", e.Resource.GetID(), err.Error())
 			}
 		}
 	}
