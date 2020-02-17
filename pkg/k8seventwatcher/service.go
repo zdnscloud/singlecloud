@@ -67,7 +67,7 @@ func (mgr *WatcherManager) OpenEvent(clusterID string, r *http.Request, w http.R
 		}
 		err := conn.WriteJSON(event)
 		if err != nil {
-			log.Warnf("send log failed:%s", err.Error())
+			log.Warnf("send k8s event failed:%s", err.Error())
 			break
 		}
 	}
