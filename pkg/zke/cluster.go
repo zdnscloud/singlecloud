@@ -52,8 +52,6 @@ func (c *Cluster) GetConfig() *rest.Config {
 	return c.K8sConfig
 }
 
-var _ types.KubeProvider = &Cluster{}
-
 type AlarmCluster struct {
 	Cluster string
 	Reason  string
@@ -272,21 +270,22 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 }
 
 func (c *Cluster) ToScCluster() *types.Cluster {
-	sc := &types.Cluster{}
-	sc.Name = c.Name
-	sc.SSHUser = c.config.Option.SSHUser
-	sc.SSHPort = c.config.Option.SSHPort
-	sc.ClusterCidr = c.config.Option.ClusterCidr
-	sc.ServiceCidr = c.config.Option.ServiceCidr
-	sc.ClusterDomain = c.config.Option.ClusterDomain
-	sc.ClusterDNSServiceIP = c.config.Option.ClusterDNSServiceIP
-	sc.ClusterUpstreamDNS = c.config.Option.ClusterUpstreamDNS
-	sc.SingleCloudAddress = c.config.SingleCloudAddress
-	sc.ScVersion = c.scVersion
+	sc := &types.Cluster{
+		Name:                c.Name,
+		SSHUser:             c.config.Option.SSHUser,
+		SSHPort:             c.config.Option.SSHPort,
+		ClusterCidr:         c.config.Option.ClusterCidr,
+		ServiceCidr:         c.config.Option.ServiceCidr,
+		ClusterDomain:       c.config.Option.ClusterDomain,
+		ClusterDNSServiceIP: c.config.Option.ClusterDNSServiceIP,
+		ClusterUpstreamDNS:  c.config.Option.ClusterUpstreamDNS,
+		SingleCloudAddress:  c.config.SingleCloudAddress,
+		ScVersion:           c.scVersion,
 
-	sc.Network = types.ClusterNetwork{
-		Plugin: c.config.Network.Plugin,
-		Iface:  c.config.Network.Iface,
+		Network: types.ClusterNetwork{
+			Plugin: c.config.Network.Plugin,
+			Iface:  c.config.Network.Iface,
+		},
 	}
 
 	for _, node := range c.config.Nodes {

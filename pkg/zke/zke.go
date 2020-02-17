@@ -61,35 +61,25 @@ func removeZKECluster(ctx context.Context, config *zketypes.ZKEConfig, logger lo
 
 func genZKEConfig(cluster *types.Cluster) *zketypes.ZKEConfig {
 	config := &zketypes.ZKEConfig{
-		ClusterName:        cluster.Name,
+		ClusterName: cluster.Name,
+		Option: zketypes.ZKEConfigOption{
+			SSHUser:             cluster.SSHUser,
+			SSHPort:             cluster.SSHPort,
+			SSHKey:              cluster.SSHKey,
+			ClusterCidr:         cluster.ClusterCidr,
+			ServiceCidr:         cluster.ServiceCidr,
+			ClusterDomain:       cluster.ClusterDomain,
+			ClusterDNSServiceIP: cluster.ClusterDNSServiceIP,
+			ClusterUpstreamDNS:  cluster.ClusterUpstreamDNS,
+		},
+		Network: zketypes.ZKEConfigNetwork{
+			Plugin: cluster.Network.Plugin,
+			Iface:  cluster.Network.Iface,
+		},
 		SingleCloudAddress: cluster.SingleCloudAddress,
 	}
 
-	config.Option.SSHUser = cluster.SSHUser
-	config.Option.SSHPort = cluster.SSHPort
-	config.Option.SSHKey = cluster.SSHKey
-	config.Option.ClusterCidr = cluster.ClusterCidr
-	config.Option.ServiceCidr = cluster.ServiceCidr
-	config.Option.ClusterDomain = cluster.ClusterDomain
-	config.Option.ClusterDNSServiceIP = cluster.ClusterDNSServiceIP
-	config.Option.ClusterUpstreamDNS = cluster.ClusterUpstreamDNS
-	config.Network.Plugin = cluster.Network.Plugin
-	config.Network.Iface = cluster.Network.Iface
-
-	config.Nodes = []zketypes.ZKEConfigNode{}
-	for _, node := range cluster.Nodes {
-		n := zketypes.ZKEConfigNode{
-			NodeName: node.Name,
-			Address:  node.Address,
-		}
-		for _, role := range node.Roles {
-			n.Role = append(n.Role, string(role))
-			if role == types.RoleControlPlane {
-				n.Role = append(n.Role, string(types.RoleEtcd))
-			}
-		}
-		config.Nodes = append(config.Nodes, n)
-	}
+	config.Nodes = scClusterToZKENodes(cluster)
 
 	if cluster.PrivateRegistries != nil {
 		config.PrivateRegistries = []zketypes.PrivateRegistry{}
@@ -114,7 +104,12 @@ func genZKEConfigForUpdate(config *zketypes.ZKEConfig, sc *types.Cluster) *zkety
 		newConfig.Option.SSHKey = sc.SSHKey
 	}
 	newConfig.SingleCloudAddress = sc.SingleCloudAddress
-	newConfig.Nodes = []zketypes.ZKEConfigNode{}
+	newConfig.Nodes = scClusterToZKENodes(sc)
+	return newConfig
+}
+
+func scClusterToZKENodes(sc *types.Cluster) []zketypes.ZKEConfigNode {
+	ns := []zketypes.ZKEConfigNode{}
 	for _, node := range sc.Nodes {
 		n := zketypes.ZKEConfigNode{
 			NodeName: node.Name,
@@ -126,9 +121,9 @@ func genZKEConfigForUpdate(config *zketypes.ZKEConfig, sc *types.Cluster) *zkety
 				n.Role = append(n.Role, string(types.RoleEtcd))
 			}
 		}
-		newConfig.Nodes = append(newConfig.Nodes, n)
+		ns = append(ns, n)
 	}
-	return newConfig
+	return ns
 }
 
 func createOrUpdateZcloudProxy(cli client.Client, clusterName, scAddress string) error {
