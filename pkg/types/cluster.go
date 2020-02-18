@@ -84,9 +84,9 @@ type PrivateRegistry struct {
 }
 
 type KubeProvider interface {
-	GetClient() client.Client
-	GetCache() cache.Cache
-	GetConfig() *rest.Config
+	GetKubeClient() client.Client
+	GetKubeCache() cache.Cache
+	GetKubeRestConfig() *rest.Config
 }
 
 func (c Cluster) CreateDefaultResource() resource.Resource {

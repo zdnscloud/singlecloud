@@ -40,15 +40,15 @@ type Cluster struct {
 	KubeHttpClient *http.Client
 }
 
-func (c *Cluster) GetClient() client.Client {
+func (c *Cluster) GetKubeClient() client.Client {
 	return c.KubeClient
 }
 
-func (c *Cluster) GetCache() cache.Cache {
+func (c *Cluster) GetKubeCache() cache.Cache {
 	return c.Cache
 }
 
-func (c *Cluster) GetConfig() *rest.Config {
+func (c *Cluster) GetKubeRestConfig() *rest.Config {
 	return c.K8sConfig
 }
 

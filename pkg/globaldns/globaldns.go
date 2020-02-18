@@ -60,7 +60,7 @@ func (g *GlobalDNS) eventLoop() {
 		case eb.ResourceCreateEvent:
 			cluster := e.Resource.(*types.Cluster)
 			g.lock.Lock()
-			err := g.newClusterDNSSyncer(cluster.Name, cluster.KubeProvider.GetCache())
+			err := g.newClusterDNSSyncer(cluster.Name, cluster.KubeProvider.GetKubeCache())
 			if err != nil {
 				log.Warnf("create globaldns syncer for cluster %s failed: %s", cluster.Name, err.Error())
 			}

@@ -132,7 +132,7 @@ func (m *ThresholdManager) eventLoop() {
 		switch e := event.(type) {
 		case eb.ResourceCreateEvent:
 			cluster := e.Resource.(*types.Cluster)
-			if err := createConfigMap(cluster.KubeProvider.GetClient(), ZCloudNamespace, thresholdToConfigmap(m.threshold)); err != nil {
+			if err := createConfigMap(cluster.KubeProvider.GetKubeClient(), ZCloudNamespace, thresholdToConfigmap(m.threshold)); err != nil {
 				log.Warnf("create configmap in cluster %s failed for threshold: %s", cluster.Name, err.Error())
 				alarm.New().
 					Cluster(cluster.Name).

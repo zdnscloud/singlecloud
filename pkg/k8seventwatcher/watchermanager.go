@@ -36,7 +36,7 @@ func (mgr *WatcherManager) eventLoop() *EventWatcher {
 			if ok {
 				log.Warnf("event watcher detect duplicate cluster %s", cluster.Name)
 			} else {
-				watcher, err := NewEventWatcher(cluster.KubeProvider.GetCache(), MaxEventCount)
+				watcher, err := NewEventWatcher(cluster.KubeProvider.GetKubeCache(), MaxEventCount)
 				if err != nil {
 					log.Warnf("create event watcher for cluster %s failed: %s", cluster.Name, err.Error())
 				} else {

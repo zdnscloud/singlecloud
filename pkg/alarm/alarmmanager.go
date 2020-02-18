@@ -48,7 +48,7 @@ func (mgr *AlarmManager) eventLoop() {
 		case eb.ResourceCreateEvent:
 			cluster := e.Resource.(*types.Cluster)
 			mgr.lock.Lock()
-			mgr.clusterEventCache[cluster.Name] = NewEventCache(cluster.Name, cluster.KubeProvider.GetCache(), mgr.cache)
+			mgr.clusterEventCache[cluster.Name] = NewEventCache(cluster.Name, cluster.KubeProvider.GetKubeCache(), mgr.cache)
 			mgr.lock.Unlock()
 		case eb.ResourceDeleteEvent:
 			clusterName := e.Resource.GetID()

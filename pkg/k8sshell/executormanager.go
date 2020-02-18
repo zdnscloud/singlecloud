@@ -36,7 +36,7 @@ func (mgr *ExecutorManager) eventLoop() {
 			if ok {
 				log.Warnf("shell executor detect duplicate cluster %s", cluster.Name)
 			} else {
-				executor, err := exec.New(cluster.KubeProvider.GetConfig(), cluster.KubeProvider.GetClient(), cluster.KubeProvider.GetCache())
+				executor, err := exec.New(cluster.KubeProvider.GetKubeRestConfig(), cluster.KubeProvider.GetKubeClient(), cluster.KubeProvider.GetKubeCache())
 				if err != nil {
 					log.Warnf("create executor for cluster %s failed: %s", cluster.Name, err.Error())
 				} else {
