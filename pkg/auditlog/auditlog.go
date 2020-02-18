@@ -94,7 +94,7 @@ func getCurrentUser(ctx *resource.Context) string {
 
 func genResourcePath(ctx *resource.Context) string {
 	ancestors := resource.GetAncestors(ctx.Resource)
-	ids := []string{"/"}
+	ids := []string{}
 	for _, ancestor := range ancestors {
 		ids = append(ids, ancestor.GetID())
 	}

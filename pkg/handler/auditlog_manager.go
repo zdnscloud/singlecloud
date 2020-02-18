@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/zdnscloud/singlecloud/pkg/auditlog/storage"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gorest/resource"
@@ -25,7 +26,18 @@ func (a *AuditLogManager) List(ctx *resource.Context) interface{} {
 		log.Warnf("list auditlog failed %s", err.Error())
 		return nil
 	}
-
 	sort.Sort(logs)
-	return logs
+
+	user := getCurrentUser(ctx)
+	if isAdmin(user) {
+		return logs
+	}
+
+	returnLogs := []*types.AuditLog{}
+	for _, log := range logs {
+		if log.User == user {
+			returnLogs = append(returnLogs, log)
+		}
+	}
+	return returnLogs
 }
