@@ -33,7 +33,7 @@ func (m *JobManager) Create(ctx *resource.Context) (resource.Resource, *resterro
 
 	namespace := ctx.Resource.GetParent().GetID()
 	job := ctx.Resource.(*types.Job)
-	err := createJob(cluster.KubeClient, namespace, job)
+	err := createJob(cluster.GetKubeClient(), namespace, job)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate job name %s", job.Name))
@@ -53,7 +53,7 @@ func (m *JobManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	k8sJobs, err := getJobs(cluster.KubeClient, namespace)
+	k8sJobs, err := getJobs(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list job info failed:%s", err.Error())
@@ -78,7 +78,7 @@ func (m *JobManager) Get(ctx *resource.Context) resource.Resource {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	job := ctx.Resource.(*types.Job)
-	k8sJob, err := getJob(cluster.KubeClient, namespace, job.GetID())
+	k8sJob, err := getJob(cluster.GetKubeClient(), namespace, job.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get job info failed:%s", err.Error())
@@ -97,7 +97,7 @@ func (m *JobManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	job := ctx.Resource.(*types.Job)
-	if err := deleteJob(cluster.KubeClient, namespace, job.GetID()); err != nil {
+	if err := deleteJob(cluster.GetKubeClient(), namespace, job.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("job %s with namespace %s desn't exist", job.GetID(), namespace))

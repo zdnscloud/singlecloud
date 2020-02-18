@@ -39,7 +39,7 @@ func (m *NodeManager) Get(ctx *restresource.Context) restresource.Resource {
 	}
 
 	node := ctx.Resource.(*types.Node)
-	cli := cluster.KubeClient
+	cli := cluster.GetKubeClient()
 	k8sNode, err := getK8SNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -58,7 +58,7 @@ func (m *NodeManager) List(ctx *restresource.Context) interface{} {
 		return nil
 	}
 
-	nodes, _ := getNodes(cluster.KubeClient)
+	nodes, _ := getNodes(cluster.GetKubeClient())
 	return nodes
 }
 
@@ -229,11 +229,11 @@ func (m *NodeManager) Action(ctx *restresource.Context) (interface{}, *resterr.A
 
 	switch action.Name {
 	case types.NodeCordon:
-		return nil, cordonNode(cluster.KubeClient, node)
+		return nil, cordonNode(cluster.GetKubeClient(), node)
 	case types.NodeUnCordon:
-		return nil, uncordonNode(cluster.KubeClient, node)
+		return nil, uncordonNode(cluster.GetKubeClient(), node)
 	case types.NodeDrain:
-		return nil, drainNode(cluster.KubeClient, node)
+		return nil, drainNode(cluster.GetKubeClient(), node)
 	default:
 		return nil, nil
 	}

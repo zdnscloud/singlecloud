@@ -46,7 +46,7 @@ func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, 
 		return
 	}
 
-	url, err := url.Parse(cluster.K8sConfig.Host)
+	url, err := url.Parse(cluster.GetKubeRestConfig().Host)
 	if err != nil {
 		log.Warnf("build tap request url failed: %s", err.Error())
 		return

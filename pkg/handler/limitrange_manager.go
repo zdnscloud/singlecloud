@@ -33,7 +33,7 @@ func (m *LimitRangeManager) Create(ctx *resource.Context) (resource.Resource, *r
 
 	namespace := ctx.Resource.GetParent().GetID()
 	limitRange := ctx.Resource.(*types.LimitRange)
-	err := createLimitRange(cluster.KubeClient, namespace, limitRange)
+	err := createLimitRange(cluster.GetKubeClient(), namespace, limitRange)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate limitRange name %s", limitRange.Name))
@@ -53,7 +53,7 @@ func (m *LimitRangeManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	k8sLimitRanges, err := getLimitRanges(cluster.KubeClient, namespace)
+	k8sLimitRanges, err := getLimitRanges(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list limitRange info failed:%s", err.Error())
@@ -76,7 +76,7 @@ func (m *LimitRangeManager) Get(ctx *resource.Context) resource.Resource {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	limitRange := ctx.Resource.(*types.LimitRange)
-	k8sLimitRange, err := getLimitRange(cluster.KubeClient, namespace, limitRange.GetID())
+	k8sLimitRange, err := getLimitRange(cluster.GetKubeClient(), namespace, limitRange.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get limitRange info failed:%s", err.Error())
@@ -95,7 +95,7 @@ func (m *LimitRangeManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	limitRange := ctx.Resource.(*types.LimitRange)
-	if err := deleteLimitRange(cluster.KubeClient, namespace, limitRange.GetID()); err != nil {
+	if err := deleteLimitRange(cluster.GetKubeClient(), namespace, limitRange.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("limitRange %s with namespace %s desn't exist", limitRange.GetID(), namespace))

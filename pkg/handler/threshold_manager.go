@@ -166,9 +166,9 @@ func updateThreshold(clusters *ClusterManager, threshold *types.Threshold, table
 	for _, c := range clusters.zkeManager.ListReady() {
 		sccm := thresholdToConfigmap(threshold)
 		sccm.SetID(sccm.Name)
-		if err := updateConfigMap(c.KubeClient, ZCloudNamespace, sccm); err != nil {
+		if err := updateConfigMap(c.GetKubeClient(), ZCloudNamespace, sccm); err != nil {
 			if apierrors.IsNotFound(err) {
-				if err := createConfigMap(c.KubeClient, ZCloudNamespace, sccm); err != nil {
+				if err := createConfigMap(c.GetKubeClient(), ZCloudNamespace, sccm); err != nil {
 					return fmt.Errorf("cluster %s doesn't have threshold, create it first but failed: %v", c.Name, err)
 				}
 			} else {

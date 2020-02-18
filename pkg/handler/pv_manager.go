@@ -30,7 +30,7 @@ func (m *PersistentVolumeManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
-	k8sPersistentVolumes, err := getPersistentVolumes(cluster.KubeClient)
+	k8sPersistentVolumes, err := getPersistentVolumes(cluster.GetKubeClient())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list persistentvolume info failed:%s", err.Error())
@@ -52,7 +52,7 @@ func (m PersistentVolumeManager) Get(ctx *resource.Context) resource.Resource {
 	}
 
 	pv := ctx.Resource.(*types.PersistentVolume)
-	k8sPersistentVolume, err := getPersistentVolume(cluster.KubeClient, pv.GetID())
+	k8sPersistentVolume, err := getPersistentVolume(cluster.GetKubeClient(), pv.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get persistentvolume info failed:%s", err.Error())
@@ -70,7 +70,7 @@ func (m PersistentVolumeManager) Delete(ctx *resource.Context) *resterror.APIErr
 	}
 
 	pv := ctx.Resource.(*types.PersistentVolume)
-	err := deletePersistentVolume(cluster.KubeClient, pv.GetID())
+	err := deletePersistentVolume(cluster.GetKubeClient(), pv.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,

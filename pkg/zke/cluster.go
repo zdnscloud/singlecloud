@@ -25,9 +25,9 @@ type Cluster struct {
 	Name           string
 	CreateTime     time.Time
 	DeleteTime     time.Time
-	KubeClient     client.Client
-	Cache          cache.Cache
-	K8sConfig      *rest.Config
+	kubeClient     client.Client
+	cache          cache.Cache
+	k8sConfig      *rest.Config
 	stopCh         chan struct{}
 	config         *zketypes.ZKEConfig
 	logCh          chan string
@@ -41,15 +41,15 @@ type Cluster struct {
 }
 
 func (c *Cluster) GetKubeClient() client.Client {
-	return c.KubeClient
+	return c.kubeClient
 }
 
 func (c *Cluster) GetKubeCache() cache.Cache {
-	return c.Cache
+	return c.cache
 }
 
 func (c *Cluster) GetKubeRestConfig() *rest.Config {
-	return c.K8sConfig
+	return c.k8sConfig
 }
 
 type AlarmCluster struct {
@@ -132,7 +132,7 @@ func (c *Cluster) Init(kubeConfig string) error {
 	if err != nil {
 		return fmt.Errorf("New cluster %s gok8s client failed %s", c.Name, err.Error())
 	}
-	c.KubeClient = kubeClient
+	c.kubeClient = kubeClient
 	if err := c.setCache(k8sConfig); err != nil {
 		return fmt.Errorf("set cluster %s cache failed %s", c.Name, err.Error())
 	}
@@ -146,14 +146,14 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	}
 	c.KubeHttpClient = httpClient
 	c.stopCh = make(chan struct{})
-	c.K8sConfig = k8sConfig
+	c.k8sConfig = k8sConfig
 	cache, err := cache.New(k8sConfig, cache.Options{})
 	if err != nil {
 		return err
 	}
 	go cache.Start(c.stopCh)
 	cache.WaitForCacheSync(c.stopCh)
-	c.Cache = cache
+	c.cache = cache
 	return nil
 }
 
@@ -193,7 +193,7 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 		return
 	}
 
-	c.KubeClient = kubeClient
+	c.kubeClient = kubeClient
 	if err := c.setCache(k8sConfig); err != nil {
 		c.event(CreateFailedEvent, mgr, state, err.Error())
 		return
@@ -238,7 +238,7 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 	if state.Created {
 		c.event(UpdateCompletedEvent, mgr, state, "")
 	} else {
-		c.KubeClient = k8sClient
+		c.kubeClient = k8sClient
 		if err := c.setCache(k8sConfig); err != nil {
 			c.event(CreateFailedEvent, mgr, state, err.Error())
 		}

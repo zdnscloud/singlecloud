@@ -120,7 +120,7 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 }
 
 func (m *ApplicationManager) createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace string, app *types.Application, isSystemChart bool) error {
-	if hasNamespace(cluster.KubeClient, namespace) == false {
+	if hasNamespace(cluster.GetKubeClient(), namespace) == false {
 		return fmt.Errorf("namespace %s is not found", namespace)
 	}
 
@@ -134,7 +134,7 @@ func (m *ApplicationManager) createApplication(ctx *resource.Context, cluster *z
 		return fmt.Errorf("can`t use application interface create systemchart application with chart %s", app.ChartName)
 	}
 
-	if clusterVersion, err := cluster.KubeClient.ServerVersion(); err != nil {
+	if clusterVersion, err := cluster.GetKubeClient().ServerVersion(); err != nil {
 		return fmt.Errorf("get cluster %s version failed: %s", cluster.Name, err.Error())
 	} else {
 		DefaultCapabilities.KubeVersion.Version = clusterVersion.GitVersion
@@ -167,7 +167,7 @@ func (m *ApplicationManager) createApplication(ctx *resource.Context, cluster *z
 
 	urls := strings.SplitAfterN(ctx.Request.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", cluster.Name), 2)
 	go func() {
-		if err := asyncCreateApplication(table, cluster.KubeClient, isAdmin(getCurrentUser(ctx)), namespace,
+		if err := asyncCreateApplication(table, cluster.GetKubeClient(), isAdmin(getCurrentUser(ctx)), namespace,
 			urls[0], app, crdManifests); err != nil {
 			log.Warnf("create application failed: %s", err.Error())
 			publishApplicationEvent(cluster.Name, namespace, app.Name, createFailedReason, err.Error())
@@ -469,7 +469,7 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	var apps types.Applications
 	for _, app := range allApps {
 		if app.SystemChart == false {
-			getAppResources(cluster.KubeClient, namespace, app)
+			getAppResources(cluster.GetKubeClient(), namespace, app)
 			apps = append(apps, genReturnApplication(app))
 		}
 	}
@@ -605,7 +605,7 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 
-	getAppResources(cluster.KubeClient, namespace, app)
+	getAppResources(cluster.GetKubeClient(), namespace, app)
 	return genReturnApplication(app)
 }
 
@@ -671,7 +671,7 @@ func deleteApplication(table kvzoo.Table, cluster *zke.Cluster, namespace, appNa
 	}
 
 	go func() {
-		if err := asyncDeleteApplication(table, cluster.KubeClient, namespace, app); err != nil {
+		if err := asyncDeleteApplication(table, cluster.GetKubeClient(), namespace, app); err != nil {
 			log.Warnf("delete application failed: %s", err.Error())
 			publishApplicationEvent(cluster.Name, namespace, appName, deleteFailedReason, err.Error())
 			updateAppStatusToFailed(table, cluster.Name, namespace, app)

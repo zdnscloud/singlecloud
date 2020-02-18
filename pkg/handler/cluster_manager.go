@@ -98,7 +98,7 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 		return sc
 	}
 
-	version, err := zkeCluster.KubeClient.ServerVersion()
+	version, err := zkeCluster.GetKubeClient().ServerVersion()
 	if err != nil {
 		zkeCluster.Event(zke.GetInfoFailedEvent)
 		return sc
@@ -106,7 +106,7 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 	zkeCluster.Event(zke.GetInfoSucceedEvent)
 	sc.Version = version.GitVersion
 
-	nodes, err := getNodes(zkeCluster.KubeClient)
+	nodes, err := getNodes(zkeCluster.GetKubeClient())
 	if err != nil {
 		return sc
 	}
@@ -225,10 +225,10 @@ type StorageNodeListener struct {
 }
 
 func (m StorageNodeListener) IsStorageNode(cluster *zke.Cluster, node string) (bool, error) {
-	if cluster.KubeClient == nil {
+	if cluster.GetKubeClient() == nil {
 		return false, fmt.Errorf("cluster %s kubeClient is nil", cluster.Name)
 	}
-	storageClusters, err := getStorageClusters(cluster.KubeClient)
+	storageClusters, err := getStorageClusters(cluster.GetKubeClient())
 	if err != nil {
 		return true, err
 	}

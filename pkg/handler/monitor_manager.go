@@ -77,7 +77,7 @@ func createSysApplication(ctx *restresource.Context, appManager *ApplicationMana
 		return resterr.NewAPIError(resterr.DuplicateResource, fmt.Sprintf("cluster %s %s has exist", cluster.Name, chartName))
 	}
 
-	if !isStorageClassExist(cluster.KubeClient, requiredStorageClass) {
+	if !isStorageClassExist(cluster.GetKubeClient(), requiredStorageClass) {
 		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
 	}
 

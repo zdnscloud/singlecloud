@@ -81,11 +81,11 @@ func (m *FluentBitConfigManager) Create(ctx *resource.Context) (resource.Resourc
 	conf := ctx.Resource.(*types.FluentBitConfig)
 	replenishConf(ctx, conf)
 
-	cm, err := getFluentBitConfigMap(cluster.KubeClient)
+	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
 	}
-	if err := createConfig(cluster.KubeClient, conf, cm); err != nil {
+	if err := createConfig(cluster.GetKubeClient(), conf, cm); err != nil {
 		return nil, resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
 	}
 	conf.SetID(conf.Name)
@@ -100,11 +100,11 @@ func (m *FluentBitConfigManager) Update(ctx *resource.Context) (resource.Resourc
 	conf := ctx.Resource.(*types.FluentBitConfig)
 	replenishConf(ctx, conf)
 
-	cm, err := getFluentBitConfigMap(cluster.KubeClient)
+	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
 	}
-	if err := updateConfig(cluster.KubeClient, conf, cm); err != nil {
+	if err := updateConfig(cluster.GetKubeClient(), conf, cm); err != nil {
 		return nil, resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
 	}
 	return conf, nil
@@ -120,11 +120,11 @@ func (m *FluentBitConfigManager) List(ctx *resource.Context) interface{} {
 	ownerType := ctx.Resource.GetParent().GetType()
 	ownerName := ctx.Resource.GetParent().GetID()
 
-	cm, err := getFluentBitConfigMap(cluster.KubeClient)
+	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
 		log.Warnf("list fluent-bit config failed %s", err.Error())
 	}
-	fbConfs, err := getConfigs(cluster.KubeClient, cm, namespace, ownerType, ownerName)
+	fbConfs, err := getConfigs(cluster.GetKubeClient(), cm, namespace, ownerType, ownerName)
 	if err != nil {
 		log.Warnf("list fluent-bit config failed %s", err.Error())
 	}
@@ -139,11 +139,11 @@ func (m FluentBitConfigManager) Get(ctx *resource.Context) resource.Resource {
 	conf := ctx.Resource.(*types.FluentBitConfig)
 	replenishConf(ctx, conf)
 
-	cm, err := getFluentBitConfigMap(cluster.KubeClient)
+	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
 		log.Warnf("get fluent-bit config %s failed %s", conf.GetID(), err.Error())
 	}
-	fbConf, err := getConfig(cluster.KubeClient, conf.GetID(), cm)
+	fbConf, err := getConfig(cluster.GetKubeClient(), conf.GetID(), cm)
 	if err != nil {
 		log.Warnf("get fluent-bit config %s failed %s", conf.GetID(), err.Error())
 	}
@@ -156,11 +156,11 @@ func (m FluentBitConfigManager) Delete(ctx *resource.Context) *resterror.APIErro
 		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 	conf := ctx.Resource.(*types.FluentBitConfig)
-	cm, err := getFluentBitConfigMap(cluster.KubeClient)
+	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
 	}
-	if err := deleteConfig(cluster.KubeClient, conf.GetID(), cm); err != nil {
+	if err := deleteConfig(cluster.GetKubeClient(), conf.GetID(), cm); err != nil {
 		return resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
 	}
 	return nil

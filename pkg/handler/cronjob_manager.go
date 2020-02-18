@@ -34,7 +34,7 @@ func (m *CronJobManager) Create(ctx *resource.Context) (resource.Resource, *rest
 
 	namespace := ctx.Resource.GetParent().GetID()
 	cronJob := ctx.Resource.(*types.CronJob)
-	err := createCronJob(cluster.KubeClient, namespace, cronJob)
+	err := createCronJob(cluster.GetKubeClient(), namespace, cronJob)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate cronJob name %s", cronJob.Name))
@@ -54,7 +54,7 @@ func (m *CronJobManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	k8sCronJobs, err := getCronJobs(cluster.KubeClient, namespace)
+	k8sCronJobs, err := getCronJobs(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list cronJob info failed:%s", err.Error())
@@ -77,7 +77,7 @@ func (m *CronJobManager) Get(ctx *resource.Context) resource.Resource {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	cronJob := ctx.Resource.(*types.CronJob)
-	k8sCronJob, err := getCronJob(cluster.KubeClient, namespace, cronJob.GetID())
+	k8sCronJob, err := getCronJob(cluster.GetKubeClient(), namespace, cronJob.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get cronJob info failed:%s", err.Error())
@@ -96,7 +96,7 @@ func (m *CronJobManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	cronJob := ctx.Resource.(*types.CronJob)
-	if err := deleteCronJob(cluster.KubeClient, namespace, cronJob.GetID()); err != nil {
+	if err := deleteCronJob(cluster.GetKubeClient(), namespace, cronJob.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("cronJob %s with namespace %s desn't exist", cronJob.GetID(), namespace))

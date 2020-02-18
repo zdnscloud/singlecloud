@@ -24,7 +24,7 @@ func (m *ClusterManager) openPodLog(cluster *zke.Cluster, namespace, pod, contai
 	//if set client timeout, Stream will be timed out too
 	//so check whether there is any log first
 	oneline := int64(1)
-	podClient, _ := cluster.KubeClient.RestClientForObject(&corev1.Pod{}, LogRequestTimeout)
+	podClient, _ := cluster.GetKubeClient().RestClientForObject(&corev1.Pod{}, LogRequestTimeout)
 	opts := corev1.PodLogOptions{
 		Follow:     false,
 		Container:  container,
@@ -49,7 +49,7 @@ func (m *ClusterManager) openPodLog(cluster *zke.Cluster, namespace, pod, contai
 		return nil, io.EOF
 	}
 
-	podClient, _ = cluster.KubeClient.RestClientForObject(&corev1.Pod{}, 0)
+	podClient, _ = cluster.GetKubeClient().RestClientForObject(&corev1.Pod{}, 0)
 	opts = corev1.PodLogOptions{
 		Follow:     true,
 		Container:  container,

@@ -17,8 +17,8 @@ import (
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/kvzoo"
-	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/db"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const UserQuotaTable = "userquota"
@@ -228,7 +228,7 @@ func (m *UserQuotaManager) Delete(ctx *resource.Context) *resterror.APIError {
 			return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 		}
 
-		if err := deleteNamespace(cluster.KubeClient, quota.Namespace); err != nil && apierrors.IsNotFound(err) == false {
+		if err := deleteNamespace(cluster.GetKubeClient(), quota.Namespace); err != nil && apierrors.IsNotFound(err) == false {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
 		}
 	}
@@ -312,22 +312,22 @@ func (m *UserQuotaManager) approval(ctx *resource.Context) *resterror.APIError {
 		},
 	}
 
-	exists := hasNamespace(cluster.KubeClient, quota.Namespace)
+	exists := hasNamespace(cluster.GetKubeClient(), quota.Namespace)
 	if exists == false {
-		if err := createNamespace(cluster.KubeClient, quota.Namespace); err != nil {
+		if err := createNamespace(cluster.GetKubeClient(), quota.Namespace); err != nil {
 			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("create user %s namespace %s failed %s",
 					quota.UserName, quota.Namespace, err.Error()))
 		}
 
-		if err := createResourceQuota(cluster.KubeClient, quota.Namespace, resourceQuota); err != nil {
-			deleteNamespace(cluster.KubeClient, quota.Namespace)
+		if err := createResourceQuota(cluster.GetKubeClient(), quota.Namespace, resourceQuota); err != nil {
+			deleteNamespace(cluster.GetKubeClient(), quota.Namespace)
 			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("create user %s resourcequota with namespace %s failed %s",
 					quota.UserName, quota.Namespace, err.Error()))
 		}
 	} else {
-		oldK8sResourceQuota, err = updateResourceQuota(cluster.KubeClient, quota.Namespace, resourceQuota.Limits)
+		oldK8sResourceQuota, err = updateResourceQuota(cluster.GetKubeClient(), quota.Namespace, resourceQuota.Limits)
 		if err != nil {
 			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("update user %s resourcequota with namespace %s failed %s",
@@ -344,9 +344,9 @@ func (m *UserQuotaManager) approval(ctx *resource.Context) *resterror.APIError {
 
 	rollbackResource := func() {
 		if exists == false {
-			deleteNamespace(cluster.KubeClient, quota.Namespace)
+			deleteNamespace(cluster.GetKubeClient(), quota.Namespace)
 		} else {
-			cluster.KubeClient.Update(context.TODO(), oldK8sResourceQuota)
+			cluster.GetKubeClient().Update(context.TODO(), oldK8sResourceQuota)
 		}
 	}
 
