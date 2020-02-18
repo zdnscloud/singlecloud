@@ -49,13 +49,9 @@ func (d *DefaultDriver) initDB() error {
 	}
 
 	sort.Sort(logs)
-	firstID, err := strconv.ParseUint(logs[0].ID, 10, 64)
-	if err != nil {
-		return err
-	}
 
-	d.firstID = firstID
-	d.currentID = firstID + uint64(len(logs)) - 1
+	d.firstID = logs[0].UID
+	d.currentID = logs[len(logs)-1].UID
 	return nil
 }
 
@@ -93,6 +89,7 @@ func (d *DefaultDriver) Add(a *types.AuditLog) error {
 	}
 
 	atomic.AddUint64(&d.firstID, 1)
+	a.UID = d.currentID + 1
 	a.SetID(uintToStr(d.currentID + 1))
 	if err := addToDB(d.table, a); err != nil {
 		return err
