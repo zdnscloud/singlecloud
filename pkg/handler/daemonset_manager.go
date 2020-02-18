@@ -15,6 +15,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -155,6 +156,7 @@ func (m *DaemonSetManager) Delete(ctx *resource.Context) *resterror.APIError {
 	if delete, ok := k8sDaemonSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
 		deleteWorkLoadPVCs(cluster.KubeClient, namespace, k8sDaemonSet.Spec.Template.Spec.Volumes)
 	}
+	eb.PublishResourceDeleteEvent(daemonSet)
 	return nil
 }
 

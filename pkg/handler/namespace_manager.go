@@ -17,8 +17,9 @@ import (
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/kvzoo"
-	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/db"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
@@ -136,6 +137,7 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
 		}
 	} else {
+		eb.PublishResourceDeleteEvent(namespace)
 		if err := clearTransportLayerIngress(cluster.KubeClient, namespace.GetID()); err != nil {
 			log.Warnf("clean udp ingress for namespace %s failed:%s", namespace.GetID(), err.Error())
 		}

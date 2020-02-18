@@ -5,7 +5,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const MaxEventCount = 4096
@@ -19,7 +19,7 @@ type WatcherManager struct {
 func New() *WatcherManager {
 	mgr := &WatcherManager{
 		watchers:       make(map[string]*EventWatcher),
-		clusterEventCh: eb.GetEventBus().Sub(eb.ClusterEvent),
+		clusterEventCh: eb.SubscribeResourceEvent(types.Cluster{}),
 	}
 	go mgr.eventLoop()
 	return mgr
@@ -29,14 +29,14 @@ func (mgr *WatcherManager) eventLoop() *EventWatcher {
 	for {
 		event := <-mgr.clusterEventCh
 		switch e := event.(type) {
-		case zke.AddCluster:
-			cluster := e.Cluster
+		case eb.ResourceCreateEvent:
+			cluster := e.Resource.(*types.Cluster)
 			mgr.lock.Lock()
 			_, ok := mgr.watchers[cluster.Name]
 			if ok {
 				log.Warnf("event watcher detect duplicate cluster %s", cluster.Name)
 			} else {
-				watcher, err := NewEventWatcher(cluster.Cache, MaxEventCount)
+				watcher, err := NewEventWatcher(cluster.KubeProvider.GetCache(), MaxEventCount)
 				if err != nil {
 					log.Warnf("create event watcher for cluster %s failed: %s", cluster.Name, err.Error())
 				} else {
@@ -44,15 +44,15 @@ func (mgr *WatcherManager) eventLoop() *EventWatcher {
 				}
 			}
 			mgr.lock.Unlock()
-		case zke.DeleteCluster:
-			cluster := e.Cluster
+		case eb.ResourceDeleteEvent:
+			clusterName := e.Resource.GetID()
 			mgr.lock.Lock()
-			watcher, ok := mgr.watchers[cluster.Name]
+			watcher, ok := mgr.watchers[clusterName]
 			if ok {
 				watcher.Stop()
-				delete(mgr.watchers, cluster.Name)
+				delete(mgr.watchers, clusterName)
 			} else {
-				log.Warnf("event watcher unknown cluster %s", cluster.Name)
+				log.Warnf("event watcher unknown cluster %s", clusterName)
 			}
 			mgr.lock.Unlock()
 		}

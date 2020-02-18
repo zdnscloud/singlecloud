@@ -8,10 +8,8 @@ import (
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
-	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 
@@ -48,7 +46,6 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 	}
 
 	clusterMgr.zkeManager = zkeMgr
-	go clusterMgr.eventLoop()
 	return clusterMgr, nil
 }
 

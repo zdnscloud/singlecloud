@@ -14,10 +14,8 @@ import (
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/db"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 const (
@@ -41,7 +39,7 @@ type ThresholdManager struct {
 func newThresholdManager(clusters *ClusterManager) (*ThresholdManager, error) {
 	m := &ThresholdManager{
 		clusters:       clusters,
-		clusterEventCh: eb.GetEventBus().Sub(eventbus.ClusterEvent),
+		clusterEventCh: eb.SubscribeResourceEvent(types.Cluster{}),
 	}
 	if err := m.initThreshold(); err != nil {
 		return nil, err
@@ -132,9 +130,9 @@ func (m *ThresholdManager) eventLoop() {
 	for {
 		event := <-m.clusterEventCh
 		switch e := event.(type) {
-		case zke.AddCluster:
-			cluster := e.Cluster
-			if err := createConfigMap(cluster.KubeClient, ZCloudNamespace, thresholdToConfigmap(m.threshold)); err != nil {
+		case eb.ResourceCreateEvent:
+			cluster := e.Resource.(*types.Cluster)
+			if err := createConfigMap(cluster.KubeProvider.GetClient(), ZCloudNamespace, thresholdToConfigmap(m.threshold)); err != nil {
 				log.Warnf("create configmap in cluster %s failed for threshold: %s", cluster.Name, err.Error())
 				alarm.New().
 					Cluster(cluster.Name).

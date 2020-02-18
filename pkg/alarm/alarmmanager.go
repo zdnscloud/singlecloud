@@ -7,10 +7,8 @@ import (
 	"github.com/zdnscloud/cement/log"
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 var alarmManager *AlarmManager
@@ -43,23 +41,23 @@ func NewAlarmManager() error {
 }
 
 func (mgr *AlarmManager) eventLoop() {
-	clusterEventCh := eb.GetEventBus().Sub(eventbus.ClusterEvent)
+	clusterEventCh := eb.SubscribeResourceEvent(types.Cluster{})
 	for {
 		event := <-clusterEventCh
 		switch e := event.(type) {
-		case zke.AddCluster:
-			cluster := e.Cluster
+		case eb.ResourceCreateEvent:
+			cluster := e.Resource.(*types.Cluster)
 			mgr.lock.Lock()
-			mgr.clusterEventCache[cluster.Name] = NewEventCache(cluster.Name, cluster.Cache, mgr.cache)
+			mgr.clusterEventCache[cluster.Name] = NewEventCache(cluster.Name, cluster.KubeProvider.GetCache(), mgr.cache)
 			mgr.lock.Unlock()
-		case zke.DeleteCluster:
-			cluster := e.Cluster
+		case eb.ResourceDeleteEvent:
+			clusterName := e.Resource.GetID()
 			mgr.lock.Lock()
-			if cache, ok := mgr.clusterEventCache[cluster.Name]; ok {
+			if cache, ok := mgr.clusterEventCache[clusterName]; ok {
 				cache.Stop()
-				delete(mgr.clusterEventCache, cluster.Name)
+				delete(mgr.clusterEventCache, clusterName)
 			} else {
-				log.Warnf("can not found event cache for cluster %s", cluster.Name)
+				log.Warnf("can not found event cache for cluster %s", clusterName)
 			}
 			mgr.lock.Unlock()
 		}

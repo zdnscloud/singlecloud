@@ -16,6 +16,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -150,6 +151,7 @@ func (m *StatefulSetManager) Delete(ctx *resource.Context) *resterror.APIError {
 	if delete, ok := k8sStatefulSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
 		deleteWorkLoadPVCs(cluster.KubeClient, namespace, volumes)
 	}
+	eb.PublishResourceDeleteEvent(statefulset)
 	return nil
 }
 
