@@ -40,6 +40,14 @@ type Cluster struct {
 	kubeHttpClient *http.Client
 }
 
+func (c *Cluster) GetCreationTimestamp() time.Time {
+	return c.createTime
+}
+
+func (c *Cluster) GetDeletionTimestamp() time.Time {
+	return c.deleteTime
+}
+
 func (c *Cluster) GetKubeClient() client.Client {
 	return c.kubeClient
 }
