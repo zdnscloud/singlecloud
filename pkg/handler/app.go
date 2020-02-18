@@ -11,6 +11,7 @@ import (
 	"github.com/zdnscloud/gorest/resource/schema"
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/alarm"
+	"github.com/zdnscloud/singlecloud/pkg/auditlog"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -88,6 +89,12 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.SvcMeshPod{}, newSvcMeshPodManager(a.clusterManager))
 	schemas.MustImport(&Version, types.Metric{}, newMetricManager(a.clusterManager))
 
+	auditLogger, err := auditlog.New()
+	if err != nil {
+		return err
+	}
+	schemas.MustImport(&Version, types.AuditLog{}, newAuditLogManager(auditLogger.Storage))
+
 	userQuotaManager, err := newUserQuotaManager(a.clusterManager)
 	if err != nil {
 		return err
@@ -114,6 +121,8 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.HorizontalPodAutoscaler{}, newHorizontalPodAutoscalerManager(a.clusterManager))
 	server := gorest.NewAPIServer(schemas)
 	server.Use(a.clusterManager.authorizationHandler())
+	server.Use(auditLogger.AuditHandler())
+
 	adaptor.RegisterHandler(router, server, schemas.GenerateResourceRoute())
 	return nil
 }

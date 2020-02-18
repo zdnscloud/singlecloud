@@ -261,6 +261,7 @@ github.com/zdnscloud/cement v0.0.0-20191029103721-28c1280e43f2/go.mod h1:sV8GqHx
 github.com/zdnscloud/cement v0.0.0-20191114151602-e70d68aebdad/go.mod h1:sV8GqHxkOhXAV8DUfOw93QyYjqsRlFf4A+XVpEuipn4=
 github.com/zdnscloud/cement v0.0.0-20200205075737-175eefa2a628 h1:DgH7ntrO6yRlhkKbwmkbtuq0x53dvJshV/FpkwrXgrQ=
 github.com/zdnscloud/cement v0.0.0-20200205075737-175eefa2a628/go.mod h1:4LO5zUFsB9ne6BHQLy0DzXx2+kl7Jfc4eLxidz4oMJA=
+github.com/zdnscloud/cement v0.0.0-20200215033751-fc7f19bf3e33 h1:9hQkD3mi2f5JLw1YROQRrYoXp8LM1FMZd9EC3oe0LgU=
 github.com/zdnscloud/g53 v0.0.0-20191119101753-eb2b1813bd52 h1:orJNDPgNlEDDLBIl5wK6veGcrkkD7SSd6lXGl95Mx4M=
 github.com/zdnscloud/g53 v0.0.0-20191119101753-eb2b1813bd52/go.mod h1:GrZWv638nfn+7y+E5OkKepRuyOeerwTPCNAtAQAdtec=
 github.com/zdnscloud/gok8s v0.0.0-20191015012744-bdb742d065f7/go.mod h1:KJFI/SWKXc6zk0yKVqQLWjz0OQS/wPHoib8GR1bqBBk=
@@ -271,6 +272,8 @@ github.com/zdnscloud/goproxy v0.0.0-20200205075939-521cea33b942 h1:zPvZ2xjUTF1le
 github.com/zdnscloud/goproxy v0.0.0-20200205075939-521cea33b942/go.mod h1:bYzZ94MQVAg/3yx2aXzhDptUUC+A8ec868cK+efHDMc=
 github.com/zdnscloud/gorest v0.0.0-20200212094753-5f6fe59d0aa1 h1:ANk9fFJBgH/7FTIEfNRv3pEcldpS9tLSE6j28m/iTZk=
 github.com/zdnscloud/gorest v0.0.0-20200212094753-5f6fe59d0aa1/go.mod h1:vPKTIiM0bU8J5FqX1QEX1f/ZPdMAvgMIcaVEJvKSms8=
+github.com/zdnscloud/gorest v0.0.0-20200214104715-5a3ab398c1a1 h1:DnQ+Gxmk9SOaqQ1q6rD0CyvtohenkkNpaAxDOtJGSaU=
+github.com/zdnscloud/gorest v0.0.0-20200214104715-5a3ab398c1a1/go.mod h1:vPKTIiM0bU8J5FqX1QEX1f/ZPdMAvgMIcaVEJvKSms8=
 github.com/zdnscloud/immense v0.0.0-20200205121904-cd245f7be969 h1:yhVnTsaPYctRWXeBeh4RflHz4FB6ZITW7ZvHrXQhHwk=
 github.com/zdnscloud/immense v0.0.0-20200205121904-cd245f7be969/go.mod h1:5i8VC+pf4D5CdSnq9fCZvwMBkkEbOSk8BxZ/4kqzDdc=
 github.com/zdnscloud/iniconfig v0.0.0-20191105013537-c8624280493d h1:0A6CihyYjFuncvzsldCRGICZy6VxcoQ9DEOblWLfb7w=
