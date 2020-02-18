@@ -35,8 +35,8 @@ func (m *KubeConfigManager) Get(ctx *restresource.Context) restresource.Resource
 		KubeConfig: kubeConfig,
 	}
 	k.SetID(id)
-	k.SetCreationTimestamp(cluster.CreateTime)
-	k.SetDeletionTimestamp(cluster.DeleteTime)
+	k.SetCreationTimestamp(cluster.ToScCluster().GetCreationTimestamp())
+	k.SetDeletionTimestamp(cluster.ToScCluster().GetDeletionTimestamp())
 	return k
 }
 
@@ -58,7 +58,7 @@ func (m *KubeConfigManager) List(ctx *restresource.Context) interface{} {
 		KubeConfig: kubeConfig,
 	}
 	k.SetID(k.User)
-	k.SetCreationTimestamp(cluster.CreateTime)
-	k.SetDeletionTimestamp(cluster.DeleteTime)
+	k.SetCreationTimestamp(cluster.ToScCluster().GetCreationTimestamp())
+	k.SetDeletionTimestamp(cluster.ToScCluster().GetDeletionTimestamp())
 	return []*types.KubeConfig{k}
 }

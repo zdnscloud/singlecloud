@@ -23,8 +23,8 @@ import (
 
 type Cluster struct {
 	Name           string
-	CreateTime     time.Time
-	DeleteTime     time.Time
+	createTime     time.Time
+	deleteTime     time.Time
 	kubeClient     client.Client
 	cache          cache.Cache
 	k8sConfig      *rest.Config
@@ -37,7 +37,7 @@ type Cluster struct {
 	lock           sync.Mutex
 	fsm            *fsm.FSM
 	scVersion      string
-	KubeHttpClient *http.Client
+	kubeHttpClient *http.Client
 }
 
 func (c *Cluster) GetKubeClient() client.Client {
@@ -50,6 +50,10 @@ func (c *Cluster) GetKubeCache() cache.Cache {
 
 func (c *Cluster) GetKubeRestConfig() *rest.Config {
 	return c.k8sConfig
+}
+
+func (c *Cluster) GetKubeHttpClient() *http.Client {
+	return c.kubeHttpClient
 }
 
 type AlarmCluster struct {
@@ -144,7 +148,7 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	if err != nil {
 		return err
 	}
-	c.KubeHttpClient = httpClient
+	c.kubeHttpClient = httpClient
 	c.stopCh = make(chan struct{})
 	c.k8sConfig = k8sConfig
 	cache, err := cache.New(k8sConfig, cache.Options{})
@@ -317,8 +321,8 @@ func (c *Cluster) ToScCluster() *types.Cluster {
 	}
 
 	sc.SetID(c.Name)
-	sc.SetCreationTimestamp(c.CreateTime)
-	sc.SetDeletionTimestamp(c.DeleteTime)
+	sc.SetCreationTimestamp(c.createTime)
+	sc.SetDeletionTimestamp(c.deleteTime)
 	sc.Status = c.getStatus()
 	sc.KubeProvider = c
 	return sc

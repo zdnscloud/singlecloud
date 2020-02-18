@@ -53,7 +53,7 @@ func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, 
 	}
 
 	url.Path = fmt.Sprintf(TapApiURLPath, ns, kind, name)
-	resp, err := sm.HandleRequest(cluster.KubeHttpClient, url, req)
+	resp, err := sm.HandleRequest(cluster.GetKubeHttpClient(), url, req)
 	if err != nil {
 		log.Warnf("handle tap request failed: %s", err.Error())
 		return

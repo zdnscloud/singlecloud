@@ -89,7 +89,7 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 	}
 
 	cluster := newCluster(typesCluster.Name, types.CSCreating)
-	cluster.CreateTime = state.CreateTime
+	cluster.createTime = state.CreateTime
 	cluster.config = config
 	cluster.scVersion = m.scVersion
 	m.add(cluster)
@@ -228,7 +228,7 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 	}
 
 	tm := time.Now()
-	toDelete.DeleteTime = tm
+	toDelete.deleteTime = tm
 	state.DeleteTime = tm
 	if err := createOrUpdateClusterFromDB(id, state, m.dbTable); err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
@@ -261,7 +261,7 @@ func (m *ZKEManager) loadDB() error {
 		if v.Created {
 			cluster := newCluster(k, types.CSRunning)
 			cluster.config = v.ZKEConfig
-			cluster.CreateTime = v.CreateTime
+			cluster.createTime = v.CreateTime
 			cluster.scVersion = v.ScVersion
 			if err := cluster.Init(v.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config); err != nil {
 				log.Warnf("init cluster %s failed %s", k, err.Error())
@@ -272,7 +272,7 @@ func (m *ZKEManager) loadDB() error {
 		} else {
 			cluster := newCluster(k, types.CSCreateFailed)
 			cluster.config = v.ZKEConfig
-			cluster.CreateTime = v.CreateTime
+			cluster.createTime = v.CreateTime
 			cluster.scVersion = v.ScVersion
 			m.add(cluster)
 		}
