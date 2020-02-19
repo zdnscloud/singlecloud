@@ -14,6 +14,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -106,6 +107,8 @@ func (m *ServiceManager) Delete(ctx *resource.Context) *resterror.APIError {
 		} else {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete service failed %s", err.Error()))
 		}
+	} else {
+		eventbus.PublishResourceDeleteEvent(service)
 	}
 	return nil
 }
@@ -130,7 +133,7 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 
 	var ports []corev1.ServicePort
 	for _, p := range service.ExposedPorts {
-		protocol, err := scProtocolToK8SProtocol(p.Protocol)
+		protocol, err := scPortProtocolToK8SProtocol(p.Protocol)
 		if err != nil {
 			return err
 		}

@@ -326,7 +326,7 @@ func scContainersAndPVToK8sPodSpec(containers []types.Container, k8sEmptyDirs []
 
 		var portNames []string
 		for _, spec := range c.ExposedPorts {
-			protocol, err := scProtocolToK8SProtocol(spec.Protocol)
+			protocol, err := scPortProtocolToK8SProtocol(spec.Protocol)
 			if err != nil {
 				return corev1.PodSpec{}, fmt.Errorf("invalid protocol %s for container port", spec.Protocol)
 			}

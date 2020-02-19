@@ -138,9 +138,6 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 		}
 	} else {
 		eb.PublishResourceDeleteEvent(namespace)
-		if err := clearTransportLayerIngress(cluster.GetKubeClient(), namespace.GetID()); err != nil {
-			log.Warnf("clean udp ingress for namespace %s failed:%s", namespace.GetID(), err.Error())
-		}
 	}
 	return nil
 }
