@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/zdnscloud/gorest"
@@ -20,6 +19,10 @@ import (
 const (
 	AuditLogTable    = "auditlog"
 	MaxAuditLogCount = 1000
+
+	OperationTypeCreate = "create"
+	OperationTypeUpdate = "update"
+	OperationTypeDelete = "delete"
 )
 
 type AuditLogger struct {
@@ -46,35 +49,39 @@ func New() (*AuditLogger, error) {
 
 func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 	return func(ctx *resource.Context) *resterr.APIError {
-		if ctx.Resource.GetAction() != nil {
-			return nil
+		log := &types.AuditLog{
+			User:          getCurrentUser(ctx),
+			SourceAddress: ctx.Request.Host,
+			ResourceKind:  resource.DefaultKindName(ctx.Resource),
+			ResourcePath:  ctx.Request.URL.Path,
 		}
 
-		var opt types.OperationType
 		switch ctx.Request.Method {
 		case http.MethodPost:
-			opt = types.OperationTypeCreate
+			log.Operation = OperationTypeCreate
 		case http.MethodPut:
-			opt = types.OperationTypeUpdate
+			log.Operation = OperationTypeUpdate
 		case http.MethodDelete:
-			opt = types.OperationTypeDelete
+			log.Operation = OperationTypeDelete
 		default:
 			return nil
 		}
 
-		detail, err := json.Marshal(ctx.Resource)
-		if err != nil {
-			return resterr.NewAPIError(resterr.InvalidBodyContent, fmt.Sprintf("record audit log failed marshal resource err %s", err.Error()))
+		if action := ctx.Resource.GetAction(); action != nil {
+			log.Operation = action.Name
+			detail, err := json.Marshal(action.Input)
+			if err != nil {
+				return resterr.NewAPIError(resterr.InvalidBodyContent, fmt.Sprintf("record audit log failed marshal action input err %s", err.Error()))
+			}
+			log.Detail = string(detail)
+		} else {
+			detail, err := json.Marshal(ctx.Resource)
+			if err != nil {
+				return resterr.NewAPIError(resterr.InvalidBodyContent, fmt.Sprintf("record audit log failed marshal resource err %s", err.Error()))
+			}
+			log.Detail = string(detail)
 		}
 
-		log := &types.AuditLog{
-			User:          getCurrentUser(ctx),
-			SourceAddress: ctx.Request.Host,
-			Operation:     opt,
-			ResourceKind:  resource.DefaultKindName(ctx.Resource),
-			ResourcePath:  ctx.Request.URL.Path,
-			Detail:        string(detail),
-		}
 		log.SetCreationTimestamp(time.Now())
 		if err := a.Storage.Add(log); err != nil {
 			return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("record audit log failed %s", err.Error()))
@@ -89,14 +96,4 @@ func getCurrentUser(ctx *resource.Context) string {
 		return ""
 	}
 	return currentUser.(string)
-}
-
-func genResourcePath(ctx *resource.Context) string {
-	ancestors := resource.GetAncestors(ctx.Resource)
-	ids := []string{}
-	for _, ancestor := range ancestors {
-		ids = append(ids, ancestor.GetID())
-	}
-	ids = append(ids, ctx.Resource.GetID())
-	return strings.Join(ids, "/")
 }

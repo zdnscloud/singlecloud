@@ -6,21 +6,15 @@ import (
 
 type OperationType string
 
-const (
-	OperationTypeCreate OperationType = "create"
-	OperationTypeUpdate OperationType = "update"
-	OperationTypeDelete OperationType = "delete"
-)
-
 type AuditLog struct {
 	resource.ResourceBase `json:",inline"`
-	UID                   uint64        `json:"uid"`
-	User                  string        `json:"user"`
-	SourceAddress         string        `json:"sourceAddress"`
-	Operation             OperationType `json:"operation" rest:"options=create|update|delete"`
-	ResourceKind          string        `json:"resourceKind"`
-	ResourcePath          string        `json:"resourcePath"`
-	Detail                string        `json:"detail"`
+	UID                   uint64 `json:"uid"`
+	User                  string `json:"user"`
+	SourceAddress         string `json:"sourceAddress"`
+	Operation             string `json:"operation"`
+	ResourceKind          string `json:"resourceKind"`
+	ResourcePath          string `json:"resourcePath"`
+	Detail                string `json:"detail"`
 }
 
 type AuditLogs []*AuditLog

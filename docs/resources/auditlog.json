@@ -8,12 +8,7 @@
       "type": "string"
     },
     "operation": {
-      "type": "enum",
-      "validValues": [
-        "create",
-        "update",
-        "delete"
-      ]
+      "type": "string"
     },
     "resourceKind": {
       "type": "string"
