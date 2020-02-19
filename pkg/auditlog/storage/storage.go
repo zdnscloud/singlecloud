@@ -82,13 +82,12 @@ func (d *DefaultDriver) Add(a *types.AuditLog) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	if d.currentID-d.firstID > uint64(d.maxRecordCount-1) {
+	if d.currentID-d.firstID > uint64(d.maxRecordCount-2) {
 		if err := deleteFromDB(d.table, uintToStr(d.firstID)); err != nil {
 			return err
 		}
+		atomic.AddUint64(&d.firstID, 1)
 	}
-
-	atomic.AddUint64(&d.firstID, 1)
 	a.UID = d.currentID + 1
 	a.SetID(uintToStr(d.currentID + 1))
 	if err := addToDB(d.table, a); err != nil {
@@ -135,7 +134,5 @@ func uintToStr(uid uint64) string {
 }
 
 func (d *DefaultDriver) List() (types.AuditLogs, error) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 	return listFromDB(d.table)
 }

@@ -46,9 +46,8 @@ func New() (*AuditLogger, error) {
 
 func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 	return func(ctx *resource.Context) *resterr.APIError {
-		user := getCurrentUser(ctx)
-		if user == "" {
-			return resterr.NewAPIError(resterr.Unauthorized, fmt.Sprintf("record audit log failed user is unknowned"))
+		if ctx.Resource.GetAction() != nil {
+			return nil
 		}
 
 		var opt types.OperationType
@@ -69,11 +68,11 @@ func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 		}
 
 		log := &types.AuditLog{
-			User:          user,
+			User:          getCurrentUser(ctx),
 			SourceAddress: ctx.Request.Host,
 			Operation:     opt,
 			ResourceKind:  resource.DefaultKindName(ctx.Resource),
-			ResourcePath:  genResourcePath(ctx),
+			ResourcePath:  ctx.Request.URL.Path,
 			Detail:        string(detail),
 		}
 		log.SetCreationTimestamp(time.Now())

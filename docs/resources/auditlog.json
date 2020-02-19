@@ -24,6 +24,9 @@
     "sourceAddress": {
       "type": "string"
     },
+    "uid": {
+      "type": "uint"
+    },
     "user": {
       "type": "string"
     }
