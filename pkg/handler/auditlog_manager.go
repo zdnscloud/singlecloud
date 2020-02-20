@@ -33,11 +33,11 @@ func (a *AuditLogManager) List(ctx *resource.Context) interface{} {
 		return logs
 	}
 
-	returnLogs := []*types.AuditLog{}
+	userLogs := []*types.AuditLog{}
 	for _, log := range logs {
 		if log.User == user {
-			returnLogs = append(returnLogs, log)
+			userLogs = append(userLogs, log)
 		}
 	}
-	return returnLogs
+	return userLogs
 }

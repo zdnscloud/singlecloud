@@ -44,14 +44,15 @@ func (d *DefaultDriver) initDB() error {
 		return err
 	}
 
-	if len(logs) == 0 {
+	logCount := len(logs)
+	if logCount == 0 {
 		return nil
 	}
 
 	sort.Sort(logs)
 
 	d.firstID = logs[0].UID
-	d.currentID = logs[len(logs)-1].UID
+	d.currentID = logs[logCount-1].UID
 	return nil
 }
 
