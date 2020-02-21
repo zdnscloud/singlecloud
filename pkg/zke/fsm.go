@@ -53,7 +53,10 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 					log.Warnf("fsm %s callback failed %s", CreateSucceedEvent, err.Error())
 				}
 
-				cluster.logCh = nil
+				if err := mgr.Logger.Delete(cluster.Name); err != nil {
+					log.Warnf("fsm %s callback failed %s", CreateSucceedEvent, err.Error())
+				}
+
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
@@ -93,7 +96,10 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 					return
 				}
 
-				cluster.logCh = nil
+				if err := mgr.Logger.Delete(cluster.Name); err != nil {
+					log.Warnf("fsm %s callback failed %s", UpdateCompletedEvent, err.Error())
+				}
+
 				if errMsg != "" {
 					alarm.New().Kind(clusterKindName).Cluster(cluster.Name).Name(cluster.Name).Reason(UpdateFailedEvent).Message(errMsg).Publish()
 				}

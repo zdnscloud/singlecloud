@@ -16,6 +16,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/db"
 	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke/zkelog"
 )
 
 const (
@@ -30,6 +31,7 @@ type ZKEManager struct {
 	lock         sync.Mutex
 	scVersion    string       // add cluster singlecloud version for easy to confirm zcloud component version
 	nodeListener NodeListener // for check storage node
+	Logger       *zkelog.LogManager
 }
 
 type NodeListener interface {
@@ -52,6 +54,7 @@ func newZKEManager(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
 		dbTable:      table,
 		scVersion:    singleCloudVersion,
 		nodeListener: nl,
+		Logger:       zkelog.New(),
 	}
 
 	if err := mgr.loadDB(); err != nil {

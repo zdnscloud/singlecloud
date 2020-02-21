@@ -4,19 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
-	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke/zkelog"
 
-	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/client/config"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
+	"github.com/zdnscloud/kvzoo"
 	zketypes "github.com/zdnscloud/zke/types"
 	"k8s.io/client-go/rest"
 )
@@ -30,11 +29,8 @@ type Cluster struct {
 	k8sConfig      *rest.Config
 	stopCh         chan struct{}
 	config         *zketypes.ZKEConfig
-	logCh          chan string
-	logSession     *websocket.Conn
 	cancel         context.CancelFunc
 	isCanceled     bool
-	lock           sync.Mutex
 	fsm            *fsm.FSM
 	scVersion      string
 	kubeHttpClient *http.Client
@@ -188,10 +184,9 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 		}
 	}()
 
-	logger, logCh := log.NewISO3339Log4jBufLogger(MaxZKELogLines, log.Info)
+	logger, logCh := log.NewISO3339Log4jBufLogger(zkelog.MaxLogSize, log.Info)
 	defer logger.Close()
-	c.logCh = logCh
-
+	mgr.Logger.AddOrUpdate(c.Name, logCh)
 	zkeState, k8sConfig, kubeClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
@@ -222,9 +217,9 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 		}
 	}()
 
-	logger, logCh := log.NewISO3339Log4jBufLogger(MaxZKELogLines, log.Info)
+	logger, logCh := log.NewISO3339Log4jBufLogger(zkelog.MaxLogSize, log.Info)
 	defer logger.Close()
-	c.logCh = logCh
+	mgr.Logger.AddOrUpdate(c.Name, logCh)
 
 	zkeState, k8sConfig, k8sClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
@@ -267,9 +262,9 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 		}
 	}()
 
-	logger, logCh := log.NewISO3339Log4jBufLogger(MaxZKELogLines, log.Info)
+	logger, logCh := log.NewISO3339Log4jBufLogger(zkelog.MaxLogSize, log.Info)
 	defer logger.Close()
-	c.logCh = logCh
+	mgr.Logger.AddOrUpdate(c.Name, logCh)
 
 	err := removeZKECluster(ctx, c.config, logger)
 	if err != nil {

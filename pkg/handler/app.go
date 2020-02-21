@@ -14,7 +14,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/pkg/zke/zkelog"
 )
 
 var (
@@ -130,9 +130,9 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 		a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
 	})
 
-	zkeLogPath := fmt.Sprintf(zke.WSZKELogPathTemp, ":cluster")
+	zkeLogPath := fmt.Sprintf(zkelog.WSZKELogPathTemp, ":cluster")
 	router.GET(zkeLogPath, func(c *gin.Context) {
-		a.clusterManager.zkeManager.OpenLog(c.Param("cluster"), c.Request, c.Writer)
+		a.clusterManager.zkeManager.Logger.OpenLog(c.Param("cluster"), c.Request, c.Writer)
 	})
 
 	tapPath := fmt.Sprintf(WSTapPathTemp, ":cluster", ":namespace")
