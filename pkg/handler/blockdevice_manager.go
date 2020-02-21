@@ -37,20 +37,17 @@ func (m *BlockDeviceManager) List(ctx *resource.Context) interface{} {
 }
 
 func getBlockDevices(cluster string, cli client.Client, agent *clusteragent.AgentManager) ([]*types.BlockDevice, error) {
-	res := make([]*types.BlockDevice, 0)
 	all, err := getAllDevices(cluster, agent)
 	if err != nil {
-		return res, err
+		return nil, err
 	}
 	return cutInvalid(cli, all), nil
 }
 
 func getAllDevices(cluster string, agent *clusteragent.AgentManager) ([]types.ClusterAgentBlockDevice, error) {
-	//url := "/apis/agent.zcloud.cn/v1/blockdevices"
-	url := "/blockdevices"
 	res := make([]types.ClusterAgentBlockDevice, 0)
-	if err := agent.ListResource(cluster, url, &res); err != nil {
-		return res, err
+	if err := agent.ListResource(cluster, "/blockdevices", &res); err != nil {
+		return nil, err
 	}
 	return res, nil
 }

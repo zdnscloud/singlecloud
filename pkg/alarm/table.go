@@ -3,6 +3,7 @@ package alarm
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/db"
@@ -54,7 +55,7 @@ func getAlarmsFromDB(table kvzoo.Table) ([]*types.Alarm, error) {
 	if err != nil {
 		return nil, err
 	}
-	alarms := make([]*types.Alarm, 0)
+	var alarms types.Alarms
 	for _, value := range values {
 		var alarm types.Alarm
 		if err := json.Unmarshal(value, &alarm); err != nil {
@@ -62,6 +63,7 @@ func getAlarmsFromDB(table kvzoo.Table) ([]*types.Alarm, error) {
 		}
 		alarms = append(alarms, &alarm)
 	}
+	sort.Sort(alarms)
 	return alarms, nil
 }
 

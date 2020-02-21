@@ -60,6 +60,7 @@ func (mgr *AlarmManager) eventLoop() {
 				log.Warnf("can not found event cache for cluster %s", clusterName)
 			}
 			mgr.lock.Unlock()
+			mgr.cache.deleteAlarmForCluster(clusterName)
 		}
 	}
 }
