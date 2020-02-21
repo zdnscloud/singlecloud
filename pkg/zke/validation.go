@@ -18,6 +18,7 @@ var createValidators = []createValidator{
 	validateNodeCount,
 	validateNodeNameRoleAndAddress,
 	validateScAddress,
+	validateLBConfig,
 }
 
 var updateValidators = []updateValidator{
@@ -63,6 +64,22 @@ func validateToDeleteStorageNodes(oldCluster, newCluster *types.Cluster, nl Node
 		if isStorage {
 			return fmt.Errorf("node %s used by storage,please delete it from storage first", n)
 		}
+	}
+	return nil
+}
+
+func validateLBConfig(c *types.Cluster) error {
+	if !c.LoadBalance.Enable {
+		return nil
+	}
+	if !isIPv4(c.LoadBalance.MasterServer) && !isIPv4Host(c.LoadBalance.MasterServer) {
+		return fmt.Errorf("loadbalance master server must be an ipv4 address or an ipv4 host")
+	}
+	if c.LoadBalance.BackupServer != "" && !isIPv4(c.LoadBalance.BackupServer) && !isIPv4Host(c.LoadBalance.BackupServer) {
+		return fmt.Errorf("loadbalance backup server must be an ipv4 address or an ipv4 host")
+	}
+	if c.LoadBalance.User == "" {
+		return fmt.Errorf("loadbalance user can't be empty")
 	}
 	return nil
 }

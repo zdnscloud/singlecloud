@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +21,10 @@ import (
 
 const (
 	NoneClusterIP = "None"
+
+	ZcloudLBVIPAnnotationKey    = "lb.zcloud.cn/vip"
+	ZcloudLBMethodAnnotationKey = "lb.zcloud.cn/method"
+	ZcloudDefaultLBMethod       = "rr"
 )
 
 type ServiceManager struct {
@@ -38,6 +43,11 @@ func (m *ServiceManager) Create(ctx *resource.Context) (resource.Resource, *rest
 
 	namespace := ctx.Resource.GetParent().GetID()
 	service := ctx.Resource.(*types.Service)
+
+	if err := validateIfLoadBalancerService(service); err != nil {
+		return nil, resterror.NewAPIError(resterror.PermissionDenied, err.Error())
+	}
+
 	err := createService(cluster.GetKubeClient(), namespace, service)
 	if err == nil {
 		service.SetID(service.Name)
@@ -49,6 +59,18 @@ func (m *ServiceManager) Create(ctx *resource.Context) (resource.Resource, *rest
 	} else {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create service failed %s", err.Error()))
 	}
+}
+
+func validateIfLoadBalancerService(s *types.Service) error {
+	if s.ServiceType != "loadbalancer" {
+		return nil
+	}
+
+	ip := net.ParseIP(s.LoadBalanceVIP)
+	if ip == nil || ip.To4() == nil {
+		return fmt.Errorf("svc LoadBalanceVIP must be an ipv4 address")
+	}
+	return nil
 }
 
 func (m *ServiceManager) List(ctx *resource.Context) interface{} {
@@ -155,10 +177,24 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 		},
 	}
 
+	if typ == corev1.ServiceTypeLoadBalancer {
+		k8sService.ObjectMeta.Annotations = scServiceToLBK8sServiceAnnotation(service)
+	}
+
 	if typ == corev1.ServiceTypeClusterIP && service.Headless {
 		k8sService.Spec.ClusterIP = NoneClusterIP
 	}
 	return cli.Create(context.TODO(), k8sService)
+}
+
+func scServiceToLBK8sServiceAnnotation(s *types.Service) map[string]string {
+	result := map[string]string{}
+	result[ZcloudLBVIPAnnotationKey] = s.LoadBalanceVIP
+	result[ZcloudLBMethodAnnotationKey] = ZcloudDefaultLBMethod
+	if s.LoadBalanceMethod != "" {
+		result[ZcloudLBMethodAnnotationKey] = s.LoadBalanceMethod
+	}
+	return result
 }
 
 func deleteService(cli client.Client, namespace, name string) error {
@@ -180,10 +216,12 @@ func k8sServiceToSCService(k8sService *corev1.Service) *types.Service {
 		})
 	}
 	service := &types.Service{
-		Name:         k8sService.Name,
-		ServiceType:  strings.ToLower(string(k8sService.Spec.Type)),
-		ClusterIP:    k8sService.Spec.ClusterIP,
-		ExposedPorts: ports,
+		Name:              k8sService.Name,
+		ServiceType:       strings.ToLower(string(k8sService.Spec.Type)),
+		ClusterIP:         k8sService.Spec.ClusterIP,
+		ExposedPorts:      ports,
+		LoadBalanceVIP:    k8sService.GetAnnotations()[ZcloudLBVIPAnnotationKey],
+		LoadBalanceMethod: k8sService.GetAnnotations()[ZcloudLBMethodAnnotationKey],
 	}
 	service.SetID(k8sService.Name)
 	service.SetCreationTimestamp(k8sService.CreationTimestamp.Time)

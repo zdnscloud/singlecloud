@@ -99,6 +99,8 @@ func scServiceTypeToK8sServiceType(typ string) (p corev1.ServiceType, err error)
 		p = corev1.ServiceTypeClusterIP
 	case "nodeport":
 		p = corev1.ServiceTypeNodePort
+	case "loadbalancer":
+		p = corev1.ServiceTypeLoadBalancer
 	default:
 		err = fmt.Errorf("service type %s isn't supported", typ)
 	}

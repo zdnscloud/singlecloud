@@ -22,10 +22,12 @@ type ServicePort struct {
 type Service struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string        `json:"name" rest:"required=true,isDomain=true"`
-	ServiceType           string        `json:"serviceType" rest:"required=true,options=clusterip|nodeport"`
+	ServiceType           string        `json:"serviceType" rest:"required=true,options=clusterip|nodeport|loadbalancer"`
 	Headless              bool          `json:"headless"`
 	ClusterIP             string        `json:"clusterIP,omitempty"`
 	ExposedPorts          []ServicePort `json:"exposedPorts" rest:"required=true"`
+	LoadBalanceVIP        string        `json:"loadBalanceVip"`
+	LoadBalanceMethod     string        `json:"loadBalanceMethod" rest:"options=rr|lc|hash"`
 }
 
 func (s Service) GetParents() []resource.ResourceKind {

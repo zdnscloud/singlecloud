@@ -114,7 +114,6 @@
       "type": "enum",
       "validValues": [
         "controlplane",
-        "etcd",
         "worker",
         "edge"
       ],
