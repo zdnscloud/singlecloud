@@ -34,7 +34,7 @@ func (mgr *AlarmManager) OpenAlarm(r *http.Request, w http.ResponseWriter) {
 	defer conn.Close()
 
 	if err = conn.WriteJSON(Message{UnackNumber, mgr.cache.unAckNumber}); err != nil {
-		log.Warnf("send log failed:%s", err.Error())
+		log.Warnf("send alarm unack number failed:%s", err.Error())
 	}
 
 	listener := mgr.cache.AddListener()
@@ -57,7 +57,7 @@ func (mgr *AlarmManager) OpenAlarm(r *http.Request, w http.ResponseWriter) {
 		}
 		err = conn.WriteJSON(msg)
 		if err != nil {
-			log.Warnf("send log failed:%s", err.Error())
+			log.Warnf("send alarm failed:%s", err.Error())
 			break
 		}
 	}
