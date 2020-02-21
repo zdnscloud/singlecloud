@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"sync"
-	"sync/atomic"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
@@ -87,14 +86,14 @@ func (d *DefaultDriver) Add(a *types.AuditLog) error {
 		if err := deleteFromDB(d.table, uintToStr(d.firstID)); err != nil {
 			return err
 		}
-		atomic.AddUint64(&d.firstID, 1)
+		d.firstID += 1
 	}
 	a.UID = d.currentID + 1
 	a.SetID(uintToStr(d.currentID + 1))
 	if err := addToDB(d.table, a); err != nil {
 		return err
 	}
-	atomic.AddUint64(&d.currentID, 1)
+	d.currentID += 1
 	return nil
 }
 
@@ -131,7 +130,7 @@ func deleteFromDB(table kvzoo.Table, id string) error {
 }
 
 func uintToStr(uid uint64) string {
-	return strconv.FormatInt(int64(uid), 10)
+	return strconv.FormatUint(uid, 10)
 }
 
 func (d *DefaultDriver) List() (types.AuditLogs, error) {

@@ -1,43 +1,26 @@
 package handler
 
 import (
-	"sort"
-
-	"github.com/zdnscloud/singlecloud/pkg/auditlog/storage"
-	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/auditlog"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gorest/resource"
 )
 
 type AuditLogManager struct {
-	audit storage.StorageDriver
+	audit *auditlog.AuditLogger
 }
 
-func newAuditLogManager(auditlogDriver storage.StorageDriver) *AuditLogManager {
+func newAuditLogManager(audit *auditlog.AuditLogger) *AuditLogManager {
 	return &AuditLogManager{
-		audit: auditlogDriver,
+		audit: audit,
 	}
 }
 
 func (a *AuditLogManager) List(ctx *resource.Context) interface{} {
-	logs, err := a.audit.List()
+	logs, err := a.audit.List(getCurrentUser(ctx))
 	if err != nil {
-		log.Warnf("list auditlog failed %s", err.Error())
-		return nil
+		log.Warnf("list audit log failed %s", err.Error())
 	}
-	sort.Sort(logs)
-
-	user := getCurrentUser(ctx)
-	if isAdmin(user) {
-		return logs
-	}
-
-	userLogs := []*types.AuditLog{}
-	for _, log := range logs {
-		if log.User == user {
-			userLogs = append(userLogs, log)
-		}
-	}
-	return userLogs
+	return logs
 }

@@ -93,7 +93,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	if err != nil {
 		return err
 	}
-	schemas.MustImport(&Version, types.AuditLog{}, newAuditLogManager(auditLogger.Storage))
+	schemas.MustImport(&Version, types.AuditLog{}, newAuditLogManager(auditLogger))
 
 	userQuotaManager, err := newUserQuotaManager(a.clusterManager)
 	if err != nil {

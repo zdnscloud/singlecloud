@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/zdnscloud/gorest"
@@ -47,6 +48,26 @@ func New() (*AuditLogger, error) {
 	return a, nil
 }
 
+func (a *AuditLogger) List(user string) (types.AuditLogs, error) {
+	logs, err := a.Storage.List()
+	if err != nil {
+		return logs, err
+	}
+
+	sort.Sort(logs)
+	if user == types.Administrator {
+		return logs, err
+	}
+
+	result := types.AuditLogs{}
+	for _, log := range logs {
+		if log.User == user {
+			result = append(result, log)
+		}
+	}
+	return result, nil
+}
+
 func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 	return func(ctx *resource.Context) *resterr.APIError {
 		log := &types.AuditLog{
@@ -67,20 +88,17 @@ func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 			return nil
 		}
 
+		var detail interface{} = ctx.Resource
 		if action := ctx.Resource.GetAction(); action != nil {
 			log.Operation = action.Name
-			detail, err := json.Marshal(action.Input)
-			if err != nil {
-				return resterr.NewAPIError(resterr.InvalidBodyContent, fmt.Sprintf("record audit log failed marshal action input err %s", err.Error()))
-			}
-			log.Detail = string(detail)
-		} else {
-			detail, err := json.Marshal(ctx.Resource)
-			if err != nil {
-				return resterr.NewAPIError(resterr.InvalidBodyContent, fmt.Sprintf("record audit log failed marshal resource err %s", err.Error()))
-			}
-			log.Detail = string(detail)
+			detail = action.Input
 		}
+
+		detailStr, err := getLogDetail(detail)
+		if err != nil {
+			return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("marshal %s audit log failed %s", log.Operation))
+		}
+		log.Detail = detailStr
 
 		log.SetCreationTimestamp(time.Now())
 		if err := a.Storage.Add(log); err != nil {
@@ -88,6 +106,14 @@ func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 		}
 		return nil
 	}
+}
+
+func getLogDetail(d interface{}) (string, error) {
+	result, err := json.Marshal(d)
+	if err != nil {
+		return "", err
+	}
+	return string(result), nil
 }
 
 func getCurrentUser(ctx *resource.Context) string {
