@@ -248,6 +248,7 @@ func (ac *AlarmCache) deleteoldest() error {
 func (ac *AlarmCache) deleteAlarmForCluster(cluster string) {
 	ac.lock.Lock()
 	var next *list.Element
+	var number int
 	for elem := ac.alarmList.Front(); elem != nil; elem = next {
 		next = elem.Next()
 		alarm := elem.Value.(*types.Alarm)
@@ -258,11 +259,13 @@ func (ac *AlarmCache) deleteAlarmForCluster(cluster string) {
 			}
 			ac.alarmList.Remove(elem)
 			if !alarm.Acknowledged {
-				ac.SetUnAck(-1)
+				number -= 1
 			}
 		}
 	}
 	ac.lock.Unlock()
+	ac.SetUnAck(number)
+	ac.cond.Broadcast()
 }
 
 func (ac *AlarmCache) SetUnAck(u int) {
