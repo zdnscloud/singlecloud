@@ -97,11 +97,15 @@ func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 			detail = action.Input
 		}
 
-		detailStr, err := getLogDetail(detail)
-		if err != nil {
-			return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("marshal %s audit log failed %s", log.Operation))
+		if log.Operation == OperationTypeDelete {
+			log.Detail = ""
+		} else {
+			detailStr, err := getLogDetail(detail)
+			if err != nil {
+				return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("marshal %s audit log failed %s", log.Operation))
+			}
+			log.Detail = detailStr
 		}
-		log.Detail = detailStr
 
 		log.SetCreationTimestamp(time.Now())
 		if err := a.Storage.Add(log); err != nil {
