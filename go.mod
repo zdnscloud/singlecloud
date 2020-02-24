@@ -30,11 +30,11 @@ require (
 	github.com/urfave/cli v1.22.2 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
-	github.com/zdnscloud/cement v0.0.0-20200215033751-fc7f19bf3e33
+	github.com/zdnscloud/cement v0.0.0-20200221122612-e28e2126b9b6
 	github.com/zdnscloud/g53 v0.0.0-20191119101753-eb2b1813bd52
 	github.com/zdnscloud/gok8s v0.0.0-20200212071629-b06587f54ee6
 	github.com/zdnscloud/goproxy v0.0.0-20200205075939-521cea33b942
-	github.com/zdnscloud/gorest v0.0.0-20200214104715-5a3ab398c1a1
+	github.com/zdnscloud/gorest v0.0.0-20200221102716-9596fdcc4158
 	github.com/zdnscloud/immense v0.0.0-20200214070751-b25b082d4c39
 	github.com/zdnscloud/iniconfig v0.0.0-20191105013537-c8624280493d
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7
