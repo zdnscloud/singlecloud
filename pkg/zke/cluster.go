@@ -30,7 +30,7 @@ type Cluster struct {
 	k8sConfig      *rest.Config
 	stopCh         chan struct{}
 	config         *zketypes.ZKEConfig
-	logCh          chan string
+	logCh          <-chan string
 	logSession     *websocket.Conn
 	cancel         context.CancelFunc
 	isCanceled     bool
