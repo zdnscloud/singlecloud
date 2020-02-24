@@ -72,7 +72,7 @@ func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 	return func(ctx *resource.Context) *resterr.APIError {
 		log := &types.AuditLog{
 			User:          getCurrentUser(ctx),
-			SourceAddress: ctx.Request.Host,
+			SourceAddress: ctx.Request.RemoteAddr,
 			ResourceKind:  resource.DefaultKindName(ctx.Resource),
 			ResourcePath:  ctx.Request.URL.Path,
 		}
@@ -90,6 +90,9 @@ func (a *AuditLogger) AuditHandler() gorest.HandlerFunc {
 
 		var detail interface{} = ctx.Resource
 		if action := ctx.Resource.GetAction(); action != nil {
+			if action.Name == types.ActionLogin {
+				return nil
+			}
 			log.Operation = action.Name
 			detail = action.Input
 		}
