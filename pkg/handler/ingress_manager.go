@@ -40,7 +40,7 @@ func (m *IngressManager) Create(ctx *resource.Context) (resource.Resource, *rest
 
 	namespace := ctx.Resource.GetParent().GetID()
 	ingress := ctx.Resource.(*types.Ingress)
-	err := createIngress(cluster.KubeClient, namespace, ingress)
+	err := createIngress(cluster.GetKubeClient(), namespace, ingress)
 	if err == nil {
 		ingress.SetID(ingress.Name)
 		return ingress, nil
@@ -60,7 +60,7 @@ func (m *IngressManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	k8sIngresss, err := getIngresss(cluster.KubeClient, namespace)
+	k8sIngresss, err := getIngresss(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list ingress info failed:%s", err.Error())
@@ -83,7 +83,7 @@ func (m *IngressManager) Get(ctx *resource.Context) resource.Resource {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	ingress := ctx.Resource.(*types.Ingress)
-	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
+	k8sIngress, err := getIngress(cluster.GetKubeClient(), namespace, ingress.GetID())
 	if err == nil {
 		ingress = k8sIngressToSCIngress(k8sIngress)
 	} else {
@@ -105,7 +105,7 @@ func (m *IngressManager) Update(ctx *resource.Context) (resource.Resource, *rest
 
 	namespace := ctx.Resource.GetParent().GetID()
 	ingress := ctx.Resource.(*types.Ingress)
-	k8sIngress, err := getIngress(cluster.KubeClient, namespace, ingress.GetID())
+	k8sIngress, err := getIngress(cluster.GetKubeClient(), namespace, ingress.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("ingress %s doesn't exist", ingress.GetID()))
@@ -119,7 +119,7 @@ func (m *IngressManager) Update(ctx *resource.Context) (resource.Resource, *rest
 	}
 
 	k8sIngress.Spec.Rules = newK8sIngress.Spec.Rules
-	if err := cluster.KubeClient.Update(context.TODO(), k8sIngress); err != nil {
+	if err := cluster.GetKubeClient().Update(context.TODO(), k8sIngress); err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
 	}
 
@@ -133,7 +133,7 @@ func (m *IngressManager) Delete(ctx *resource.Context) *resterror.APIError {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	err := deleteIngress(cluster.KubeClient, namespace, ctx.Resource.GetID())
+	err := deleteIngress(cluster.GetKubeClient(), namespace, ctx.Resource.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, "ingress doesn't exist")

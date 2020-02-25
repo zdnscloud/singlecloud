@@ -14,17 +14,17 @@ import (
 	"github.com/zdnscloud/zke/core/pki"
 
 	"github.com/zdnscloud/singlecloud/pkg/db"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
-	clusterEventBufferCount = 10
+	alarmEventBufferCount = 10
 )
 
 var singleCloudVersion string
 
 type ZKEManager struct {
-	PubEventCh   chan interface{}
 	clusters     []*Cluster
 	dbTable      kvzoo.Table
 	lock         sync.Mutex
@@ -49,7 +49,6 @@ func newZKEManager(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
 
 	mgr := &ZKEManager{
 		clusters:     make([]*Cluster, 0),
-		PubEventCh:   make(chan interface{}, clusterEventBufferCount),
 		dbTable:      table,
 		scVersion:    singleCloudVersion,
 		nodeListener: nl,
@@ -90,7 +89,7 @@ func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *rest
 	}
 
 	cluster := newCluster(typesCluster.Name, types.CSCreating)
-	cluster.CreateTime = state.CreateTime
+	cluster.createTime = state.CreateTime
 	cluster.config = config
 	cluster.scVersion = m.scVersion
 	m.add(cluster)
@@ -115,7 +114,7 @@ func (m *ZKEManager) Update(ctx *restsource.Context) (restsource.Resource, *rest
 		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("cluster %s desn't exist", typesCluster.Name))
 	}
 
-	if err := validateConfigForUpdate(existCluster.ToTypesCluster(), typesCluster, m.nodeListener, existCluster); err != nil {
+	if err := validateConfigForUpdate(existCluster.ToScCluster(), typesCluster, m.nodeListener, existCluster); err != nil {
 		return nil, resterr.NewAPIError(resterr.InvalidOption, fmt.Sprintf("cluster config validate failed %s", err))
 	}
 	config := genZKEConfigForUpdate(existCluster.config, typesCluster)
@@ -225,11 +224,11 @@ func (m *ZKEManager) Delete(id string) *resterr.APIError {
 
 	if state.Created {
 		close(toDelete.stopCh)
-		m.SendEvent(DeleteCluster{Cluster: toDelete})
+		eventbus.PublishResourceDeleteEvent(toDelete.ToScCluster())
 	}
 
 	tm := time.Now()
-	toDelete.DeleteTime = tm
+	toDelete.deleteTime = tm
 	state.DeleteTime = tm
 	if err := createOrUpdateClusterFromDB(id, state, m.dbTable); err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("%s", err))
@@ -262,18 +261,18 @@ func (m *ZKEManager) loadDB() error {
 		if v.Created {
 			cluster := newCluster(k, types.CSRunning)
 			cluster.config = v.ZKEConfig
-			cluster.CreateTime = v.CreateTime
+			cluster.createTime = v.CreateTime
 			cluster.scVersion = v.ScVersion
 			if err := cluster.Init(v.CurrentState.CertificatesBundle[pki.KubeAdminCertName].Config); err != nil {
 				log.Warnf("init cluster %s failed %s", k, err.Error())
 				continue
 			}
 			m.add(cluster)
-			m.SendEvent(AddCluster{Cluster: cluster})
+			eventbus.PublishResourceCreateEvent(cluster.ToScCluster())
 		} else {
 			cluster := newCluster(k, types.CSCreateFailed)
 			cluster.config = v.ZKEConfig
-			cluster.CreateTime = v.CreateTime
+			cluster.createTime = v.CreateTime
 			cluster.scVersion = v.ScVersion
 			m.add(cluster)
 		}
@@ -283,10 +282,6 @@ func (m *ZKEManager) loadDB() error {
 
 func (m *ZKEManager) add(c *Cluster) {
 	m.clusters = append(m.clusters, c)
-}
-
-func (m *ZKEManager) SendEvent(e interface{}) {
-	m.PubEventCh <- e
 }
 
 func (m *ZKEManager) GetDBTable() kvzoo.Table {

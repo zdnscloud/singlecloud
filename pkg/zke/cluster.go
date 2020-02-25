@@ -23,29 +23,45 @@ import (
 
 type Cluster struct {
 	Name           string
-	CreateTime     time.Time
-	DeleteTime     time.Time
-	KubeClient     client.Client
-	Cache          cache.Cache
-	K8sConfig      *rest.Config
+	createTime     time.Time
+	deleteTime     time.Time
+	kubeClient     client.Client
+	cache          cache.Cache
+	k8sConfig      *rest.Config
 	stopCh         chan struct{}
 	config         *zketypes.ZKEConfig
-	logCh          chan string
+	logCh          <-chan string
 	logSession     *websocket.Conn
 	cancel         context.CancelFunc
 	isCanceled     bool
 	lock           sync.Mutex
 	fsm            *fsm.FSM
 	scVersion      string
-	KubeHttpClient *http.Client
+	kubeHttpClient *http.Client
 }
 
-type AddCluster struct {
-	Cluster *Cluster
+func (c *Cluster) GetCreationTimestamp() time.Time {
+	return c.createTime
 }
 
-type DeleteCluster struct {
-	Cluster *Cluster
+func (c *Cluster) GetDeletionTimestamp() time.Time {
+	return c.deleteTime
+}
+
+func (c *Cluster) GetKubeClient() client.Client {
+	return c.kubeClient
+}
+
+func (c *Cluster) GetKubeCache() cache.Cache {
+	return c.cache
+}
+
+func (c *Cluster) GetKubeRestConfig() *rest.Config {
+	return c.k8sConfig
+}
+
+func (c *Cluster) GetKubeHttpClient() *http.Client {
+	return c.kubeHttpClient
 }
 
 type AlarmCluster struct {
@@ -84,7 +100,7 @@ func (c *Cluster) Event(e string) error {
 
 func (c *Cluster) GetNodeIpsByRole(role types.NodeRole) []string {
 	ips := []string{}
-	cluster := c.ToTypesCluster()
+	cluster := c.ToScCluster()
 	for _, n := range cluster.Nodes {
 		if n.HasRole(role) {
 			ips = append(ips, n.Address)
@@ -128,7 +144,7 @@ func (c *Cluster) Init(kubeConfig string) error {
 	if err != nil {
 		return fmt.Errorf("New cluster %s gok8s client failed %s", c.Name, err.Error())
 	}
-	c.KubeClient = kubeClient
+	c.kubeClient = kubeClient
 	if err := c.setCache(k8sConfig); err != nil {
 		return fmt.Errorf("set cluster %s cache failed %s", c.Name, err.Error())
 	}
@@ -140,16 +156,16 @@ func (c *Cluster) setCache(k8sConfig *rest.Config) error {
 	if err != nil {
 		return err
 	}
-	c.KubeHttpClient = httpClient
+	c.kubeHttpClient = httpClient
 	c.stopCh = make(chan struct{})
-	c.K8sConfig = k8sConfig
+	c.k8sConfig = k8sConfig
 	cache, err := cache.New(k8sConfig, cache.Options{})
 	if err != nil {
 		return err
 	}
 	go cache.Start(c.stopCh)
 	cache.WaitForCacheSync(c.stopCh)
-	c.Cache = cache
+	c.cache = cache
 	return nil
 }
 
@@ -189,7 +205,7 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 		return
 	}
 
-	c.KubeClient = kubeClient
+	c.kubeClient = kubeClient
 	if err := c.setCache(k8sConfig); err != nil {
 		c.event(CreateFailedEvent, mgr, state, err.Error())
 		return
@@ -234,7 +250,7 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 	if state.Created {
 		c.event(UpdateCompletedEvent, mgr, state, "")
 	} else {
-		c.KubeClient = k8sClient
+		c.kubeClient = k8sClient
 		if err := c.setCache(k8sConfig); err != nil {
 			c.event(CreateFailedEvent, mgr, state, err.Error())
 		}
@@ -265,26 +281,23 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 	c.event(DeleteCompletedEvent, mgr, clusterState{}, "")
 }
 
-func (c *Cluster) ToTypesCluster() *types.Cluster {
-	sc := &types.Cluster{}
-	sc.Name = c.Name
-	sc.SSHUser = c.config.Option.SSHUser
-	sc.SSHPort = c.config.Option.SSHPort
-	sc.ClusterCidr = c.config.Option.ClusterCidr
-	sc.ServiceCidr = c.config.Option.ServiceCidr
-	sc.ClusterDomain = c.config.Option.ClusterDomain
-	sc.ClusterDNSServiceIP = c.config.Option.ClusterDNSServiceIP
-	sc.ClusterUpstreamDNS = c.config.Option.ClusterUpstreamDNS
-	sc.SingleCloudAddress = c.config.SingleCloudAddress
-	sc.ScVersion = c.scVersion
-	sc.LoadBalance.Enable = c.config.LoadBalance.Enable
-	sc.LoadBalance.MasterServer = c.config.LoadBalance.MasterServer
-	sc.LoadBalance.BackupServer = c.config.LoadBalance.BackupServer
-	sc.LoadBalance.User = c.config.LoadBalance.User
+func (c *Cluster) ToScCluster() *types.Cluster {
+	sc := &types.Cluster{
+		Name:                c.Name,
+		SSHUser:             c.config.Option.SSHUser,
+		SSHPort:             c.config.Option.SSHPort,
+		ClusterCidr:         c.config.Option.ClusterCidr,
+		ServiceCidr:         c.config.Option.ServiceCidr,
+		ClusterDomain:       c.config.Option.ClusterDomain,
+		ClusterDNSServiceIP: c.config.Option.ClusterDNSServiceIP,
+		ClusterUpstreamDNS:  c.config.Option.ClusterUpstreamDNS,
+		SingleCloudAddress:  c.config.SingleCloudAddress,
+		ScVersion:           c.scVersion,
 
-	sc.Network = types.ClusterNetwork{
-		Plugin: c.config.Network.Plugin,
-		Iface:  c.config.Network.Iface,
+		Network: types.ClusterNetwork{
+			Plugin: c.config.Network.Plugin,
+			Iface:  c.config.Network.Iface,
+		},
 	}
 
 	for _, node := range c.config.Nodes {
@@ -303,9 +316,10 @@ func (c *Cluster) ToTypesCluster() *types.Cluster {
 	sc.NodesCount = len(sc.Nodes)
 
 	sc.SetID(c.Name)
-	sc.SetCreationTimestamp(c.CreateTime)
-	sc.SetDeletionTimestamp(c.DeleteTime)
+	sc.SetCreationTimestamp(c.createTime)
+	sc.SetDeletionTimestamp(c.deleteTime)
 	sc.Status = c.getStatus()
+	sc.KubeProvider = c
 	return sc
 }
 

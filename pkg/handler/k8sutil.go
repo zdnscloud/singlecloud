@@ -81,11 +81,11 @@ func createRoleBinding(cli client.Client, clusterRoleName, serviceAccountName, s
 	return cli.Create(context.TODO(), binding)
 }
 
-func scProtocolToK8SProtocol(protocol string) (p corev1.Protocol, err error) {
+func scPortProtocolToK8SProtocol(protocol string) (p corev1.Protocol, err error) {
 	switch strings.ToLower(protocol) {
-	case "tcp":
+	case types.PortProtocolTCP:
 		p = corev1.ProtocolTCP
-	case "udp":
+	case types.PortProtocolUDP:
 		p = corev1.ProtocolUDP
 	default:
 		err = fmt.Errorf("protocol %s isn't supported", protocol)

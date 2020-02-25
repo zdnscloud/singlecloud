@@ -15,6 +15,7 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -46,7 +47,8 @@ func (m *ServiceManager) Create(ctx *resource.Context) (resource.Resource, *rest
 	if err := validateIfLoadBalancerService(service); err != nil {
 		return nil, resterror.NewAPIError(resterror.PermissionDenied, err.Error())
 	}
-	err := createService(cluster.KubeClient, namespace, service)
+
+	err := createService(cluster.GetKubeClient(), namespace, service)
 	if err == nil {
 		service.SetID(service.Name)
 		return service, nil
@@ -78,7 +80,7 @@ func (m *ServiceManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	k8sServices, err := getServices(cluster.KubeClient, namespace)
+	k8sServices, err := getServices(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list service info failed:%s", err.Error())
@@ -101,7 +103,7 @@ func (m *ServiceManager) Get(ctx *resource.Context) resource.Resource {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	service := ctx.Resource.(*types.Service)
-	k8sService, err := getService(cluster.KubeClient, namespace, service.GetID())
+	k8sService, err := getService(cluster.GetKubeClient(), namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get service info failed:%s", err.Error())
@@ -120,13 +122,15 @@ func (m *ServiceManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	service := ctx.Resource.(*types.Service)
-	err := deleteService(cluster.KubeClient, namespace, service.GetID())
+	err := deleteService(cluster.GetKubeClient(), namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("service %s desn't exist", namespace))
 		} else {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete service failed %s", err.Error()))
 		}
+	} else {
+		eventbus.PublishResourceDeleteEvent(service)
 	}
 	return nil
 }
@@ -151,7 +155,7 @@ func createService(cli client.Client, namespace string, service *types.Service) 
 
 	var ports []corev1.ServicePort
 	for _, p := range service.ExposedPorts {
-		protocol, err := scProtocolToK8SProtocol(p.Protocol)
+		protocol, err := scPortProtocolToK8SProtocol(p.Protocol)
 		if err != nil {
 			return err
 		}

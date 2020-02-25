@@ -34,7 +34,7 @@ func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	k8sPersistentVolumeClaims, err := getPersistentVolumeClaims(cluster.KubeClient, namespace)
+	k8sPersistentVolumeClaims, err := getPersistentVolumeClaims(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list persistentvolumeclaim info failed:%s", err.Error())
@@ -46,7 +46,7 @@ func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) interface{} {
 	for _, item := range k8sPersistentVolumeClaims.Items {
 		pvcs = append(pvcs, k8sPVCToSCPVC(&item))
 	}
-	if err := genUseInfoForPVCs(cluster.KubeClient, namespace, pvcs); err != nil {
+	if err := genUseInfoForPVCs(cluster.GetKubeClient(), namespace, pvcs); err != nil {
 		return nil
 	}
 	return pvcs
@@ -61,11 +61,11 @@ func (m PersistentVolumeClaimManager) Delete(ctx *resource.Context) *resterror.A
 	namespace := ctx.Resource.GetParent().GetID()
 	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
 
-	if err := isUsed(cluster.KubeClient, namespace, pvc.GetID()); err != nil {
+	if err := isUsed(cluster.GetKubeClient(), namespace, pvc.GetID()); err != nil {
 		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete persistentvolumeclaim failed %s", err.Error()))
 	}
 
-	err := deletePersistentVolumeClaim(cluster.KubeClient, namespace, pvc.GetID())
+	err := deletePersistentVolumeClaim(cluster.GetKubeClient(), namespace, pvc.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,

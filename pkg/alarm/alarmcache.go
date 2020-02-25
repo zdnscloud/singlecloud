@@ -61,23 +61,15 @@ func NewAlarmCache() (*AlarmCache, error) {
 }
 
 func (ac *AlarmCache) initFromDB() error {
-	alarmsInDB, err := getAlarmsFromDB(ac.alarmsTable)
+	alarms, err := getAlarmsFromDB(ac.alarmsTable)
 	if err != nil {
 		return err
 	}
-	if len(alarmsInDB) == 0 {
-		return nil
-	}
-	var alarms types.Alarms
-	for _, alarm := range alarmsInDB {
-		alarms = append(alarms, alarm)
+	for _, alarm := range alarms {
+		ac.alarmList.PushBack(alarm)
 		if !alarm.Acknowledged {
 			ac.unAckNumber += 1
 		}
-	}
-	sort.Sort(alarms)
-	for _, alarm := range alarms {
-		ac.alarmList.PushBack(alarm)
 	}
 	if ac.alarmList.Len() > 0 {
 		ac.eventID = ac.alarmList.Back().Value.(*types.Alarm).UID
@@ -165,16 +157,16 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	}
 
 	alarm.UID = ac.eventID + 1
-	alarm.SetID(strconv.Itoa(int(alarm.UID)))
+	alarm.SetID(uintToStr(alarm.UID))
 	if err := addOrUpdateAlarmToDB(ac.alarmsTable, alarm, "add"); err != nil {
-		log.Warnf("add alarm id %d to table failed: %s", alarm.UID, err)
+		log.Warnf("add alarm id [%s] to table failed: %s", *alarm, err)
 		return
 	}
 	ac.alarmList.PushBack(alarm)
 	ac.SetUnAck(1)
-	if uint64(ac.alarmList.Len()) > MaxAlarmCount {
+	if ac.alarmList.Len() > MaxAlarmCount {
 		if err := ac.deleteoldest(); err != nil {
-			log.Warnf("delete the alarm out of queue failed: %s", err)
+			log.Warnf("delete oldest alarms failed: %s", err)
 		}
 	}
 	ac.lock.Unlock()
@@ -253,12 +245,35 @@ func (ac *AlarmCache) deleteoldest() error {
 	return nil
 }
 
+func (ac *AlarmCache) deleteAlarmForCluster(cluster string) {
+	ac.lock.Lock()
+	var next *list.Element
+	var number int
+	for elem := ac.alarmList.Front(); elem != nil; elem = next {
+		next = elem.Next()
+		alarm := elem.Value.(*types.Alarm)
+		if alarm.Cluster == cluster {
+			if err := deleteAlarmFromDB(ac.alarmsTable, uintToStr(alarm.UID)); err != nil {
+				log.Warnf("delete alarm %d for cluster %s failed:%s", alarm.UID, cluster, err.Error())
+				continue
+			}
+			ac.alarmList.Remove(elem)
+			if !alarm.Acknowledged {
+				number -= 1
+			}
+		}
+	}
+	ac.lock.Unlock()
+	ac.SetUnAck(number)
+	ac.cond.Broadcast()
+}
+
 func (ac *AlarmCache) SetUnAck(u int) {
 	atomic.AddUint64(&ac.unAckNumber, uint64(u))
 }
 
 func uintToStr(uid uint64) string {
-	return strconv.FormatInt(int64(uid), 10)
+	return strconv.FormatUint(uid, 10)
 }
 
 func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {

@@ -14,7 +14,7 @@ import (
 	"github.com/zdnscloud/gok8s/cache"
 
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
@@ -44,7 +44,7 @@ func New(httpCmdAddr string) error {
 	}
 
 	gdns := &GlobalDNS{
-		clusterEventCh:    eb.GetEventBus().Sub(eb.ClusterEvent),
+		clusterEventCh:    eb.SubscribeResourceEvent(types.Cluster{}),
 		clusterDNSSyncers: make(map[string]*ClusterDNSSyncer),
 		proxy:             proxy,
 	}
@@ -57,23 +57,23 @@ func (g *GlobalDNS) eventLoop() {
 	for {
 		event := <-g.clusterEventCh
 		switch e := event.(type) {
-		case zke.AddCluster:
-			cluster := e.Cluster
+		case eb.ResourceCreateEvent:
+			cluster := e.Resource.(*types.Cluster)
 			g.lock.Lock()
-			err := g.newClusterDNSSyncer(cluster.Name, cluster.Cache)
+			err := g.newClusterDNSSyncer(cluster.Name, cluster.KubeProvider.GetKubeCache())
 			if err != nil {
 				log.Warnf("create globaldns syncer for cluster %s failed: %s", cluster.Name, err.Error())
 			}
 			g.lock.Unlock()
-		case zke.DeleteCluster:
-			cluster := e.Cluster
+		case eb.ResourceDeleteEvent:
+			clusterName := e.Resource.GetID()
 			g.lock.Lock()
-			syncer, ok := g.clusterDNSSyncers[cluster.Name]
+			syncer, ok := g.clusterDNSSyncers[clusterName]
 			if ok {
 				syncer.Stop()
-				delete(g.clusterDNSSyncers, cluster.Name)
+				delete(g.clusterDNSSyncers, clusterName)
 			} else {
-				log.Warnf("globaldns syncer is unknown cluster %s", cluster.Name)
+				log.Warnf("globaldns syncer is unknown cluster %s", clusterName)
 			}
 			g.lock.Unlock()
 		}

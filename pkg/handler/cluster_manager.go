@@ -8,10 +8,8 @@ import (
 	"github.com/zdnscloud/gorest"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
-	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 
@@ -48,7 +46,6 @@ func newClusterManager(authenticator *authentication.Authenticator, authorizer *
 	}
 
 	clusterMgr.zkeManager = zkeMgr
-	go clusterMgr.eventLoop()
 	return clusterMgr, nil
 }
 
@@ -87,7 +84,7 @@ func (m *ClusterManager) Get(ctx *restresource.Context) restresource.Resource {
 	}
 	cluster := m.zkeManager.Get(id)
 	if cluster != nil {
-		sc := cluster.ToTypesCluster()
+		sc := cluster.ToScCluster()
 		if cluster.IsReady() {
 			return getClusterInfo(cluster, sc)
 		}
@@ -101,7 +98,7 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 		return sc
 	}
 
-	version, err := zkeCluster.KubeClient.ServerVersion()
+	version, err := zkeCluster.GetKubeClient().ServerVersion()
 	if err != nil {
 		zkeCluster.Event(zke.GetInfoFailedEvent)
 		return sc
@@ -109,7 +106,7 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 	zkeCluster.Event(zke.GetInfoSucceedEvent)
 	sc.Version = version.GitVersion
 
-	nodes, err := getNodes(zkeCluster.KubeClient)
+	nodes, err := getNodes(zkeCluster.GetKubeClient())
 	if err != nil {
 		return sc
 	}
@@ -134,6 +131,7 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 	if sc.Pod > 0 {
 		sc.PodUsedRatio = fmt.Sprintf("%.2f", float64(sc.PodUsed)/float64(sc.Pod))
 	}
+
 	return sc
 }
 
@@ -145,7 +143,7 @@ func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
 
 	for _, c := range m.zkeManager.List() {
 		if m.authorizer.Authorize(user, c.Name, "") {
-			sc := c.ToTypesCluster()
+			sc := c.ToScCluster()
 			allClusters = append(allClusters, sc)
 			if c.IsReady() {
 				readyClusters = append(readyClusters, sc)
@@ -222,27 +220,15 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 	}
 }
 
-func (m *ClusterManager) eventLoop() {
-	for {
-		e := <-m.zkeManager.PubEventCh
-		switch obj := e.(type) {
-		case zke.AlarmCluster:
-			alarm.New().Kind("cluster").Cluster(obj.Cluster).Name(obj.Cluster).Reason(obj.Reason).Message(obj.Message).Publish()
-		default:
-			eb.GetEventBus().Pub(obj, eb.ClusterEvent)
-		}
-	}
-}
-
 type StorageNodeListener struct {
 	clusters *ClusterManager
 }
 
 func (m StorageNodeListener) IsStorageNode(cluster *zke.Cluster, node string) (bool, error) {
-	if cluster.KubeClient == nil {
+	if cluster.GetKubeClient() == nil {
 		return false, fmt.Errorf("cluster %s kubeClient is nil", cluster.Name)
 	}
-	storageClusters, err := getStorageClusters(cluster.KubeClient)
+	storageClusters, err := getStorageClusters(cluster.GetKubeClient())
 	if err != nil {
 		return true, err
 	}

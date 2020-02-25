@@ -3,6 +3,8 @@ package zke
 import (
 	"fmt"
 
+	"github.com/zdnscloud/singlecloud/pkg/alarm"
+	"github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	"github.com/zdnscloud/cement/fsm"
@@ -24,6 +26,8 @@ const (
 
 	DeleteFailedEvent = "deleteFailed"
 	UpdateFailedEvent = "updateFailed"
+
+	clusterKindName = "cluster"
 )
 
 func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM {
@@ -53,7 +57,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
 					log.Warnf("update db failed after cluster %s %s event %s", cluster.Name, e.Event, err.Error())
 				}
-				mgr.SendEvent(AddCluster{Cluster: cluster})
+				eventbus.PublishResourceCreateEvent(cluster.ToScCluster())
 			},
 			CreateFailedEvent: func(e *fsm.Event) {
 				mgr, state, errMsg, err := getFsmEventArgs(e)
@@ -63,7 +67,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				}
 
 				if errMsg != "" {
-					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: CreateFailedEvent, Message: errMsg})
+					alarm.New().Kind(clusterKindName).Cluster(cluster.Name).Name(cluster.Name).Reason(CreateFailedEvent).Message(errMsg).Publish()
 				}
 
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
@@ -91,7 +95,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 
 				cluster.logCh = nil
 				if errMsg != "" {
-					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: UpdateFailedEvent, Message: errMsg})
+					alarm.New().Kind(clusterKindName).Cluster(cluster.Name).Name(cluster.Name).Reason(UpdateFailedEvent).Message(errMsg).Publish()
 				}
 
 				if err := createOrUpdateClusterFromDB(cluster.Name, state, mgr.GetDBTable()); err != nil {
@@ -118,7 +122,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 				}
 
 				if errMsg != "" {
-					mgr.SendEvent(AlarmCluster{Cluster: cluster.Name, Reason: DeleteFailedEvent, Message: errMsg})
+					alarm.New().Kind(clusterKindName).Cluster(cluster.Name).Name(cluster.Name).Reason(DeleteFailedEvent).Message(errMsg).Publish()
 				}
 
 				mgr.Remove(cluster)

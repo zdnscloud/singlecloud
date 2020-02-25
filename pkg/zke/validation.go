@@ -52,7 +52,7 @@ func validateConfigForUpdate(oldCluster, newCluster *types.Cluster, nl NodeListe
 }
 
 func validateToDeleteStorageNodes(oldCluster, newCluster *types.Cluster, nl NodeListener, currentCluster *Cluster) error {
-	if currentCluster.KubeClient == nil {
+	if currentCluster.kubeClient == nil {
 		return nil
 	}
 	toDeleteNodes := getToDeleteNodes(oldCluster, newCluster)

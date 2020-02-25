@@ -16,12 +16,14 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
@@ -49,11 +51,70 @@ var DefaultRuleResources = RuleResources{
 }
 
 type HorizontalPodAutoscalerManager struct {
-	clusters *ClusterManager
+	clusters        *ClusterManager
+	workloadEventCh <-chan interface{}
 }
 
 func newHorizontalPodAutoscalerManager(clusters *ClusterManager) *HorizontalPodAutoscalerManager {
-	return &HorizontalPodAutoscalerManager{clusters: clusters}
+	m := &HorizontalPodAutoscalerManager{
+		clusters:        clusters,
+		workloadEventCh: eb.SubscribeResourceEvent(types.Deployment{}, types.StatefulSet{}),
+	}
+	go m.eventLoop()
+	return m
+}
+
+func (m *HorizontalPodAutoscalerManager) eventLoop() {
+	for {
+		event := <-m.workloadEventCh
+		switch e := event.(type) {
+		case eb.ResourceDeleteEvent:
+			if err := m.deleteHPAWhenDeleteWorkload(e.Resource); err != nil {
+				log.Warnf("delete workload %s/%s hpa failed: %s", e.Resource.GetType(), e.Resource.GetID(), err.Error())
+			}
+		}
+	}
+}
+
+func (m *HorizontalPodAutoscalerManager) deleteHPAWhenDeleteWorkload(r resource.Resource) error {
+	cluster := m.clusters.GetClusterForSubResource(r)
+	if cluster == nil {
+		return fmt.Errorf("no found cluster")
+	}
+	namespace := r.GetParent().GetID()
+	k8sHpa, err := getHPAByWorkload(cluster.GetKubeClient(), namespace, r.GetType(), r.GetID())
+	if err != nil {
+		return fmt.Errorf("get hpa with namespace %s failed: %s", namespace, err.Error())
+	}
+
+	if k8sHpa == nil {
+		return nil
+	}
+
+	return updatePrometheusAdapterCMAndDeleteHPA(cluster.GetKubeClient(), k8sHpa)
+}
+
+func getHPAByWorkload(cli client.Client, namespace, workloadType, workloadName string) (*asv2beta2.HorizontalPodAutoscaler, error) {
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: map[string]string{workloadType: workloadName}})
+	if err != nil {
+		return nil, err
+	}
+
+	k8sHpas, err := getHPAs(cli, namespace, selector)
+	if err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	for _, item := range k8sHpas.Items {
+		if item.Spec.ScaleTargetRef.Kind == workloadType && item.Spec.ScaleTargetRef.Name == workloadName {
+			return &item, nil
+		}
+	}
+
+	return nil, nil
 }
 
 func (m *HorizontalPodAutoscalerManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
@@ -64,7 +125,7 @@ func (m *HorizontalPodAutoscalerManager) Create(ctx *resource.Context) (resource
 
 	namespace := ctx.Resource.GetParent().GetID()
 	hpa := ctx.Resource.(*types.HorizontalPodAutoscaler)
-	if err := createHPA(cluster.KubeClient, namespace, hpa); err != nil {
+	if err := createHPA(cluster.GetKubeClient(), namespace, hpa); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource,
 				fmt.Sprintf("duplicate horizontalpodautoscaler name %s with namespace %s", hpa.Name, namespace))
@@ -79,7 +140,7 @@ func (m *HorizontalPodAutoscalerManager) Create(ctx *resource.Context) (resource
 }
 
 func createHPA(cli client.Client, namespace string, hpa *types.HorizontalPodAutoscaler) error {
-	k8sHpas, err := getHPAs(cli, namespace)
+	k8sHpas, err := getHPAs(cli, namespace, nil)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			return fmt.Errorf("list horizontalpodautoscalers failed:%s", err.Error())
@@ -90,7 +151,8 @@ func createHPA(cli client.Client, namespace string, hpa *types.HorizontalPodAuto
 		if item.Name == hpa.Name ||
 			(item.Spec.ScaleTargetRef.Kind == string(hpa.ScaleTargetKind) &&
 				item.Spec.ScaleTargetRef.Name == hpa.ScaleTargetName) {
-			return fmt.Errorf("duplicate horizontalpodautoscaler %s for %s/%s", item.Name, hpa.ScaleTargetKind, hpa.ScaleTargetName)
+			return fmt.Errorf("duplicate horizontalpodautoscaler %s for %s/%s",
+				item.Name, item.Spec.ScaleTargetRef.Kind, item.Spec.ScaleTargetRef.Name)
 		}
 	}
 
@@ -107,6 +169,7 @@ func createHPA(cli client.Client, namespace string, hpa *types.HorizontalPodAuto
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      hpa.Name,
 			Namespace: namespace,
+			Labels:    map[string]string{string(hpa.ScaleTargetKind): hpa.ScaleTargetName},
 		},
 		Spec: k8sHpaSpec,
 	})
@@ -338,7 +401,7 @@ func (m *HorizontalPodAutoscalerManager) List(ctx *resource.Context) interface{}
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	k8sHpas, err := getHPAs(cluster.KubeClient, namespace)
+	k8sHpas, err := getHPAs(cluster.GetKubeClient(), namespace, nil)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list horizontalpodautoscaler info failed:%s", err.Error())
@@ -354,9 +417,14 @@ func (m *HorizontalPodAutoscalerManager) List(ctx *resource.Context) interface{}
 	return hpas
 }
 
-func getHPAs(cli client.Client, namespace string) (*asv2beta2.HorizontalPodAutoscalerList, error) {
+func getHPAs(cli client.Client, namespace string, selector labels.Selector) (*asv2beta2.HorizontalPodAutoscalerList, error) {
 	hpas := asv2beta2.HorizontalPodAutoscalerList{}
-	err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace}, &hpas)
+	listOptions := &client.ListOptions{Namespace: namespace}
+	if selector != nil {
+		listOptions.LabelSelector = selector
+	}
+
+	err := cli.List(context.TODO(), listOptions, &hpas)
 	return &hpas, err
 }
 
@@ -466,7 +534,7 @@ func (m *HorizontalPodAutoscalerManager) Get(ctx *resource.Context) resource.Res
 
 	namespace := ctx.Resource.GetParent().GetID()
 	hpa := ctx.Resource.(*types.HorizontalPodAutoscaler)
-	k8sHpa, err := getHPA(cluster.KubeClient, namespace, hpa.GetID())
+	k8sHpa, err := getHPA(cluster.GetKubeClient(), namespace, hpa.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get horizontalpodautoscaler info failed:%s", err.Error())
@@ -491,7 +559,7 @@ func (m *HorizontalPodAutoscalerManager) Update(ctx *resource.Context) (resource
 
 	namespace := ctx.Resource.GetParent().GetID()
 	hpa := ctx.Resource.(*types.HorizontalPodAutoscaler)
-	if err := updateHPA(cluster.KubeClient, namespace, hpa); err != nil {
+	if err := updateHPA(cluster.GetKubeClient(), namespace, hpa); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("horizontalpodautoscaler %s with namespace %s doesn't exist", hpa.GetID(), namespace))
@@ -531,7 +599,7 @@ func (m *HorizontalPodAutoscalerManager) Delete(ctx *resource.Context) *resterro
 
 	namespace := ctx.Resource.GetParent().GetID()
 	hpa := ctx.Resource.(*types.HorizontalPodAutoscaler)
-	if err := deleteHPA(cluster.KubeClient, namespace, hpa.GetID()); err != nil {
+	if err := deleteHPA(cluster.GetKubeClient(), namespace, hpa.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("horizontalpodautoscaler %s with namespace %s doesn't exist", hpa.GetID(), namespace))
@@ -550,6 +618,10 @@ func deleteHPA(cli client.Client, namespace, name string) error {
 		return err
 	}
 
+	return updatePrometheusAdapterCMAndDeleteHPA(cli, k8sHpa)
+}
+
+func updatePrometheusAdapterCMAndDeleteHPA(cli client.Client, k8sHpa *asv2beta2.HorizontalPodAutoscaler) error {
 	if err := updatePrometheusAdapterConfigMap(cli, getOldRules(k8sHpa.Spec.Metrics), nil); err != nil {
 		return err
 	}

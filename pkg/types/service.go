@@ -6,6 +6,11 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
+const (
+	PortProtocolUDP = "udp"
+	PortProtocolTCP = "tcp"
+)
+
 type ServicePort struct {
 	Name       string             `json:"name" rest:"required=true,isDomain=true"`
 	Port       int                `json:"port" rest:"required=true"`

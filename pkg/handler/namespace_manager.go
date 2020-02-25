@@ -17,8 +17,9 @@ import (
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/kvzoo"
-	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/db"
+	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 const (
@@ -50,7 +51,7 @@ func (m *NamespaceManager) Create(ctx *resource.Context) (resource.Resource, *re
 	}
 
 	namespace := ctx.Resource.(*types.Namespace)
-	err := createNamespace(cluster.KubeClient, namespace.Name)
+	err := createNamespace(cluster.GetKubeClient(), namespace.Name)
 	if err == nil {
 		namespace.SetID(namespace.Name)
 		return namespace, nil
@@ -69,7 +70,7 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
-	k8sNamespaces, err := getNamespaces(cluster.KubeClient)
+	k8sNamespaces, err := getNamespaces(cluster.GetKubeClient())
 	if err != nil {
 		log.Warnf("get namespace info failed:%s", err.Error())
 		return nil
@@ -97,7 +98,7 @@ func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 
-	return getNamespaceInfo(cluster.KubeClient, namespace.GetID())
+	return getNamespaceInfo(cluster.GetKubeClient(), namespace.GetID())
 }
 
 func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -122,23 +123,21 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 			fmt.Sprintf("can`t delete namespace %s for other user using", namespace.GetID()))
 	}
 
-	if err := clearApplications(cluster.KubeClient, cluster.Name, namespace.GetID()); err != nil {
+	if err := clearApplications(cluster.GetKubeClient(), cluster.Name, namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) == false {
 			return resterror.NewAPIError(types.ConnectClusterFailed,
 				fmt.Sprintf("delete namespace applications failed: %s", err.Error()))
 		}
 	}
 
-	if err := deleteNamespace(cluster.KubeClient, namespace.GetID()); err != nil {
+	if err := deleteNamespace(cluster.GetKubeClient(), namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))
 		} else {
 			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
 		}
 	} else {
-		if err := clearTransportLayerIngress(cluster.KubeClient, namespace.GetID()); err != nil {
-			log.Warnf("clean udp ingress for namespace %s failed:%s", namespace.GetID(), err.Error())
-		}
+		eb.PublishResourceDeleteEvent(namespace)
 	}
 	return nil
 }
@@ -311,7 +310,7 @@ func (m *NamespaceManager) searchPod(ctx *resource.Context) (interface{}, *reste
 	}
 
 	pod := corev1.Pod{}
-	err := cluster.KubeClient.Get(context.TODO(), k8stypes.NamespacedName{namespace, target.Name}, &pod)
+	err := cluster.GetKubeClient().Get(context.TODO(), k8stypes.NamespacedName{namespace, target.Name}, &pod)
 	if err != nil {
 		return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("search pod get err:%s", err.Error()))
 	}
@@ -332,7 +331,7 @@ func (m *NamespaceManager) searchPod(ctx *resource.Context) (interface{}, *reste
 	}
 
 	var rs appsv1.ReplicaSet
-	err = cluster.KubeClient.Get(context.TODO(), k8stypes.NamespacedName{namespace, owner.Name}, &rs)
+	err = cluster.GetKubeClient().Get(context.TODO(), k8stypes.NamespacedName{namespace, owner.Name}, &rs)
 	if err != nil {
 		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get replicaset failed:%s", err.Error()))
 	}

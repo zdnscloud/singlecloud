@@ -43,7 +43,7 @@ func (m *PodManager) List(ctx *resource.Context) interface{} {
 	namespace := ctx.Resource.GetParent().GetParent().GetID()
 	ownerType := ctx.Resource.GetParent().GetType()
 	ownerName := ctx.Resource.GetParent().GetID()
-	k8sPods, err := getOwnerPods(cluster.KubeClient, namespace, ownerType, ownerName)
+	k8sPods, err := getOwnerPods(cluster.GetKubeClient(), namespace, ownerType, ownerName)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get pod info failed:%s", err.Error())
@@ -66,7 +66,7 @@ func (m *PodManager) Get(ctx *resource.Context) resource.Resource {
 
 	namespace := ctx.Resource.GetParent().GetParent().GetID()
 	pod := ctx.Resource.(*types.Pod)
-	k8sPod, err := getPod(cluster.KubeClient, namespace, pod.GetID())
+	k8sPod, err := getPod(cluster.GetKubeClient(), namespace, pod.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get pod info failed:%s", err.Error())
@@ -85,7 +85,7 @@ func (m *PodManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	namespace := ctx.Resource.GetParent().GetParent().GetID()
 	pod := ctx.Resource.(*types.Pod)
-	err := deletePod(cluster.KubeClient, namespace, pod.GetID())
+	err := deletePod(cluster.GetKubeClient(), namespace, pod.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("pod %s desn't exist", pod.GetID()))

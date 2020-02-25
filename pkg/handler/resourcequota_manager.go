@@ -33,7 +33,7 @@ func (m *ResourceQuotaManager) Create(ctx *resource.Context) (resource.Resource,
 
 	namespace := ctx.Resource.GetParent().GetID()
 	resourceQuota := ctx.Resource.(*types.ResourceQuota)
-	err := createResourceQuota(cluster.KubeClient, namespace, resourceQuota)
+	err := createResourceQuota(cluster.GetKubeClient(), namespace, resourceQuota)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate resourceQuota name %s", resourceQuota.Name))
@@ -53,7 +53,7 @@ func (m *ResourceQuotaManager) List(ctx *resource.Context) interface{} {
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	k8sResourceQuotas, err := getResourceQuotas(cluster.KubeClient, namespace)
+	k8sResourceQuotas, err := getResourceQuotas(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("list resourceQuota info failed:%s", err.Error())
@@ -76,7 +76,7 @@ func (m *ResourceQuotaManager) Get(ctx *resource.Context) resource.Resource {
 
 	namespace := ctx.Resource.GetParent().GetID()
 	resourceQuota := ctx.Resource.(*types.ResourceQuota)
-	k8sResourceQuota, err := getResourceQuota(cluster.KubeClient, namespace, resourceQuota.GetID())
+	k8sResourceQuota, err := getResourceQuota(cluster.GetKubeClient(), namespace, resourceQuota.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
 			log.Warnf("get resourceQuota info failed:%s", err.Error())
@@ -95,7 +95,7 @@ func (m *ResourceQuotaManager) Delete(ctx *resource.Context) *resterror.APIError
 
 	namespace := ctx.Resource.GetParent().GetID()
 	resourceQuota := ctx.Resource.(*types.ResourceQuota)
-	if err := deleteResourceQuota(cluster.KubeClient, namespace, resourceQuota.GetID()); err != nil {
+	if err := deleteResourceQuota(cluster.GetKubeClient(), namespace, resourceQuota.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound,
 				fmt.Sprintf("resourceQuota %s with namespace %s desn't exist", resourceQuota.GetID(), namespace))

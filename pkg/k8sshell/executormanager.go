@@ -7,7 +7,7 @@ import (
 
 	"github.com/zdnscloud/gok8s/exec"
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/pkg/types"
 )
 
 type ExecutorManager struct {
@@ -19,7 +19,7 @@ type ExecutorManager struct {
 func New() *ExecutorManager {
 	mgr := &ExecutorManager{
 		executors:      make(map[string]*exec.Executor),
-		clusterEventCh: eb.GetEventBus().Sub(eb.ClusterEvent),
+		clusterEventCh: eb.SubscribeResourceEvent(types.Cluster{}),
 	}
 	go mgr.eventLoop()
 	return mgr
@@ -29,14 +29,14 @@ func (mgr *ExecutorManager) eventLoop() {
 	for {
 		event := <-mgr.clusterEventCh
 		switch e := event.(type) {
-		case zke.AddCluster:
-			cluster := e.Cluster
+		case eb.ResourceCreateEvent:
+			cluster := e.Resource.(*types.Cluster)
 			mgr.lock.Lock()
 			_, ok := mgr.executors[cluster.Name]
 			if ok {
 				log.Warnf("shell executor detect duplicate cluster %s", cluster.Name)
 			} else {
-				executor, err := exec.New(cluster.K8sConfig, cluster.KubeClient, cluster.Cache)
+				executor, err := exec.New(cluster.KubeProvider.GetKubeRestConfig(), cluster.KubeProvider.GetKubeClient(), cluster.KubeProvider.GetKubeCache())
 				if err != nil {
 					log.Warnf("create executor for cluster %s failed: %s", cluster.Name, err.Error())
 				} else {
@@ -44,15 +44,15 @@ func (mgr *ExecutorManager) eventLoop() {
 				}
 			}
 			mgr.lock.Unlock()
-		case zke.DeleteCluster:
-			cluster := e.Cluster
+		case eb.ResourceDeleteEvent:
+			clusterName := e.Resource.GetID()
 			mgr.lock.Lock()
-			executor, ok := mgr.executors[cluster.Name]
+			executor, ok := mgr.executors[clusterName]
 			if ok {
 				executor.Stop()
-				delete(mgr.executors, cluster.Name)
+				delete(mgr.executors, clusterName)
 			} else {
-				log.Warnf("event watcher unknown cluster %s", cluster.Name)
+				log.Warnf("event watcher unknown cluster %s", clusterName)
 			}
 			mgr.lock.Unlock()
 		}
