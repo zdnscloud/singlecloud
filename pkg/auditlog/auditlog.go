@@ -54,7 +54,7 @@ func (a *AuditLogger) List(user string) (types.AuditLogs, error) {
 		return logs, err
 	}
 
-	sort.Sort(logs)
+	sort.Sort(sort.Reverse(logs))
 	if user == types.Administrator {
 		return logs, err
 	}
