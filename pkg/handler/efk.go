@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"time"
 
+	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
 	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/randomdata"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
@@ -16,20 +16,20 @@ import (
 )
 
 const (
-	efkChartName     = "efk"
-	efkChartVersion  = "0.0.1"
-	efkAppNamePrefix = "efk"
+	efkChartName    = "efk"
+	efkChartVersion = "0.0.1"
+	efkAppName      = "efk"
 )
 
 type EFKManager struct {
 	clusters *ClusterManager
-	apps     *ApplicationManager
+	chartDir string
 }
 
-func newEFKManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *EFKManager {
+func newEFKManager(clusterMgr *ClusterManager, chartDir string) *EFKManager {
 	return &EFKManager{
 		clusters: clusterMgr,
-		apps:     appMgr,
+		chartDir: chartDir,
 	}
 }
 
@@ -48,21 +48,29 @@ func (m *EFKManager) Create(ctx *restresource.Context) (restresource.Resource, *
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
-	if err := createSysApplication(ctx, m.apps, cluster, efkChartName, app, efk.StorageClass, efkAppNamePrefix); err != nil {
+	if err := createSysApplication(ctx, cluster, app, m.chartDir, efkChartName, efkAppName, efk.StorageClass); err != nil {
 		return nil, err
 	}
 
-	efk.Status = types.AppStatusCreate
-	efk.SetID(efkAppNamePrefix)
+	efk.SetID(efkAppName)
 	return efk, nil
 }
 
 func (m *EFKManager) Delete(ctx *restresource.Context) *resterr.APIError {
-	if ctx.Resource.GetID() != efkAppNamePrefix {
+	if ctx.Resource.GetID() != efkAppName {
 		return resterr.NewAPIError(resterr.NotFound, "efk doesn't exist")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	return deleteApplicationByChartName(cluster, efkChartName)
+	if cluster == nil {
+		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
+	}
+
+	if err := deleteApplication(cluster.GetKubeClient(), ZCloudNamespace, efkAppName, true); err != nil {
+		return resterr.NewAPIError(resterr.ServerError,
+			fmt.Sprintf("delete application %s failed: %s", efkAppName, err.Error()))
+	}
+
+	return nil
 }
 
 func (m *EFKManager) List(ctx *restresource.Context) interface{} {
@@ -76,7 +84,7 @@ func (m *EFKManager) List(ctx *restresource.Context) interface{} {
 
 func (m *EFKManager) Get(ctx *restresource.Context) restresource.Resource {
 	id := ctx.Resource.GetID()
-	if id != efkAppNamePrefix {
+	if id != efkAppName {
 		return nil
 	}
 	return m.get(ctx)
@@ -88,38 +96,38 @@ func (m *EFKManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	app, err := getApplicationFromDBByChartName(cluster.Name, efkChartName)
+	k8sAppCRD, err := getApplication(cluster.GetKubeClient(), ZCloudNamespace, efkAppName, true)
 	if err != nil {
-		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, efkChartName, err.Error())
-		return nil
-	}
-	if app == nil {
+		log.Warnf("get cluster %s application efk by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
 		return nil
 	}
 
-	efk, err := genEFKFromApp(ctx, cluster.Name, app)
+	efk, err := genEFKFromApp(k8sAppCRD)
 	if err != nil {
 		return nil
 	}
 	return efk
 }
 
-func genEFKFromApp(ctx *restresource.Context, cluster string, app *types.Application) (*types.EFK, error) {
+func genEFKFromApp(app *appv1beta1.Application) (*types.EFK, error) {
 	e := charts.EFK{}
-	if err := json.Unmarshal(app.Configs, &e); err != nil {
+	if err := getAppConfigsFromAnnotations(app, &e); err != nil {
 		return nil, err
 	}
+
 	efk := types.EFK{
 		IngressDomain: e.Kibana.Ingress.Hosts,
 		ESReplicas:    e.Elasticsearch.Replicas,
 		StorageClass:  e.Elasticsearch.VolumeClaimTemplate.StorageClass,
 		StorageSize:   e.Elasticsearch.VolumeClaimTemplate.Resources.Requests.Storage,
 		RedirectUrl:   "http://" + e.Kibana.Ingress.Hosts,
-		Status:        app.Status,
+		Status:        string(app.Status.State),
 	}
-	efk.SetID(efkAppNamePrefix)
-	efk.SetCreationTimestamp(time.Time(app.CreationTimestamp))
-	efk.SetDeletionTimestamp(time.Time(app.DeletionTimestamp))
+	efk.SetID(efkAppName)
+	efk.SetCreationTimestamp(app.CreationTimestamp.Time)
+	if app.GetDeletionTimestamp() != nil {
+		efk.SetDeletionTimestamp(app.DeletionTimestamp.Time)
+	}
 	return &efk, nil
 }
 
@@ -129,23 +137,20 @@ func genEFKApplication(cluster *zke.Cluster, efk *types.EFK) (*types.Application
 		return nil, err
 	}
 	return &types.Application{
-		Name:         efkAppNamePrefix + "-" + randomdata.RandString(12),
+		Name:         efkAppName,
 		ChartName:    efkChartName,
 		ChartVersion: efkChartVersion,
 		Configs:      config,
-		SystemChart:  true,
 	}, nil
 }
 
 func genEFKConfigs(cluster *zke.Cluster, efk *types.EFK) ([]byte, error) {
-	if len(efk.IngressDomain) == 0 {
-		edgeNodeIP := getRandomEdgeNodeAddress(cluster)
-		if len(edgeNodeIP) == 0 {
-			return nil, fmt.Errorf("can not find edge node for this cluster")
-		}
-		efk.IngressDomain = efkAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeNodeIP + "." + ZcloudDynamicaDomainPrefix
+	domain, err := genIngressDomain(cluster, efk.IngressDomain, efkAppName)
+	if err != nil {
+		return nil, err
 	}
-	efk.RedirectUrl = "http://" + efk.IngressDomain
+	efk.IngressDomain = domain
+
 	e := charts.EFK{
 		Elasticsearch: charts.ES{
 			Replicas: efk.ESReplicas,

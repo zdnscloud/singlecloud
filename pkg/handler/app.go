@@ -95,10 +95,10 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.UserQuota{}, userQuotaManager)
 	appManager := newApplicationManager(a.clusterManager, a.conf.Chart.Path)
 	schemas.MustImport(&Version, types.Application{}, appManager)
-	schemas.MustImport(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, appManager))
-	schemas.MustImport(&Version, types.EFK{}, newEFKManager(a.clusterManager, appManager))
+	schemas.MustImport(&Version, types.Monitor{}, newMonitorManager(a.clusterManager, a.conf.Chart.Path))
+	schemas.MustImport(&Version, types.EFK{}, newEFKManager(a.clusterManager, a.conf.Chart.Path))
 
-	registryManager, err := newRegistryManager(a.clusterManager, appManager, a.conf.Registry)
+	registryManager, err := newRegistryManager(a.clusterManager, a.conf.Chart.Path, a.conf.Registry)
 	if err != nil {
 		return err
 	}
