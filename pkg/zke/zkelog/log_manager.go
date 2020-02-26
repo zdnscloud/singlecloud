@@ -22,11 +22,10 @@ func New() *LogManager {
 	}
 }
 
-func (lm *LogManager) AddOrUpdate(name string, in <-chan string) error {
+func (lm *LogManager) AddOrUpdate(name string, in <-chan string) {
 	lm.lock.Lock()
 	defer lm.lock.Unlock()
 	lm.watchers[name] = newLogWatcher(in)
-	return nil
 }
 
 func (lm *LogManager) Delete(name string) error {
