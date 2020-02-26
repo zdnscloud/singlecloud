@@ -273,7 +273,7 @@ func (ac *AlarmCache) SetUnAck(u int) {
 }
 
 func uintToStr(uid uint64) string {
-	return strconv.FormatInt(int64(uid), 10)
+	return strconv.FormatUint(uid, 10)
 }
 
 func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
