@@ -53,7 +53,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 					log.Warnf("fsm %s callback failed %s", CreateSucceedEvent, err.Error())
 				}
 
-				if err := mgr.Logger.Delete(cluster.Name); err != nil {
+				if err := mgr.logger.Delete(cluster.Name); err != nil {
 					log.Warnf("fsm %s callback failed %s", CreateSucceedEvent, err.Error())
 				}
 
@@ -96,7 +96,7 @@ func newClusterFsm(cluster *Cluster, initialStatus types.ClusterStatus) *fsm.FSM
 					return
 				}
 
-				if err := mgr.Logger.Delete(cluster.Name); err != nil {
+				if err := mgr.logger.Delete(cluster.Name); err != nil {
 					log.Warnf("fsm %s callback failed %s", UpdateCompletedEvent, err.Error())
 				}
 

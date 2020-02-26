@@ -132,7 +132,7 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 
 	zkeLogPath := fmt.Sprintf(zkelog.WSZKELogPathTemp, ":cluster")
 	router.GET(zkeLogPath, func(c *gin.Context) {
-		a.clusterManager.zkeManager.Logger.OpenLog(c.Param("cluster"), c.Request, c.Writer)
+		a.clusterManager.zkeManager.OpenLog(c.Param("cluster"), c.Request, c.Writer)
 	})
 
 	tapPath := fmt.Sprintf(WSTapPathTemp, ":cluster", ":namespace")

@@ -3,6 +3,7 @@ package zke
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -31,7 +32,7 @@ type ZKEManager struct {
 	lock         sync.Mutex
 	scVersion    string       // add cluster singlecloud version for easy to confirm zcloud component version
 	nodeListener NodeListener // for check storage node
-	Logger       *zkelog.LogManager
+	logger       *zkelog.LogManager
 }
 
 type NodeListener interface {
@@ -54,13 +55,17 @@ func newZKEManager(db kvzoo.DB, nl NodeListener) (*ZKEManager, error) {
 		dbTable:      table,
 		scVersion:    singleCloudVersion,
 		nodeListener: nl,
-		Logger:       zkelog.New(),
+		logger:       zkelog.New(),
 	}
 
 	if err := mgr.loadDB(); err != nil {
 		return mgr, err
 	}
 	return mgr, nil
+}
+
+func (m *ZKEManager) OpenLog(cluster string, r *http.Request, w http.ResponseWriter) {
+	m.logger.OpenLog(cluster, r, w)
 }
 
 func (m *ZKEManager) Create(ctx *restsource.Context) (restsource.Resource, *resterr.APIError) {

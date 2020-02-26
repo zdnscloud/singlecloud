@@ -186,7 +186,7 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 
 	logger, logCh := log.NewISO3339Log4jBufLogger(zkelog.MaxLogSize, log.Info)
 	defer logger.Close()
-	mgr.Logger.AddOrUpdate(c.Name, logCh)
+	mgr.logger.AddOrUpdate(c.Name, logCh)
 	zkeState, k8sConfig, kubeClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
 	if c.isCanceled {
@@ -219,7 +219,7 @@ func (c *Cluster) Update(ctx context.Context, state clusterState, mgr *ZKEManage
 
 	logger, logCh := log.NewISO3339Log4jBufLogger(zkelog.MaxLogSize, log.Info)
 	defer logger.Close()
-	mgr.Logger.AddOrUpdate(c.Name, logCh)
+	mgr.logger.AddOrUpdate(c.Name, logCh)
 
 	zkeState, k8sConfig, k8sClient, err := upZKECluster(ctx, c.config, state.FullState, logger)
 	state.FullState = zkeState
@@ -262,9 +262,8 @@ func (c *Cluster) Destroy(ctx context.Context, mgr *ZKEManager) {
 		}
 	}()
 
-	logger, logCh := log.NewISO3339Log4jBufLogger(zkelog.MaxLogSize, log.Info)
+	logger, _ := log.NewISO3339Log4jBufLogger(zkelog.MaxLogSize, log.Info)
 	defer logger.Close()
-	mgr.Logger.AddOrUpdate(c.Name, logCh)
 
 	err := removeZKECluster(ctx, c.config, logger)
 	if err != nil {
