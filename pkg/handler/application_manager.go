@@ -7,12 +7,9 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"time"
 
-	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"helm.sh/helm/pkg/chart/loader"
@@ -24,7 +21,6 @@ import (
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
-	"github.com/zdnscloud/gok8s/helper"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
@@ -40,8 +36,6 @@ var (
 
 const (
 	notesFileSuffix     = "NOTES.txt"
-	crdCheckTimes       = 20
-	crdCheckInterval    = 5 * time.Second
 	appStatusDelete     = "delete"
 	AnnKeyForAppConfigs = "app.configs"
 )
@@ -119,10 +113,6 @@ func createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace, c
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	if err := preInstallChartCRDs(cluster.GetKubeClient(), crdManifests); err != nil {
-		return fmt.Errorf("create application %s crds failed: %s", app.Name, err.Error())
-	}
-
 	urls := strings.SplitAfterN(ctx.Request.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", cluster.Name), 2)
 	k8sAppCRD := &appv1beta1.Application{
 		ObjectMeta: metav1.ObjectMeta{
@@ -142,6 +132,7 @@ func createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace, c
 			InjectServiceMesh: app.InjectServiceMesh,
 			CreatedByAdmin:    isAdmin(getCurrentUser(ctx)),
 			Manifests:         manifests,
+			CRDManifests:      crdManifests,
 		},
 	}
 
@@ -356,84 +347,4 @@ func deleteApplication(cli client.Client, namespace, name string, isSystemChart 
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}
 	return cli.Delete(context.TODO(), app)
-}
-
-func isCRDReady(crd apiextv1beta1.CustomResourceDefinition) bool {
-	for _, cond := range crd.Status.Conditions {
-		switch cond.Type {
-		case apiextv1beta1.Established:
-			if cond.Status == apiextv1beta1.ConditionTrue {
-				return true
-			}
-		case apiextv1beta1.NamesAccepted:
-			if cond.Status == apiextv1beta1.ConditionFalse {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func isCRDsReady(requiredCRDs []*apiextv1beta1.CustomResourceDefinition, allCRDs apiextv1beta1.CustomResourceDefinitionList) bool {
-	for _, required := range requiredCRDs {
-		ready := false
-		for _, crd := range allCRDs.Items {
-			if crd.Name == required.Name {
-				if isCRDReady(crd) {
-					ready = true
-				}
-				break
-			}
-		}
-		if !ready {
-			return false
-		}
-	}
-	return true
-}
-
-func waitCRDsReady(client client.Client, requiredCRDs []*apiextv1beta1.CustomResourceDefinition) bool {
-	var allCRDs apiextv1beta1.CustomResourceDefinitionList
-	for i := 0; i < crdCheckTimes; i++ {
-		if err := client.List(context.TODO(), nil, &allCRDs); err == nil {
-			if isCRDsReady(requiredCRDs, allCRDs) {
-				return true
-			}
-		}
-		time.Sleep(crdCheckInterval)
-	}
-	return false
-}
-
-func preInstallChartCRDs(cli client.Client, manifests []appv1beta1.Manifest) error {
-	if len(manifests) == 0 {
-		return nil
-	}
-
-	var crds []*apiextv1beta1.CustomResourceDefinition
-	for _, manifest := range manifests {
-		if err := helper.MapOnRuntimeObject(manifest.Content, func(ctx context.Context, obj runtime.Object) error {
-			crd, ok := obj.(*apiextv1beta1.CustomResourceDefinition)
-			if !ok {
-				return fmt.Errorf("runtime object isn't k8s crd object")
-			}
-			crds = append(crds, crd)
-
-			if err := cli.Create(ctx, obj); err != nil {
-				if apierrors.IsAlreadyExists(err) {
-					log.Infof("ignore already exist crd %s", crd.Name)
-					return nil
-				}
-				return fmt.Errorf("create crd with file %s failed: %s", manifest.File, err.Error())
-			}
-			return nil
-		}); err != nil {
-			return err
-		}
-	}
-
-	if !waitCRDsReady(cli, crds) {
-		return fmt.Errorf("preinstall chart crds timeout")
-	}
-	return nil
 }

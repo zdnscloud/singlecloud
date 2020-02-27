@@ -334,6 +334,7 @@ github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+W
 github.com/onsi/ginkgo v1.8.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.10.1 h1:q/mM8GF/n0shIN8SaAZ0V+jnLPzen6WIVZdiwrRlMlo=
 github.com/onsi/ginkgo v1.10.1/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
+github.com/onsi/ginkgo v1.11.0 h1:JAKSXpt1YjtLA7YpPiqO9ss6sNXEsPfSGdwN0UHqzrw=
 github.com/onsi/ginkgo v1.11.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/gomega v0.0.0-20170829124025-dcabb60a477c/go.mod h1:C1qb7wdrVGGVU+Z6iS04AVkA3Q65CEZX59MT0QO5uiA=
 github.com/onsi/gomega v1.3.0/go.mod h1:C1qb7wdrVGGVU+Z6iS04AVkA3Q65CEZX59MT0QO5uiA=
@@ -341,6 +342,7 @@ github.com/onsi/gomega v1.5.0/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1Cpa
 github.com/onsi/gomega v1.7.0/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
 github.com/onsi/gomega v1.7.1 h1:K0jcRCwNQM3vFGh1ppMtDh/+7ApJrjldlX8fA0jDTLQ=
 github.com/onsi/gomega v1.7.1/go.mod h1:XdKZgCCFLUoM/7CFJVPcG8C1xQ1AJ0vpAezJrB7JYyY=
+github.com/onsi/gomega v1.8.1 h1:C5Dqfs/LeauYDX0jJXIe2SWmwCbGzx9yF8C8xy3Lh34=
 github.com/onsi/gomega v1.8.1/go.mod h1:Ho0h+IUsWyvy1OpqCwxlQ/21gkhVunqlU8fDGcoTdcA=
 github.com/opencontainers/go-digest v1.0.0-rc1 h1:WzifXhOVOEOuFYOJAW6aQqW0TooG2iki3E3Ii+WN7gQ=
 github.com/opencontainers/go-digest v1.0.0-rc1/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
@@ -440,8 +442,10 @@ github.com/xeipuuv/gojsonschema v1.2.0/go.mod h1:anYRn/JVcOK2ZgGU+IjEV4nwlhoK5sQ
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 h1:eY9dn8+vbi4tKz5Qo6v2eYzo7kUS51QINcR5jNpbZS8=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
-github.com/zdnscloud/application-operator v0.0.0-20200225035745-59e85e2d6d8f h1:g8wadXeu59kIQOjhXh+xQPEa8VzUYe2QsQRAsqzB+VQ=
-github.com/zdnscloud/application-operator v0.0.0-20200225035745-59e85e2d6d8f/go.mod h1:W+JasJuMmu5WI2kgYuiPrEFZZgKL7ZwWHJRYeJkULSM=
+github.com/zdnscloud/application-operator v0.0.0-20200227072735-1ad4583d14b8 h1:6JNX+R6L/rEePQx+mqrMvPJ23PzLtkxdT1tZD0rn0us=
+github.com/zdnscloud/application-operator v0.0.0-20200227072735-1ad4583d14b8/go.mod h1:W+JasJuMmu5WI2kgYuiPrEFZZgKL7ZwWHJRYeJkULSM=
+github.com/zdnscloud/application-operator v0.0.0-20200227100104-6e8450a17eb2 h1:io2TuRyRiOKN/0/WvDDM7HFGxLpjDcj44IgwijyJYas=
+github.com/zdnscloud/application-operator v0.0.0-20200227100104-6e8450a17eb2/go.mod h1:SIqZm9jP/M+dAH7J6QQFj/5mtfH9iDNFBcW+3Ab3IaU=
 github.com/zdnscloud/cement v0.0.0-20190419035655-dbe599d3f012/go.mod h1:sV8GqHxkOhXAV8DUfOw93QyYjqsRlFf4A+XVpEuipn4=
 github.com/zdnscloud/cement v0.0.0-20190814053439-7eb205536ab8/go.mod h1:sV8GqHxkOhXAV8DUfOw93QyYjqsRlFf4A+XVpEuipn4=
 github.com/zdnscloud/cement v0.0.0-20191029103721-28c1280e43f2/go.mod h1:sV8GqHxkOhXAV8DUfOw93QyYjqsRlFf4A+XVpEuipn4=

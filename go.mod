@@ -30,7 +30,7 @@ require (
 	github.com/urfave/cli v1.22.2 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
-	github.com/zdnscloud/application-operator v0.0.0-20200225035745-59e85e2d6d8f
+	github.com/zdnscloud/application-operator v0.0.0-20200227100104-6e8450a17eb2
 	github.com/zdnscloud/cement v0.0.0-20200221122612-e28e2126b9b6
 	github.com/zdnscloud/g53 v0.0.0-20191119101753-eb2b1813bd52
 	github.com/zdnscloud/gok8s v0.0.0-20200212071629-b06587f54ee6
@@ -51,7 +51,6 @@ require (
 	gopkg.in/yaml.v2 v2.2.8
 	helm.sh/helm v3.0.0-alpha.2.0.20190820153828-fba311ba2362+incompatible
 	k8s.io/api v0.17.3
-	k8s.io/apiextensions-apiserver v0.17.2
 	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v0.17.2
 	k8s.io/metrics v0.17.2
