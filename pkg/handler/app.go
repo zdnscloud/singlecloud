@@ -120,7 +120,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.User{}, userManager)
 	schemas.MustImport(&Version, types.HorizontalPodAutoscaler{}, newHorizontalPodAutoscalerManager(a.clusterManager))
 	server := gorest.NewAPIServer(schemas)
-	server.Use(a.clusterManager.authorizationHandler())
+	server.Use(a.clusterManager.authorizationHandler(a.conf.Server.EnableDebug))
 	server.Use(auditLogger.AuditHandler())
 
 	adaptor.RegisterHandler(router, server, schemas.GenerateResourceRoute())

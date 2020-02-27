@@ -23,8 +23,7 @@ import (
 )
 
 const (
-	TopPodCount     = 5
-	SystemNamespace = "zcloud"
+	TopPodCount = 5
 )
 
 type NamespaceManager struct {
@@ -81,7 +80,7 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 	user := getCurrentUser(ctx)
 	var namespaces []*types.Namespace
 	for _, ns := range k8sNamespaces.Items {
-		if !m.enableDebug && ns.Name == SystemNamespace {
+		if !m.enableDebug && ns.Name == ZCloudNamespace {
 			continue
 		}
 
@@ -94,7 +93,7 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 }
 
 func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
-	if !m.enableDebug && ctx.Resource.GetID() == SystemNamespace {
+	if !m.enableDebug && ctx.Resource.GetID() == ZCloudNamespace {
 		return nil
 	}
 
@@ -112,7 +111,7 @@ func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
 }
 
 func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
-	if !m.enableDebug && ctx.Resource.GetID() == SystemNamespace {
+	if !m.enableDebug && ctx.Resource.GetID() == ZCloudNamespace {
 		return resterror.NewAPIError(resterror.PermissionDenied, "system namespace can only be deleted at debug mod")
 	}
 
