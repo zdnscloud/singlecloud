@@ -23,9 +23,10 @@ type SinglecloudConf struct {
 }
 
 type ServerConf struct {
-	Addr    string `yaml:"addr"`
-	DNSAddr string `yaml:"dns_addr"`
-	CasAddr string `yaml:"cas_addr"`
+	Addr        string `yaml:"addr"`
+	DNSAddr     string `yaml:"dns_addr"`
+	CasAddr     string `yaml:"cas_addr"`
+	EnableDebug bool   `yaml:"enable_debug"`
 }
 
 type DBConf struct {

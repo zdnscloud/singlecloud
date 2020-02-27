@@ -59,7 +59,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.ServiceNetwork{}, newServiceNetworkManager(a.clusterManager))
 	schemas.MustImport(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager))
-	namespaceManager, err := newNamespaceManager(a.clusterManager)
+	namespaceManager, err := newNamespaceManager(a.clusterManager, a.conf.Server.EnableDebug)
 	if err != nil {
 		return err
 	}
