@@ -42,6 +42,7 @@ const (
 	notesFileSuffix     = "NOTES.txt"
 	crdCheckTimes       = 20
 	crdCheckInterval    = 5 * time.Second
+	appStatusDelete     = "delete"
 	AnnKeyForAppConfigs = "app.configs"
 )
 
@@ -123,13 +124,12 @@ func createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace, c
 	}
 
 	urls := strings.SplitAfterN(ctx.Request.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", cluster.Name), 2)
-	return cluster.GetKubeClient().Create(context.TODO(), &appv1beta1.Application{
+	k8sAppCRD := &appv1beta1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      app.Name,
 			Namespace: namespace,
 			Annotations: map[string]string{
 				appctrl.ZcloudAppRequestUrlPrefix: urls[0],
-				AnnKeyForAppConfigs:               string(app.Configs),
 			},
 		},
 		Spec: appv1beta1.ApplicationSpec{
@@ -143,7 +143,12 @@ func createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace, c
 			CreatedByAdmin:    isAdmin(getCurrentUser(ctx)),
 			Manifests:         manifests,
 		},
-	})
+	}
+
+	if len(app.Configs) != 0 {
+		k8sAppCRD.Annotations[AnnKeyForAppConfigs] = string(app.Configs)
+	}
+	return cluster.GetKubeClient().Create(context.TODO(), k8sAppCRD)
 }
 
 func getApplicationIfExists(cli client.Client, namespace, name string, isSystemChart bool) (*appv1beta1.Application, bool, error) {
@@ -302,6 +307,7 @@ func k8sAppCRDToScApp(k8sAppCRD *appv1beta1.Application) *types.Application {
 		})
 	}
 
+	sort.Sort(appResources)
 	app := &types.Application{
 		Name:               k8sAppCRD.Name,
 		ChartName:          k8sAppCRD.Spec.OwnerChart.Name,
@@ -317,6 +323,7 @@ func k8sAppCRDToScApp(k8sAppCRD *appv1beta1.Application) *types.Application {
 	app.SetCreationTimestamp(k8sAppCRD.CreationTimestamp.Time)
 	if k8sAppCRD.GetDeletionTimestamp() != nil {
 		app.SetDeletionTimestamp(k8sAppCRD.DeletionTimestamp.Time)
+		app.Status = appStatusDelete
 	}
 	return app
 }
@@ -338,13 +345,16 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 }
 
 func deleteApplication(cli client.Client, namespace, name string, isSystemChart bool) error {
-	app, exists, err := getApplicationIfExists(cli, namespace, name, isSystemChart)
+	_, exists, err := getApplicationIfExists(cli, namespace, name, isSystemChart)
 	if err != nil {
 		return fmt.Errorf("get application %s with namespace %s failed: %s", name, namespace, err.Error())
 	} else if exists == false {
 		return fmt.Errorf("application %s with namespace %s doesn't exist", name, namespace)
 	}
 
+	app := &appv1beta1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+	}
 	return cli.Delete(context.TODO(), app)
 }
 

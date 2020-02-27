@@ -6,13 +6,6 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
-const (
-	AppStatusCreate  = "create"
-	AppStatusDelete  = "delete"
-	AppStatusFailed  = "failed"
-	AppStatusSucceed = "succeed"
-)
-
 type Application struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string          `json:"name" rest:"required=true,isDomain=true"`
