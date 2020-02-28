@@ -15,9 +15,10 @@ type WorkFlow struct {
 }
 
 type GitInfo struct {
-	Repository string `json:"repository" rest:"required=true"`
-	User       string `json:"user"`
-	Password   string `json:"password"`
+	RepositoryURL string `json:"repositoryUrl" rest:"required=true"`
+	Revision      string `json:"revision" rest:"required=true"`
+	User          string `json:"user"`
+	Password      string `json:"password"`
 }
 
 type ImageInfo struct {

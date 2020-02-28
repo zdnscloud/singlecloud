@@ -172,7 +172,13 @@
       "password": {
         "type": "string"
       },
-      "repository": {
+      "repositoryUrl": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "revision": {
         "type": "string",
         "description": [
           "required"
