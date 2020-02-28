@@ -1,0 +1,36 @@
+{
+  "resourceType": "workflowtask",
+  "collectionName": "workflowtasks",
+  "parentResources": [
+    "workflow"
+  ],
+  "goStructName": "WorkFlowTask",
+  "supportAsyncDelete": false,
+  "resourceFields": {
+    "imageTag": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
+    },
+    "status": {
+      "type": "enum",
+      "validValues": [
+        "succeed",
+        "failed",
+        "running"
+      ],
+      "description": [
+        "readonly"
+      ]
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
+}

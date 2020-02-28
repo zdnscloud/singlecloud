@@ -18,7 +18,6 @@ require (
 	github.com/gorilla/websocket v1.4.1
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/huandu/xstrings v1.2.1 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/kyokomi/emoji v2.1.0+incompatible
 	github.com/leodido/go-urn v1.2.0 // indirect
@@ -27,6 +26,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.11.0 // indirect
+	github.com/tektoncd/pipeline v0.10.1
 	github.com/urfave/cli v1.22.2 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
@@ -40,7 +40,7 @@ require (
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7
 	github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d
 	github.com/zdnscloud/vanguard v0.0.0-20200214072003-226d0e690d9f
-	github.com/zdnscloud/zke v0.0.0-20200218083006-8dd61050e70a
+	github.com/zdnscloud/zke v0.0.0-20200227091802-03bfbc73f488
 	github.com/zsais/go-gin-prometheus v0.1.0
 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
