@@ -17,12 +17,12 @@ import (
 	"helm.sh/helm/pkg/engine"
 
 	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
-	appctrl "github.com/zdnscloud/application-operator/pkg/controller"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	restutil "github.com/zdnscloud/gorest/util"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
@@ -113,14 +113,10 @@ func createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace, c
 		return fmt.Errorf("load chart %s with version %s files failed: %s", app.ChartName, app.ChartVersion, err.Error())
 	}
 
-	urls := strings.SplitAfterN(ctx.Request.URL.Path, fmt.Sprintf("/clusters/%s/namespaces/", cluster.Name), 2)
 	k8sAppCRD := &appv1beta1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      app.Name,
 			Namespace: namespace,
-			Annotations: map[string]string{
-				appctrl.ZcloudAppRequestUrlPrefix: urls[0],
-			},
 		},
 		Spec: appv1beta1.ApplicationSpec{
 			OwnerChart: appv1beta1.ChartInfo{
@@ -137,7 +133,7 @@ func createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace, c
 	}
 
 	if len(app.Configs) != 0 {
-		k8sAppCRD.Annotations[AnnKeyForAppConfigs] = string(app.Configs)
+		k8sAppCRD.Annotations = map[string]string{AnnKeyForAppConfigs: string(app.Configs)}
 	}
 	return cluster.GetKubeClient().Create(context.TODO(), k8sAppCRD)
 }
@@ -232,13 +228,14 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 		return nil
 	}
 
+	urlPrefix := getRequestUrlPrefix(ctx.Request.URL.Path, cluster.Name)
 	var apps types.Applications
 	for _, k8sAppCRD := range k8sAppCRDs.Items {
 		if k8sAppCRD.Spec.OwnerChart.SystemChart {
 			continue
 		}
 
-		apps = append(apps, k8sAppCRDToScApp(&k8sAppCRD))
+		apps = append(apps, k8sAppCRDToScApp(&k8sAppCRD, urlPrefix))
 	}
 
 	sort.Sort(apps)
@@ -249,6 +246,10 @@ func getApplications(cli client.Client, namespace string) (*appv1beta1.Applicati
 	apps := appv1beta1.ApplicationList{}
 	err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace}, &apps)
 	return &apps, err
+}
+
+func getRequestUrlPrefix(reqUrlPath, clusterName string) string {
+	return strings.SplitAfterN(reqUrlPath, fmt.Sprintf("/clusters/%s/namespaces/", clusterName), 2)[0]
 }
 
 func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
@@ -264,7 +265,7 @@ func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
 	if err != nil {
 		log.Warnf("get application %s info failed:%s", appName, err.Error())
 	} else if exists {
-		return k8sAppCRDToScApp(k8sAppCRD)
+		return k8sAppCRDToScApp(k8sAppCRD, getRequestUrlPrefix(ctx.Request.URL.Path, cluster.Name))
 	}
 
 	return nil
@@ -283,19 +284,23 @@ func getApplication(cli client.Client, namespace, name string, isSystemChart boo
 	return &app, nil
 }
 
-func k8sAppCRDToScApp(k8sAppCRD *appv1beta1.Application) *types.Application {
+func k8sAppCRDToScApp(k8sAppCRD *appv1beta1.Application, urlPrefix string) *types.Application {
 	var appResources types.AppResources
 	for _, r := range k8sAppCRD.Status.AppResources {
-		appResources = append(appResources, types.AppResource{
+		appResource := types.AppResource{
 			Namespace:         r.Namespace,
 			Name:              r.Name,
 			Type:              string(r.Type),
-			Link:              r.Link,
 			Replicas:          r.Replicas,
 			ReadyReplicas:     r.ReadyReplicas,
 			Exists:            r.Exists,
 			CreationTimestamp: resource.ISOTime(r.CreationTimestamp.Time),
-		})
+		}
+		if r.Exists {
+			appResource.Link = path.Join(urlPrefix, r.Namespace, restutil.GuessPluralName(string(r.Type)), r.Name)
+		}
+
+		appResources = append(appResources, appResource)
 	}
 
 	sort.Sort(appResources)

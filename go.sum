@@ -442,10 +442,8 @@ github.com/xeipuuv/gojsonschema v1.2.0/go.mod h1:anYRn/JVcOK2ZgGU+IjEV4nwlhoK5sQ
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 h1:eY9dn8+vbi4tKz5Qo6v2eYzo7kUS51QINcR5jNpbZS8=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
-github.com/zdnscloud/application-operator v0.0.0-20200227072735-1ad4583d14b8 h1:6JNX+R6L/rEePQx+mqrMvPJ23PzLtkxdT1tZD0rn0us=
-github.com/zdnscloud/application-operator v0.0.0-20200227072735-1ad4583d14b8/go.mod h1:W+JasJuMmu5WI2kgYuiPrEFZZgKL7ZwWHJRYeJkULSM=
-github.com/zdnscloud/application-operator v0.0.0-20200227100104-6e8450a17eb2 h1:io2TuRyRiOKN/0/WvDDM7HFGxLpjDcj44IgwijyJYas=
-github.com/zdnscloud/application-operator v0.0.0-20200227100104-6e8450a17eb2/go.mod h1:SIqZm9jP/M+dAH7J6QQFj/5mtfH9iDNFBcW+3Ab3IaU=
+github.com/zdnscloud/application-operator v0.0.0-20200228041337-26a18a56f476 h1:u7SKSr0bYYEM9zczepJc9IchDTSITpSqMgsLJUaiVvE=
+github.com/zdnscloud/application-operator v0.0.0-20200228041337-26a18a56f476/go.mod h1:SIqZm9jP/M+dAH7J6QQFj/5mtfH9iDNFBcW+3Ab3IaU=
 github.com/zdnscloud/cement v0.0.0-20190419035655-dbe599d3f012/go.mod h1:sV8GqHxkOhXAV8DUfOw93QyYjqsRlFf4A+XVpEuipn4=
 github.com/zdnscloud/cement v0.0.0-20190814053439-7eb205536ab8/go.mod h1:sV8GqHxkOhXAV8DUfOw93QyYjqsRlFf4A+XVpEuipn4=
 github.com/zdnscloud/cement v0.0.0-20191029103721-28c1280e43f2/go.mod h1:sV8GqHxkOhXAV8DUfOw93QyYjqsRlFf4A+XVpEuipn4=
