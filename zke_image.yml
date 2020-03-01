@@ -31,3 +31,4 @@ v1.17.2:
         web: zdnscloud/linkerd-io-web:stable-2.6.0
         prometheus: prom/prometheus:v2.11.1
         grafana: zdnscloud/linkerd-io-grafana:stable-2.6.0
+    application_operator: zdnscloud/application-operator:latest
