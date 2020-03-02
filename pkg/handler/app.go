@@ -88,6 +88,8 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.SvcMeshWorkload{}, newSvcMeshWorkloadManager(a.clusterManager))
 	schemas.MustImport(&Version, types.SvcMeshPod{}, newSvcMeshPodManager(a.clusterManager))
 	schemas.MustImport(&Version, types.Metric{}, newMetricManager(a.clusterManager))
+	schemas.MustImport(&Version, types.WorkFlow{}, newWorkFlowManager(a.clusterManager))
+	schemas.MustImport(&Version, types.WorkFlowTask{}, newWorkFlowTaskManager(a.clusterManager))
 
 	auditLogger, err := auditlog.New()
 	if err != nil {
