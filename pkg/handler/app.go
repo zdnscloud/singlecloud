@@ -59,7 +59,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.ServiceNetwork{}, newServiceNetworkManager(a.clusterManager))
 	schemas.MustImport(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager))
-	namespaceManager, err := newNamespaceManager(a.clusterManager)
+	namespaceManager, err := newNamespaceManager(a.clusterManager, a.conf.Server.EnableDebug)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.User{}, userManager)
 	schemas.MustImport(&Version, types.HorizontalPodAutoscaler{}, newHorizontalPodAutoscalerManager(a.clusterManager))
 	server := gorest.NewAPIServer(schemas)
-	server.Use(a.clusterManager.authorizationHandler())
+	server.Use(a.clusterManager.authorizationHandler(a.conf.Server.EnableDebug))
 	server.Use(auditLogger.AuditHandler())
 
 	adaptor.RegisterHandler(router, server, schemas.GenerateResourceRoute())
