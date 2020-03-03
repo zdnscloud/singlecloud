@@ -26,15 +26,7 @@ import (
 
 const (
 	dockerhubRegistryURL     = "https://index.docker.io"
-	dockerConfigJsonTemplate = `{
-		"auths": {
-		  %s: {
-			"username": %s,
-			"password": %s,
-			"auth": %s
-		  }
-		}
-	  }`
+	dockerConfigJsonTemplate = `{"auths":{"%s":{"username":"%s","password":"%s","auth":"%s"}}}`
 )
 
 func genWorkFlowGitSecret(namespace string, wf *types.WorkFlow) *corev1.Secret {
@@ -71,8 +63,8 @@ func updateWorkFlowGitSecret(cli client.Client, secret *corev1.Secret, wf *types
 func genWorkFlowDockerSecret(namespace string, wf *types.WorkFlow) *corev1.Secret {
 	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", wf.Image.RegistryUser, wf.Image.RegistryPassword)))
 	configJson := fmt.Sprintf(dockerConfigJsonTemplate, getWorkFlowDockerRegistryURL(wf.Image.Name), wf.Image.RegistryUser, wf.Image.RegistryPassword, auth)
-	data := []byte{}
-	base64.StdEncoding.Encode(data, []byte(configJson))
+	data := make(map[string][]byte)
+	data[".dockerconfigjson"] = []byte(configJson)
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      genWorkFlowRandomName(wf.Name),
@@ -82,9 +74,7 @@ func genWorkFlowDockerSecret(namespace string, wf *types.WorkFlow) *corev1.Secre
 			},
 		},
 		Type: corev1.SecretTypeDockerConfigJson,
-		Data: map[string][]byte{
-			".dockerconfigjson": data,
-		},
+		Data: data,
 	}
 }
 
