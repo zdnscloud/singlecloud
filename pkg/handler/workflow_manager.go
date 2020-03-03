@@ -155,7 +155,10 @@ func getWorkFlows(cli client.Client, namespace string) ([]*types.WorkFlow, error
 		if err := json.Unmarshal([]byte(wfContent), wf); err != nil {
 			return nil, err
 		}
-		wf.SetDeletionTimestamp(pr.DeletionTimestamp.Time)
+
+		if pr.DeletionTimestamp != nil {
+			wf.SetDeletionTimestamp(pr.DeletionTimestamp.Time)
+		}
 		wfs = append(wfs, wf)
 	}
 	return wfs, nil
