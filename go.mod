@@ -40,7 +40,7 @@ require (
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7
 	github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d
 	github.com/zdnscloud/vanguard v0.0.0-20200214072003-226d0e690d9f
-	github.com/zdnscloud/zke v0.0.0-20200227091802-03bfbc73f488
+	github.com/zdnscloud/zke v0.0.0-20200303015319-8d94d21e8c0e
 	github.com/zsais/go-gin-prometheus v0.1.0
 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
