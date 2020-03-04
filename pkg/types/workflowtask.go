@@ -5,7 +5,7 @@ import (
 )
 
 type WorkFlowTaskStatus struct {
-	CurrentStatus  string           `json:"currentStatus" rest:"description=readonly,options=succeed|failed|running"`
+	CurrentStatus  string           `json:"currentStatus" rest:"description=readonly"`
 	Message        string           `json:"message,omitempty" rest:"description=readonly"`
 	StartTime      resource.ISOTime `json:"startedTime,omitempty" rest:"description=readonly"`
 	CompletionTime resource.ISOTime `json:"completionTime,omitempty" rest:"description=readonly"`
