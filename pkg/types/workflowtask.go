@@ -21,3 +21,7 @@ type WorkFlowTask struct {
 func (w WorkFlowTask) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{WorkFlow{}}
 }
+
+func (w WorkFlowTask) SupportAsyncDelete() bool {
+	return true
+}

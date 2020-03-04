@@ -30,3 +30,7 @@ type ImageInfo struct {
 func (w WorkFlow) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
+
+func (w WorkFlow) SupportAsyncDelete() bool {
+	return true
+}

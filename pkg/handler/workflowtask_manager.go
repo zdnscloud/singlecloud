@@ -10,12 +10,14 @@ import (
 
 	tektonv1alpha1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	tektonv1alpha2 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha2"
+	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -71,7 +73,43 @@ func (m *WorkFlowTaskManager) Get(ctx *resource.Context) resource.Resource {
 		return nil
 	}
 
-	return nil
+	ns := ctx.Resource.GetParent().GetParent().GetID()
+	id := ctx.Resource.GetID()
+
+	wft, err := getWorkFlowTask(cluster.GetKubeClient(), ns, id)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		log.Warnf("get namespace %s workflow %s failed %s", ns, id, err.Error())
+		return nil
+	}
+	return wft
+}
+
+func getWorkFlowTask(cli client.Client, namespace, name string) (*types.WorkFlowTask, error) {
+	pr := tektonv1alpha1.PipelineRun{}
+	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &pr); err != nil {
+		return nil, err
+	}
+
+	return k8sPipelineRunToWorkFlowTask(pr), nil
+}
+
+func k8sPipelineRunToWorkFlowTask(p tektonv1alpha1.PipelineRun) *types.WorkFlowTask {
+	w := types.WorkFlowTask{}
+	for _, param := range p.Spec.Params {
+		if param.Name == "IMAGE_TAG" {
+			w.ImageTag = param.Value.StringVal
+			break
+		}
+	}
+	w.SetID(p.Name)
+	w.SetCreationTimestamp(p.CreationTimestamp.Time)
+	if p.DeletionTimestamp != nil {
+		w.SetDeletionTimestamp(p.DeletionTimestamp.Time)
+	}
+	return &w
 }
 
 func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
@@ -79,13 +117,56 @@ func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
 	if cluster == nil {
 		return nil
 	}
-	return nil
+
+	ns := ctx.Resource.GetParent().GetParent().GetID()
+	wfName := ctx.Resource.GetParent().GetID()
+
+	ts, err := getWorkFlowTasks(cluster.GetKubeClient(), ns, wfName)
+	if err != nil {
+		log.Warnf("list workflow task of %s-%s failed %s", ns, wfName, err.Error())
+		return nil
+	}
+	return ts
+}
+
+func getWorkFlowTasks(cli client.Client, namespace, workFlow string) ([]*types.WorkFlowTask, error) {
+	pl := tektonv1alpha1.PipelineRunList{}
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: map[string]string{zcloudWorkFlowIDLabelKey: workFlow}})
+	if err != nil {
+		return nil, err
+	}
+	listOptions := &client.ListOptions{Namespace: namespace, LabelSelector: selector}
+	if err := cli.List(context.TODO(), listOptions, &pl); err != nil {
+		return nil, err
+	}
+
+	ts := []*types.WorkFlowTask{}
+	for _, p := range pl.Items {
+		ts = append(ts, k8sPipelineRunToWorkFlowTask(p))
+	}
+	return ts, nil
 }
 
 func (m *WorkFlowTaskManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+	}
+
+	ns := ctx.Resource.GetParent().GetParent().GetID()
+	id := ctx.Resource.GetID()
+
+	p := tektonv1alpha1.PipelineRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      id,
+			Namespace: ns},
+	}
+
+	if err := cluster.GetKubeClient().Delete(context.TODO(), &p); err != nil {
+		if apierrors.IsNotFound(err) {
+			return resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
+		}
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("delete workflow failed %s", err.Error()))
 	}
 	return nil
 }
