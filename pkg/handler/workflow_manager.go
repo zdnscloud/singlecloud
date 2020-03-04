@@ -124,7 +124,9 @@ func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, er
 	if err := json.Unmarshal([]byte(wfContent), wf); err != nil {
 		return nil, err
 	}
-	wf.SetDeletionTimestamp(pr.DeletionTimestamp.Time)
+	if pr.DeletionTimestamp != nil {
+		wf.SetDeletionTimestamp(pr.DeletionTimestamp.Time)
+	}
 	return wf, nil
 }
 

@@ -1,18 +1,27 @@
 package handler
 
 import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	tektonv1alpha1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	tektonv1alpha2 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha2"
+	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	zcloudWorkFlowBuildImage = "zdnscloud/kaniko-executor:v0.13.0"
+	zcloudWorkFlowBuildImage      = "zdnscloud/kaniko-executor:v0.13.0"
+	zcloudWorkFlowYamlWriterImage = "zdnscloud/workflow-yaml-writer:v0.0.1"
+	zcloudWorkFlowDeployerImage   = "zdnscloud/kubectl:v1.17.2"
 )
 
 type WorkFlowTaskManager struct {
@@ -31,7 +40,29 @@ func (m *WorkFlowTaskManager) Create(ctx *resource.Context) (resource.Resource, 
 		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	return nil, nil
+	ns := ctx.Resource.GetParent().GetParent().GetID()
+	wft := ctx.Resource.(*types.WorkFlowTask)
+
+	wf, err := getWorkFlow(cluster.GetKubeClient(), ns, ctx.Resource.GetParent().GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
+		}
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get owner workflow failed %s", err.Error()))
+	}
+
+	pipelineRun, err := genPipelineRun(cluster.GetKubeClient(), ns, wf, wft)
+	if err != nil {
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("gen workflowtask failed %s", err.Error()))
+	}
+
+	if err := cluster.GetKubeClient().Create(context.TODO(), pipelineRun); err != nil {
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("create k8s workflowtask failed %s", err.Error()))
+	}
+
+	wft.SetID(pipelineRun.Name)
+	wft.SetCreationTimestamp(time.Now())
+	return wft, nil
 }
 
 func (m *WorkFlowTaskManager) Get(ctx *resource.Context) resource.Resource {
@@ -59,7 +90,14 @@ func (m *WorkFlowTaskManager) Delete(ctx *resource.Context) *resterror.APIError 
 	return nil
 }
 
-func genPipelineRun(namespace string, wf *types.WorkFlow, wft *types.WorkFlowTask) *tektonv1alpha1.PipelineRun {
+func genPipelineRun(cli client.Client, namespace string, wf *types.WorkFlow, wft *types.WorkFlowTask) (*tektonv1alpha1.PipelineRun, error) {
+	tasks := genPipelineTasks(wf)
+
+	yaml, err := getPipelineRunDeployYaml(cli, namespace, wf, wft)
+	if err != nil {
+		return nil, err
+	}
+
 	p := &tektonv1alpha1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      genWorkFlowRandomName(wf.Name),
@@ -88,7 +126,7 @@ func genPipelineRun(namespace string, wf *types.WorkFlow, wft *types.WorkFlowTas
 					Name: "DEPLOY_YAML",
 					Value: tektonv1alpha2.ArrayOrString{
 						Type:      tektonv1alpha2.ParamTypeString,
-						StringVal: ""},
+						StringVal: yaml},
 				},
 			},
 			Resources: []tektonv1alpha1.PipelineResourceBinding{
@@ -116,10 +154,11 @@ func genPipelineRun(namespace string, wf *types.WorkFlow, wft *types.WorkFlowTas
 						Type: tektonv1alpha1.PipelineResourceTypeGit,
 					},
 				},
+				Tasks: tasks,
 			},
 		},
 	}
-	return p
+	return p, nil
 }
 
 func genPipelineTasks(wf *types.WorkFlow) []tektonv1alpha1.PipelineTask {
@@ -234,33 +273,38 @@ func genPipelineTasks(wf *types.WorkFlow) []tektonv1alpha1.PipelineTask {
 							Description: "The deployment yaml to deploy",
 						},
 					},
-					Resources: []tektonv1alpha1.TaskResource{
-						tektonv1alpha1.TaskResource{
-							tektonv1alpha1.ResourceDeclaration{
-								Name: "git-source",
-								Type: tektonv1alpha1.PipelineResourceTypeGit,
-							},
-						},
-					},
 				},
 				Steps: []tektonv1alpha1.Step{
 					tektonv1alpha1.Step{
 						Container: corev1.Container{
-							Name:       "build-and-push",
+							Name:       "write-yaml",
 							WorkingDir: "/workspace/source",
-							Image:      zcloudWorkFlowBuildImage,
+							Image:      zcloudWorkFlowYamlWriterImage,
 							Env: []corev1.EnvVar{
 								corev1.EnvVar{
-									Name:  "DOCKER_CONFIG",
-									Value: "/tekton/home/.docker",
+									Name:  "DEPLOY_YAML",
+									Value: "$(inputs.params.DEPLOY_YAML)",
 								},
 							},
-							Command: []string{
-								"/kaniko/executor",
-								"--dockerfile=$(inputs.params.DOCKERFILE)",
-								"--context=/workspace/source/$(inputs.params.CONTEXT)",
-								"--destination=$(inputs.params.IMAGE_URL):$(inputs.params.IMAGE_TAG)",
-								"--skip-tls-verify",
+							Command: []string{"writer"},
+							Args: []string{
+								"-env",
+								"DEPLOY_YAML",
+								"-out",
+								"/workspace/deploy.yaml",
+							},
+						},
+					},
+					tektonv1alpha1.Step{
+						Container: corev1.Container{
+							Name:       "deploy-yaml",
+							WorkingDir: "/workspace/source",
+							Image:      zcloudWorkFlowDeployerImage,
+							Command:    []string{"kubectl"},
+							Args: []string{
+								"apply",
+								"-f",
+								"/workspace/deploy.yaml",
 							},
 						},
 					},
@@ -270,4 +314,22 @@ func genPipelineTasks(wf *types.WorkFlow) []tektonv1alpha1.PipelineTask {
 		ts = append(ts, deployTask)
 	}
 	return ts
+}
+
+func getPipelineRunDeployYaml(cli client.Client, namespace string, wf *types.WorkFlow, wft *types.WorkFlowTask) (string, error) {
+	if !wf.AutoDeploy {
+		return "", nil
+	}
+	deploy := wf.Deploy
+	containers := []types.Container{}
+	if len(wf.Deploy.Containers) > 0 {
+		for _, container := range wf.Deploy.Containers {
+			if strings.Contains(container.Image, wf.Image.Name) {
+				container.Image = fmt.Sprintf("%s:%s", wf.Image.Name, wft.ImageTag)
+			}
+			containers = append(containers, container)
+		}
+	}
+	deploy.Containers = containers
+	return getWorkFlowDeployYaml(cli, namespace, &deploy)
 }
