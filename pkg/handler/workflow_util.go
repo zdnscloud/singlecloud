@@ -81,11 +81,9 @@ func genWorkFlowDockerSecret(namespace string, wf *types.WorkFlow) *corev1.Secre
 func updateWorkFlowDockerSecret(cli client.Client, secret *corev1.Secret, wf *types.WorkFlow) error {
 	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", wf.Image.RegistryUser, wf.Image.RegistryPassword)))
 	configJson := fmt.Sprintf(dockerConfigJsonTemplate, getWorkFlowDockerRegistryURL(wf.Image.Name), wf.Image.RegistryUser, wf.Image.RegistryPassword, auth)
-	data := []byte{}
-	base64.StdEncoding.Encode(data, []byte(configJson))
-	secret.Data = map[string][]byte{
-		".dockerconfigjson": data,
-	}
+	data := make(map[string][]byte)
+	data[".dockerconfigjson"] = []byte(configJson)
+	secret.Data = data
 	return cli.Update(context.TODO(), secret)
 }
 
