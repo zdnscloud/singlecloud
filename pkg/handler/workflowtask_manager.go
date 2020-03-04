@@ -179,6 +179,8 @@ func genPipelineRun(cli client.Client, namespace string, wf *types.WorkFlow, wft
 		return nil, err
 	}
 
+	fmt.Println(yaml)
+
 	p := &tektonv1alpha1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      genWorkFlowRandomName(wf.Name),
@@ -227,6 +229,11 @@ func genPipelineRun(cli client.Client, namespace string, wf *types.WorkFlow, wft
 						Name:        "IMAGE_TAG",
 						Type:        tektonv1alpha2.ParamTypeString,
 						Description: "The Tag to apply to the built image",
+					},
+					tektonv1alpha2.ParamSpec{
+						Name:        "DEPLOY_YAML",
+						Type:        tektonv1alpha2.ParamTypeString,
+						Description: "The deployment yaml to deploy",
 					},
 				},
 				Resources: []tektonv1alpha1.PipelineDeclaredResource{
@@ -302,7 +309,7 @@ func genPipelineTasks(wf *types.WorkFlow) []tektonv1alpha1.PipelineTask {
 					Resources: []tektonv1alpha1.TaskResource{
 						tektonv1alpha1.TaskResource{
 							tektonv1alpha1.ResourceDeclaration{
-								Name: "git-source",
+								Name: "source",
 								Type: tektonv1alpha1.PipelineResourceTypeGit,
 							},
 						},

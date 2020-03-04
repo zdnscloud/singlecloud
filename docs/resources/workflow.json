@@ -5,7 +5,7 @@
     "namespace"
   ],
   "goStructName": "WorkFlow",
-  "supportAsyncDelete": false,
+  "supportAsyncDelete": true,
   "resourceFields": {
     "autoDeploy": {
       "type": "bool"
@@ -34,12 +34,7 @@
       ]
     },
     "status": {
-      "type": "enum",
-      "validValues": [
-        "succeed",
-        "failed",
-        "running"
-      ],
+      "type": "workFlowTaskStatus",
       "description": [
         "readonly"
       ]
@@ -243,6 +238,37 @@
           "configmap",
           "secret",
           "persistentVolume"
+        ]
+      }
+    },
+    "workFlowTaskStatus": {
+      "completionTime": {
+        "type": "date",
+        "description": [
+          "readonly"
+        ]
+      },
+      "currentStatus": {
+        "type": "enum",
+        "validValues": [
+          "succeed",
+          "failed",
+          "running"
+        ],
+        "description": [
+          "readonly"
+        ]
+      },
+      "message": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "startedTime": {
+        "type": "date",
+        "description": [
+          "readonly"
         ]
       }
     },

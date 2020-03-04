@@ -5,7 +5,7 @@
     "workflow"
   ],
   "goStructName": "WorkFlowTask",
-  "supportAsyncDelete": false,
+  "supportAsyncDelete": true,
   "resourceFields": {
     "imageTag": {
       "type": "string",
@@ -13,16 +13,63 @@
         "required"
       ]
     },
-    "status": {
-      "type": "enum",
-      "validValues": [
-        "succeed",
-        "failed",
-        "running"
-      ],
+    "pods": {
+      "type": "array",
+      "elemType": "workFlowTaskPod",
       "description": [
         "readonly"
       ]
+    },
+    "status": {
+      "type": "workFlowTaskStatus",
+      "description": [
+        "readonly"
+      ]
+    }
+  },
+  "subResources": {
+    "workFlowTaskPod": {
+      "containers": {
+        "type": "array",
+        "elemType": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "workFlowTaskStatus"
+      }
+    },
+    "workFlowTaskStatus": {
+      "completionTime": {
+        "type": "date",
+        "description": [
+          "readonly"
+        ]
+      },
+      "currentStatus": {
+        "type": "enum",
+        "validValues": [
+          "succeed",
+          "failed",
+          "running"
+        ],
+        "description": [
+          "readonly"
+        ]
+      },
+      "message": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "startedTime": {
+        "type": "date",
+        "description": [
+          "readonly"
+        ]
+      }
     }
   },
   "resourceMethods": [

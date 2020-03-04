@@ -11,7 +11,7 @@ type WorkFlow struct {
 	Image                 ImageInfo          `json:"image" rest:"required=true"`
 	AutoDeploy            bool               `json:"autoDeploy"`
 	Deploy                Deployment         `json:"deploy"`
-	Status                WorkFlowTaskStatus `json:"status" rest:"description=readonly,options=succeed|failed|running"`
+	Status                WorkFlowTaskStatus `json:"status" rest:"description=readonly"`
 }
 
 type GitInfo struct {

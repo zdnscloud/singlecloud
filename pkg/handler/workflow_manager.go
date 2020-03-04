@@ -52,6 +52,9 @@ func (m *WorkFlowManager) Create(ctx *resource.Context) (resource.Resource, *res
 		return nil, err
 	}
 	if err := createWorkFlow(cluster.GetKubeClient(), ns, wf); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, "workflow already exists")
+		}
 		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("create workflow %s failed %s", wf.Name, err.Error()))
 	}
 	return wf, nil
@@ -175,6 +178,9 @@ func (m *WorkFlowManager) Update(ctx *resource.Context) (resource.Resource, *res
 	ns := ctx.Resource.GetParent().GetID()
 	wf := ctx.Resource.(*types.WorkFlow)
 	if err := updateWorkFlow(cluster.GetKubeClient(), ns, wf); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
+		}
 		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update workflow %s failed %s", wf.Name, err.Error()))
 	}
 	return wf, nil
@@ -198,6 +204,9 @@ func (m *WorkFlowManager) Delete(ctx *resource.Context) *resterror.APIError {
 	id := ctx.Resource.GetID()
 
 	if err := deleteWorkFlow(cluster.GetKubeClient(), ns, id); err != nil {
+		if apierrors.IsNotFound(err) {
+			return resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
+		}
 		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("delete workflow %s failed %s", id, err.Error()))
 	}
 	return nil
