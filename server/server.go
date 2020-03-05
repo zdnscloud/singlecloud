@@ -18,6 +18,10 @@ type WebHandler interface {
 	RegisterHandler(gin.IRoutes) error
 }
 
+func sendWebPage(c *gin.Context) {
+	c.File("/www/index.html")
+}
+
 func NewServer(middlewares ...gin.HandlerFunc) (*Server, error) {
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = os.Stdout
@@ -34,11 +38,25 @@ func NewServer(middlewares ...gin.HandlerFunc) (*Server, error) {
 			param.Request.UserAgent(),
 		)
 	}))
+
+	// need use a middleware replace this
+	router.GET("/404", sendWebPage)
+	router.GET("/adminUserQuotas", sendWebPage)
+	router.GET("/alarms", sendWebPage)
+	router.GET("/auditLogs", sendWebPage)
+	router.GET("/clusters", sendWebPage)
+	router.GET("/clusters/:resources", sendWebPage)
+	router.GET("/globalConfiguration", sendWebPage)
+	router.GET("/userQuotas", sendWebPage)
+	router.GET("/userQuotas/:any", sendWebPage)
+	router.GET("/users", sendWebPage)
+	router.GET("/users/:any", sendWebPage)
+
 	router.Use(static.Serve("/assets/helm/icons", static.LocalFile("/helm-icons", false)))
 	router.Use(static.Serve("/assets", static.LocalFile("/www", false)))
 	router.Use(middlewares...)
 	router.NoRoute(func(c *gin.Context) {
-		c.File("/www/index.html")
+		c.File("/www/404.html")
 	})
 
 	p := ginprometheus.NewPrometheus("gin")
