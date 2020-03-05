@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -14,13 +15,12 @@ import (
 	tektonv1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	"github.com/zdnscloud/cement/randomdata"
 	"github.com/zdnscloud/gok8s/client"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	k8sJson "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
@@ -260,28 +260,45 @@ func deletePipelineResource(cli client.Client, namespace, name string) error {
 }
 
 func getWorkFlowDeployYaml(cli client.Client, namespace string, deploy *types.Deployment) (string, error) {
-	objs, err := scDeployToK8sRuntimeObjs(cli, namespace, deploy)
+	k8sDeploy, pvcs, err := scDeployToK8sDeployAndPvcs(cli, namespace, deploy)
 	if err != nil {
 		return "", err
 	}
-	objStrs := []string{}
-	for _, obj := range objs {
-		yaml, err := yaml.Marshal(obj)
-		if err != nil {
+
+	serializer := k8sJson.NewSerializerWithOptions(
+		k8sJson.DefaultMetaFactory, nil, nil,
+		k8sJson.SerializerOptions{
+			Yaml:   true,
+			Pretty: true,
+			Strict: true,
+		},
+	)
+
+	out := bytes.NewBuffer(make([]byte, 0, 64))
+	if err := serializer.Encode(k8sDeploy, out); err != nil {
+		return "", err
+	}
+	out.WriteString("---\n")
+	for _, pv := range pvcs {
+		if err := serializer.Encode(&pv, out); err != nil {
 			return "", err
 		}
-		objStrs = append(objStrs, string(yaml))
+		out.WriteString("---\n")
 	}
-	return strings.Join(objStrs, "\n---\n"), nil
+	return out.String(), nil
 }
 
-func scDeployToK8sRuntimeObjs(cli client.Client, namespace string, deploy *types.Deployment) ([]runtime.Object, error) {
+func scDeployToK8sDeployAndPvcs(cli client.Client, namespace string, deploy *types.Deployment) (*appsv1.Deployment, []corev1.PersistentVolumeClaim, error) {
 	podTemplate, k8sPVCs, err := getWorkLoadPodTempateSpecAndPvcs(namespace, deploy, cli)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	replicas := int32(deploy.Replicas)
 	k8sDeploy := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
 		ObjectMeta: generatePodOwnerObjectMeta(namespace, deploy),
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -291,13 +308,14 @@ func scDeployToK8sRuntimeObjs(cli client.Client, namespace string, deploy *types
 			Template: *podTemplate,
 		},
 	}
-	result := []runtime.Object{k8sDeploy}
-	if len(k8sPVCs) > 0 {
-		for _, pvc := range k8sPVCs {
-			result = append(result, &pvc)
+
+	for i := range k8sPVCs {
+		k8sPVCs[i].TypeMeta = metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
 		}
 	}
-	return result, nil
+	return k8sDeploy, k8sPVCs, nil
 }
 
 func getWorkLoadPodTempateSpecAndPvcs(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {

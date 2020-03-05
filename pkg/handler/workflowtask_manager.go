@@ -18,6 +18,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
+	knativeapis "knative.dev/pkg/apis"
 )
 
 const (
@@ -62,9 +63,22 @@ func (m *WorkFlowTaskManager) Create(ctx *resource.Context) (resource.Resource, 
 		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("create k8s workflowtask failed %s", err.Error()))
 	}
 
+	if err := updateWorkFlowLastestIDAnnotation(cluster.GetKubeClient(), ns, wf.Name, pipelineRun.Name); err != nil {
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update workflow lastest task id annotation failed %s", err.Error()))
+	}
+
 	wft.SetID(pipelineRun.Name)
 	wft.SetCreationTimestamp(time.Now())
 	return wft, nil
+}
+
+func updateWorkFlowLastestIDAnnotation(cli client.Client, namespace, workFlow, workFlowTaskID string) error {
+	pr := tektonv1alpha1.PipelineResource{}
+	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, workFlow}, &pr); err != nil {
+		return err
+	}
+	pr.Annotations[zcloudWorkFlowLatestTaskIDAnnotationKey] = workFlowTaskID
+	return cli.Update(context.TODO(), &pr)
 }
 
 func (m *WorkFlowTaskManager) Get(ctx *resource.Context) resource.Resource {
@@ -97,7 +111,10 @@ func getWorkFlowTask(cli client.Client, namespace, name string) (*types.WorkFlow
 }
 
 func k8sPipelineRunToWorkFlowTask(p tektonv1alpha1.PipelineRun) *types.WorkFlowTask {
-	w := types.WorkFlowTask{}
+	w := types.WorkFlowTask{
+		Pods:   k8sPipelineRunToWorkFlowTaskPods(p),
+		Status: k8sPipelineRunToWorkFlowTaskStatus(p),
+	}
 	for _, param := range p.Spec.Params {
 		if param.Name == "IMAGE_TAG" {
 			w.ImageTag = param.Value.StringVal
@@ -110,6 +127,53 @@ func k8sPipelineRunToWorkFlowTask(p tektonv1alpha1.PipelineRun) *types.WorkFlowT
 		w.SetDeletionTimestamp(p.DeletionTimestamp.Time)
 	}
 	return &w
+}
+
+func k8sPipelineRunToWorkFlowTaskStatus(p tektonv1alpha1.PipelineRun) types.WorkFlowTaskStatus {
+	s := types.WorkFlowTaskStatus{}
+	if p.Status.StartTime != nil {
+		s.StartTime = resource.ISOTime(p.Status.StartTime.Time)
+	}
+	if p.Status.CompletionTime != nil {
+		s.CompletionTime = resource.ISOTime(p.Status.CompletionTime.Time)
+	}
+
+	condition := p.Status.GetCondition(knativeapis.ConditionSucceeded)
+	if condition != nil {
+		s.CurrentStatus = condition.Reason
+		s.Message = condition.Message
+	}
+	return s
+}
+
+func k8sPipelineRunToWorkFlowTaskPods(p tektonv1alpha1.PipelineRun) []types.WorkFlowTaskPod {
+	pods := []types.WorkFlowTaskPod{}
+	for _, v := range p.Status.TaskRuns {
+		podStatus := types.WorkFlowTaskStatus{}
+		if v.Status.StartTime != nil {
+			podStatus.StartTime = resource.ISOTime(v.Status.StartTime.Time)
+		}
+		if v.Status.CompletionTime != nil {
+			podStatus.CompletionTime = resource.ISOTime(v.Status.CompletionTime.Time)
+		}
+		condition := v.Status.GetCondition(knativeapis.ConditionSucceeded)
+		if condition != nil {
+			podStatus.CurrentStatus = condition.Reason
+			podStatus.Message = condition.Message
+		}
+
+		containers := []string{}
+		for _, step := range v.Status.Steps {
+			containers = append(containers, step.ContainerName)
+		}
+		pod := types.WorkFlowTaskPod{
+			Name:       v.Status.PodName,
+			Status:     podStatus,
+			Containers: containers,
+		}
+		pods = append(pods, pod)
+	}
+	return pods
 }
 
 func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
@@ -178,8 +242,6 @@ func genPipelineRun(cli client.Client, namespace string, wf *types.WorkFlow, wft
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(yaml)
 
 	p := &tektonv1alpha1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -343,7 +405,8 @@ func genPipelineTasks(wf *types.WorkFlow) []tektonv1alpha1.PipelineTask {
 
 	if wf.AutoDeploy {
 		deployTask := tektonv1alpha1.PipelineTask{
-			Name: "deploy",
+			Name:     "deploy",
+			RunAfter: []string{"build"},
 			Params: []tektonv1alpha2.Param{
 				tektonv1alpha2.Param{
 					Name: "DEPLOY_YAML",

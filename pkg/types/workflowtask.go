@@ -11,12 +11,6 @@ type WorkFlowTaskStatus struct {
 	CompletionTime resource.ISOTime `json:"completionTime,omitempty" rest:"description=readonly"`
 }
 
-const (
-	WorkFlowTaskStatusSucceed = "succeed"
-	WorkFlowTaskStatusFailed  = "failed"
-	WorkFlowTaskStatusRunning = "running"
-)
-
 type WorkFlowTask struct {
 	resource.ResourceBase `json:",inline"`
 	ImageTag              string             `json:"imageTag" rest:"required=true"`

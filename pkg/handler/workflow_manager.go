@@ -127,10 +127,34 @@ func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, er
 	if err := json.Unmarshal([]byte(wfContent), wf); err != nil {
 		return nil, err
 	}
+
+	wftID, ok := pr.Annotations[zcloudWorkFlowLatestTaskIDAnnotationKey]
+	if ok {
+		status, err := getWorkFlowStatus(cli, namespace, wftID)
+		if err != nil {
+			return nil, err
+		}
+		wf.Status = status
+	}
+
 	if pr.DeletionTimestamp != nil {
 		wf.SetDeletionTimestamp(pr.DeletionTimestamp.Time)
 	}
 	return wf, nil
+}
+
+func getWorkFlowStatus(cli client.Client, namespace, wftID string) (types.WorkFlowTaskStatus, error) {
+	wft, err := getWorkFlowTask(cli, namespace, wftID)
+	if err != nil {
+		return types.WorkFlowTaskStatus{}, err
+	}
+	status := types.WorkFlowTaskStatus{
+		CurrentStatus:  wft.Status.CurrentStatus,
+		Message:        wft.Status.Message,
+		StartTime:      wft.Status.StartTime,
+		CompletionTime: wft.Status.CompletionTime,
+	}
+	return status, nil
 }
 
 func (m *WorkFlowManager) List(ctx *resource.Context) interface{} {
@@ -159,6 +183,15 @@ func getWorkFlows(cli client.Client, namespace string) ([]*types.WorkFlow, error
 		wfContent := pr.Annotations[zcloudWorkFlowContentAnnotationKey]
 		if err := json.Unmarshal([]byte(wfContent), wf); err != nil {
 			return nil, err
+		}
+
+		wftID, ok := pr.Annotations[zcloudWorkFlowLatestTaskIDAnnotationKey]
+		if ok {
+			status, err := getWorkFlowStatus(cli, namespace, wftID)
+			if err != nil {
+				return nil, err
+			}
+			wf.Status = status
 		}
 
 		if pr.DeletionTimestamp != nil {

@@ -48,12 +48,7 @@
         ]
       },
       "currentStatus": {
-        "type": "enum",
-        "validValues": [
-          "succeed",
-          "failed",
-          "running"
-        ],
+        "type": "string",
         "description": [
           "readonly"
         ]
