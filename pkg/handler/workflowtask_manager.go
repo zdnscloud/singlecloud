@@ -112,8 +112,8 @@ func getWorkFlowTask(cli client.Client, namespace, name string) (*types.WorkFlow
 
 func k8sPipelineRunToWorkFlowTask(p tektonv1alpha1.PipelineRun) *types.WorkFlowTask {
 	w := types.WorkFlowTask{
-		Pods:   k8sPipelineRunToWorkFlowTaskPods(p),
-		Status: k8sPipelineRunToWorkFlowTaskStatus(p),
+		SubTasks: k8sPipelineRunToWorkFlowSubTasks(p),
+		Status:   k8sPipelineRunToWorkFlowTaskStatus(p),
 	}
 	for _, param := range p.Spec.Params {
 		if param.Name == "IMAGE_TAG" {
@@ -146,8 +146,8 @@ func k8sPipelineRunToWorkFlowTaskStatus(p tektonv1alpha1.PipelineRun) types.Work
 	return s
 }
 
-func k8sPipelineRunToWorkFlowTaskPods(p tektonv1alpha1.PipelineRun) []types.WorkFlowTaskPod {
-	pods := []types.WorkFlowTaskPod{}
+func k8sPipelineRunToWorkFlowSubTasks(p tektonv1alpha1.PipelineRun) []types.WorkFlowSubTask {
+	pods := []types.WorkFlowSubTask{}
 	for _, v := range p.Status.TaskRuns {
 		podStatus := types.WorkFlowTaskStatus{}
 		if v.Status.StartTime != nil {
@@ -166,10 +166,9 @@ func k8sPipelineRunToWorkFlowTaskPods(p tektonv1alpha1.PipelineRun) []types.Work
 		for _, step := range v.Status.Steps {
 			containers = append(containers, step.ContainerName)
 		}
-		pod := types.WorkFlowTaskPod{
-			Name:       v.Status.PodName,
-			Status:     podStatus,
-			Containers: containers,
+		pod := types.WorkFlowSubTask{
+			Name:   v.PipelineTaskName,
+			Status: podStatus,
 		}
 		pods = append(pods, pod)
 	}

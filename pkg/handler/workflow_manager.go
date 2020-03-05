@@ -130,10 +130,11 @@ func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, er
 
 	wftID, ok := pr.Annotations[zcloudWorkFlowLatestTaskIDAnnotationKey]
 	if ok {
-		status, err := getWorkFlowStatus(cli, namespace, wftID)
+		subs, status, err := getWorkFlowSubTasksAndStatus(cli, namespace, wftID)
 		if err != nil {
 			return nil, err
 		}
+		wf.SubTasks = subs
 		wf.Status = status
 	}
 
@@ -143,18 +144,13 @@ func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, er
 	return wf, nil
 }
 
-func getWorkFlowStatus(cli client.Client, namespace, wftID string) (types.WorkFlowTaskStatus, error) {
+func getWorkFlowSubTasksAndStatus(cli client.Client, namespace, wftID string) ([]types.WorkFlowSubTask, types.WorkFlowTaskStatus, error) {
 	wft, err := getWorkFlowTask(cli, namespace, wftID)
 	if err != nil {
-		return types.WorkFlowTaskStatus{}, err
+		return nil, types.WorkFlowTaskStatus{}, err
 	}
-	status := types.WorkFlowTaskStatus{
-		CurrentStatus:  wft.Status.CurrentStatus,
-		Message:        wft.Status.Message,
-		StartTime:      wft.Status.StartTime,
-		CompletionTime: wft.Status.CompletionTime,
-	}
-	return status, nil
+
+	return wft.SubTasks, wft.Status, nil
 }
 
 func (m *WorkFlowManager) List(ctx *resource.Context) interface{} {
@@ -187,10 +183,11 @@ func getWorkFlows(cli client.Client, namespace string) ([]*types.WorkFlow, error
 
 		wftID, ok := pr.Annotations[zcloudWorkFlowLatestTaskIDAnnotationKey]
 		if ok {
-			status, err := getWorkFlowStatus(cli, namespace, wftID)
+			subs, status, err := getWorkFlowSubTasksAndStatus(cli, namespace, wftID)
 			if err != nil {
 				return nil, err
 			}
+			wf.SubTasks = subs
 			wf.Status = status
 		}
 

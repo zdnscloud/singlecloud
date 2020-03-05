@@ -11,6 +11,7 @@ type WorkFlow struct {
 	Image                 ImageInfo          `json:"image" rest:"required=true"`
 	AutoDeploy            bool               `json:"autoDeploy"`
 	Deploy                Deployment         `json:"deploy"`
+	SubTasks              []WorkFlowSubTask  `json:"subTasks" rest:"description=readonly"`
 	Status                WorkFlowTaskStatus `json:"status" rest:"description=readonly"`
 }
 

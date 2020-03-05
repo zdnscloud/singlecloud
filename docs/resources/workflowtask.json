@@ -13,26 +13,22 @@
         "required"
       ]
     },
-    "pods": {
-      "type": "array",
-      "elemType": "workFlowTaskPod",
+    "status": {
+      "type": "workFlowTaskStatus",
       "description": [
         "readonly"
       ]
     },
-    "status": {
-      "type": "workFlowTaskStatus",
+    "subTasks": {
+      "type": "array",
+      "elemType": "workFlowSubTask",
       "description": [
         "readonly"
       ]
     }
   },
   "subResources": {
-    "workFlowTaskPod": {
-      "containers": {
-        "type": "array",
-        "elemType": "string"
-      },
+    "workFlowSubTask": {
       "name": {
         "type": "string"
       },

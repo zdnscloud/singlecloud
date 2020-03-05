@@ -14,14 +14,13 @@ type WorkFlowTaskStatus struct {
 type WorkFlowTask struct {
 	resource.ResourceBase `json:",inline"`
 	ImageTag              string             `json:"imageTag" rest:"required=true"`
-	Pods                  []WorkFlowTaskPod  `json:"pods" rest:"description=readonly"`
+	SubTasks              []WorkFlowSubTask  `json:"subTasks" rest:"description=readonly"`
 	Status                WorkFlowTaskStatus `json:"status" rest:"description=readonly"`
 }
 
-type WorkFlowTaskPod struct {
-	Name       string             `json:"name"`
-	Containers []string           `json:"containers"`
-	Status     WorkFlowTaskStatus `json:"status"`
+type WorkFlowSubTask struct {
+	Name   string             `json:"name"`
+	Status WorkFlowTaskStatus `json:"status"`
 }
 
 func (w WorkFlowTask) GetParents() []resource.ResourceKind {

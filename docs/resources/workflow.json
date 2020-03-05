@@ -38,6 +38,13 @@
       "description": [
         "readonly"
       ]
+    },
+    "subTasks": {
+      "type": "array",
+      "elemType": "workFlowSubTask",
+      "description": [
+        "readonly"
+      ]
     }
   },
   "subResources": {
@@ -239,6 +246,14 @@
           "secret",
           "persistentVolume"
         ]
+      }
+    },
+    "workFlowSubTask": {
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "workFlowTaskStatus"
       }
     },
     "workFlowTaskStatus": {
