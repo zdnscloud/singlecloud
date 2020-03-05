@@ -327,10 +327,16 @@
   "resourceMethods": [
     "GET",
     "DELETE",
-    "PUT"
+    "PUT",
+    "POST"
   ],
   "collectionMethods": [
     "GET",
     "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "emptylog"
+    }
   ]
 }

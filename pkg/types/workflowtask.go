@@ -19,8 +19,10 @@ type WorkFlowTask struct {
 }
 
 type WorkFlowSubTask struct {
-	Name   string             `json:"name"`
-	Status WorkFlowTaskStatus `json:"status"`
+	Name       string             `json:"name"`
+	PodName    string             `json:"-"`
+	Containers []string           `json:"-"`
+	Status     WorkFlowTaskStatus `json:"status"`
 }
 
 func (w WorkFlowTask) GetParents() []resource.ResourceKind {

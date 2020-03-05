@@ -1,12 +1,10 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"strings"
 
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
@@ -15,12 +13,11 @@ import (
 	tektonv1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	"github.com/zdnscloud/cement/randomdata"
 	"github.com/zdnscloud/gok8s/client"
-	appsv1 "k8s.io/api/apps/v1"
+
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sJson "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
@@ -105,18 +102,13 @@ func genWorkFlowRandomName(workFlowName string) string {
 	return fmt.Sprintf("%s-%s", workFlowName, randomdata.RandString(12))
 }
 
-func deleteWorkFlowSecrets(cli client.Client, namespace, wfName string) error {
-	secrets := corev1.SecretList{}
-	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: map[string]string{zcloudWorkFlowIDLabelKey: wfName}})
+func deleteWorkFlowSecrets(cli client.Client, namespace, name string) error {
+	secrets, err := getWorkFlowSecrets(cli, namespace, name)
 	if err != nil {
 		return err
 	}
-	listOptions := &client.ListOptions{Namespace: namespace, LabelSelector: selector}
-	if err := cli.List(context.TODO(), listOptions, &secrets); err != nil {
-		return err
-	}
 
-	for _, secret := range secrets.Items {
+	for _, secret := range secrets {
 		if err := cli.Delete(context.TODO(), &secret); err != nil {
 			return err
 		}
@@ -125,17 +117,12 @@ func deleteWorkFlowSecrets(cli client.Client, namespace, wfName string) error {
 }
 
 func updateWorkFlowSecrets(cli client.Client, namespace string, wf *types.WorkFlow) error {
-	secrets := corev1.SecretList{}
-	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: map[string]string{zcloudWorkFlowIDLabelKey: wf.Name}})
+	secrets, err := getWorkFlowSecrets(cli, namespace, wf.Name)
 	if err != nil {
 		return err
 	}
-	listOptions := &client.ListOptions{Namespace: namespace, LabelSelector: selector}
-	if err := cli.List(context.TODO(), listOptions, &secrets); err != nil {
-		return err
-	}
 
-	for _, secret := range secrets.Items {
+	for _, secret := range secrets {
 		if secret.Type == corev1.SecretTypeDockerConfigJson {
 			if err := updateWorkFlowDockerSecret(cli, &secret, wf); err != nil {
 				return err
@@ -148,6 +135,19 @@ func updateWorkFlowSecrets(cli client.Client, namespace string, wf *types.WorkFl
 		}
 	}
 	return nil
+}
+
+func getWorkFlowSecrets(cli client.Client, namespace, name string) ([]corev1.Secret, error) {
+	secrets := corev1.SecretList{}
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: map[string]string{zcloudWorkFlowIDLabelKey: name}})
+	if err != nil {
+		return nil, err
+	}
+	listOptions := &client.ListOptions{Namespace: namespace, LabelSelector: selector}
+	if err := cli.List(context.TODO(), listOptions, &secrets); err != nil {
+		return nil, err
+	}
+	return secrets.Items, nil
 }
 
 func genWorkFlowServiceAccount(name, namespace, gitSecret, dockerSecret string) *corev1.ServiceAccount {
@@ -257,88 +257,6 @@ func deletePipelineResource(cli client.Client, namespace, name string) error {
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}
 	return cli.Delete(context.TODO(), p)
-}
-
-func getWorkFlowDeployYaml(cli client.Client, namespace string, deploy *types.Deployment) (string, error) {
-	k8sDeploy, pvcs, err := scDeployToK8sDeployAndPvcs(cli, namespace, deploy)
-	if err != nil {
-		return "", err
-	}
-
-	serializer := k8sJson.NewSerializerWithOptions(
-		k8sJson.DefaultMetaFactory, nil, nil,
-		k8sJson.SerializerOptions{
-			Yaml:   true,
-			Pretty: true,
-			Strict: true,
-		},
-	)
-
-	out := bytes.NewBuffer(make([]byte, 0, 64))
-	if err := serializer.Encode(k8sDeploy, out); err != nil {
-		return "", err
-	}
-	out.WriteString("---\n")
-	for _, pv := range pvcs {
-		if err := serializer.Encode(&pv, out); err != nil {
-			return "", err
-		}
-		out.WriteString("---\n")
-	}
-	return out.String(), nil
-}
-
-func scDeployToK8sDeployAndPvcs(cli client.Client, namespace string, deploy *types.Deployment) (*appsv1.Deployment, []corev1.PersistentVolumeClaim, error) {
-	podTemplate, k8sPVCs, err := getWorkLoadPodTempateSpecAndPvcs(namespace, deploy, cli)
-	if err != nil {
-		return nil, nil, err
-	}
-	replicas := int32(deploy.Replicas)
-	k8sDeploy := &appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: generatePodOwnerObjectMeta(namespace, deploy),
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": deploy.Name},
-			},
-			Template: *podTemplate,
-		},
-	}
-
-	for i := range k8sPVCs {
-		k8sPVCs[i].TypeMeta = metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "PersistentVolumeClaim",
-		}
-	}
-	return k8sDeploy, k8sPVCs, nil
-}
-
-func getWorkLoadPodTempateSpecAndPvcs(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {
-	structVal := reflect.ValueOf(podOwner).Elem()
-	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
-	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
-	pvs := structVal.FieldByName("PersistentVolumes").Interface().([]types.PersistentVolumeTemplate)
-
-	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	name := structVal.FieldByName("Name").String()
-	meta, err := createPodTempateObjectMeta(name, namespace, cli, advancedOpts, containers)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return &corev1.PodTemplateSpec{
-		ObjectMeta: meta,
-		Spec:       k8sPodSpec,
-	}, k8sPVCs, nil
 }
 
 func deleteWorkFlowDeploymentAndPVCs(cli client.Client, namespace, name string) error {

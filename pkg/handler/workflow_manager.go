@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
@@ -66,36 +67,64 @@ func preCheckDeploymentExist(cli client.Client, namespace, name string) *resterr
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get deploy failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get deploy failed for pre check deploy name %s", err.Error()))
 	}
-	return resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("deploy %s %s already exist", namespace, name))
+	return resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("workflow deploy %s already exist", name))
 }
 
 func createWorkFlow(cli client.Client, namespace string, wf *types.WorkFlow) error {
 	var gitSecretName string
+	createdObjs := []runtime.Object{}
 	gitSecret := genWorkFlowGitSecret(namespace, wf)
 	if gitSecret != nil {
 		if err := cli.Create(context.TODO(), gitSecret); err != nil {
 			return err
 		}
 		gitSecretName = gitSecret.Name
+		createdObjs = append(createdObjs, gitSecret)
 	}
+
 	dockerSecret := genWorkFlowDockerSecret(namespace, wf)
 	if err := cli.Create(context.TODO(), dockerSecret); err != nil {
+		workFlowCreateFailBack(cli, namespace, wf.Name, createdObjs)
 		return err
 	}
+	createdObjs = append(createdObjs, dockerSecret)
+
 	sa := genWorkFlowServiceAccount(wf.Name, namespace, gitSecretName, dockerSecret.Name)
 	if err := cli.Create(context.TODO(), sa); err != nil {
+		workFlowCreateFailBack(cli, namespace, wf.Name, createdObjs)
 		return err
 	}
+	createdObjs = append(createdObjs, sa)
+
 	if err := addWorkFlowSaToCRB(cli, wf.Name, namespace); err != nil {
+		workFlowCreateFailBack(cli, namespace, wf.Name, createdObjs)
 		return err
 	}
+
 	pipelineResource, err := genGitPipelineResource(cli, namespace, wf)
 	if err != nil {
+		workFlowCreateFailBack(cli, namespace, wf.Name, createdObjs)
 		return err
 	}
-	return cli.Create(context.TODO(), pipelineResource)
+
+	if err := cli.Create(context.TODO(), pipelineResource); err != nil {
+		workFlowCreateFailBack(cli, namespace, wf.Name, createdObjs)
+		return err
+	}
+	return nil
+}
+
+func workFlowCreateFailBack(cli client.Client, namespace, name string, objs []runtime.Object) {
+	for _, obj := range objs {
+		if err := cli.Delete(context.TODO(), obj); err != nil {
+			log.Warnf("delete k8s object failed in workflow create failback %s", err.Error())
+		}
+	}
+	if err := deleteWorkFlowSaFromCRB(cli, name, namespace); err != nil {
+		log.Warnf("delete workflow %s_%s serviceaccount failed in workflow create failback %s", namespace, name, err.Error())
+	}
 }
 
 func (m *WorkFlowManager) Get(ctx *resource.Context) resource.Resource {
@@ -122,8 +151,15 @@ func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, er
 		}
 		return nil, err
 	}
+	return pipelineResourceToScWorkFlow(cli, namespace, pr)
+}
+
+func pipelineResourceToScWorkFlow(cli client.Client, namespace string, pr tektonv1.PipelineResource) (*types.WorkFlow, error) {
 	wf := &types.WorkFlow{}
-	wfContent := pr.Annotations[zcloudWorkFlowContentAnnotationKey]
+	wfContent, ok := pr.Annotations[zcloudWorkFlowContentAnnotationKey]
+	if !ok {
+		return nil, fmt.Errorf("workflowcontentannotation doesn't exist")
+	}
 	if err := json.Unmarshal([]byte(wfContent), wf); err != nil {
 		return nil, err
 	}
@@ -175,24 +211,9 @@ func getWorkFlows(cli client.Client, namespace string) ([]*types.WorkFlow, error
 
 	wfs := []*types.WorkFlow{}
 	for _, pr := range prs.Items {
-		wf := &types.WorkFlow{}
-		wfContent := pr.Annotations[zcloudWorkFlowContentAnnotationKey]
-		if err := json.Unmarshal([]byte(wfContent), wf); err != nil {
+		wf, err := pipelineResourceToScWorkFlow(cli, namespace, pr)
+		if err != nil {
 			return nil, err
-		}
-
-		wftID, ok := pr.Annotations[zcloudWorkFlowLatestTaskIDAnnotationKey]
-		if ok {
-			subs, status, err := getWorkFlowSubTasksAndStatus(cli, namespace, wftID)
-			if err != nil {
-				return nil, err
-			}
-			wf.SubTasks = subs
-			wf.Status = status
-		}
-
-		if pr.DeletionTimestamp != nil {
-			wf.SetDeletionTimestamp(pr.DeletionTimestamp.Time)
 		}
 		wfs = append(wfs, wf)
 	}
@@ -263,4 +284,32 @@ func deleteWorkFlow(cli client.Client, namespace, name string) error {
 		return err
 	}
 	return deleteWorkFlowDeploymentAndPVCs(cli, namespace, name)
+}
+
+func (m *WorkFlowManager) Action(ctx *resource.Context) (interface{}, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+	}
+
+	action := ctx.Resource.GetAction()
+	ns := ctx.Resource.GetParent().GetID()
+	id := ctx.Resource.GetID()
+
+	switch action.Name {
+	case types.WorkFlowEmptyLogAction:
+		return nil, emptyWorkFlowLogs(cluster.GetKubeClient(), ns, id)
+	default:
+		return nil, nil
+	}
+}
+
+func emptyWorkFlowLogs(cli client.Client, namespace, name string) *resterror.APIError {
+	if err := updateWorkFlowLastestIDAnnotation(cli, namespace, name, ""); err != nil {
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update namespace %s workflow %s latest id annotation failed %s", namespace, name, err.Error()))
+	}
+	if err := deletePipelineRunsByWorkFlowName(cli, namespace, name); err != nil {
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("delete namespace %s workflow %s pipelineruns failed %s", namespace, name, err.Error()))
+	}
+	return nil
 }

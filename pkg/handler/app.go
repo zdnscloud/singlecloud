@@ -130,9 +130,10 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 }
 
 const (
-	WSPrefix         = "/apis/ws.zcloud.cn/v1"
-	WSPodLogPathTemp = WSPrefix + "/clusters/%s/namespaces/%s/pods/%s/containers/%s/log"
-	WSTapPathTemp    = WSPrefix + "/clusters/%s/namespaces/%s/tap"
+	WSPrefix                  = "/apis/ws.zcloud.cn/v1"
+	WSPodLogPathTemp          = WSPrefix + "/clusters/%s/namespaces/%s/pods/%s/containers/%s/log"
+	WSTapPathTemp             = WSPrefix + "/clusters/%s/namespaces/%s/tap"
+	WSWorkFlowTaskLogPathTemp = WSPrefix + "/clusters/%s/namespaces/%s/workflows/%s/workflowtasks/%s/log"
 )
 
 func (a *App) registerWSHandler(router gin.IRoutes) {
@@ -149,5 +150,10 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 	tapPath := fmt.Sprintf(WSTapPathTemp, ":cluster", ":namespace")
 	router.GET(tapPath, func(c *gin.Context) {
 		a.clusterManager.Tap(c.Param("cluster"), c.Param("namespace"), c.Query("resource_type"), c.Query("resource_name"), c.Query("to_resource_type"), c.Query("to_resource_name"), c.Query("method"), c.Query("path"), c.Request, c.Writer)
+	})
+
+	workFlowTaskLogPath := fmt.Sprintf(WSWorkFlowTaskLogPathTemp, ":cluster", ":namespace", ":workflow", ":workflowtask")
+	router.GET(workFlowTaskLogPath, func(c *gin.Context) {
+		a.clusterManager.OpenWorkFlowTaskLog(c.Param("cluster"), c.Param("namespace"), c.Param("workflow"), c.Param("workflowtask"), c.Request, c.Writer)
 	})
 }

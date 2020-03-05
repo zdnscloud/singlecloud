@@ -4,6 +4,8 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
+const WorkFlowEmptyLogAction = "emptylog"
+
 type WorkFlow struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string             `json:"name" rest:"required=true,isDomain=true,description=immutable"`
@@ -34,4 +36,14 @@ func (w WorkFlow) GetParents() []resource.ResourceKind {
 
 func (w WorkFlow) SupportAsyncDelete() bool {
 	return true
+}
+
+var WorkFlowActions = []resource.Action{
+	resource.Action{
+		Name: WorkFlowEmptyLogAction,
+	},
+}
+
+func (w WorkFlow) GetActions() []resource.Action {
+	return WorkFlowActions
 }

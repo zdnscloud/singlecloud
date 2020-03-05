@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -14,9 +16,11 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sJson "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	knativeapis "knative.dev/pkg/apis"
 )
@@ -44,32 +48,46 @@ func (m *WorkFlowTaskManager) Create(ctx *resource.Context) (resource.Resource, 
 	}
 
 	ns := ctx.Resource.GetParent().GetParent().GetID()
+	wfID := ctx.Resource.GetParent().GetID()
 	wft := ctx.Resource.(*types.WorkFlowTask)
 
-	wf, err := getWorkFlow(cluster.GetKubeClient(), ns, ctx.Resource.GetParent().GetID())
+	return wft, createWorkFlowTask(cluster.GetKubeClient(), ns, wfID, wft)
+}
+
+func createWorkFlowTask(cli client.Client, namespace, wfID string, wft *types.WorkFlowTask) *resterror.APIError {
+	wf, err := getWorkFlow(cli, namespace, wfID)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
+			return resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
 		}
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get owner workflow failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get owner workflow failed %s", err.Error()))
 	}
 
-	pipelineRun, err := genPipelineRun(cluster.GetKubeClient(), ns, wf, wft)
+	tasks, err := getWorkFlowTasksByWorkFlowName(cli, namespace, wfID)
 	if err != nil {
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("gen workflowtask failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get workflowtasks failed %s", err.Error()))
 	}
 
-	if err := cluster.GetKubeClient().Create(context.TODO(), pipelineRun); err != nil {
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("create k8s workflowtask failed %s", err.Error()))
+	if IsNoCompleteTaskExists(tasks) {
+		return resterror.NewAPIError(resterror.PermissionDenied, "exist running or pending task")
 	}
 
-	if err := updateWorkFlowLastestIDAnnotation(cluster.GetKubeClient(), ns, wf.Name, pipelineRun.Name); err != nil {
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update workflow lastest task id annotation failed %s", err.Error()))
+	pipelineRun, err := genPipelineRun(cli, namespace, wf, wft)
+	if err != nil {
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("gen workflowtask failed %s", err.Error()))
+	}
+
+	if err := cli.Create(context.TODO(), pipelineRun); err != nil {
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("create k8s workflowtask failed %s", err.Error()))
+	}
+
+	if err := updateWorkFlowLastestIDAnnotation(cli, namespace, wfID, pipelineRun.Name); err != nil {
+		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update workflow lastest task id annotation failed %s", err.Error()))
 	}
 
 	wft.SetID(pipelineRun.Name)
 	wft.SetCreationTimestamp(time.Now())
-	return wft, nil
+	return nil
 }
 
 func updateWorkFlowLastestIDAnnotation(cli client.Client, namespace, workFlow, workFlowTaskID string) error {
@@ -79,6 +97,15 @@ func updateWorkFlowLastestIDAnnotation(cli client.Client, namespace, workFlow, w
 	}
 	pr.Annotations[zcloudWorkFlowLatestTaskIDAnnotationKey] = workFlowTaskID
 	return cli.Update(context.TODO(), &pr)
+}
+
+func IsNoCompleteTaskExists(ts []*types.WorkFlowTask) bool {
+	for _, t := range ts {
+		if t.Status.CurrentStatus == "Running" || t.Status.CurrentStatus == "Pending" {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *WorkFlowTaskManager) Get(ctx *resource.Context) resource.Resource {
@@ -147,32 +174,35 @@ func k8sPipelineRunToWorkFlowTaskStatus(p tektonv1alpha1.PipelineRun) types.Work
 }
 
 func k8sPipelineRunToWorkFlowSubTasks(p tektonv1alpha1.PipelineRun) []types.WorkFlowSubTask {
-	pods := []types.WorkFlowSubTask{}
-	for _, v := range p.Status.TaskRuns {
-		podStatus := types.WorkFlowTaskStatus{}
-		if v.Status.StartTime != nil {
-			podStatus.StartTime = resource.ISOTime(v.Status.StartTime.Time)
+	tasks := []types.WorkFlowSubTask{}
+	for _, pipelineTask := range p.Spec.PipelineSpec.Tasks {
+		task := types.WorkFlowSubTask{Name: pipelineTask.Name}
+		for _, v := range p.Status.TaskRuns {
+			if v.PipelineTaskName == pipelineTask.Name {
+				taskStatus := types.WorkFlowTaskStatus{}
+				if v.Status.StartTime != nil {
+					taskStatus.StartTime = resource.ISOTime(v.Status.StartTime.Time)
+				}
+				if v.Status.CompletionTime != nil {
+					taskStatus.CompletionTime = resource.ISOTime(v.Status.CompletionTime.Time)
+				}
+				condition := v.Status.GetCondition(knativeapis.ConditionSucceeded)
+				if condition != nil {
+					taskStatus.CurrentStatus = condition.Reason
+					taskStatus.Message = condition.Message
+				}
+				containers := []string{}
+				for _, step := range v.Status.Steps {
+					containers = append(containers, step.ContainerName)
+				}
+				task.Status = taskStatus
+				task.PodName = v.Status.PodName
+				task.Containers = containers
+			}
 		}
-		if v.Status.CompletionTime != nil {
-			podStatus.CompletionTime = resource.ISOTime(v.Status.CompletionTime.Time)
-		}
-		condition := v.Status.GetCondition(knativeapis.ConditionSucceeded)
-		if condition != nil {
-			podStatus.CurrentStatus = condition.Reason
-			podStatus.Message = condition.Message
-		}
-
-		containers := []string{}
-		for _, step := range v.Status.Steps {
-			containers = append(containers, step.ContainerName)
-		}
-		pod := types.WorkFlowSubTask{
-			Name:   v.PipelineTaskName,
-			Status: podStatus,
-		}
-		pods = append(pods, pod)
+		tasks = append(tasks, task)
 	}
-	return pods
+	return tasks
 }
 
 func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
@@ -182,19 +212,46 @@ func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
 	}
 
 	ns := ctx.Resource.GetParent().GetParent().GetID()
-	wfName := ctx.Resource.GetParent().GetID()
+	wfID := ctx.Resource.GetParent().GetID()
 
-	ts, err := getWorkFlowTasks(cluster.GetKubeClient(), ns, wfName)
+	ts, err := getWorkFlowTasksByWorkFlowName(cluster.GetKubeClient(), ns, wfID)
 	if err != nil {
-		log.Warnf("list workflow task of %s-%s failed %s", ns, wfName, err.Error())
+		log.Warnf("list workflow task of %s-%s failed %s", ns, wfID, err.Error())
 		return nil
 	}
 	return ts
 }
 
-func getWorkFlowTasks(cli client.Client, namespace, workFlow string) ([]*types.WorkFlowTask, error) {
+func getWorkFlowTasksByWorkFlowName(cli client.Client, namespace, name string) ([]*types.WorkFlowTask, error) {
+	ps, err := getPipelineRunsByWorkFlowName(cli, namespace, name)
+	if err != nil {
+		return nil, err
+	}
+
+	ts := []*types.WorkFlowTask{}
+	for _, p := range ps {
+		ts = append(ts, k8sPipelineRunToWorkFlowTask(p))
+	}
+	return ts, nil
+}
+
+func deletePipelineRunsByWorkFlowName(cli client.Client, namespace, name string) error {
+	ps, err := getPipelineRunsByWorkFlowName(cli, namespace, name)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range ps {
+		if err := cli.Delete(context.TODO(), &p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getPipelineRunsByWorkFlowName(cli client.Client, namespace, name string) ([]tektonv1alpha1.PipelineRun, error) {
 	pl := tektonv1alpha1.PipelineRunList{}
-	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: map[string]string{zcloudWorkFlowIDLabelKey: workFlow}})
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: map[string]string{zcloudWorkFlowIDLabelKey: name}})
 	if err != nil {
 		return nil, err
 	}
@@ -202,36 +259,7 @@ func getWorkFlowTasks(cli client.Client, namespace, workFlow string) ([]*types.W
 	if err := cli.List(context.TODO(), listOptions, &pl); err != nil {
 		return nil, err
 	}
-
-	ts := []*types.WorkFlowTask{}
-	for _, p := range pl.Items {
-		ts = append(ts, k8sPipelineRunToWorkFlowTask(p))
-	}
-	return ts, nil
-}
-
-func (m *WorkFlowTaskManager) Delete(ctx *resource.Context) *resterror.APIError {
-	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	if cluster == nil {
-		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
-	}
-
-	ns := ctx.Resource.GetParent().GetParent().GetID()
-	id := ctx.Resource.GetID()
-
-	p := tektonv1alpha1.PipelineRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      id,
-			Namespace: ns},
-	}
-
-	if err := cluster.GetKubeClient().Delete(context.TODO(), &p); err != nil {
-		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
-		}
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("delete workflow failed %s", err.Error()))
-	}
-	return nil
+	return pl.Items, nil
 }
 
 func genPipelineRun(cli client.Client, namespace string, wf *types.WorkFlow, wft *types.WorkFlowTask) (*tektonv1alpha1.PipelineRun, error) {
@@ -481,5 +509,87 @@ func getPipelineRunDeployYaml(cli client.Client, namespace string, wf *types.Wor
 		}
 	}
 	deploy.Containers = containers
-	return getWorkFlowDeployYaml(cli, namespace, &deploy)
+	return k8sDeployToYaml(cli, namespace, &deploy)
+}
+
+func k8sDeployToYaml(cli client.Client, namespace string, deploy *types.Deployment) (string, error) {
+	k8sDeploy, pvcs, err := scDeployToK8sDeployAndPvcs(cli, namespace, deploy)
+	if err != nil {
+		return "", err
+	}
+
+	serializer := k8sJson.NewSerializerWithOptions(
+		k8sJson.DefaultMetaFactory, nil, nil,
+		k8sJson.SerializerOptions{
+			Yaml:   true,
+			Pretty: true,
+			Strict: true,
+		},
+	)
+
+	out := bytes.NewBuffer(make([]byte, 0, 64))
+	if err := serializer.Encode(k8sDeploy, out); err != nil {
+		return "", err
+	}
+	out.WriteString("---\n")
+	for _, pv := range pvcs {
+		if err := serializer.Encode(&pv, out); err != nil {
+			return "", err
+		}
+		out.WriteString("---\n")
+	}
+	return out.String(), nil
+}
+
+func scDeployToK8sDeployAndPvcs(cli client.Client, namespace string, deploy *types.Deployment) (*appsv1.Deployment, []corev1.PersistentVolumeClaim, error) {
+	podTemplate, k8sPVCs, err := getWorkLoadPodTempateSpecAndPvcs(namespace, deploy, cli)
+	if err != nil {
+		return nil, nil, err
+	}
+	replicas := int32(deploy.Replicas)
+	k8sDeploy := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: generatePodOwnerObjectMeta(namespace, deploy),
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": deploy.Name},
+			},
+			Template: *podTemplate,
+		},
+	}
+
+	for i := range k8sPVCs {
+		k8sPVCs[i].TypeMeta = metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		}
+	}
+	return k8sDeploy, k8sPVCs, nil
+}
+
+func getWorkLoadPodTempateSpecAndPvcs(namespace string, podOwner interface{}, cli client.Client) (*corev1.PodTemplateSpec, []corev1.PersistentVolumeClaim, error) {
+	structVal := reflect.ValueOf(podOwner).Elem()
+	advancedOpts := structVal.FieldByName("AdvancedOptions").Interface().(types.AdvancedOptions)
+	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
+	pvs := structVal.FieldByName("PersistentVolumes").Interface().([]types.PersistentVolumeTemplate)
+
+	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	name := structVal.FieldByName("Name").String()
+	meta, err := createPodTempateObjectMeta(name, namespace, cli, advancedOpts, containers)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &corev1.PodTemplateSpec{
+		ObjectMeta: meta,
+		Spec:       k8sPodSpec,
+	}, k8sPVCs, nil
 }
