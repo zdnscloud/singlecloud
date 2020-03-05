@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -118,7 +117,7 @@ func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource,
 			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
 		}
 	}
-	storagecluster.SetID(types.StorageclusterMap[storagecluster.StorageType])
+	storagecluster.SetID(storagecluster.Name)
 	return storagecluster, nil
 }
 
@@ -173,7 +172,7 @@ func deleteStorageCluster(cli client.Client, name string) error {
 }
 
 func createStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager, storagecluster *types.StorageCluster) error {
-	if err := checkStorageClusterExist(cluster.GetKubeClient(), storagecluster.StorageType); err != nil {
+	if err := checkStorageClusterExist(cluster.GetKubeClient(), storagecluster.Name, storagecluster.StorageType); err != nil {
 		return err
 	}
 	if err := isHostsValidate(cluster, agent, storagecluster.Hosts); err != nil {
@@ -218,7 +217,7 @@ func updateStorageCluster(cluster *zke.Cluster, agent *clusteragent.AgentManager
 func scStorageToK8sStorage(storagecluster *types.StorageCluster) *storagev1.Cluster {
 	return &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.StorageclusterMap[storagecluster.StorageType],
+			Name: storagecluster.Name,
 		},
 		Spec: storagev1.ClusterSpec{
 			StorageType: storagecluster.StorageType,
@@ -249,24 +248,27 @@ func k8sStorageToSCStorage(cluster *zke.Cluster, k8sStorageCluster *storagev1.Cl
 }
 
 func k8sStorageToSCStorageDetail(cluster *zke.Cluster, agent *clusteragent.AgentManager, k8sStorageCluster *storagev1.Cluster) *types.StorageCluster {
-	var info types.Storage
-	if err := agent.GetResource(cluster.Name, "/storages/"+k8sStorageCluster.Spec.StorageType, &info); err != nil {
-		log.Warnf("get storages from clusteragent failed:%s", err.Error())
-	}
-
 	storagecluster := k8sStorageToSCStorage(cluster, k8sStorageCluster)
-	storagecluster.Nodes = countSize(k8sStorageCluster)
-	storagecluster.PVs = info.PVs
+	storagecluster.Nodes = genStorageNodeFromInstances(k8sStorageCluster.Status.Capacity.Instances)
+	var info types.Storage
+	if err := agent.GetResource(cluster.Name, "/storages/"+k8sStorageCluster.Name, &info); err != nil {
+		log.Warnf("get storages from clusteragent failed:%s", err.Error())
+	} else {
+		storagecluster.PVs = info.PVs
+	}
 	return storagecluster
 }
 
-func checkStorageClusterExist(cli client.Client, storageType string) error {
+func checkStorageClusterExist(cli client.Client, name, storageType string) error {
 	storageclusters := storagev1.ClusterList{}
 	err := cli.List(context.TODO(), nil, &storageclusters)
 	if err != nil {
 		return err
 	}
 	for _, storage := range storageclusters.Items {
+		if storage.Name == name {
+			return errors.New(fmt.Sprintf("The name of %s storagecluster has already exists", name))
+		}
 		if storage.Spec.StorageType == storageType {
 			return errors.New(fmt.Sprintf("The type of %s storagecluster has already exists", storageType))
 		}
@@ -282,7 +284,7 @@ func checkFinalizers(cli client.Client, name string) error {
 	}
 	metaObj := obj.(metav1.Object)
 	finalizers := metaObj.GetFinalizers()
-	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.ClusterPrestopHookFinalizer) == 0) {
+	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
 		return nil
 	} else {
 		return errors.New(fmt.Sprintf("The storagecluster %s is used by some pods, you should stop those pods first", name))
@@ -297,43 +299,6 @@ func sToi(size string) int64 {
 func byteToGb(num int64) string {
 	f := float64(num) / (1024 * 1024 * 1024)
 	return fmt.Sprintf("%.2f", math.Trunc(f*1e2)*1e-2)
-}
-
-func countSize(k8sStorageCluster *storagev1.Cluster) []types.StorageNode {
-	var nodes types.StorageNodes
-	ns := make(map[string]map[string]int64)
-	nodestat := make(map[string]bool)
-	stat := true
-	for _, i := range k8sStorageCluster.Status.Capacity.Instances {
-		if !i.Stat {
-			stat = false
-		}
-		nodestat[i.Host] = stat
-		v, ok := ns[i.Host]
-		if ok {
-			v["Total"] += sToi(i.Info.Total)
-			v["Used"] += sToi(i.Info.Used)
-			v["Free"] += sToi(i.Info.Free)
-		} else {
-			info := make(map[string]int64)
-			info["Total"] = sToi(i.Info.Total)
-			info["Used"] = sToi(i.Info.Used)
-			info["Free"] = sToi(i.Info.Free)
-			ns[i.Host] = info
-		}
-	}
-	for k, v := range ns {
-		node := types.StorageNode{
-			Name:     k,
-			Size:     byteToGb(v["Total"]),
-			UsedSize: byteToGb(v["Used"]),
-			FreeSize: byteToGb(v["Free"]),
-			Stat:     nodestat[k],
-		}
-		nodes = append(nodes, node)
-	}
-	sort.Sort(nodes)
-	return nodes
 }
 
 func getStorageDriver(cli client.Client, storageType string) (string, error) {

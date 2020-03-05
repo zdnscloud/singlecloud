@@ -1,10 +1,10 @@
 {
-  "resourceType": "storagecluster",
-  "collectionName": "storageclusters",
+  "resourceType": "nfs",
+  "collectionName": "nfses",
   "parentResources": [
     "cluster"
   ],
-  "goStructName": "StorageCluster",
+  "goStructName": "Nfs",
   "supportAsyncDelete": true,
   "resourceFields": {
     "freeSize": {
@@ -13,24 +13,16 @@
         "readonly"
       ]
     },
-    "hosts": {
-      "type": "array",
-      "elemType": "string",
-      "description": [
-        "required"
-      ]
-    },
     "name": {
       "type": "string",
       "description": [
         "required"
       ]
     },
-    "nodes": {
-      "type": "array",
-      "elemType": "storageNode",
+    "path": {
+      "type": "string",
       "description": [
-        "readonly"
+        "required"
       ]
     },
     "phase": {
@@ -46,20 +38,16 @@
         "readonly"
       ]
     },
+    "server": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
+    },
     "size": {
       "type": "string",
       "description": [
         "readonly"
-      ]
-    },
-    "storageType": {
-      "type": "enum",
-      "validValues": [
-        "lvm",
-        "cephfs"
-      ],
-      "description": [
-        "required"
       ]
     },
     "usedSize": {
@@ -94,23 +82,6 @@
         "type": "string"
       }
     },
-    "storageNode": {
-      "freeSize": {
-        "type": "string"
-      },
-      "name": {
-        "type": "string"
-      },
-      "size": {
-        "type": "string"
-      },
-      "stat": {
-        "type": "bool"
-      },
-      "usedSize": {
-        "type": "string"
-      }
-    },
     "storagePod": {
       "name": {
         "type": "string"
@@ -119,8 +90,7 @@
   },
   "resourceMethods": [
     "GET",
-    "DELETE",
-    "PUT"
+    "DELETE"
   ],
   "collectionMethods": [
     "GET",

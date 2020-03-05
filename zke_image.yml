@@ -16,11 +16,11 @@ v1.17.2:
     ingress_backend: zdnscloud/nginx-ingress-controller-defaultbackend:1.4
     coredns: zdnscloud/coredns:1.6.5
     coredns_autoscaler: zdnscloud/cluster-proportional-autoscaler-amd64:1.7.1
-    cluster_agent: zdnscloud/cluster-agent:latest
+    cluster_agent: zdnscloud/cluster-agent:refactor-storage
     node_agent: zdnscloud/node-agent:v1.3.1
     metrics_server: zdnscloud/metrics-server-amd64:v0.3.6
     zke_remover: zdnscloud/zke-remove:v0.7
-    storage_operator: zdnscloud/storage-operator:v3.5.7
+    storage_operator: zdnscloud/storage-operator:resize
     zcloud_shell: zdnscloud/kubectl:v1.17.2
     zcloud_proxy: zdnscloud/zcloud-proxy:v1.0.1
     zcloud_lbcontroller: zdnscloud/elb-controller:v0.0.5

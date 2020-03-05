@@ -47,5 +47,7 @@ func Resources() []resource.ResourceKind {
 		Threshold{},
 		Metric{},
 		AuditLog{},
+		Iscsi{},
+		Nfs{},
 	}
 }

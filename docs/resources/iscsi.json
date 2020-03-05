@@ -1,21 +1,30 @@
 {
-  "resourceType": "storagecluster",
-  "collectionName": "storageclusters",
+  "resourceType": "iscsi",
+  "collectionName": "iscsis",
   "parentResources": [
     "cluster"
   ],
-  "goStructName": "StorageCluster",
+  "goStructName": "Iscsi",
   "supportAsyncDelete": true,
   "resourceFields": {
+    "chap": {
+      "type": "bool"
+    },
     "freeSize": {
       "type": "string",
       "description": [
         "readonly"
       ]
     },
-    "hosts": {
+    "initiators": {
       "type": "array",
       "elemType": "string",
+      "description": [
+        "required"
+      ]
+    },
+    "iqn": {
+      "type": "string",
       "description": [
         "required"
       ]
@@ -33,10 +42,19 @@
         "readonly"
       ]
     },
+    "password": {
+      "type": "string"
+    },
     "phase": {
       "type": "string",
       "description": [
         "readonly"
+      ]
+    },
+    "port": {
+      "type": "string",
+      "description": [
+        "required"
       ]
     },
     "pvs": {
@@ -52,12 +70,8 @@
         "readonly"
       ]
     },
-    "storageType": {
-      "type": "enum",
-      "validValues": [
-        "lvm",
-        "cephfs"
-      ],
+    "target": {
+      "type": "string",
       "description": [
         "required"
       ]
@@ -67,6 +81,9 @@
       "description": [
         "readonly"
       ]
+    },
+    "username": {
+      "type": "string"
     }
   },
   "subResources": {
