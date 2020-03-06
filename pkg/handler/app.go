@@ -11,10 +11,11 @@ import (
 	"github.com/zdnscloud/gorest/resource/schema"
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/alarm"
+	"github.com/zdnscloud/singlecloud/pkg/auditlog"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
 	"github.com/zdnscloud/singlecloud/pkg/authorization"
 	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
+	"github.com/zdnscloud/singlecloud/pkg/zke/zkelog"
 )
 
 var (
@@ -58,7 +59,7 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.ServiceNetwork{}, newServiceNetworkManager(a.clusterManager))
 	schemas.MustImport(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager))
 	schemas.MustImport(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager))
-	namespaceManager, err := newNamespaceManager(a.clusterManager)
+	namespaceManager, err := newNamespaceManager(a.clusterManager, a.conf.Server.EnableDebug)
 	if err != nil {
 		return err
 	}
@@ -88,6 +89,12 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.SvcMeshPod{}, newSvcMeshPodManager(a.clusterManager))
 	schemas.MustImport(&Version, types.Metric{}, newMetricManager(a.clusterManager))
 
+	auditLogger, err := auditlog.New()
+	if err != nil {
+		return err
+	}
+	schemas.MustImport(&Version, types.AuditLog{}, newAuditLogManager(auditLogger))
+
 	userQuotaManager, err := newUserQuotaManager(a.clusterManager)
 	if err != nil {
 		return err
@@ -113,7 +120,9 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.User{}, userManager)
 	schemas.MustImport(&Version, types.HorizontalPodAutoscaler{}, newHorizontalPodAutoscalerManager(a.clusterManager))
 	server := gorest.NewAPIServer(schemas)
-	server.Use(a.clusterManager.authorizationHandler())
+	server.Use(a.clusterManager.authorizationHandler(a.conf.Server.EnableDebug))
+	server.Use(auditLogger.AuditHandler())
+
 	adaptor.RegisterHandler(router, server, schemas.GenerateResourceRoute())
 	return nil
 }
@@ -130,7 +139,7 @@ func (a *App) registerWSHandler(router gin.IRoutes) {
 		a.clusterManager.OpenPodLog(c.Param("cluster"), c.Param("namespace"), c.Param("pod"), c.Param("container"), c.Request, c.Writer)
 	})
 
-	zkeLogPath := fmt.Sprintf(zke.WSZKELogPathTemp, ":cluster")
+	zkeLogPath := fmt.Sprintf(zkelog.WSZKELogPathTemp, ":cluster")
 	router.GET(zkeLogPath, func(c *gin.Context) {
 		a.clusterManager.zkeManager.OpenLog(c.Param("cluster"), c.Request, c.Writer)
 	})

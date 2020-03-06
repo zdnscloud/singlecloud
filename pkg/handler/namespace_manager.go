@@ -27,17 +27,18 @@ const (
 )
 
 type NamespaceManager struct {
-	clusters *ClusterManager
-	db       kvzoo.Table
+	clusters    *ClusterManager
+	db          kvzoo.Table
+	enableDebug bool
 }
 
-func newNamespaceManager(clusters *ClusterManager) (*NamespaceManager, error) {
+func newNamespaceManager(clusters *ClusterManager, enableDebug bool) (*NamespaceManager, error) {
 	tn, _ := kvzoo.TableNameFromSegments(UserQuotaTable)
 	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
 	if err != nil {
 		return nil, fmt.Errorf("new namespace manager when create or get userquota table failed: %s", err.Error())
 	}
-	return &NamespaceManager{clusters: clusters, db: table}, nil
+	return &NamespaceManager{clusters: clusters, db: table, enableDebug: enableDebug}, nil
 }
 
 func (m *NamespaceManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
@@ -79,6 +80,10 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 	user := getCurrentUser(ctx)
 	var namespaces []*types.Namespace
 	for _, ns := range k8sNamespaces.Items {
+		if !m.enableDebug && ns.Name == ZCloudNamespace {
+			continue
+		}
+
 		if m.clusters.authorizer.Authorize(user, cluster.Name, ns.Name) {
 			namespace := k8sNamespaceToSCNamespace(&ns)
 			namespaces = append(namespaces, namespace)
@@ -88,6 +93,10 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 }
 
 func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
+	if !m.enableDebug && ctx.Resource.GetID() == ZCloudNamespace {
+		return nil
+	}
+
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil
@@ -102,6 +111,10 @@ func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
 }
 
 func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
+	if !m.enableDebug && ctx.Resource.GetID() == ZCloudNamespace {
+		return resterror.NewAPIError(resterror.PermissionDenied, "system namespace can only be deleted at debug mod")
+	}
+
 	if isAdmin(getCurrentUser(ctx)) == false {
 		return resterror.NewAPIError(resterror.PermissionDenied, "only admin can delete namespace")
 	}

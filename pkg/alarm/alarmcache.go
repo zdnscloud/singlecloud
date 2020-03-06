@@ -26,7 +26,6 @@ type AlarmCache struct {
 	thresholdTable kvzoo.Table
 	alarmsTable    kvzoo.Table
 	alarmList      *list.List
-	unAckNumber    uint64
 	eventID        uint64
 }
 
@@ -34,6 +33,7 @@ type AlarmListener struct {
 	lastID  uint64
 	stopCh  chan struct{}
 	alarmCh chan interface{}
+	unAck   int
 }
 
 func NewAlarmCache() (*AlarmCache, error) {
@@ -67,9 +67,6 @@ func (ac *AlarmCache) initFromDB() error {
 	}
 	for _, alarm := range alarms {
 		ac.alarmList.PushBack(alarm)
-		if !alarm.Acknowledged {
-			ac.unAckNumber += 1
-		}
 	}
 	if ac.alarmList.Len() > 0 {
 		ac.eventID = ac.alarmList.Back().Value.(*types.Alarm).UID
@@ -163,7 +160,6 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 		return
 	}
 	ac.alarmList.PushBack(alarm)
-	ac.SetUnAck(1)
 	if ac.alarmList.Len() > MaxAlarmCount {
 		if err := ac.deleteoldest(); err != nil {
 			log.Warnf("delete oldest alarms failed: %s", err)
@@ -189,7 +185,6 @@ func (ac *AlarmCache) Update(alarm *types.Alarm) error {
 	}
 	a.Acknowledged = true
 	ac.lock.Unlock()
-	ac.SetUnAck(-1)
 	ac.cond.Broadcast()
 	return nil
 }
@@ -238,9 +233,6 @@ func (ac *AlarmCache) deleteoldest() error {
 		}
 		elem := ac.alarmList.Front()
 		ac.alarmList.Remove(elem)
-		if !elem.Value.(*types.Alarm).Acknowledged {
-			ac.SetUnAck(-1)
-		}
 	}
 	return nil
 }
@@ -248,7 +240,6 @@ func (ac *AlarmCache) deleteoldest() error {
 func (ac *AlarmCache) deleteAlarmForCluster(cluster string) {
 	ac.lock.Lock()
 	var next *list.Element
-	var number int
 	for elem := ac.alarmList.Front(); elem != nil; elem = next {
 		next = elem.Next()
 		alarm := elem.Value.(*types.Alarm)
@@ -258,18 +249,10 @@ func (ac *AlarmCache) deleteAlarmForCluster(cluster string) {
 				continue
 			}
 			ac.alarmList.Remove(elem)
-			if !alarm.Acknowledged {
-				number -= 1
-			}
 		}
 	}
 	ac.lock.Unlock()
-	ac.SetUnAck(number)
 	ac.cond.Broadcast()
-}
-
-func (ac *AlarmCache) SetUnAck(u int) {
-	atomic.AddUint64(&ac.unAckNumber, uint64(u))
 }
 
 func uintToStr(uid uint64) string {
@@ -283,4 +266,14 @@ func isRepeat(lastAlarm, newAlarm *types.Alarm) bool {
 		lastAlarm.Reason == newAlarm.Reason &&
 		lastAlarm.Message == newAlarm.Message &&
 		lastAlarm.Name == newAlarm.Name
+}
+
+func (ac *AlarmCache) getUnAckNumber() int {
+	var num int
+	for elem := ac.alarmList.Back(); elem != nil; elem = elem.Prev() {
+		if !elem.Value.(*types.Alarm).Acknowledged {
+			num += 1
+		}
+	}
+	return num
 }

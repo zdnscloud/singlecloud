@@ -1,0 +1,32 @@
+{
+  "resourceType": "auditlog",
+  "collectionName": "auditlogs",
+  "goStructName": "AuditLog",
+  "supportAsyncDelete": false,
+  "resourceFields": {
+    "detail": {
+      "type": "string"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "resourceKind": {
+      "type": "string"
+    },
+    "resourcePath": {
+      "type": "string"
+    },
+    "sourceAddress": {
+      "type": "string"
+    },
+    "uid": {
+      "type": "uint"
+    },
+    "user": {
+      "type": "string"
+    }
+  },
+  "collectionMethods": [
+    "GET"
+  ]
+}

@@ -181,7 +181,7 @@ func (m *ClusterManager) Action(ctx *restresource.Context) (interface{}, *rester
 	}
 }
 
-func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
+func (m *ClusterManager) authorizationHandler(enableDebug bool) gorest.HandlerFunc {
 	return func(ctx *restresource.Context) *resterr.APIError {
 		if _, ok := ctx.Resource.(*types.User); ok {
 			action := ctx.Resource.GetAction()
@@ -211,6 +211,10 @@ func (m *ClusterManager) authorizationHandler() gorest.HandlerFunc {
 			if _, ok := ancestors[1].(*types.Namespace); ok {
 				cluster := ancestors[0].GetID()
 				namespace := ancestors[1].GetID()
+				if namespace == ZCloudNamespace && !enableDebug {
+					return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on namespace %s", user, namespace))
+				}
+
 				if m.authorizer.Authorize(user, cluster, namespace) == false {
 					return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on cluster %s namespace %s", user, cluster, namespace))
 				}

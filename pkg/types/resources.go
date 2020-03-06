@@ -46,5 +46,6 @@ func Resources() []resource.ResourceKind {
 		SvcMeshPod{},
 		Threshold{},
 		Metric{},
+		AuditLog{},
 	}
 }

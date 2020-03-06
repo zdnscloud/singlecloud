@@ -28,7 +28,7 @@ type Rejection struct {
 
 type UserQuota struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string           `json:"name" rest:"required=true,isDomain=true,description=immutable"`
+	Name                  string           `json:"name" rest:"description=readonly"`
 	ClusterName           string           `json:"clusterName,omitempty" rest:"isDomain=true"`
 	Namespace             string           `json:"namespace" rest:"required=true,isDomain=true"`
 	UserName              string           `json:"userName" rest:"description=readonly"`

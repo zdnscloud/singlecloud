@@ -33,10 +33,6 @@ func (mgr *AlarmManager) OpenAlarm(r *http.Request, w http.ResponseWriter) {
 	}
 	defer conn.Close()
 
-	if err = conn.WriteJSON(Message{UnackNumber, mgr.cache.unAckNumber}); err != nil {
-		log.Warnf("send alarm unack number failed:%s", err.Error())
-	}
-
 	listener := mgr.cache.AddListener()
 	alarmCh := listener.AlarmChannel()
 	for {
@@ -51,9 +47,9 @@ func (mgr *AlarmManager) OpenAlarm(r *http.Request, w http.ResponseWriter) {
 			genLink(a)
 			msg.Type = UnackAlarm
 			msg.Payload = a
-		case uint64:
+		case int:
 			msg.Type = UnackNumber
-			msg.Payload = alarm.(uint64)
+			msg.Payload = alarm.(int)
 		}
 		err = conn.WriteJSON(msg)
 		if err != nil {
