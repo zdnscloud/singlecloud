@@ -21,7 +21,9 @@ import (
 )
 
 const (
-	LvmDriverSuffix = "lvm.storage.zcloud.cn"
+	LvmDriverSuffix       = "lvm.storage.zcloud.cn"
+	NfsDriverSuffix       = "nfs.storage.zcloud.cn"
+	annStorageProvisioner = "volume.beta.kubernetes.io/storage-provisioner"
 )
 
 type PersistentVolumeClaimManager struct {
@@ -117,6 +119,11 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 		actualStorage = quantity.String()
 	}
 
+	var driver string
+	if provisioner, ok := k8sPersistentVolumeClaim.Annotations[annStorageProvisioner]; ok {
+		driver = provisioner
+	}
+
 	pvc := &types.PersistentVolumeClaim{
 		Name:               k8sPersistentVolumeClaim.Name,
 		RequestStorageSize: requestStorage,
@@ -124,6 +131,7 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 		VolumeName:         k8sPersistentVolumeClaim.Spec.VolumeName,
 		ActualStorageSize:  actualStorage,
 		Status:             string(k8sPersistentVolumeClaim.Status.Phase),
+		Driver:             driver,
 	}
 	pvc.SetID(k8sPersistentVolumeClaim.Name)
 	pvc.SetCreationTimestamp(k8sPersistentVolumeClaim.CreationTimestamp.Time)
@@ -146,8 +154,14 @@ func genUseInfoForPVCs(cli client.Client, namespace string, pvcs []*types.Persis
 		if pvc.Status != "Bound" {
 			return nil
 		}
-		if err := genUseInfoForPVC(cli, pvc, pods, vas); err != nil {
-			return err
+		if strings.HasSuffix(pvc.Driver, NfsDriverSuffix) {
+			if err := genUseInfoForNfsPVC(cli, pvc, pods); err != nil {
+				return err
+			}
+		} else {
+			if err := genUseInfoForPVC(cli, pvc, pods, vas); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -201,6 +215,19 @@ func isUsed(cli client.Client, namespace, name string) error {
 				return errors.New(fmt.Sprintf("the pvc %s is in used, can not delete it", name))
 			}
 			return nil
+		}
+	}
+	return nil
+}
+
+func genUseInfoForNfsPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods *corev1.PodList) error {
+	for _, p := range pods.Items {
+		for _, volume := range p.Spec.Volumes {
+			if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvc.Name {
+				pvc.Pods = append(pvc.Pods, p.Name)
+				pvc.Used = true
+				break
+			}
 		}
 	}
 	return nil
