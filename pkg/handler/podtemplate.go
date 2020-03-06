@@ -45,7 +45,7 @@ func createPodTempateSpec(namespace string, podOwner interface{}, cli client.Cli
 	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
 	pvs := structVal.FieldByName("PersistentVolumes").Interface().([]types.PersistentVolumeTemplate)
 
-	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvs)
+	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(cli, containers, pvs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -168,9 +168,9 @@ func deleteWorkLoadPVCs(cli client.Client, namespace string, k8sVolumes []corev1
 	}
 }
 
-func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvs []types.PersistentVolumeTemplate) (corev1.PodSpec, []corev1.PersistentVolumeClaim, error) {
+func scPodSpecToK8sPodSpecAndPVCs(cli client.Client, containers []types.Container, pvs []types.PersistentVolumeTemplate) (corev1.PodSpec, []corev1.PersistentVolumeClaim, error) {
 	var k8sPodSpec corev1.PodSpec
-	k8sEmptyDirs, k8sPVCs, err := scPVCsToK8sVolumesAndPVCs(pvs)
+	k8sEmptyDirs, k8sPVCs, err := scPVCsToK8sVolumesAndPVCs(cli, pvs)
 	if err != nil {
 		return k8sPodSpec, nil, err
 	}
@@ -179,7 +179,7 @@ func scPodSpecToK8sPodSpecAndPVCs(containers []types.Container, pvs []types.Pers
 	return k8sPodSpec, k8sPVCs, err
 }
 
-func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.Volume, []corev1.PersistentVolumeClaim, error) {
+func scPVCsToK8sVolumesAndPVCs(cli client.Client, pvs []types.PersistentVolumeTemplate) ([]corev1.Volume, []corev1.PersistentVolumeClaim, error) {
 	if len(pvs) == 0 {
 		return nil, nil, nil
 	}
@@ -213,10 +213,16 @@ func scPVCsToK8sVolumesAndPVCs(pvs []types.PersistentVolumeTemplate) ([]corev1.V
 				},
 			})
 			continue
-		case types.StorageClassNameLVM, types.StorageClassNameCephfs:
-			accessModes = append(accessModes, types.StorageAccessModeMap[storageClassName])
 		default:
-			return nil, nil, fmt.Errorf("persistent volumes storageclass %s isn`t supported", storageClassName)
+			storageClass, err := getStorageClass(cli, storageClassName)
+			if err != nil {
+				return nil, nil, fmt.Errorf("get storageClass %s failed: %s", storageClassName, err.Error())
+			}
+			if accessMode, ok := storageClass.Parameters["accessMode"]; ok {
+				accessModes = append(accessModes, corev1.PersistentVolumeAccessMode(accessMode))
+			} else {
+				return nil, nil, fmt.Errorf("parse storage %s accessMode failed: %s", storageClassName, err.Error())
+			}
 		}
 		if k8sQuantity == nil {
 			return nil, nil, fmt.Errorf("persistentClaimVolumes storage size must not be zero")

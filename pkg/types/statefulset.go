@@ -5,9 +5,7 @@ import (
 )
 
 const (
-	StorageClassNameLVM    = "lvm"
-	StorageClassNameCephfs = "cephfs"
-	StorageClassNameTemp   = "temporary"
+	StorageClassNameTemp = "temporary"
 )
 
 type StatefulSet struct {
@@ -24,7 +22,7 @@ type StatefulSet struct {
 type PersistentVolumeTemplate struct {
 	Name             string `json:"name" rest:"isDomain=true"`
 	Size             string `json:"size"`
-	StorageClassName string `json:"storageClassName" rest:"options=lvm|cephfs|temporary"`
+	StorageClassName string `json:"storageClassName"`
 }
 
 func (s StatefulSet) GetParents() []resource.ResourceKind {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	k8sstorage "k8s.io/api/storage/v1"
@@ -17,6 +18,10 @@ import (
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+)
+
+const (
+	LvmDriverSuffix = "lvm.storage.zcloud.cn"
 )
 
 type PersistentVolumeClaimManager struct {
@@ -156,7 +161,7 @@ func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods 
 	for _, va := range vas.Items {
 		if *va.Spec.Source.PersistentVolumeName == pv.Name {
 			pvc.Used = va.Status.Attached
-			if pvc.Used && pvc.StorageClassName == "lvm" {
+			if pvc.Used && strings.HasSuffix(va.Spec.Attacher, LvmDriverSuffix) {
 				pvc.Node = va.Spec.NodeName
 			}
 		}

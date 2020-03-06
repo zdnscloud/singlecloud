@@ -121,7 +121,7 @@ func getCronJobs(cli client.Client, namespace string) (*batchv1beta1.CronJobList
 }
 
 func createCronJob(cli client.Client, namespace string, cronJob *types.CronJob) error {
-	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(cronJob.Containers, nil)
+	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(nil, cronJob.Containers, nil)
 	if err != nil {
 		return err
 	}

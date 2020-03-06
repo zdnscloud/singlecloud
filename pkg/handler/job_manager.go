@@ -122,7 +122,7 @@ func getJobs(cli client.Client, namespace string) (*batchv1.JobList, error) {
 }
 
 func createJob(cli client.Client, namespace string, job *types.Job) error {
-	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(job.Containers, nil)
+	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(nil, job.Containers, nil)
 	if err != nil {
 		return err
 	}

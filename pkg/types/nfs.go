@@ -6,7 +6,7 @@ import (
 
 type Nfs struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string `json:"name" rest:"required=true"`
+	Name                  string `json:"name" rest:"required=true,isDomain=true"`
 	Server                string `json:"server" rest:"required=true"`
 	Path                  string `json:"path" rest:"required=true"`
 	Phase                 string `json:"phase" rest:"description=readonly"`

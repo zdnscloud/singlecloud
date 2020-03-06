@@ -6,7 +6,7 @@ import (
 
 type Iscsi struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string        `json:"name" rest:"required=true"`
+	Name                  string        `json:"name" rest:"required=true,isDomain=true"`
 	Target                string        `json:"target" rest:"required=true"`
 	Port                  string        `json:"port" rest:"required=true"`
 	Iqn                   string        `json:"iqn" rest:"required=true"`

@@ -115,7 +115,7 @@ func (m *DaemonSetManager) Update(ctx *resource.Context) (resource.Resource, *re
 		}
 	}
 
-	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(daemonSet.Containers, daemonSet.PersistentVolumes)
+	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(cluster.GetKubeClient(), daemonSet.Containers, daemonSet.PersistentVolumes)
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update daemonset failed %s", err.Error()))
 	}

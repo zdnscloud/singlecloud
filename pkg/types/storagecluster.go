@@ -2,17 +2,11 @@ package types
 
 import (
 	"github.com/zdnscloud/gorest/resource"
-	corev1 "k8s.io/api/core/v1"
 )
-
-var StorageAccessModeMap = map[string]corev1.PersistentVolumeAccessMode{
-	"lvm":    corev1.ReadWriteOnce,
-	"cephfs": corev1.ReadWriteMany,
-}
 
 type StorageCluster struct {
 	resource.ResourceBase `json:",inline"`
-	Name                  string        `json:"name" rest:"required=true"`
+	Name                  string        `json:"name" rest:"required=true,isDomain=true"`
 	StorageType           string        `json:"storageType" rest:"required=true,options=lvm|cephfs"`
 	Hosts                 []string      `json:"hosts" rest:"required=true"`
 	Phase                 string        `json:"phase" rest:"description=readonly"`

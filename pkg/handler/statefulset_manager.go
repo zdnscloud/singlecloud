@@ -106,7 +106,7 @@ func (m *StatefulSetManager) Update(ctx *resource.Context) (resource.Resource, *
 		}
 	}
 
-	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(statefulSet.Containers, statefulSet.PersistentVolumes)
+	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(cluster.GetKubeClient(), statefulSet.Containers, statefulSet.PersistentVolumes)
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update statefulset failed %s", err.Error()))
 	}

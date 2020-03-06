@@ -5,6 +5,7 @@ import (
 
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
@@ -45,6 +46,12 @@ func getStorageClasses(cli client.Client) (*storagev1.StorageClassList, error) {
 	storageClassses := storagev1.StorageClassList{}
 	err := cli.List(context.TODO(), nil, &storageClassses)
 	return &storageClassses, err
+}
+
+func getStorageClass(cli client.Client, name string) (*storagev1.StorageClass, error) {
+	storageClass := storagev1.StorageClass{}
+	err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &storageClass)
+	return &storageClass, err
 }
 
 func k8sStorageClassToScStorageClass(k8sStorageClass *storagev1.StorageClass) *types.StorageClass {
