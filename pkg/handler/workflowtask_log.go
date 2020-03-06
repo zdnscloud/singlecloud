@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -94,6 +95,10 @@ func readWorkFlowContainerLogToWs(cli client.Client, conn *websocket.Conn, names
 		return err
 	}
 	defer readCloser.Close()
+
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("=================%s====================", container))); err != nil {
+		return err
+	}
 
 	s := bufio.NewScanner(readCloser)
 	for {

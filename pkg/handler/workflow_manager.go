@@ -165,7 +165,7 @@ func pipelineResourceToScWorkFlow(cli client.Client, namespace string, pr tekton
 	}
 
 	wftID, ok := pr.Annotations[zcloudWorkFlowLatestTaskIDAnnotationKey]
-	if ok {
+	if wftID != "" && ok {
 		subs, status, err := getWorkFlowSubTasksAndStatus(cli, namespace, wftID)
 		if err != nil {
 			return nil, err
