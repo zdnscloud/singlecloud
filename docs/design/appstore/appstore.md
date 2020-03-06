@@ -60,7 +60,7 @@
 	  * 如果chart包是系统chart，则返回空且log "no valid chart versions"，不然则直接返回chart信息
 
 ### application资源
-* application资源是namespace下的子资源
+* application资源是namespace下的子资源，对应k8s为Application CRD资源
 * 资源字段, 所有字段定义在resourceFields，如果字段类型为复合类型，子类型定义在subResources
 		
 		"resourceFields": {
@@ -94,46 +94,63 @@
 * 支持的操作及业务逻辑
   * create
     * 检查namespace是否存在
-    * 获取chart包信息，如果chart包对应的版本不存在则报错，如果当前用户是普通用户，且chart包是系统chart，则报错
-    * 如果当前用户是admin且chart为系统chart，为标记application为系统applicaton
+    * 检查是否存在同名的application crd
+    * 获取chart包信息
+      * 如果chart包对应的版本不存在则报错
+      * 如果chart包是系统chart，且把该chart为普通chart创建application则报错
+    * 如果chart为系统chart，为标记application为系统applicaton
     * 获取cluster version信息
     * 检查web server传过来的参数字段，即通过config.json文件对字段规则进行有效性检查，不满足则报错
-    * 获取所有chart文件内容，将web server传过来的参数与文件内容做merge，用于templates中文件生成k8s	 manifest文件内容，并保存到application中
-    * 设置application的status为create
-    * 使用cluster名字、namespace生成数据库表名，将application信息保存到数据库
-    * 开线程创建application所有资源，并返回application信息给web server
-    * 创建资源线程
-      * 检查使用manifest内容生成的object中是否包含namespace
-        * 如果有，检查当前用户是否是admin，如果不是则报错，如果是，则使用该namespace生成appResource的link字段
-        * 如果没有，则使用web server传过来的namespace设置object
-      * 使用生成的object创建k8s资源，如果创建失败且duplicate，标记此资源是重复创建资源
-      * 如果创建资源成功，把支持显示的类型保存到application的appResources中, 如果有workload，将workload个数赋值给workloadCount
-      * 如果上述任何步骤报错，则修改数据库中该application的status为failed，如果所有都没有报错，则修改status为succeed，并更新application的appResources字段
-
+    * 获取所有chart文件内容，将web server传过来的参数与文件内容做merge，用于templates中文件生成k8s	 manifest和crdmanifest文件内容，并保存到application中
+    * 调用k8s创建接口创建application crd资源，application crd资源被创建，application operator就会掌管application包含的子资源的创建，并更新application状态
+    * 当application operator收到application创建event会做如下操作：
+      * 更新application.status.state 为 create
+      * 如果application.spec.crdManifests有值则优先创建所需要的crd
+      * 为application添加finalizer
+      * 根据application.spec.manifests创建application的子资源
+        * 检查使用manifest内容生成的object中是否包含namespace
+          * 如果有，检查创建application的用户是否是admin，如果不是则报错
+          * 如果没有，则object将使用application的namespace
+        * 如果资源是workload，检查是否设置了加入网格，如果设置了，则为资源添加服务网格所需要的annotations
+        * 使用生成的object创建k8s资源，如果创建失败且duplicate，标记此资源是重复创建资源
+      * 如果上述任何步骤报错，则修改该application.status.state为failed，并发布相应的event
+      * 如果所有都没有报错，则修改application.status.state为succeed，并更新application.status.appResources字段，并根据workload个数对application.status.workloadCount进行赋值
+      * 保存application与application子资源中支持显示资源的对应关系（后面简称对应关系）
+    * 当application operator收到创建某个application的子资源的event，或者workload的更新event，且更新的是readyReplicas，会进行如下操作：
+      * 通过对应关系查找application信息，找不到则结束
+      * 从集群获取对应的application crd资源，不存在则报错
+      * 通过资源的replicas、readyReplicas、creationTimestramp对application.status.appResources对应的资源进行更新
+      * 如果资源是workload，通过replicas、readyReplicas的值，判断该workload是否是ready状态，即replicas<=readyReaplicas
+        * 如果ready，且application.status.appResources对应的资源状态不是ready，则app.status.readyWorkloadCount 加一
+        * 如果不ready，且application.status.appResources对应的资源状态是ready，则app.status.readyWorkloadCount 减一
+        
   * delete
-     * 从数据库中获取application，如果application属于系统application，就返回无权限错误
-     * 检查application的status，不能删除status是create或delete的application
-     * 更新application的status为delete
-     * 开启删除资源线程，应答web server
-     * 删除资源线程
-       * 检查资源是否是duplicate资源，如果是则跳过
-       * 检查由manifest内容生成的object是否有namespace，没有则设置为web server传过来的namespace
-       * 使用object删除资源
-       * 删除数据库中application纪录
-       * 如果上述任何步骤出现错误，则更新数据库的application的status为failed，需要用户再次删除
+     * 检查application crd资源是否存在，不存在则报错
+     * 然后调用k8s删除接口，删除application crd资源，由于该crd资源在创建时设置了finalizer，所以当k8s收到删除命令，会设置application crd资源的删除时间，后面application operator会接管后续删除操作
+     * 当application operator收到application的更新操作event，且更新的是删除时间，则进行以下操作：
+       * 根据application.spec.manifests删除所有子资源
+         * 检查资源是否是duplicate资源，如果是则跳过
+         * 检查由manifest内容生成的object是否有namespace，没有则设置为application的namespace
+         * 对于支持显示的资源，如果没有在对应关系中找到，则直接进行下一个资源的删除
+         * 调用k8s删除接口使用object删除资源
+       * 如果上述任何步骤出现错误，则更新application.status.state为failed
+     * 当application operator收到资源的删除操作的event，则进行以下操作：
+       * 通过对应关系查找application信息，如果没找到则结束
+       * 从集群获取application crd资源，不存在则报错
+       * 如果资源是workload，且application.status.appResources中对应的资源是ready，则application.status.readyReplcas 减一
+       * 更新application.status.appResources
+       * 从对应关系中删除该资源
+       * 如果对应关系中，application对应的子资源全部被删除，则删除application crd资源的finalizer，并删除对应关系中application的信息
        
   * list
-     * 从数据库中获取这个namespace所有application纪录，如果是系统application纪录，则跳过
-     * 如果不是系统application，从k8s获取application的appResources信息
-       * 获取某个appResource失败则log错误，跳过该application并获取下一个application，
-       * 如果某个appResource是workload，根据replicas和readyReplicas信息，计算appplication的readyWorkloadCount个数
+     * 获取所有application crd资源，如果是系统application，则跳过
+     * 遍历application.status.appResources, 如果exists为true，则根据该资源的namespace、type、name生成link
+     * 如果application有删除时间，则设置singlecloud的application.status为delete
      
   * get
-    * 从数据库中获取application纪录，如果是系统application纪录则返回空且log无权限错误
-    * 从k8s获取application的appResources信息
-
-      * 如果获取某个appResources失败，则log错误, 设置link为空
-      * 如果可以获取，设置exists为true，设置creationTimestamp，如果appResource是workload，根据replicas和readyReplicas信息，计算appplication的readyWorkloadCount个数 
+    * 获取application crd资源，如果是系统application纪录则返回空且log无权限错误
+    * 遍历application.status.appResources, 如果exists为true，则根据该资源的namespace、type、name生成link
+    * 如果application crd资源有删除时间，则设置singlecloud的application.status为delete
         
 ## 未来工作
 * 支持资源排序创建
