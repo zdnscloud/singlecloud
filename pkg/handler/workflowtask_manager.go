@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -228,10 +229,12 @@ func getWorkFlowTasksByWorkFlowName(cli client.Client, namespace, name string) (
 		return nil, err
 	}
 
-	ts := []*types.WorkFlowTask{}
+	ts := types.WorkFlowTasks{}
 	for _, p := range ps {
 		ts = append(ts, k8sPipelineRunToWorkFlowTask(p))
 	}
+
+	sort.Sort(sort.Reverse(ts))
 	return ts, nil
 }
 

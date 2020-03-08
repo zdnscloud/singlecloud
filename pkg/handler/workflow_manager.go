@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
-	tektonv1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
+	tektonv1alpha1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
@@ -144,7 +145,7 @@ func (m *WorkFlowManager) Get(ctx *resource.Context) resource.Resource {
 }
 
 func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, error) {
-	pr := tektonv1.PipelineResource{}
+	pr := tektonv1alpha1.PipelineResource{}
 	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &pr); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -154,7 +155,7 @@ func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, er
 	return pipelineResourceToScWorkFlow(cli, namespace, pr)
 }
 
-func pipelineResourceToScWorkFlow(cli client.Client, namespace string, pr tektonv1.PipelineResource) (*types.WorkFlow, error) {
+func pipelineResourceToScWorkFlow(cli client.Client, namespace string, pr tektonv1alpha1.PipelineResource) (*types.WorkFlow, error) {
 	wf := &types.WorkFlow{}
 	wfContent, ok := pr.Annotations[zcloudWorkFlowContentAnnotationKey]
 	if !ok {
@@ -204,12 +205,12 @@ func (m *WorkFlowManager) List(ctx *resource.Context) interface{} {
 }
 
 func getWorkFlows(cli client.Client, namespace string) ([]*types.WorkFlow, error) {
-	prs := tektonv1.PipelineResourceList{}
+	prs := tektonv1alpha1.PipelineResourceList{}
 	if err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace}, &prs); err != nil {
 		return nil, err
 	}
 
-	wfs := []*types.WorkFlow{}
+	wfs := types.WorkFlows{}
 	for _, pr := range prs.Items {
 		wf, err := pipelineResourceToScWorkFlow(cli, namespace, pr)
 		if err != nil {
@@ -217,6 +218,8 @@ func getWorkFlows(cli client.Client, namespace string) ([]*types.WorkFlow, error
 		}
 		wfs = append(wfs, wf)
 	}
+
+	sort.Sort(wfs)
 	return wfs, nil
 }
 
@@ -297,14 +300,14 @@ func (m *WorkFlowManager) Action(ctx *resource.Context) (interface{}, *resterror
 	id := ctx.Resource.GetID()
 
 	switch action.Name {
-	case types.WorkFlowEmptyLogAction:
-		return nil, emptyWorkFlowLogs(cluster.GetKubeClient(), ns, id)
+	case types.WorkFlowEmptyTaskAction:
+		return nil, emptyWorkFlowTask(cluster.GetKubeClient(), ns, id)
 	default:
 		return nil, nil
 	}
 }
 
-func emptyWorkFlowLogs(cli client.Client, namespace, name string) *resterror.APIError {
+func emptyWorkFlowTask(cli client.Client, namespace, name string) *resterror.APIError {
 	if err := updateWorkFlowLastestIDAnnotation(cli, namespace, name, ""); err != nil {
 		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update namespace %s workflow %s latest id annotation failed %s", namespace, name, err.Error()))
 	}

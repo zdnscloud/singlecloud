@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/zdnscloud/cement/log"
@@ -22,23 +23,23 @@ type workFlowTaskContainer struct {
 func (m *ClusterManager) OpenWorkFlowTaskLog(clusterID, namespace, workFlow, workFlowTask string, r *http.Request, w http.ResponseWriter) {
 	cluster := m.GetClusterByName(clusterID)
 	if cluster == nil {
-		log.Infof("cluster %s isn't found to open workflowtask %s_%s_%s log", clusterID, namespace, workFlow, workFlowTask)
+		log.Infof("cluster %s isn't found to open workflowtask %s log", clusterID, getFormatWorkFlowTaskID(clusterID, namespace, workFlow, workFlowTask))
 		return
 	}
 
 	_, err := getWorkFlowTask(cluster.GetKubeClient(), namespace, workFlowTask)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Infof("workflowtask %s_%s_%s_%s doesn't exist to open log", clusterID, namespace, workFlow, workFlowTask)
+			log.Infof("workflowtask %s doesn't exist to open log", getFormatWorkFlowTaskID(clusterID, namespace, workFlow, workFlowTask))
 		} else {
-			log.Warnf("get workflowtask %s_%s_%s_%s failed to open log", clusterID, namespace, workFlow, workFlowTask)
+			log.Warnf("get workflowtask %s failed to open log", getFormatWorkFlowTaskID(clusterID, namespace, workFlow, workFlowTask))
 		}
 		return
 	}
 
 	conn, err := websocket.Upgrade(w, r, nil, 4096, 4096)
 	if err != nil {
-		log.Warnf("workflowtask %s_%s_%s_%s log websocket upgrade failed %s", clusterID, namespace, workFlow, workFlowTask, err.Error())
+		log.Warnf("workflowtask %s log websocket upgrade failed %s", getFormatWorkFlowTaskID(clusterID, namespace, workFlow, workFlowTask), err.Error())
 		return
 	}
 	defer conn.Close()
@@ -47,12 +48,13 @@ func (m *ClusterManager) OpenWorkFlowTaskLog(clusterID, namespace, workFlow, wor
 	for {
 		allContainers, err := getNewWorkFlowContainers(cluster.GetKubeClient(), namespace, workFlowTask)
 		if err != nil {
-			log.Warnf("get workflowtask %s_%s_%s_%s containers failed to open log %s", clusterID, namespace, workFlow, workFlowTask, err.Error())
+			log.Warnf("get workflowtask %s containers failed to open log %s", getFormatWorkFlowTaskID(clusterID, namespace, workFlow, workFlowTask), err.Error())
 			return
 		}
 
 		unreadContainers := getUnreadWorkFlowContainers(readedContainers, allContainers)
 		if len(unreadContainers) == 0 {
+			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("%s ========End========", time.Now().UTC().Format(time.RFC3339))))
 			return
 		}
 
@@ -63,7 +65,7 @@ func (m *ClusterManager) OpenWorkFlowTaskLog(clusterID, namespace, workFlow, wor
 					readedContainers = append(readedContainers, container)
 					continue
 				}
-				log.Warnf("read workflowtask %s_%s_%s_%s container %s_%s log failed %s", clusterID, namespace, workFlow, workFlowTask, container.pod, container.container, err.Error())
+				log.Warnf("read workflowtask %s container %s_%s log failed %s", getFormatWorkFlowTaskID(clusterID, namespace, workFlow, workFlowTask), container.pod, container.container, err.Error())
 				return
 			}
 		}
@@ -96,7 +98,8 @@ func readWorkFlowContainerLogToWs(cli client.Client, conn *websocket.Conn, names
 	}
 	defer readCloser.Close()
 
-	if err := conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("=================%s====================", container))); err != nil {
+	t := time.Now().UTC().Format(time.RFC3339)
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("%s ========%s========", t, container))); err != nil {
 		return err
 	}
 
@@ -148,4 +151,8 @@ func getUnreadWorkFlowContainers(readed, all []workFlowTaskContainer) []workFlow
 		}
 	}
 	return result
+}
+
+func getFormatWorkFlowTaskID(cluster, namespace, workflow, workflowTask string) string {
+	return fmt.Sprintf("{cluster:%s, namespace:%s, workflow:%s, workflowtask:%s}", cluster, namespace, workflow, workflowTask)
 }

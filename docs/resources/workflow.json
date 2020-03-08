@@ -336,7 +336,7 @@
   ],
   "resourceActions": [
     {
-      "name": "emptylog"
+      "name": "emptytask"
     }
   ]
 }

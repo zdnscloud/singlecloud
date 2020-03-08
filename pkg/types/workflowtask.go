@@ -1,6 +1,8 @@
 package types
 
 import (
+	"time"
+
 	"github.com/zdnscloud/gorest/resource"
 )
 
@@ -23,6 +25,22 @@ type WorkFlowSubTask struct {
 	PodName    string             `json:"-"`
 	Containers []string           `json:"-"`
 	Status     WorkFlowTaskStatus `json:"status"`
+}
+
+type WorkFlowTasks []*WorkFlowTask
+
+func (w WorkFlowTasks) Len() int {
+	return len(w)
+}
+
+func (w WorkFlowTasks) Swap(i, j int) {
+	w[i], w[j] = w[j], w[i]
+}
+
+func (w WorkFlowTasks) Less(i, j int) bool {
+	t1 := time.Time(w[i].CreationTimestamp)
+	t2 := time.Time(w[j].CreationTimestamp)
+	return t1.Before(t2)
 }
 
 func (w WorkFlowTask) GetParents() []resource.ResourceKind {

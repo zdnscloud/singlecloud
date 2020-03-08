@@ -24,7 +24,7 @@ func TestFsmCreateSuccessEvent(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
-		cluster.event(CreateSucceedEvent, mgr, state)
+		cluster.event(CreateSucceedEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSRunning, "cluster status should be %s", types.CSRunning)
 	})
 }
@@ -53,7 +53,7 @@ func TestFsmCreateCanceledEvent(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
-		cluster.event(CreateCanceledEvent, mgr, state)
+		cluster.event(CreateCanceledEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSCreateFailed, "cluster status should be %s", types.CSCreateFailed)
 	})
 }
@@ -67,7 +67,7 @@ func TestFsmContinueCreateEvent(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
-		cluster.event(ContinuteCreateEvent, mgr, state)
+		cluster.event(ContinuteCreateEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSCreating, "cluster status should be %s", types.CSCreating)
 	})
 }
@@ -81,7 +81,7 @@ func TestFsmUpdateCompletedEvent(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
-		cluster.event(UpdateCompletedEvent, mgr, state)
+		cluster.event(UpdateCompletedEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSRunning, "cluster status should be %s", types.CSRunning)
 	})
 }
@@ -95,7 +95,7 @@ func TestFsmUpdateCanceledEvent(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.add(cluster)
-		cluster.event(UpdateCanceledEvent, mgr, state)
+		cluster.event(UpdateCanceledEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSRunning, "cluster status should be %s", types.CSRunning)
 	})
 }
@@ -135,7 +135,7 @@ func TestFsmDeleteEventWhenRunning(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
-		cluster.event(DeleteEvent, mgr, state)
+		cluster.event(DeleteEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSDeleting, "cluster status should be %s", types.CSDeleting)
 	})
 }
@@ -149,7 +149,7 @@ func TestFsmDeleteEventWhenUnreached(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
-		cluster.event(DeleteEvent, mgr, state)
+		cluster.event(DeleteEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSDeleting, "cluster status should be %s", types.CSDeleting)
 	})
 }
@@ -163,7 +163,7 @@ func TestFsmDeleteEventWhenCreateFailed(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
-		cluster.event(DeleteEvent, mgr, state)
+		cluster.event(DeleteEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSDeleting, "cluster status should be %s", types.CSDeleting)
 	})
 }
@@ -177,7 +177,7 @@ func TestFsmDeleteCompleteEvent(t *testing.T) {
 		mgr, err := newZKEManager(db, nil)
 		ut.Assert(t, err == nil, "create zke manager obj should succeed: %s", err)
 		mgr.clusters = append(mgr.clusters, cluster)
-		cluster.event(DeleteCompletedEvent, mgr, state)
+		cluster.event(DeleteCompletedEvent, mgr, state, "")
 		ut.Assert(t, cluster.getStatus() == types.CSDeleted, "cluster status should be %s", types.CSDeleted)
 	})
 }

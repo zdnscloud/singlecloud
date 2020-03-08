@@ -4,7 +4,7 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
-const WorkFlowEmptyLogAction = "emptylog"
+const WorkFlowEmptyTaskAction = "emptytask"
 
 type WorkFlow struct {
 	resource.ResourceBase `json:",inline"`
@@ -30,6 +30,20 @@ type ImageInfo struct {
 	RegistryPassword string `json:"registryPassword" rest:"required=true"`
 }
 
+type WorkFlows []*WorkFlow
+
+func (w WorkFlows) Len() int {
+	return len(w)
+}
+
+func (w WorkFlows) Swap(i, j int) {
+	w[i], w[j] = w[j], w[i]
+}
+
+func (w WorkFlows) Less(i, j int) bool {
+	return w[i].Name < w[j].Name
+}
+
 func (w WorkFlow) GetParents() []resource.ResourceKind {
 	return []resource.ResourceKind{Namespace{}}
 }
@@ -40,7 +54,7 @@ func (w WorkFlow) SupportAsyncDelete() bool {
 
 var WorkFlowActions = []resource.Action{
 	resource.Action{
-		Name: WorkFlowEmptyLogAction,
+		Name: WorkFlowEmptyTaskAction,
 	},
 }
 
