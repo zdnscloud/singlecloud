@@ -5,7 +5,8 @@ import (
 
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
-	tektonv1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
+	tektonv1alpha1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
+	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	gok8sconfig "github.com/zdnscloud/gok8s/client/config"
@@ -32,7 +33,8 @@ func upZKECluster(ctx context.Context, config *zketypes.ZKEConfig, state *core.F
 	var options client.Options
 	options.Scheme = client.GetDefaultScheme()
 	storagev1.AddToScheme(options.Scheme)
-	tektonv1.AddToScheme(options.Scheme)
+	tektonv1alpha1.AddToScheme(options.Scheme)
+	appv1beta1.AddToScheme(options.Scheme)
 	kubeClient, err := client.New(k8sConfig, options)
 	if err != nil {
 		return newState, k8sConfig, kubeClient, err

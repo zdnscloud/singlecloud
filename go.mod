@@ -30,6 +30,7 @@ require (
 	github.com/urfave/cli v1.22.2 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
+	github.com/zdnscloud/application-operator v0.0.0-20200228041337-26a18a56f476
 	github.com/zdnscloud/cement v0.0.0-20200221122612-e28e2126b9b6
 	github.com/zdnscloud/g53 v0.0.0-20191119101753-eb2b1813bd52
 	github.com/zdnscloud/gok8s v0.0.0-20200212071629-b06587f54ee6
@@ -40,7 +41,7 @@ require (
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7
 	github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d
 	github.com/zdnscloud/vanguard v0.0.0-20200214072003-226d0e690d9f
-	github.com/zdnscloud/zke v0.0.0-20200305111341-fe3ab52bcbe6
+	github.com/zdnscloud/zke v0.0.0-20200308164242-7de292c5804d
 	github.com/zsais/go-gin-prometheus v0.1.0
 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
@@ -50,7 +51,6 @@ require (
 	gopkg.in/yaml.v2 v2.2.8
 	helm.sh/helm v3.0.0-alpha.2.0.20190820153828-fba311ba2362+incompatible
 	k8s.io/api v0.17.3
-	k8s.io/apiextensions-apiserver v0.17.2
 	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v0.17.2
 	k8s.io/metrics v0.17.2

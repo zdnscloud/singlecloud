@@ -30,7 +30,8 @@ const (
 )
 
 var (
-	ValidTapMethods = []string{"POST", "GET", "PUT", "DELETE"}
+	ValidTapMethods      = []string{"POST", "GET", "PUT", "DELETE"}
+	SupportWorkloadTypes = []string{types.ResourceTypeDeployment, types.ResourceTypeDaemonSet, types.ResourceTypeStatefulSet}
 )
 
 func (m *ClusterManager) Tap(clusterID, ns, kind, name, toKind, toName, method, path string, r *http.Request, w http.ResponseWriter) {

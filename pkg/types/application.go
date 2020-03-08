@@ -6,26 +6,6 @@ import (
 	"github.com/zdnscloud/gorest/resource"
 )
 
-const (
-	AppStatusCreate  = "create"
-	AppStatusDelete  = "delete"
-	AppStatusFailed  = "failed"
-	AppStatusSucceed = "succeed"
-)
-
-var (
-	ResourceTypeDeployment  = resource.DefaultKindName(Deployment{})
-	ResourceTypeDaemonSet   = resource.DefaultKindName(DaemonSet{})
-	ResourceTypeStatefulSet = resource.DefaultKindName(StatefulSet{})
-	ResourceTypeJob         = resource.DefaultKindName(Job{})
-	ResourceTypeCronJob     = resource.DefaultKindName(CronJob{})
-	ResourceTypeConfigMap   = resource.DefaultKindName(ConfigMap{})
-	ResourceTypeSecret      = resource.DefaultKindName(Secret{})
-	ResourceTypeService     = resource.DefaultKindName(Service{})
-	ResourceTypeIngress     = resource.DefaultKindName(Ingress{})
-	ResourceTypePod         = resource.DefaultKindName(Pod{})
-)
-
 type Application struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string          `json:"name" rest:"required=true,isDomain=true"`
@@ -37,12 +17,11 @@ type Application struct {
 	ReadyWorkloadCount    int             `json:"readyWorkloadCount,omitempty" rest:"description=readonly"`
 	AppResources          AppResources    `json:"appResources,omitempty" rest:"description=readonly"`
 	Configs               json.RawMessage `json:"configs,omitempty"`
-	Manifests             []Manifest      `json:"manifests,omitempty" rest:"description=readonly"`
-	SystemChart           bool            `json:"systemChart,omitempty" rest:"description=readonly"`
 	InjectServiceMesh     bool            `json:"injectServiceMesh,omitempty"`
 }
 
 type AppResource struct {
+	Namespace         string           `json:"namespace"`
 	Name              string           `json:"name"`
 	Type              string           `json:"type"`
 	Link              string           `json:"link,omitempty"`
@@ -50,12 +29,6 @@ type AppResource struct {
 	ReadyReplicas     int              `json:"readyReplicas,omitempty"`
 	Exists            bool             `json:"exists,omitempty"`
 	CreationTimestamp resource.ISOTime `json:"creationTimestamp,omitempty"`
-}
-
-type Manifest struct {
-	File      string `json:"file,omitempty"`
-	Content   string `json:"content,omitempty"`
-	Duplicate bool   `json:"duplicate,omitempty"`
 }
 
 func (a Application) GetParents() []resource.ResourceKind {

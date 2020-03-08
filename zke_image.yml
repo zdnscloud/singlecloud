@@ -24,6 +24,7 @@ v1.17.2:
   zcloud_shell: zdnscloud/kubectl:v1.17.2
   zcloud_proxy: zdnscloud/zcloud-proxy:v1.0.1
   zcloud_lbcontroller: zdnscloud/elb-controller:v0.0.5
+  application_operator: zdnscloud/application-operator:latest
   service_mesh:
     controller: zdnscloud/linkerd-io-controller:stable-2.6.0
     proxy: zdnscloud/linkerd-io-proxy:stable-2.6.0
