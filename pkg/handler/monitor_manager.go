@@ -220,6 +220,7 @@ func getAppConfigsFromAnnotations(app *appv1beta1.Application, appConfigs interf
 			return fmt.Errorf("unmarshal app.configs annotation for app %s with namespace %s failed: %s",
 				app.Name, app.Namespace, err.Error())
 		}
+		return nil
 	}
 
 	return fmt.Errorf("no found app.configs annotation for app %s with namespace %s", app.Name, app.Namespace)
