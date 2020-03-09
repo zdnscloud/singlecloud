@@ -45,11 +45,7 @@
       ]
     },
     "storageClass": {
-      "type": "enum",
-      "validValues": [
-        "lvm",
-        "cephfs"
-      ],
+      "type": "string",
       "description": [
         "immutable"
       ]

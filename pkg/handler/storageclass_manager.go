@@ -66,10 +66,13 @@ func k8sStorageClassToScStorageClass(k8sStorageClass *storagev1.StorageClass) *t
 	return storageClass
 }
 
-func isStorageClassExist(cli client.Client, name string) bool {
+func isStorageClassOrDefaultExist(cli client.Client, name string) bool {
 	scs, _ := getStorageClasses(cli)
 	for _, sc := range scs.Items {
 		if sc.Name == name {
+			return true
+		}
+		if _default, ok := sc.Annotations[StorageClassDefaultKey]; ok && strToBool(_default) {
 			return true
 		}
 	}
