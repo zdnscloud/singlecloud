@@ -9,6 +9,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke/zkelog"
 
+	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
 	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/cache"
@@ -135,6 +136,7 @@ func (c *Cluster) Init(kubeConfig string) error {
 	var options client.Options
 	options.Scheme = client.GetDefaultScheme()
 	storagev1.AddToScheme(options.Scheme)
+	appv1beta1.AddToScheme(options.Scheme)
 
 	kubeClient, err := client.New(k8sConfig, options)
 	if err != nil {

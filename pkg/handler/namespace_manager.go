@@ -136,13 +136,6 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 			fmt.Sprintf("can`t delete namespace %s for other user using", namespace.GetID()))
 	}
 
-	if err := clearApplications(cluster.GetKubeClient(), cluster.Name, namespace.GetID()); err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return resterror.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("delete namespace applications failed: %s", err.Error()))
-		}
-	}
-
 	if err := deleteNamespace(cluster.GetKubeClient(), namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))

@@ -5,21 +5,20 @@ import (
 	"fmt"
 	"time"
 
+	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
+	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/gok8s/client"
+	resterr "github.com/zdnscloud/gorest/error"
+	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
-
-	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/randomdata"
-	resterr "github.com/zdnscloud/gorest/error"
-	restresource "github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/kvzoo"
 )
 
 const (
-	monitorAppNamePrefix = "monitor"
-	monitorChartName     = "prometheus"
-	monitorChartVersion  = "6.4.3"
+	monitorAppName      = "monitor"
+	monitorChartName    = "prometheus"
+	monitorChartVersion = "6.4.3"
 
 	ZcloudDynamicaDomainPrefix  = "zc.zdns.cn"
 	sysApplicationCheckInterval = time.Second * 5
@@ -28,13 +27,13 @@ const (
 
 type MonitorManager struct {
 	clusters *ClusterManager
-	apps     *ApplicationManager
+	chartDir string
 }
 
-func newMonitorManager(clusterMgr *ClusterManager, appMgr *ApplicationManager) *MonitorManager {
+func newMonitorManager(clusterMgr *ClusterManager, chartDir string) *MonitorManager {
 	return &MonitorManager{
 		clusters: clusterMgr,
-		apps:     appMgr,
+		chartDir: chartDir,
 	}
 }
 
@@ -53,42 +52,26 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
-	if err := createSysApplication(ctx, m.apps, cluster, monitorChartName, app, monitor.StorageClass, monitorAppNamePrefix); err != nil {
+	if err := createSysApplication(ctx, cluster, app, m.chartDir, monitorChartName, monitorAppName, monitor.StorageClass); err != nil {
 		return nil, err
 	}
 
-	monitor.Status = types.AppStatusCreate
-	monitor.SetID(monitorAppNamePrefix)
+	monitor.SetID(monitorAppName)
 	return monitor, nil
 }
 
-func createSysApplication(ctx *restresource.Context, appManager *ApplicationManager, cluster *zke.Cluster, chartName string, app *types.Application, requiredStorageClass string, appNamePrefix string) *resterr.APIError {
-	table, _, err := createOrGetAppTable(cluster.Name, ZCloudNamespace)
-	if err != nil {
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get %s application from db failed %s", chartName, err.Error()))
+func createSysApplication(ctx *restresource.Context, cluster *zke.Cluster, app *types.Application, chartDir, chartName, appName, storageClass string) *resterr.APIError {
+	if !isStorageClassExist(cluster.GetKubeClient(), storageClass) {
+		return resterr.NewAPIError(resterr.PermissionDenied,
+			fmt.Sprintf("%s storageclass does't exist in cluster %s", storageClass, cluster.Name))
 	}
 
-	existApp, err := getApplicationFromTableByChartName(table, chartName)
-	if err != nil {
-		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, chartName, err.Error())
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get %s application from db failed %s", chartName, err.Error()))
-	}
-	if existApp != nil {
-		return resterr.NewAPIError(resterr.DuplicateResource, fmt.Sprintf("cluster %s %s has exist", cluster.Name, chartName))
-	}
-
-	if !isStorageClassExist(cluster.GetKubeClient(), requiredStorageClass) {
-		return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("%s storageclass does't exist in cluster %s", requiredStorageClass, cluster.Name))
-	}
-
-	app.Name = genAppNameIfDuplicate(table, app.Name, appNamePrefix)
-	app.SetID(app.Name)
-
-	if err := appManager.createApplication(ctx, cluster, ZCloudNamespace, app, true); err != nil {
+	app.SetID(appName)
+	if err := createApplication(ctx, cluster, ZCloudNamespace, chartDir, app, true); err != nil {
 		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("create %s application failed %s", chartName, err.Error()))
 	}
 
-	go ensureApplicationSucceedOrDie(table, cluster, app.Name)
+	go ensureApplicationSucceedOrDie(cluster.GetKubeClient(), appName)
 	return nil
 }
 
@@ -103,7 +86,7 @@ func (m *MonitorManager) List(ctx *restresource.Context) interface{} {
 
 func (m *MonitorManager) Get(ctx *restresource.Context) restresource.Resource {
 	id := ctx.Resource.GetID()
-	if id != monitorAppNamePrefix {
+	if id != monitorAppName {
 		return nil
 	}
 	return m.get(ctx)
@@ -115,57 +98,35 @@ func (m *MonitorManager) get(ctx *restresource.Context) restresource.Resource {
 		return nil
 	}
 
-	app, err := getApplicationFromDBByChartName(cluster.Name, monitorChartName)
+	k8sAppCRD, err := getApplication(cluster.GetKubeClient(), ZCloudNamespace, monitorAppName, true)
 	if err != nil {
-		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
-		return nil
-	}
-	if app == nil {
+		log.Warnf("get cluster %s application monitor by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
 		return nil
 	}
 
-	monitor, err := genRetrunMonitorFromApplication(cluster.Name, app)
+	monitor, err := genRetrunMonitorFromApplication(k8sAppCRD)
 	if err != nil {
+		log.Warnf("parse k8s app crd to monitor failed: %s", err.Error())
 		return nil
 	}
 	return monitor
 }
 
 func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
-	if ctx.Resource.GetID() != monitorAppNamePrefix {
+	if ctx.Resource.GetID() != monitorAppName {
 		return resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
 	}
-	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	return deleteApplicationByChartName(cluster, monitorChartName)
-}
 
-func deleteApplicationByChartName(cluster *zke.Cluster, chartName string) *resterr.APIError {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
-	table, _, err := createOrGetAppTable(cluster.Name, ZCloudNamespace)
-	if err != nil {
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get cluster %s application %s from db failed %s", cluster.Name, chartName, err.Error()))
+
+	if err := deleteApplication(cluster.GetKubeClient(), ZCloudNamespace, monitorAppName, true); err != nil {
+		return resterr.NewAPIError(resterr.ServerError,
+			fmt.Sprintf("delete application %s failed: %s", monitorAppName, err.Error()))
 	}
 
-	app, err := getApplicationFromTableByChartName(table, chartName)
-	if err != nil {
-		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get cluster %s application %s from db failed %s", cluster.Name, chartName, err.Error()))
-	}
-	if app == nil {
-		return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("%s doesn't exist", chartName))
-	}
-
-	appName := app.Name
-	if err := deleteApplication(table, cluster, ZCloudNamespace, appName, true); err != nil {
-		if err == kvzoo.ErrNotFound {
-			return resterr.NewAPIError(resterr.NotFound,
-				fmt.Sprintf("application %s with namespace %s doesn't exist", appName, ZCloudNamespace))
-		} else {
-			return resterr.NewAPIError(resterr.ServerError,
-				fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
-		}
-	}
 	return nil
 }
 
@@ -175,23 +136,19 @@ func genMonitorApplication(cluster *zke.Cluster, m *types.Monitor) (*types.Appli
 		return nil, err
 	}
 	return &types.Application{
-		Name:         monitorAppNamePrefix + "-" + randomdata.RandString(12),
+		Name:         monitorAppName,
 		ChartName:    monitorChartName,
 		ChartVersion: monitorChartVersion,
 		Configs:      config,
-		SystemChart:  true,
 	}, nil
 }
 
 func genMonitorApplicationConfig(cluster *zke.Cluster, m *types.Monitor) ([]byte, error) {
-	if len(m.IngressDomain) == 0 {
-		edgeIP := getRandomEdgeNodeAddress(cluster)
-		if len(edgeIP) == 0 {
-			return nil, fmt.Errorf("can not find edge node for this cluster")
-		}
-		m.IngressDomain = monitorAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIP + "." + ZcloudDynamicaDomainPrefix
+	domain, err := genIngressDomain(cluster, m.IngressDomain, monitorAppName)
+	if err != nil {
+		return nil, err
 	}
-	m.RedirectUrl = "http://" + m.IngressDomain
+	m.IngressDomain = domain
 
 	p := charts.Prometheus{
 		Grafana: charts.PrometheusGrafana{
@@ -222,11 +179,24 @@ func genMonitorApplicationConfig(cluster *zke.Cluster, m *types.Monitor) ([]byte
 	return json.Marshal(&p)
 }
 
-func genRetrunMonitorFromApplication(cluster string, app *types.Application) (*types.Monitor, error) {
+func genIngressDomain(cluster *zke.Cluster, ingressDomain, appName string) (string, error) {
+	if len(ingressDomain) != 0 {
+		return ingressDomain, nil
+	}
+
+	edgeIP := getRandomEdgeNodeAddress(cluster)
+	if len(edgeIP) == 0 {
+		return "", fmt.Errorf("can not find edge node for this cluster")
+	}
+	return appName + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIP + "." + ZcloudDynamicaDomainPrefix, nil
+}
+
+func genRetrunMonitorFromApplication(app *appv1beta1.Application) (*types.Monitor, error) {
 	p := charts.Prometheus{}
-	if err := json.Unmarshal(app.Configs, &p); err != nil {
+	if err := getAppConfigsFromAnnotations(app, &p); err != nil {
 		return nil, err
 	}
+
 	m := types.Monitor{
 		IngressDomain:       p.Grafana.Ingress.Hosts,
 		StorageClass:        p.Prometheus.PrometheusSpec.StorageClass,
@@ -234,68 +204,47 @@ func genRetrunMonitorFromApplication(cluster string, app *types.Application) (*t
 		PrometheusRetention: p.Prometheus.PrometheusSpec.Retention,
 		ScrapeInterval:      p.Prometheus.PrometheusSpec.ScrapeInterval,
 		RedirectUrl:         "http://" + p.Grafana.Ingress.Hosts,
-		Status:              app.Status,
+		Status:              string(app.Status.State),
 	}
-	m.SetID(monitorAppNamePrefix)
-	m.SetCreationTimestamp(time.Time(app.CreationTimestamp))
-	m.SetDeletionTimestamp(time.Time(app.DeletionTimestamp))
+	m.SetID(monitorAppName)
+	m.SetCreationTimestamp(app.CreationTimestamp.Time)
+	if app.GetDeletionTimestamp() != nil {
+		m.SetDeletionTimestamp(app.DeletionTimestamp.Time)
+	}
 	return &m, nil
 }
 
-func ensureApplicationSucceedOrDie(table kvzoo.Table, cluster *zke.Cluster, appName string) {
+func getAppConfigsFromAnnotations(app *appv1beta1.Application, appConfigs interface{}) error {
+	if configs, ok := app.Annotations[AnnKeyForAppConfigs]; ok {
+		if err := json.Unmarshal([]byte(configs), appConfigs); err != nil {
+			return fmt.Errorf("unmarshal app.configs annotation for app %s with namespace %s failed: %s",
+				app.Name, app.Namespace, err.Error())
+		}
+	}
+
+	return fmt.Errorf("no found app.configs annotation for app %s with namespace %s", app.Name, app.Namespace)
+}
+
+func ensureApplicationSucceedOrDie(cli client.Client, appName string) {
 	for i := 0; i < sysApplicationCheckTimes; i++ {
-		sysApp, err := getApplicationFromDB(table, appName, true)
+		app, exists, err := getApplicationIfExists(cli, ZCloudNamespace, appName, true)
 		if err != nil {
 			log.Warnf("get system application %s failed %s", appName, err.Error())
 			return
 		}
 
-		switch sysApp.Status {
-		case types.AppStatusFailed:
-			if err := deleteApplication(table, cluster, ZCloudNamespace, appName, true); err != nil {
-				log.Warnf("delete system application %s failed %s", appName, err.Error())
+		if exists {
+			switch app.Status.State {
+			case appv1beta1.ApplicationStatusStateFailed:
+				if err := deleteApplication(cli, ZCloudNamespace, appName, true); err != nil {
+					log.Warnf("delete system application %s failed %s", appName, err.Error())
+					return
+				}
+			case appv1beta1.ApplicationStatusStateSucceed:
+				log.Infof("create system application %s succeed", appName)
 				return
 			}
-		case types.AppStatusSucceed:
-			log.Infof("create system application %s succeed", appName)
-			return
 		}
 		time.Sleep(sysApplicationCheckInterval)
 	}
-}
-
-func getApplicationFromDBByChartName(clusterName, chartName string) (*types.Application, error) {
-	table, _, err := createOrGetAppTable(clusterName, ZCloudNamespace)
-	if err != nil {
-		return nil, err
-	}
-
-	return getApplicationFromTableByChartName(table, chartName)
-}
-
-func getApplicationFromTableByChartName(table kvzoo.Table, chartName string) (*types.Application, error) {
-	apps, err := getApplicationsFromDB(table)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, app := range apps {
-		if app.ChartName == chartName {
-			return app, nil
-		}
-	}
-	return nil, nil
-}
-
-func genAppNameIfDuplicate(table kvzoo.Table, appName, appNamePrefex string) string {
-	for {
-		duplicateApp, _ := getApplicationFromDB(table, appName, true)
-		if duplicateApp != nil {
-			appName = appNamePrefex + "-" + randomdata.RandString(12)
-		} else {
-			break
-		}
-	}
-
-	return appName
 }

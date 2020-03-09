@@ -63,3 +63,11 @@ func (p Pod) GetParents() []resource.ResourceKind {
 func (p Pod) SupportAsyncDelete() bool {
 	return true
 }
+
+var (
+	ResourceTypeDeployment  = resource.DefaultKindName(Deployment{})
+	ResourceTypeDaemonSet   = resource.DefaultKindName(DaemonSet{})
+	ResourceTypeStatefulSet = resource.DefaultKindName(StatefulSet{})
+	ResourceTypeJob         = resource.DefaultKindName(Job{})
+	ResourceTypeCronJob     = resource.DefaultKindName(CronJob{})
+)
