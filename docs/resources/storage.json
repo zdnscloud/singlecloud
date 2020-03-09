@@ -1,14 +1,20 @@
 {
-  "resourceType": "iscsi",
-  "collectionName": "iscsis",
+  "resourceType": "storage",
+  "collectionName": "storages",
   "parentResources": [
     "cluster"
   ],
-  "goStructName": "Iscsi",
+  "goStructName": "Storage",
   "supportAsyncDelete": true,
   "resourceFields": {
-    "chap": {
-      "type": "bool"
+    "": {
+      "type": "parameter"
+    },
+    "default": {
+      "type": "bool",
+      "description": [
+        "readonly"
+      ]
     },
     "freeSize": {
       "type": "string",
@@ -16,23 +22,11 @@
         "readonly"
       ]
     },
-    "initiators": {
-      "type": "array",
-      "elemType": "string",
-      "description": [
-        "required"
-      ]
-    },
-    "iqn": {
-      "type": "string",
-      "description": [
-        "required"
-      ]
-    },
     "name": {
       "type": "string",
       "description": [
-        "required"
+        "required",
+        "isDomain"
       ]
     },
     "nodes": {
@@ -42,19 +36,10 @@
         "readonly"
       ]
     },
-    "password": {
-      "type": "string"
-    },
     "phase": {
       "type": "string",
       "description": [
         "readonly"
-      ]
-    },
-    "port": {
-      "type": "string",
-      "description": [
-        "required"
       ]
     },
     "pvs": {
@@ -70,7 +55,7 @@
         "readonly"
       ]
     },
-    "target": {
+    "type": {
       "type": "string",
       "description": [
         "required"
@@ -81,12 +66,59 @@
       "description": [
         "readonly"
       ]
-    },
-    "username": {
-      "type": "string"
     }
   },
   "subResources": {
+    "iscsiParameter": {
+      "chap": {
+        "type": "bool"
+      },
+      "initiators": {
+        "type": "array",
+        "elemType": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "iqn": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "password": {
+        "type": "string"
+      },
+      "port": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "target": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "username": {
+        "type": "string"
+      }
+    },
+    "nfsParameter": {
+      "path": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "server": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      }
+    },
     "pV": {
       "freeSize": {
         "type": "string"
@@ -109,6 +141,29 @@
       },
       "usedSize": {
         "type": "string"
+      }
+    },
+    "parameter": {
+      "cephfs": {
+        "type": "storageClusterParameter"
+      },
+      "iscsi": {
+        "type": "iscsiParameter"
+      },
+      "lvm": {
+        "type": "storageClusterParameter"
+      },
+      "nfs": {
+        "type": "nfsParameter"
+      }
+    },
+    "storageClusterParameter": {
+      "hosts": {
+        "type": "array",
+        "elemType": "string",
+        "description": [
+          "required"
+        ]
       }
     },
     "storageNode": {

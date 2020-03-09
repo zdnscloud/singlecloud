@@ -140,12 +140,7 @@
         "type": "string"
       },
       "storageClassName": {
-        "type": "enum",
-        "validValues": [
-          "lvm",
-          "cephfs",
-          "temporary"
-        ]
+        "type": "string"
       }
     },
     "volume": {

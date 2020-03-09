@@ -58,9 +58,6 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 	schemas.MustImport(&Version, types.NodeNetwork{}, newNodeNetworkManager(a.clusterManager))
 	schemas.MustImport(&Version, types.ServiceNetwork{}, newServiceNetworkManager(a.clusterManager))
 	schemas.MustImport(&Version, types.BlockDevice{}, newBlockDeviceManager(a.clusterManager))
-	schemas.MustImport(&Version, types.StorageCluster{}, newStorageClusterManager(a.clusterManager))
-	schemas.MustImport(&Version, types.Iscsi{}, newIscsiManager(a.clusterManager))
-	schemas.MustImport(&Version, types.Nfs{}, newNfsManager(a.clusterManager))
 	namespaceManager, err := newNamespaceManager(a.clusterManager, a.conf.Server.EnableDebug)
 	if err != nil {
 		return err
@@ -117,6 +114,12 @@ func (a *App) registerRestHandler(router gin.IRoutes) error {
 		return err
 	}
 	schemas.MustImport(&Version, types.Threshold{}, thresholdManager)
+
+	storageManager, err := newStorageManager(a.clusterManager)
+	if err != nil {
+		return err
+	}
+	schemas.MustImport(&Version, types.Storage{}, storageManager)
 
 	userManager := newUserManager(a.clusterManager.authenticator.JwtAuth, a.clusterManager.authorizer)
 	schemas.MustImport(&Version, types.User{}, userManager)

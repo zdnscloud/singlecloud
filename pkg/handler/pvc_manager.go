@@ -21,8 +21,6 @@ import (
 )
 
 const (
-	LvmDriverSuffix       = "lvm.storage.zcloud.cn"
-	NfsDriverSuffix       = "nfs.storage.zcloud.cn"
 	annStorageProvisioner = "volume.beta.kubernetes.io/storage-provisioner"
 )
 
