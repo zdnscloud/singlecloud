@@ -6,6 +6,7 @@
 ## 报警项
 - 事件
 	* kubernetes的Warning级别的event事件（暂时取消）
+	* kubernetes集群里由cluster-agent发出reason为“core component abnormal”的event事件
 	* singlecloud上集群/应用的操作导致的异步异常事件
 - 资源
 	* 管理员设置的集群资源预警指标
@@ -13,7 +14,7 @@
 ## 报警方式
 - 铃铛
 	
-  铃铛显示当前所有未读告警数量（最大100）
+  铃铛显示当前所有未读告警数量（最大1000）
 - 弹窗
 	
   用户登录平台后发生的即时报警
@@ -66,7 +67,7 @@ const (
 ## 缓存
 
 ### 缓存长度
-  100
+  1000
 
 ### 事件源
 - cluster/application等资源是异步操作，当操作时发生异常，便会alarm.New()一个事件，发布到eventbus.AlarmEvent
@@ -74,9 +75,9 @@ const (
   singlecloud运行后开始订阅eventbus.AlarmEvent，当有新消息时，则缓存到未读队列里，未读数加1，如果设置了邮箱便进行邮件报警
 - 集群创建后开始监听kubernetes的event，当有create事件时，检查
   
-  event.LastTimestamp 时间大于singlecloud的启动时间，且event.Reason为Cluster-agent创建event的reason "resource shortage"
+  event.LastTimestamp 时间大于singlecloud的启动时间，且event.Reason为Cluster-agent创建event的reason为 "resource shortage"和"core component abnormal"
   
-  如果都满足，则存到数据库中(最多存储100条)，未读数加1，如果设置了邮箱便进行邮件报警
+  如果都满足，则存到数据库中(最多存储1000条)，如果设置了邮箱便进行邮件报警
 
 > 如果前后两条报警的Cluster、Namespace、Kind、Reason、Message、Name都一样，则忽略后一条报警
 
@@ -105,7 +106,29 @@ if slice.SliceIndex(ClusterKinds, alarm.Kind) >= 0 {
 
 	报警展示返回数据库中的报警消息
 
-  	用户可批量设置报警为已读，会将报警项在数据库中标记为已读，未读数减1
+  	用户可批量设置报警为已读，会将报警项在数据库中标记为已读
+
+## 数据清理
+- 监听集群的删除事件，集群删除时删除该集群的所有alarm
+- 在内存和数据库增加alarm时检查当前缓存条数，超过上限时删除1个月之前的所有alarm，如果最早的一条alarm也是1个月之内的，便删除最早的1条
+```
+	oneMonthLater := time.Now().AddDate(0, -1, 0)
+        delNum := 1
+        for elem := ac.alarmList.Front().Next(); elem != nil; elem = elem.Next() {
+                if oneMonthLater.Before(time.Time(elem.Value.(*types.Alarm).Time)) {
+                        break
+                }
+                delNum += 1
+        }
+        firstID := ac.alarmList.Front().Value.(*types.Alarm).UID
+        for i := 0; i < delNum; i++ {
+                if err := deleteAlarmFromDB(ac.alarmsTable, uintToStr(uint64(i)+firstID)); err != nil {
+                        return err
+                }
+                elem := ac.alarmList.Front()
+                ac.alarmList.Remove(elem)
+        }
+```
 
 # TODO
 - 根据权限定向报警
