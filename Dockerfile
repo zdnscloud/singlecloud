@@ -1,9 +1,10 @@
 FROM golang:1.13.7-alpine3.11 AS build
-ENV GOPROXY=https://goproxy.cn
 
 ARG version
 ARG buildtime
+ARG goproxy
 
+ENV GOPROXY=$goproxy
 RUN mkdir -p /go/src/github.com/zdnscloud/singlecloud
 COPY . /go/src/github.com/zdnscloud/singlecloud
 WORKDIR /go/src/github.com/zdnscloud/singlecloud
