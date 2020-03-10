@@ -257,6 +257,10 @@ func (m *WorkFlowManager) Delete(ctx *resource.Context) *resterror.APIError {
 	ns := ctx.Resource.GetParent().GetID()
 	id := ctx.Resource.GetID()
 
+	if err := emptyWorkFlowTask(cluster.GetKubeClient(), ns, id); err != nil {
+		return nil
+	}
+
 	if err := deleteWorkFlow(cluster.GetKubeClient(), ns, id); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")

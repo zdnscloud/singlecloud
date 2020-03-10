@@ -64,7 +64,7 @@ func createWorkFlowTask(cli client.Client, namespace, wfID string, wft *types.Wo
 		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get owner workflow failed %s", err.Error()))
 	}
 
-	tasks, err := getWorkFlowTasksByWorkFlowName(cli, namespace, wfID)
+	tasks, err := getWorkFlowTasks(cli, namespace, wfID)
 	if err != nil {
 		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get workflowtasks failed %s", err.Error()))
 	}
@@ -215,7 +215,7 @@ func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
 	ns := ctx.Resource.GetParent().GetParent().GetID()
 	wfID := ctx.Resource.GetParent().GetID()
 
-	ts, err := getWorkFlowTasksByWorkFlowName(cluster.GetKubeClient(), ns, wfID)
+	ts, err := getWorkFlowTasks(cluster.GetKubeClient(), ns, wfID)
 	if err != nil {
 		log.Warnf("list workflow task of %s-%s failed %s", ns, wfID, err.Error())
 		return nil
@@ -223,8 +223,8 @@ func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
 	return ts
 }
 
-func getWorkFlowTasksByWorkFlowName(cli client.Client, namespace, name string) ([]*types.WorkFlowTask, error) {
-	ps, err := getPipelineRunsByWorkFlowName(cli, namespace, name)
+func getWorkFlowTasks(cli client.Client, namespace, workFlowName string) ([]*types.WorkFlowTask, error) {
+	ps, err := getPipelineRunsByWorkFlowName(cli, namespace, workFlowName)
 	if err != nil {
 		return nil, err
 	}
