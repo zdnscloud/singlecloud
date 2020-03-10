@@ -75,16 +75,18 @@ func iscsiToSCStorageDetail(cluster *zke.Cluster, iscsi *storagev1.Iscsi) (*type
 		return nil, err
 	}
 	storage.PVs = pvs
-	secret, err := getIscsiSecret(cluster.GetKubeClient(), ZCloudNamespace, fmt.Sprintf("%s-%s", iscsi.Name, IscsiInstanceSecretSuffix))
-	if err != nil {
-		return nil, err
-	}
-	for _, d := range secret.Data {
-		if d.Key == "username" {
-			storage.Parameter.Iscsi.Username = d.Value
+	if iscsi.Spec.Chap {
+		secret, err := getIscsiSecret(cluster.GetKubeClient(), ZCloudNamespace, fmt.Sprintf("%s-%s", iscsi.Name, IscsiInstanceSecretSuffix))
+		if err != nil {
+			return nil, err
 		}
-		if d.Key == "password" {
-			storage.Parameter.Iscsi.Password = d.Value
+		for _, d := range secret.Data {
+			if d.Key == "username" {
+				storage.Parameter.Iscsi.Username = d.Value
+			}
+			if d.Key == "password" {
+				storage.Parameter.Iscsi.Password = d.Value
+			}
 		}
 	}
 
