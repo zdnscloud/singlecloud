@@ -150,6 +150,7 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	}
 	ac.lock.Lock()
 	if ac.alarmList.Len() > 0 && isRepeat(ac.alarmList.Back().Value.(*types.Alarm), alarm) {
+		ac.lock.Unlock()
 		return
 	}
 
@@ -157,6 +158,7 @@ func (ac *AlarmCache) Add(alarm *types.Alarm) {
 	alarm.SetID(uintToStr(alarm.UID))
 	if err := addOrUpdateAlarmToDB(ac.alarmsTable, alarm, "add"); err != nil {
 		log.Warnf("add alarm id [%s] to table failed: %s", *alarm, err)
+		ac.lock.Unlock()
 		return
 	}
 	ac.alarmList.PushBack(alarm)
@@ -181,6 +183,7 @@ func (ac *AlarmCache) Update(alarm *types.Alarm) error {
 	ac.lock.Lock()
 	a := ac.getAlarmFromList(alarm.UID)
 	if a == nil {
+		ac.lock.Unlock()
 		return fmt.Errorf("can not find alarm id %d", alarm.UID)
 	}
 	a.Acknowledged = true

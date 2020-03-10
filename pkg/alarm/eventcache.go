@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/cache"
 	"github.com/zdnscloud/gok8s/controller"
 	"github.com/zdnscloud/gok8s/event"
@@ -16,8 +17,14 @@ import (
 )
 
 const (
-	eventReason = "resource shortage"
+	resourceEventReason  = "resource shortage"
+	componentEventReason = "core component abnormal"
 )
+
+var eventReasons = []string{
+	resourceEventReason,
+	componentEventReason,
+}
 
 var EventLevelFilter = []string{corev1.EventTypeWarning}
 var EventKindFilter = []string{
@@ -89,13 +96,12 @@ func (ec *EventCache) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 }
 
 func checkEventTypeAndKind(event *corev1.Event) bool {
-	return event.Reason == eventReason
+	return slice.SliceIndex(eventReasons, event.Reason) >= 0
 }
 
 func (ec *EventCache) k8sEventToAlarm(event *corev1.Event) *types.Alarm {
-	return &types.Alarm{
+	alarm := &types.Alarm{
 		Time:      resource.ISOTime(event.LastTimestamp.Time),
-		Type:      types.EventType,
 		Cluster:   ec.cluster,
 		Namespace: event.InvolvedObject.Namespace,
 		Kind:      event.InvolvedObject.Kind,
@@ -103,4 +109,11 @@ func (ec *EventCache) k8sEventToAlarm(event *corev1.Event) *types.Alarm {
 		Reason:    event.Reason,
 		Message:   event.Message,
 	}
+	if event.Reason == resourceEventReason {
+		alarm.Type = types.EventType
+	}
+	if event.Reason == componentEventReason {
+		alarm.Type = types.ZcloudType
+	}
+	return alarm
 }

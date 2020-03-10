@@ -186,14 +186,14 @@ func (m *StorageManager) deleteStorage(cli client.Client, name string) error {
 	if err != nil {
 		return err
 	}
-	if err := deleteStorageFromDB(m.table, name); err != nil {
-		return err
-	}
 	handle, err := m.getHandleFromType(storage.Type)
 	if err != nil {
 		return err
 	}
-	return handle.Delete(cli, name)
+	if err := handle.Delete(cli, name); err != nil {
+		return err
+	}
+	return deleteStorageFromDB(m.table, name)
 }
 
 func (m *StorageManager) Create(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
@@ -227,16 +227,15 @@ func (m *StorageManager) createStorage(cluster *zke.Cluster, agent *clusteragent
 		return errors.New(fmt.Sprintf("the name %s of storage has already exists", storage.Name))
 	}
 
-	if err := addOrUpdateStorageToDB(m.table, storage, "add"); err != nil {
-		return err
-	}
-
 	handle, err := m.getHandleFromType(storage.Type)
 	if err != nil {
 		return err
 	}
 
-	return handle.Create(cluster, storage)
+	if err := handle.Create(cluster, storage); err != nil {
+		return err
+	}
+	return addOrUpdateStorageToDB(m.table, storage, "add")
 }
 
 func checkStorageExist(table kvzoo.Table, name string) (bool, error) {
@@ -273,14 +272,14 @@ func (m *StorageManager) Update(ctx *resource.Context) (resource.Resource, *gore
 }
 
 func (m *StorageManager) updateStorage(cluster *zke.Cluster, storage *types.Storage) error {
-	if err := addOrUpdateStorageToDB(m.table, storage, "update"); err != nil {
-		return err
-	}
 	handle, err := m.getHandleFromType(storage.Type)
 	if err != nil {
 		return err
 	}
-	return handle.Update(cluster, storage)
+	if err := handle.Update(cluster, storage); err != nil {
+		return err
+	}
+	return addOrUpdateStorageToDB(m.table, storage, "update")
 }
 
 func sToi(size string) int64 {
