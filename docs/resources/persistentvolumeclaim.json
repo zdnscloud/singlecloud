@@ -8,10 +8,7 @@
   "supportAsyncDelete": true,
   "resourceFields": {
     "actualStorageSize": {
-      "type": "string",
-      "description": [
-        "readonly"
-      ]
+      "type": "string"
     },
     "name": {
       "type": "string",
@@ -46,7 +43,8 @@
     }
   },
   "resourceMethods": [
-    "DELETE"
+    "DELETE",
+    "PUT"
   ],
   "collectionMethods": [
     "GET"

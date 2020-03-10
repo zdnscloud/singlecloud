@@ -8,7 +8,7 @@ type PersistentVolumeClaim struct {
 	resource.ResourceBase `json:",inline"`
 	Name                  string   `json:"name" rest:"description=readonly"`
 	StorageClassName      string   `json:"storageClassName" rest:"description=readonly"`
-	ActualStorageSize     string   `json:"actualStorageSize" rest:"description=readonly"`
+	ActualStorageSize     string   `json:"actualStorageSize"`
 	Used                  bool     `json:"used" rest:"description=readonly"`
 	Pods                  []string `json:"pods" rest:"description=readonly"`
 	Node                  string   `json:"node" rest:"description=readonly"`

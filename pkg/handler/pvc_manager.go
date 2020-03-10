@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sstorage "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -227,6 +228,50 @@ func genUseInfoForNfsPVC(cli client.Client, pvc *types.PersistentVolumeClaim, po
 				break
 			}
 		}
+	}
+	return nil
+}
+
+func (m *PersistentVolumeClaimManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+	}
+
+	namespace := ctx.Resource.GetParent().GetID()
+	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
+	if err := m.updatePersistentVolumeClaim(cluster.GetKubeClient(), namespace, pvc); err != nil {
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update persistentVolumeClaim failed, %s", err.Error()))
+	}
+	return pvc, nil
+}
+
+func (m *PersistentVolumeClaimManager) updatePersistentVolumeClaim(cli client.Client, namespace string, pvc *types.PersistentVolumeClaim) error {
+	k8sPvc, err := getPersistentVolumeClaim(cli, namespace, pvc.Name)
+	if err != nil {
+		return err
+	}
+	if provisioner, ok := k8sPvc.Annotations[annStorageProvisioner]; ok {
+		if strings.HasSuffix(provisioner, IscsiDriverSuffix) || strings.HasSuffix(provisioner, NfsDriverSuffix) {
+			return errors.New(fmt.Sprintf("the driver %s or pvc %s unsupport expand", provisioner, pvc.Name))
+		}
+		if strings.HasSuffix(provisioner, LvmDriverSuffix) && pvc.Used {
+			return errors.New(fmt.Sprintf("pvc %s can not expand online, you should detach first", pvc.Name))
+		}
+	}
+	if pvc.ActualStorageSize != "" {
+		quantity, err := apiresource.ParseQuantity(pvc.ActualStorageSize)
+		if err != nil {
+			return fmt.Errorf("parse storage size %s failed: %s", pvc.ActualStorageSize, err.Error())
+		}
+		expectedQuantity := &quantity
+		if currentQuantity, ok := k8sPvc.Status.Capacity[corev1.ResourceStorage]; ok {
+			if expectedQuantity.Value() <= currentQuantity.Value() {
+				return errors.New(fmt.Sprintf("pvc %s unsupport reduce", pvc.Name))
+			}
+		}
+		k8sPvc.Spec.Resources.Requests[corev1.ResourceStorage] = quantity
+		return cli.Update(context.TODO(), k8sPvc)
 	}
 	return nil
 }
