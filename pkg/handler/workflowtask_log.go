@@ -15,6 +15,11 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
+const (
+	workFlowTaskLogWaitInterval = time.Second * 5
+	workFlowTaskLogRetries      = 6
+)
+
 type workFlowTaskContainer struct {
 	pod       string
 	container string
@@ -45,6 +50,7 @@ func (m *ClusterManager) OpenWorkFlowTaskLog(clusterID, namespace, workFlow, wor
 	defer conn.Close()
 
 	readedContainers := []workFlowTaskContainer{}
+	retry := 0
 	for {
 		allContainers, err := getNewWorkFlowContainers(cluster.GetKubeClient(), namespace, workFlowTask)
 		if err != nil {
@@ -54,6 +60,11 @@ func (m *ClusterManager) OpenWorkFlowTaskLog(clusterID, namespace, workFlow, wor
 
 		unreadContainers := getUnreadWorkFlowContainers(readedContainers, allContainers)
 		if len(unreadContainers) == 0 {
+			if retry < workFlowTaskLogRetries {
+				time.Sleep(workFlowTaskLogWaitInterval)
+				retry += 1
+				continue
+			}
 			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("%s ========End========", time.Now().UTC().Format(time.RFC3339))))
 			return
 		}

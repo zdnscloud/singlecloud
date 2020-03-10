@@ -193,8 +193,10 @@ func k8sPipelineRunToWorkFlowSubTasks(p tektonv1alpha1.PipelineRun) []types.Work
 					taskStatus.Message = condition.Message
 				}
 				containers := []string{}
-				for _, step := range v.Status.Steps {
-					containers = append(containers, step.ContainerName)
+				if taskStatus.CurrentStatus != "Pending" {
+					for _, step := range v.Status.Steps {
+						containers = append(containers, step.ContainerName)
+					}
 				}
 				task.Status = taskStatus
 				task.PodName = v.Status.PodName
