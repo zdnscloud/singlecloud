@@ -134,7 +134,7 @@ func updateWorkFlowSecrets(cli client.Client, namespace string, wf *types.WorkFl
 			}
 		}
 	}
-	if len(secrets) == 1 {
+	if len(secrets) == 1 && (wf.Git.User != "" && wf.Git.Password != "") {
 		gitSecret := genWorkFlowGitSecret(namespace, wf)
 		if err := cli.Create(context.TODO(), gitSecret); err != nil {
 			return err
