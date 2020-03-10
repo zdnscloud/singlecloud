@@ -94,8 +94,8 @@ func isValidHost(cli client.Client, name string) bool {
 	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{"", name}, &node); err != nil {
 		return false
 	}
-	_, ok1 := node.Labels["node-role.kubernetes.io/controlplane"]
-	_, ok2 := node.Labels["node-role.kubernetes.io/etcd"]
+	_, ok1 := node.Labels[zkeRoleLabelPrefix+string(types.RoleControlPlane)]
+	_, ok2 := node.Labels[zkeRoleLabelPrefix+string(types.RoleEtcd)]
 	if ok1 || ok2 {
 		return false
 	}

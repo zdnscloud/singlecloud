@@ -110,6 +110,13 @@ func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) erro
 			return err
 		}
 	}
+	ok, err := validateInitiators(cluster.GetKubeClient(), storage.Iscsi.Initiators)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("controlplane or etcd node can not be initiators")
+	}
 
 	k8sIscsi := &storagev1.Iscsi{
 		ObjectMeta: metav1.ObjectMeta{
@@ -124,6 +131,22 @@ func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) erro
 		},
 	}
 	return cluster.GetKubeClient().Create(context.TODO(), k8sIscsi)
+}
+
+func validateInitiators(cli client.Client, initiators []string) (bool, error) {
+	for _, name := range initiators {
+		node, err := getK8SNode(cli, name)
+		if err != nil {
+			return false, err
+		}
+		if _, ok := node.Labels[zkeRoleLabelPrefix+string(types.RoleControlPlane)]; ok {
+			return false, nil
+		}
+		if _, ok := node.Labels[zkeRoleLabelPrefix+string(types.RoleEtcd)]; ok {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func createIscsiSecret(cli client.Client, namespace, name, username, password string) error {
@@ -181,6 +204,13 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 	}
 	if k8sIscsi.Spec.Target != storage.Iscsi.Target || k8sIscsi.Spec.Port != storage.Iscsi.Port || k8sIscsi.Spec.Iqn != storage.Iscsi.Iqn || k8sIscsi.Spec.Chap != storage.Iscsi.Chap {
 		return errors.New(fmt.Sprintf("iscsi %s only initiators can be update", storage.Name))
+	}
+	ok, err := validateInitiators(cluster.GetKubeClient(), storage.Iscsi.Initiators)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("controlplane or etcd node can not be initiators")
 	}
 
 	k8sIscsi.Spec.Initiators = storage.Iscsi.Initiators
