@@ -30,7 +30,7 @@ import (
 const (
 	WorkloadAPIVersion                = "apps/v1"
 	PrometheusAdapterNamespace        = "zcloud"
-	PrometheusAdapter                 = "prometheus-adapter"
+	PrometheusAdapter                 = "monitor-prometheus-adapter"
 	PrometheusAdapterConfigMapDataKey = "config.yaml"
 
 	SeriesQueryTemplate   = "{__name__=~\"%s\",kubernetes_pod_name!=\"\",kubernetes_namespace=\"%s\"}"
