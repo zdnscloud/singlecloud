@@ -7,8 +7,8 @@
   "goStructName": "Storage",
   "supportAsyncDelete": true,
   "resourceFields": {
-    "": {
-      "type": "parameter"
+    "cephfs": {
+      "type": "storageClusterParameter"
     },
     "default": {
       "type": "bool",
@@ -22,12 +22,21 @@
         "readonly"
       ]
     },
+    "iscsi": {
+      "type": "iscsiParameter"
+    },
+    "lvm": {
+      "type": "storageClusterParameter"
+    },
     "name": {
       "type": "string",
       "description": [
         "required",
         "isDomain"
       ]
+    },
+    "nfs": {
+      "type": "nfsParameter"
     },
     "nodes": {
       "type": "array",
@@ -75,31 +84,19 @@
       },
       "initiators": {
         "type": "array",
-        "elemType": "string",
-        "description": [
-          "required"
-        ]
+        "elemType": "string"
       },
       "iqn": {
-        "type": "string",
-        "description": [
-          "required"
-        ]
+        "type": "string"
       },
       "password": {
         "type": "string"
       },
       "port": {
-        "type": "string",
-        "description": [
-          "required"
-        ]
+        "type": "string"
       },
       "target": {
-        "type": "string",
-        "description": [
-          "required"
-        ]
+        "type": "string"
       },
       "username": {
         "type": "string"
@@ -107,16 +104,10 @@
     },
     "nfsParameter": {
       "path": {
-        "type": "string",
-        "description": [
-          "required"
-        ]
+        "type": "string"
       },
       "server": {
-        "type": "string",
-        "description": [
-          "required"
-        ]
+        "type": "string"
       }
     },
     "pV": {
@@ -143,27 +134,10 @@
         "type": "string"
       }
     },
-    "parameter": {
-      "cephfs": {
-        "type": "storageClusterParameter"
-      },
-      "iscsi": {
-        "type": "iscsiParameter"
-      },
-      "lvm": {
-        "type": "storageClusterParameter"
-      },
-      "nfs": {
-        "type": "nfsParameter"
-      }
-    },
     "storageClusterParameter": {
       "hosts": {
         "type": "array",
-        "elemType": "string",
-        "description": [
-          "required"
-        ]
+        "elemType": "string"
       }
     },
     "storageNode": {

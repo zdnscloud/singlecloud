@@ -42,20 +42,47 @@ func getStorageClusters(cli client.Client) (*storagev1.ClusterList, error) {
 	return &storageclusters, err
 }
 
-func (s *LvmManager) GetStorage(cli client.Client, name string) (*types.Storage, error) {
-	storageCluster, err := getStorageCluster(cli, name)
+func checkStorageCluster(cli client.Client, name string, typ types.StorageType) (bool, error) {
+	storageClusters, err := getStorageClusters(cli)
+	if err != nil {
+		return false, err
+	}
+	for _, storageCluster := range storageClusters.Items {
+		if storageCluster.Spec.StorageType != string(typ) {
+			continue
+		}
+		if storageCluster.Name == name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *LvmManager) HaveStorage(cli client.Client, name string) (bool, error) {
+	return checkStorageCluster(cli, name, s.GetType())
+}
+
+func (s *LvmManager) GetStorages(cli client.Client) ([]*types.Storage, error) {
+	storageClusters, err := getStorageClusters(cli)
 	if err != nil {
 		return nil, err
 	}
-	storage := storageClusterToSCStorage(storageCluster)
-	storage.Parameter = types.Parameter{
-		Lvm: types.StorageClusterParameter{
-			Hosts: storageCluster.Spec.Hosts,
-		}}
-	return storage, nil
+	var storages []*types.Storage
+	for _, storageCluster := range storageClusters.Items {
+		if storageCluster.Spec.StorageType != string(s.GetType()) {
+			continue
+		}
+		storage := storageClusterToSCStorage(&storageCluster)
+		storage.Parameter = types.Parameter{
+			Lvm: &types.StorageClusterParameter{
+				Hosts: storageCluster.Spec.Hosts,
+			}}
+		storages = append(storages, storage)
+	}
+	return storages, nil
 }
 
-func (s *LvmManager) GetStorageDetail(cluster *zke.Cluster, name string) (*types.Storage, error) {
+func (s *LvmManager) GetStorage(cluster *zke.Cluster, name string) (*types.Storage, error) {
 	storageCluster, err := getStorageCluster(cluster.GetKubeClient(), name)
 	if err != nil {
 		return nil, err
@@ -65,7 +92,7 @@ func (s *LvmManager) GetStorageDetail(cluster *zke.Cluster, name string) (*types
 		return nil, err
 	}
 	storage.Parameter = types.Parameter{
-		Lvm: types.StorageClusterParameter{
+		Lvm: &types.StorageClusterParameter{
 			Hosts: storageCluster.Spec.Hosts,
 		}}
 	return storage, nil
@@ -100,37 +127,44 @@ func storageClusterToSCStorage(storageCluster *storagev1.Cluster) *types.Storage
 }
 
 func (s *LvmManager) Create(cluster *zke.Cluster, storage *types.Storage) error {
-	exist, err := checkStorageClusterTypeExist(cluster.GetKubeClient(), storage.Type)
+	if storage.Lvm != nil {
+		return createStorageCluster(cluster, storage.Name, string(storage.Type), storage.Lvm.Hosts)
+	}
+	return errors.New(fmt.Sprintf(StorageParameterNullErr, storage.Name))
+}
+
+func createStorageCluster(cluster *zke.Cluster, name, typ string, hosts []string) error {
+	exist, err := checkStorageClusterTypeExist(cluster.GetKubeClient(), typ)
 	if err != nil {
 		return err
 	}
 	if exist {
-		return errors.New(fmt.Sprintf("the type %s stroage has already exists", string(storage.Type)))
+		return errors.New(fmt.Sprintf("the type %s stroage has already exists", typ))
 	}
-	if err := isHostsValidate(cluster, storage.Lvm.Hosts); err != nil {
+	if err := isHostsValidate(cluster, hosts); err != nil {
 		return err
 	}
 
 	k8sStorageCluster := &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: storage.Name,
+			Name: name,
 		},
 		Spec: storagev1.ClusterSpec{
-			StorageType: string(storage.Type),
-			Hosts:       storage.Lvm.Hosts,
+			StorageType: typ,
+			Hosts:       hosts,
 		},
 	}
 	return cluster.GetKubeClient().Create(context.TODO(), k8sStorageCluster)
 }
 
-func checkStorageClusterTypeExist(cli client.Client, typ types.StorageType) (bool, error) {
+func checkStorageClusterTypeExist(cli client.Client, typ string) (bool, error) {
 	storageclusters := storagev1.ClusterList{}
 	err := cli.List(context.TODO(), nil, &storageclusters)
 	if err != nil {
 		return false, err
 	}
 	for _, storage := range storageclusters.Items {
-		if storage.Spec.StorageType == string(typ) {
+		if storage.Spec.StorageType == typ {
 			return true, nil
 		}
 	}
@@ -165,6 +199,10 @@ func checkUsed(blockinfo []*types.BlockDevice, node string) bool {
 }
 
 func (s *LvmManager) Delete(cli client.Client, name string) error {
+	return deleteStorageCluster(cli, name)
+}
+
+func deleteStorageCluster(cli client.Client, name string) error {
 	storageCluster, err := getStorageCluster(cli, name)
 	if err != nil {
 		return err
@@ -184,7 +222,11 @@ func (s *LvmManager) Delete(cli client.Client, name string) error {
 }
 
 func (s *LvmManager) Update(cluster *zke.Cluster, storage *types.Storage) error {
-	k8sStorageCluster, err := getStorageCluster(cluster.GetKubeClient(), storage.Name)
+	return updateStorageCluster(cluster, storage.Name, storage.Type, storage.Lvm.Hosts)
+}
+
+func updateStorageCluster(cluster *zke.Cluster, name string, typ types.StorageType, hosts []string) error {
+	k8sStorageCluster, err := getStorageCluster(cluster.GetKubeClient(), name)
 	if err != nil {
 		return err
 	}
@@ -192,16 +234,15 @@ func (s *LvmManager) Update(cluster *zke.Cluster, storage *types.Storage) error 
 		k8sStorageCluster.Status.Phase == storagev1.Updating ||
 		k8sStorageCluster.Status.Phase == storagev1.Deleting ||
 		k8sStorageCluster.GetDeletionTimestamp() != nil {
-		return errors.New(fmt.Sprintf("%s in Creating, Updating or Deleting, not allowed update", storage.Name))
+		return errors.New(fmt.Sprintf("%s in Creating, Updating or Deleting, not allowed update", name))
 	}
 
 	s1 := set.StringSetFromSlice(k8sStorageCluster.Spec.Hosts)
-	s2 := set.StringSetFromSlice(storage.Lvm.Hosts)
+	s2 := set.StringSetFromSlice(hosts)
 	addHosts := s2.Difference(s1).ToSlice()
 	delHosts := s1.Difference(s2).ToSlice()
-
-	if types.StorageType(k8sStorageCluster.Spec.StorageType) == types.LvmType {
-		if err := isDelHostsUsed(cluster.GetKubeClient(), k8sStorageCluster.Name, types.LvmType, delHosts); err != nil {
+	if typ == types.LvmType {
+		if err := isDelHostsUsed(cluster.GetKubeClient(), name, typ, delHosts); err != nil {
 			return err
 		}
 	}
@@ -209,9 +250,8 @@ func (s *LvmManager) Update(cluster *zke.Cluster, storage *types.Storage) error 
 		return err
 	}
 
-	k8sStorageCluster.Spec.Hosts = storage.Lvm.Hosts
+	k8sStorageCluster.Spec.Hosts = hosts
 	return cluster.GetKubeClient().Update(context.TODO(), k8sStorageCluster)
-	return nil
 }
 
 func isDelHostsUsed(cli client.Client, name string, typ types.StorageType, hosts []string) error {

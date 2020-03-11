@@ -35,7 +35,7 @@ require (
 	github.com/zdnscloud/g53 v0.0.0-20191119101753-eb2b1813bd52
 	github.com/zdnscloud/gok8s v0.0.0-20200212071629-b06587f54ee6
 	github.com/zdnscloud/goproxy v0.0.0-20200205075939-521cea33b942
-	github.com/zdnscloud/gorest v0.0.0-20200221102716-9596fdcc4158
+	github.com/zdnscloud/gorest v0.0.0-20200311075118-340b46567e40
 	github.com/zdnscloud/immense v0.0.0-20200304065316-e3da30856f5b
 	github.com/zdnscloud/iniconfig v0.0.0-20191105013537-c8624280493d
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7

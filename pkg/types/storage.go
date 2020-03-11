@@ -25,32 +25,32 @@ type Storage struct {
 	PVs                   []PV          `json:"pvs" rest:"description=readonly"`
 }
 
-type StorageType string
-
 type Parameter struct {
-	Lvm    StorageClusterParameter `json:"lvm,omitempty"`
-	CephFs StorageClusterParameter `json:"cephfs,omitempty"`
-	Iscsi  IscsiParameter          `json:"iscsi,omitempty"`
-	Nfs    NfsParameter            `json:"nfs,omitempty"`
+	Lvm    *StorageClusterParameter `json:"lvm,omitempty"`
+	CephFs *StorageClusterParameter `json:"cephfs,omitempty"`
+	Iscsi  *IscsiParameter          `json:"iscsi,omitempty"`
+	Nfs    *NfsParameter            `json:"nfs,omitempty"`
 }
 
+type StorageType string
+
 type StorageClusterParameter struct {
-	Hosts []string `json:"hosts" rest:"required=true"`
+	Hosts []string `json:"hosts,omitempty" rest:"required=true`
 }
 
 type IscsiParameter struct {
-	Target     string   `json:"target" rest:"required=true"`
-	Port       string   `json:"port" rest:"required=true"`
-	Iqn        string   `json:"iqn" rest:"required=true"`
-	Chap       bool     `json:"chap"`
-	Username   string   `json:"username"`
-	Password   string   `json:"password"`
-	Initiators []string `json:"initiators" rest:"required=true"`
+	Target     string   `json:"target,omitempty" rest:"required=true`
+	Port       string   `json:"port,omitempty" rest:"required=true`
+	Iqn        string   `json:"iqn,omitempty" rest:"required=true`
+	Chap       bool     `json:"chap,omitempty" rest:"required=true`
+	Username   string   `json:"username,omitempty"`
+	Password   string   `json:"password,omitempty"`
+	Initiators []string `json:"initiators,omitempty" rest:"required=true`
 }
 
 type NfsParameter struct {
-	Server string `json:"server" rest:"required=true"`
-	Path   string `json:"path" rest:"required=true"`
+	Server string `json:"server,omitempty" rest:"required=true`
+	Path   string `json:"path,omitempty" rest:"required=true`
 }
 
 type PV struct {

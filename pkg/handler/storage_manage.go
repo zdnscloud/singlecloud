@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -16,22 +15,23 @@ import (
 	gorestError "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
-	"github.com/zdnscloud/kvzoo"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
-	"github.com/zdnscloud/singlecloud/pkg/db"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 )
 
 const (
-	StorageClassDefaultKey = "storageclass.kubernetes.io/is-default-class"
-	StorageTable           = "storage"
+	StorageClassDefaultKey  = "storageclass.kubernetes.io/is-default-class"
+	StorageTable            = "storage"
+	StorageNotFoundErr      = "can not found storage %s"
+	StorageParameterNullErr = "parameter can not be null for storage %s"
 )
 
 type StorageHandle interface {
 	GetType() types.StorageType
-	GetStorage(cli client.Client, name string) (*types.Storage, error)
-	GetStorageDetail(cluster *zke.Cluster, name string) (*types.Storage, error)
+	HaveStorage(cli client.Client, name string) (bool, error)
+	GetStorages(cli client.Client) ([]*types.Storage, error)
+	GetStorage(cluster *zke.Cluster, name string) (*types.Storage, error)
 	Delete(cli client.Client, name string) error
 	Create(cluster *zke.Cluster, storage *types.Storage) error
 	Update(cluster *zke.Cluster, storage *types.Storage) error
@@ -40,11 +40,10 @@ type StorageHandle interface {
 type StorageManager struct {
 	clusters       *ClusterManager
 	storageHandles []StorageHandle
-	table          kvzoo.Table
 }
 
-func newStorageManager(clusters *ClusterManager) (*StorageManager, error) {
-	s := &StorageManager{
+func newStorageManager(clusters *ClusterManager) *StorageManager {
+	return &StorageManager{
 		clusters: clusters,
 		storageHandles: []StorageHandle{
 			&LvmManager{},
@@ -52,20 +51,6 @@ func newStorageManager(clusters *ClusterManager) (*StorageManager, error) {
 			&IscsiManager{},
 			&NfsManager{}},
 	}
-	if err := s.init(); err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-func (m *StorageManager) init() error {
-	tn, _ := kvzoo.TableNameFromSegments(StorageTable)
-	table, err := db.GetGlobalDB().CreateOrGetTable(tn)
-	if err != nil {
-		return fmt.Errorf("create or get table %s failed: %s", StorageTable, err.Error())
-	}
-	m.table = table
-	return nil
 }
 
 func (m *StorageManager) List(ctx *resource.Context) interface{} {
@@ -85,22 +70,17 @@ func (m *StorageManager) List(ctx *resource.Context) interface{} {
 }
 
 func (m *StorageManager) getStorages(cli client.Client) ([]*types.Storage, error) {
-	_storages, err := getStoragesFromDB(m.table)
-	if err != nil {
-		return nil, err
+	var storages types.Storages
+	for _, handle := range m.storageHandles {
+		_storages, err := handle.GetStorages(cli)
+		if err != nil {
+			return nil, err
+		}
+		storages = append(storages, _storages...)
 	}
-	var storages []*types.Storage
-	for _, _storage := range _storages {
-		handle, err := m.getHandleFromType(_storage.Type)
-		if err != nil {
-			return nil, err
-		}
-		storage, err := handle.GetStorage(cli, _storage.Name)
-		if err != nil {
-			return nil, err
-		}
+	for _, storage := range storages {
 		if storage.Phase == string(storagev1.Running) {
-			storageClass, err := getStorageClass(cli, _storage.Name)
+			storageClass, err := getStorageClass(cli, storage.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -108,8 +88,8 @@ func (m *StorageManager) getStorages(cli client.Client) ([]*types.Storage, error
 				storage.Default = strToBool(_default)
 			}
 		}
-		storages = append(storages, storage)
 	}
+	sort.Sort(storages)
 	return storages, nil
 }
 
@@ -139,25 +119,29 @@ func (m *StorageManager) Get(ctx *resource.Context) resource.Resource {
 }
 
 func (m *StorageManager) getStorage(cluster *zke.Cluster, name string) (*types.Storage, error) {
-	_storage, err := getStorageFromDB(m.table, name)
-	if err != nil {
-		return nil, err
-	}
-	handle, err := m.getHandleFromType(_storage.Type)
-	storage, err := handle.GetStorageDetail(cluster, name)
-	if err != nil {
-		return nil, err
-	}
-	if storage.Phase == string(storagev1.Running) {
-		storageClass, err := getStorageClass(cluster.GetKubeClient(), _storage.Name)
+	for _, handle := range m.storageHandles {
+		exist, err := handle.HaveStorage(cluster.GetKubeClient(), name)
 		if err != nil {
 			return nil, err
 		}
-		if _default, ok := storageClass.Annotations[StorageClassDefaultKey]; ok {
-			storage.Default = strToBool(_default)
+		if exist {
+			storage, err := handle.GetStorage(cluster, name)
+			if err != nil {
+				return nil, err
+			}
+			if storage.Phase == string(storagev1.Running) {
+				storageClass, err := getStorageClass(cluster.GetKubeClient(), name)
+				if err != nil {
+					return nil, err
+				}
+				if _default, ok := storageClass.Annotations[StorageClassDefaultKey]; ok {
+					storage.Default = strToBool(_default)
+				}
+			}
+			return storage, nil
 		}
 	}
-	return storage, nil
+	return nil, errors.New(fmt.Sprintf(StorageNotFoundErr, name))
 }
 
 func (m *StorageManager) Delete(ctx *resource.Context) *gorestError.APIError {
@@ -182,18 +166,16 @@ func (m *StorageManager) Delete(ctx *resource.Context) *gorestError.APIError {
 }
 
 func (m *StorageManager) deleteStorage(cli client.Client, name string) error {
-	storage, err := getStorageFromDB(m.table, name)
-	if err != nil {
-		return err
+	for _, handle := range m.storageHandles {
+		exist, err := handle.HaveStorage(cli, name)
+		if err != nil {
+			return err
+		}
+		if exist {
+			return handle.Delete(cli, name)
+		}
 	}
-	handle, err := m.getHandleFromType(storage.Type)
-	if err != nil {
-		return err
-	}
-	if err := handle.Delete(cli, name); err != nil {
-		return err
-	}
-	return deleteStorageFromDB(m.table, name)
+	return errors.New(fmt.Sprintf(StorageNotFoundErr, name))
 }
 
 func (m *StorageManager) Create(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
@@ -205,7 +187,7 @@ func (m *StorageManager) Create(ctx *resource.Context) (resource.Resource, *gore
 		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
 	}
 	storage := ctx.Resource.(*types.Storage)
-	if err := m.createStorage(cluster, clusteragent.GetAgent(), storage); err != nil {
+	if err := m.createStorage(cluster, storage); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, gorestError.NewAPIError(gorestError.DuplicateResource, fmt.Sprintf("duplicate storage name %s", storage.Name))
 		} else if strings.Contains(err.Error(), "storage has already exists") || strings.Contains(err.Error(), "can not be used for") {
@@ -218,28 +200,23 @@ func (m *StorageManager) Create(ctx *resource.Context) (resource.Resource, *gore
 	return storage, nil
 }
 
-func (m *StorageManager) createStorage(cluster *zke.Cluster, agent *clusteragent.AgentManager, storage *types.Storage) error {
-	exist, err := checkStorageExist(m.table, storage.Name)
+func (m *StorageManager) createStorage(cluster *zke.Cluster, storage *types.Storage) error {
+	exist, err := m.checkStorageExist(cluster.GetKubeClient(), storage.Name)
 	if err != nil {
 		return err
 	}
 	if exist {
 		return errors.New(fmt.Sprintf("the name %s of storage has already exists", storage.Name))
 	}
-
 	handle, err := m.getHandleFromType(storage.Type)
 	if err != nil {
 		return err
 	}
-
-	if err := handle.Create(cluster, storage); err != nil {
-		return err
-	}
-	return addOrUpdateStorageToDB(m.table, storage, "add")
+	return handle.Create(cluster, storage)
 }
 
-func checkStorageExist(table kvzoo.Table, name string) (bool, error) {
-	storages, err := getStoragesFromDB(table)
+func (m *StorageManager) checkStorageExist(cli client.Client, name string) (bool, error) {
+	storages, err := m.getStorages(cli)
 	if err != nil {
 		return false, err
 	}
@@ -276,10 +253,7 @@ func (m *StorageManager) updateStorage(cluster *zke.Cluster, storage *types.Stor
 	if err != nil {
 		return err
 	}
-	if err := handle.Update(cluster, storage); err != nil {
-		return err
-	}
-	return addOrUpdateStorageToDB(m.table, storage, "update")
+	return handle.Update(cluster, storage)
 }
 
 func sToi(size string) int64 {
@@ -345,6 +319,7 @@ func genStorageNodeFromInstances(instances []storagev1.Instance) []types.Storage
 	return nodes
 }
 
+/*
 func addOrUpdateStorageToDB(table kvzoo.Table, storage *types.Storage, action string) error {
 	value, err := json.Marshal(storage)
 	if err != nil {
@@ -423,4 +398,4 @@ func deleteStorageFromDB(table kvzoo.Table, name string) error {
 	}
 
 	return tx.Commit()
-}
+}*/

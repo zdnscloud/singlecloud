@@ -34,15 +34,38 @@ func getIscsi(cli client.Client, name string) (*storagev1.Iscsi, error) {
 	return &iscsi, err
 }
 
-func (s *IscsiManager) GetStorage(cli client.Client, name string) (*types.Storage, error) {
-	iscsi, err := getIscsi(cli, name)
+func getIscsis(cli client.Client) (*storagev1.IscsiList, error) {
+	iscsis := storagev1.IscsiList{}
+	err := cli.List(context.TODO(), nil, &iscsis)
+	return &iscsis, err
+}
+
+func (s *IscsiManager) HaveStorage(cli client.Client, name string) (bool, error) {
+	iscsis, err := getIscsis(cli)
+	if err != nil {
+		return false, err
+	}
+	for _, iscsi := range iscsis.Items {
+		if iscsi.Name == name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *IscsiManager) GetStorages(cli client.Client) ([]*types.Storage, error) {
+	iscsis, err := getIscsis(cli)
 	if err != nil {
 		return nil, err
 	}
-	return iscsiToSCStorage(iscsi), nil
+	var storages []*types.Storage
+	for _, iscsi := range iscsis.Items {
+		storages = append(storages, iscsiToSCStorage(&iscsi))
+	}
+	return storages, nil
 }
 
-func (s *IscsiManager) GetStorageDetail(cluster *zke.Cluster, name string) (*types.Storage, error) {
+func (s *IscsiManager) GetStorage(cluster *zke.Cluster, name string) (*types.Storage, error) {
 	iscsi, err := getIscsi(cluster.GetKubeClient(), name)
 	if err != nil {
 		return nil, err
@@ -61,10 +84,26 @@ func (s *IscsiManager) Delete(cli client.Client, name string) error {
 
 	finalizers := iscsi.GetFinalizers()
 	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
+		if err := deleteIscsiSecretIfNeed(cli, name); err != nil {
+			return err
+		}
 		return cli.Delete(context.TODO(), iscsi)
 	} else {
 		return errors.New(fmt.Sprintf("storage %s is used by some pods, you should stop those pods first", name))
 	}
+}
+
+func deleteIscsiSecretIfNeed(cli client.Client, name string) error {
+	iscsi, err := getIscsi(cli, name)
+	if err != nil {
+		return err
+	}
+	if iscsi.Spec.Chap {
+		if err := deleteSecret(cli, ZCloudNamespace, fmt.Sprintf("%s-%s", name, IscsiInstanceSecretSuffix)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func iscsiToSCStorageDetail(cluster *zke.Cluster, iscsi *storagev1.Iscsi) (*types.Storage, error) {
@@ -82,10 +121,10 @@ func iscsiToSCStorageDetail(cluster *zke.Cluster, iscsi *storagev1.Iscsi) (*type
 		}
 		for _, d := range secret.Data {
 			if d.Key == "username" {
-				storage.Parameter.Iscsi.Username = d.Value
+				storage.Iscsi.Username = d.Value
 			}
 			if d.Key == "password" {
-				storage.Parameter.Iscsi.Password = d.Value
+				storage.Iscsi.Password = d.Value
 			}
 		}
 	}
@@ -102,35 +141,38 @@ func getIscsiSecret(cli client.Client, namespace, name string) (*types.Secret, e
 }
 
 func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) error {
-	if storage.Iscsi.Chap {
-		if storage.Iscsi.Username == "" || storage.Iscsi.Password == "" {
-			return errors.New("if chap is checked, fields username and password can not be empty")
+	if storage.Iscsi != nil {
+		if storage.Iscsi.Chap {
+			if storage.Iscsi.Username == "" || storage.Iscsi.Password == "" {
+				return errors.New("if chap is checked, fields username and password can not be empty")
+			}
+			if err := createIscsiSecret(cluster.GetKubeClient(), ZCloudNamespace, fmt.Sprintf("%s-%s", storage.Name, IscsiInstanceSecretSuffix), storage.Iscsi.Username, storage.Iscsi.Password); err != nil {
+				return err
+			}
 		}
-		if err := createIscsiSecret(cluster.GetKubeClient(), ZCloudNamespace, fmt.Sprintf("%s-%s", storage.Name, IscsiInstanceSecretSuffix), storage.Iscsi.Username, storage.Iscsi.Password); err != nil {
+		ok, err := validateInitiators(cluster.GetKubeClient(), storage.Iscsi.Initiators)
+		if err != nil {
 			return err
 		}
-	}
-	ok, err := validateInitiators(cluster.GetKubeClient(), storage.Iscsi.Initiators)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return errors.New("controlplane or etcd node can not be initiators")
-	}
+		if !ok {
+			return errors.New("controlplane or etcd node can not be initiators")
+		}
 
-	k8sIscsi := &storagev1.Iscsi{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: storage.Name,
-		},
-		Spec: storagev1.IscsiSpec{
-			Target:     storage.Iscsi.Target,
-			Port:       storage.Iscsi.Port,
-			Iqn:        storage.Iscsi.Iqn,
-			Chap:       storage.Iscsi.Chap,
-			Initiators: storage.Iscsi.Initiators,
-		},
+		k8sIscsi := &storagev1.Iscsi{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: storage.Name,
+			},
+			Spec: storagev1.IscsiSpec{
+				Target:     storage.Iscsi.Target,
+				Port:       storage.Iscsi.Port,
+				Iqn:        storage.Iscsi.Iqn,
+				Chap:       storage.Iscsi.Chap,
+				Initiators: storage.Iscsi.Initiators,
+			},
+		}
+		return cluster.GetKubeClient().Create(context.TODO(), k8sIscsi)
 	}
-	return cluster.GetKubeClient().Create(context.TODO(), k8sIscsi)
+	return errors.New(fmt.Sprintf(StorageParameterNullErr, storage.Name))
 }
 
 func validateInitiators(cli client.Client, initiators []string) (bool, error) {
@@ -171,7 +213,7 @@ func iscsiToSCStorage(iscsi *storagev1.Iscsi) *types.Storage {
 		Name: iscsi.Name,
 		Type: types.IscsiType,
 		Parameter: types.Parameter{
-			Iscsi: types.IscsiParameter{
+			Iscsi: &types.IscsiParameter{
 				Target:     iscsi.Spec.Target,
 				Port:       iscsi.Spec.Port,
 				Iqn:        iscsi.Spec.Iqn,
