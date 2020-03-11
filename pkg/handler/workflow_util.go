@@ -8,13 +8,11 @@ import (
 	"net/url"
 	"strings"
 
-	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 
 	tektonv1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	"github.com/zdnscloud/cement/randomdata"
 	"github.com/zdnscloud/gok8s/client"
-
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -333,11 +331,6 @@ func deleteWorkFlowDeploymentAndPVCs(cli client.Client, namespace, name string) 
 		return err
 	}
 
-	scDeploy, err := k8sDeployToSCDeploy(cli, k8sDeploy)
-	if err != nil {
-		return err
-	}
-
 	if err := deleteDeployment(cli, namespace, name); err != nil {
 		return err
 	}
@@ -345,6 +338,5 @@ func deleteWorkFlowDeploymentAndPVCs(cli client.Client, namespace, name string) 
 	if delete, ok := k8sDeploy.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
 		deleteWorkLoadPVCs(cli, namespace, k8sDeploy.Spec.Template.Spec.Volumes)
 	}
-	eb.PublishResourceDeleteEvent(scDeploy)
 	return nil
 }
