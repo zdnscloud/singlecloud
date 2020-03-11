@@ -20,7 +20,7 @@ const (
 	registryAppName      = "registry"
 	registryChartName    = "harbor"
 	registryChartVersion = "1.1.1"
-	httpsScheme          = "https//"
+	httpsScheme          = "https://"
 )
 
 type RegistryManager struct {
