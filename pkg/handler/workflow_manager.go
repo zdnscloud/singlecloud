@@ -76,7 +76,10 @@ func preCheckDeploymentExist(cli client.Client, namespace, name string) *resterr
 func createWorkFlow(cli client.Client, namespace string, wf *types.WorkFlow) error {
 	var gitSecretName string
 	createdObjs := []runtime.Object{}
-	gitSecret := genWorkFlowGitSecret(namespace, wf)
+	gitSecret, err := genWorkFlowGitSecret(namespace, wf)
+	if err != nil {
+		return err
+	}
 	if gitSecret != nil {
 		if err := cli.Create(context.TODO(), gitSecret); err != nil {
 			return err

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
@@ -22,14 +23,20 @@ import (
 )
 
 const (
-	dockerhubRegistryURL     = "https://index.docker.io"
-	dockerConfigJsonTemplate = `{"auths":{"%s":{"username":"%s","password":"%s","auth":"%s"}}}`
+	tektonGitSecretAnnotationKey = "tekton.dev/git-0"
+	dockerhubRegistryURL         = "https://index.docker.io"
+	dockerConfigJsonTemplate     = `{"auths":{"%s":{"username":"%s","password":"%s","auth":"%s"}}}`
 )
 
-func genWorkFlowGitSecret(namespace string, wf *types.WorkFlow) *corev1.Secret {
+func genWorkFlowGitSecret(namespace string, wf *types.WorkFlow) (*corev1.Secret, error) {
 	if wf.Git.User == "" || wf.Git.Password == "" {
-		return nil
+		return nil, nil
 	}
+	gitServer, err := getGitServerFromRawURL(wf.Git.RepositoryURL)
+	if err != nil {
+		return nil, err
+	}
+
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      genWorkFlowRandomName(wf.Name),
@@ -37,13 +44,24 @@ func genWorkFlowGitSecret(namespace string, wf *types.WorkFlow) *corev1.Secret {
 			Labels: map[string]string{
 				zcloudWorkFlowIDLabelKey: wf.Name,
 			},
+			Annotations: map[string]string{
+				tektonGitSecretAnnotationKey: gitServer,
+			},
 		},
 		Type: corev1.SecretTypeBasicAuth,
 		StringData: map[string]string{
 			"username": wf.Git.User,
 			"password": wf.Git.Password,
 		},
+	}, nil
+}
+
+func getGitServerFromRawURL(in string) (string, error) {
+	u, err := url.Parse(in)
+	if err != nil {
+		return "", fmt.Errorf("parse git url %s failed %s", in, err.Error())
 	}
+	return fmt.Sprintf("%s://%s", u.Scheme, u.Host), nil
 }
 
 func updateWorkFlowGitSecret(cli client.Client, secret *corev1.Secret, wf *types.WorkFlow) error {
@@ -122,6 +140,7 @@ func updateWorkFlowSecrets(cli client.Client, namespace string, wf *types.WorkFl
 		return err
 	}
 
+	var gitSecret corev1.Secret
 	for _, secret := range secrets {
 		if secret.Type == corev1.SecretTypeDockerConfigJson {
 			if err := updateWorkFlowDockerSecret(cli, &secret, wf); err != nil {
@@ -129,16 +148,32 @@ func updateWorkFlowSecrets(cli client.Client, namespace string, wf *types.WorkFl
 			}
 		}
 		if secret.Type == corev1.SecretTypeBasicAuth {
+			gitSecret = secret
 			if err := updateWorkFlowGitSecret(cli, &secret, wf); err != nil {
 				return err
 			}
 		}
 	}
-	if len(secrets) == 1 && (wf.Git.User != "" && wf.Git.Password != "") {
-		gitSecret := genWorkFlowGitSecret(namespace, wf)
-		if err := cli.Create(context.TODO(), gitSecret); err != nil {
+
+	if len(secrets) == 2 && (wf.Git.User == "" || wf.Git.Password == "") {
+		if err := cli.Delete(context.TODO(), &gitSecret); err != nil {
 			return err
 		}
+		return deleteSecretFromWorkFlowSA(cli, namespace, wf.Name, gitSecret.Name)
+	}
+
+	if len(secrets) == 1 {
+		newGitSecret, err := genWorkFlowGitSecret(namespace, wf)
+		if err != nil {
+			return err
+		}
+		if newGitSecret == nil {
+			return nil
+		}
+		if err := cli.Create(context.TODO(), newGitSecret); err != nil {
+			return err
+		}
+		return addSecretToWorkFlowSA(cli, namespace, wf.Name, newGitSecret.Name)
 	}
 	return nil
 }
@@ -170,6 +205,30 @@ func genWorkFlowServiceAccount(name, namespace, gitSecret, dockerSecret string) 
 		sa.Secrets = append(sa.Secrets, corev1.ObjectReference{Name: gitSecret})
 	}
 	return sa
+}
+
+func addSecretToWorkFlowSA(cli client.Client, namespace, saName, secret string) error {
+	sa := corev1.ServiceAccount{}
+	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{Namespace: namespace, Name: saName}, &sa); err != nil {
+		return err
+	}
+	sa.Secrets = append(sa.Secrets, corev1.ObjectReference{Name: secret})
+	return cli.Update(context.TODO(), &sa)
+}
+
+func deleteSecretFromWorkFlowSA(cli client.Client, namespace, saName, secret string) error {
+	sa := corev1.ServiceAccount{}
+	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{Namespace: namespace, Name: saName}, &sa); err != nil {
+		return err
+	}
+	secrets := []corev1.ObjectReference{}
+	for _, s := range sa.Secrets {
+		if s.Name != secret {
+			secrets = append(secrets, s)
+		}
+	}
+	sa.Secrets = secrets
+	return cli.Update(context.TODO(), &sa)
 }
 
 func addWorkFlowSaToCRB(cli client.Client, saName, saNamespace string) error {
