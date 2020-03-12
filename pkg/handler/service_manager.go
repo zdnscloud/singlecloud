@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -38,7 +37,7 @@ func newServiceManager(clusters *ClusterManager) *ServiceManager {
 func (m *ServiceManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -73,32 +72,32 @@ func validateIfLoadBalancerService(s *types.Service) error {
 	return nil
 }
 
-func (m *ServiceManager) List(ctx *resource.Context) interface{} {
+func (m *ServiceManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sServices, err := getServices(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list service info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list services failed %s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var services []*types.Service
 	for _, sv := range k8sServices.Items {
 		services = append(services, k8sServiceToSCService(&sv))
 	}
-	return services
+	return services, nil
 }
 
-func (m *ServiceManager) Get(ctx *resource.Context) resource.Resource {
+func (m *ServiceManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -106,12 +105,13 @@ func (m *ServiceManager) Get(ctx *resource.Context) resource.Resource {
 	k8sService, err := getService(cluster.GetKubeClient(), namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get service info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("get service %s failed %s", service.GetID(), err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
-	return k8sServiceToSCService(k8sService)
+	return k8sServiceToSCService(k8sService), nil
 }
 
 func (m *ServiceManager) Delete(ctx *resource.Context) *resterror.APIError {

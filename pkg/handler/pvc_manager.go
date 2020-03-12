@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -27,19 +26,19 @@ func newPersistentVolumeClaimManager(clusters *ClusterManager) *PersistentVolume
 	return &PersistentVolumeClaimManager{clusters: clusters}
 }
 
-func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) interface{} {
+func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sPersistentVolumeClaims, err := getPersistentVolumeClaims(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list persistentvolumeclaim info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list pvcs failed:%s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var pvcs []*types.PersistentVolumeClaim
@@ -47,9 +46,9 @@ func (m *PersistentVolumeClaimManager) List(ctx *resource.Context) interface{} {
 		pvcs = append(pvcs, k8sPVCToSCPVC(&item))
 	}
 	if err := genUseInfoForPVCs(cluster.GetKubeClient(), namespace, pvcs); err != nil {
-		return nil
+		return nil, nil
 	}
-	return pvcs
+	return pvcs, nil
 }
 
 func (m PersistentVolumeClaimManager) Delete(ctx *resource.Context) *resterror.APIError {

@@ -66,7 +66,7 @@ func (m *UDPIngressManager) eventLoop() {
 func (m *UDPIngressManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -84,34 +84,33 @@ func (m *UDPIngressManager) Create(ctx *resource.Context) (resource.Resource, *r
 	}
 }
 
-func (m *UDPIngressManager) List(ctx *resource.Context) interface{} {
+func (m *UDPIngressManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 	namespace := ctx.Resource.GetParent().GetID()
 	ingresses, err := getTransportLayerIngress(cluster.GetKubeClient(), namespace, "")
 	if err != nil {
-		log.Warnf("get udp ingress failed %s", err.Error())
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list udp ingresses failed %s", err.Error()))
 	}
-	return ingresses
+	return ingresses, nil
 }
 
-func (m *UDPIngressManager) Get(ctx *resource.Context) resource.Resource {
+func (m *UDPIngressManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	udpRules, err := getTransportLayerIngress(cluster.GetKubeClient(), namespace, ctx.Resource.GetID())
 	if err != nil {
-		log.Warnf("get udp ingress failed %s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get udp ingress failed %s", err.Error()))
 	} else if len(udpRules) == 1 {
-		return udpRules[0]
+		return udpRules[0], nil
 	} else {
-		return nil
+		return nil, nil
 	}
 }
 

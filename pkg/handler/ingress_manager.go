@@ -53,48 +53,46 @@ func (m *IngressManager) Create(ctx *resource.Context) (resource.Resource, *rest
 	}
 }
 
-func (m *IngressManager) List(ctx *resource.Context) interface{} {
+func (m *IngressManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sIngresss, err := getIngresss(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list ingress info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list ingresses failed:%s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var ingresss []*types.Ingress
 	for _, sv := range k8sIngresss.Items {
 		ingresss = append(ingresss, k8sIngressToSCIngress(&sv))
 	}
-	return ingresss
+	return ingresss, nil
 }
 
-func (m *IngressManager) Get(ctx *resource.Context) resource.Resource {
+func (m *IngressManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	ingress := ctx.Resource.(*types.Ingress)
 	k8sIngress, err := getIngress(cluster.GetKubeClient(), namespace, ingress.GetID())
-	if err == nil {
-		ingress = k8sIngressToSCIngress(k8sIngress)
-	} else {
+	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get ingress failed %s", err.Error())
-			return nil
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("get ingress %s failed:%s", ingress.GetID(), err.Error()))
 		}
-		ingress.SetID(ingress.GetID())
+		return nil, nil
 	}
 
-	return ingress
+	return k8sIngressToSCIngress(k8sIngress), nil
 }
 
 func (m *IngressManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {

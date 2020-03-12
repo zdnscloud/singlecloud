@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -46,32 +45,32 @@ func (m *ResourceQuotaManager) Create(ctx *resource.Context) (resource.Resource,
 	return resourceQuota, nil
 }
 
-func (m *ResourceQuotaManager) List(ctx *resource.Context) interface{} {
+func (m *ResourceQuotaManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sResourceQuotas, err := getResourceQuotas(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list resourceQuota info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list resourceQuotas failed %s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var resourceQuotas []*types.ResourceQuota
 	for _, item := range k8sResourceQuotas.Items {
 		resourceQuotas = append(resourceQuotas, k8sResourceQuotaToSCResourceQuota(&item))
 	}
-	return resourceQuotas
+	return resourceQuotas, nil
 }
 
-func (m *ResourceQuotaManager) Get(ctx *resource.Context) resource.Resource {
+func (m *ResourceQuotaManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -79,12 +78,13 @@ func (m *ResourceQuotaManager) Get(ctx *resource.Context) resource.Resource {
 	k8sResourceQuota, err := getResourceQuota(cluster.GetKubeClient(), namespace, resourceQuota.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get resourceQuota info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("get resourceQuota %s failed %s", resourceQuota.GetID(), err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
-	return k8sResourceQuotaToSCResourceQuota(k8sResourceQuota)
+	return k8sResourceQuotaToSCResourceQuota(k8sResourceQuota), nil
 }
 
 func (m *ResourceQuotaManager) Delete(ctx *resource.Context) *resterror.APIError {

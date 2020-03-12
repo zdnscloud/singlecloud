@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -48,32 +47,32 @@ func (m *StatefulSetManager) Create(ctx *resource.Context) (resource.Resource, *
 	return statefulset, nil
 }
 
-func (m *StatefulSetManager) List(ctx *resource.Context) interface{} {
+func (m *StatefulSetManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sStatefulSets, err := getStatefulSets(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list statefulset info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list statefulsets failed %s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var statefulsets []*types.StatefulSet
 	for _, statefulset := range k8sStatefulSets.Items {
 		statefulsets = append(statefulsets, k8sStatefulSetToSCStatefulSet(&statefulset))
 	}
-	return statefulsets
+	return statefulsets, nil
 }
 
-func (m *StatefulSetManager) Get(ctx *resource.Context) resource.Resource {
+func (m *StatefulSetManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -81,12 +80,13 @@ func (m *StatefulSetManager) Get(ctx *resource.Context) resource.Resource {
 	k8sStatefulSet, err := getStatefulSet(cluster.GetKubeClient(), namespace, statefulset.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get statefulset info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("get statefulset %s failed %s", statefulset.GetID(), err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
-	return k8sStatefulSetToSCStatefulSet(k8sStatefulSet)
+	return k8sStatefulSetToSCStatefulSet(k8sStatefulSet), nil
 }
 
 func (m *StatefulSetManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {

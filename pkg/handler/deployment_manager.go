@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -67,37 +66,37 @@ func (m *DeploymentManager) Create(ctx *resource.Context) (resource.Resource, *r
 	return deploy, nil
 }
 
-func (m *DeploymentManager) List(ctx *resource.Context) interface{} {
+func (m *DeploymentManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sDeploys, err := getDeployments(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list deployment info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list deploys failed %s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var deploys []*types.Deployment
 	for _, ns := range k8sDeploys.Items {
 		if deploy, err := k8sDeployToSCDeploy(cluster.GetKubeClient(), &ns); err != nil {
-			log.Warnf("list deployment info failed:%s", err.Error())
-			return nil
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list deploys failed %s", err.Error()))
 		} else {
 			deploys = append(deploys, deploy)
 		}
 	}
-	return deploys
+
+	return deploys, nil
 }
 
-func (m *DeploymentManager) Get(ctx *resource.Context) resource.Resource {
+func (m *DeploymentManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -105,16 +104,17 @@ func (m *DeploymentManager) Get(ctx *resource.Context) resource.Resource {
 	k8sDeploy, err := getDeployment(cluster.GetKubeClient(), namespace, deploy.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get deployment info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("get deploy %s failed %s", deploy.GetID(), err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	if deploy, err := k8sDeployToSCDeploy(cluster.GetKubeClient(), k8sDeploy); err != nil {
-		log.Warnf("get deployment info failed:%s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("get deploy %s failed %s", deploy.GetID(), err.Error()))
 	} else {
-		return deploy
+		return deploy, nil
 	}
 }
 

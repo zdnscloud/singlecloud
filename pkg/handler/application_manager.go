@@ -17,7 +17,6 @@ import (
 	"helm.sh/helm/pkg/engine"
 
 	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
@@ -214,18 +213,19 @@ func loadChartFiles(namespace, chartVersionDir, appName string, configs map[stri
 	return manifests, crdManifests, nil
 }
 
-func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
+func (m *ApplicationManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		log.Warnf("no found cluster when list applications info")
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, "no found cluster when list applications")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sAppCRDs, err := getApplications(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		log.Warnf("list applications info failed:%s", err.Error())
-		return nil
+		if apierrors.IsNotFound(err) == false {
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list applications failed %s", err.Error()))
+		}
+		return nil, nil
 	}
 
 	urlPrefix := getRequestUrlPrefix(ctx.Request.URL.Path, cluster.Name)
@@ -239,7 +239,7 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	}
 
 	sort.Sort(apps)
-	return apps
+	return apps, nil
 }
 
 func getApplications(cli client.Client, namespace string) (*appv1beta1.ApplicationList, error) {
@@ -252,23 +252,22 @@ func getRequestUrlPrefix(reqUrlPath, clusterName string) string {
 	return strings.SplitAfterN(reqUrlPath, fmt.Sprintf("/clusters/%s/namespaces/", clusterName), 2)[0]
 }
 
-func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
+func (m *ApplicationManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		log.Warnf("no found cluster when get application info")
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, "no found cluster when get application")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
 	k8sAppCRD, exists, err := getApplicationIfExists(cluster.GetKubeClient(), namespace, appName, false)
 	if err != nil {
-		log.Warnf("get application %s info failed:%s", appName, err.Error())
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get application %s failed:%s", appName, err.Error()))
 	} else if exists {
-		return k8sAppCRDToScApp(k8sAppCRD, getRequestUrlPrefix(ctx.Request.URL.Path, cluster.Name))
+		return k8sAppCRDToScApp(k8sAppCRD, getRequestUrlPrefix(ctx.Request.URL.Path, cluster.Name)), nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 func getApplication(cli client.Client, namespace, name string, isSystemChart bool) (*appv1beta1.Application, error) {
