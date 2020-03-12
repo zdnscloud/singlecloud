@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"fmt"
+
 	"github.com/zdnscloud/singlecloud/pkg/auditlog"
 
-	"github.com/zdnscloud/cement/log"
+	resterr "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 )
 
@@ -17,10 +19,10 @@ func newAuditLogManager(audit *auditlog.AuditLogger) *AuditLogManager {
 	}
 }
 
-func (a *AuditLogManager) List(ctx *resource.Context) interface{} {
+func (a *AuditLogManager) List(ctx *resource.Context) (interface{}, *resterr.APIError) {
 	logs, err := a.audit.List(getCurrentUser(ctx))
 	if err != nil {
-		log.Warnf("list audit log failed %s", err.Error())
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("list audit log failed %s", err.Error()))
 	}
-	return logs
+	return logs, nil
 }

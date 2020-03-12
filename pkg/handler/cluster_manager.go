@@ -77,20 +77,20 @@ func (m *ClusterManager) Update(ctx *restresource.Context) (restresource.Resourc
 	return m.zkeManager.Update(ctx)
 }
 
-func (m *ClusterManager) Get(ctx *restresource.Context) restresource.Resource {
+func (m *ClusterManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	id := ctx.Resource.GetID()
 	if m.authorizer.Authorize(getCurrentUser(ctx), id, "") == false {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 	cluster := m.zkeManager.Get(id)
 	if cluster != nil {
 		sc := cluster.ToScCluster()
 		if cluster.IsReady() {
-			return getClusterInfo(cluster, sc)
+			return getClusterInfo(cluster, sc), nil
 		}
-		return sc
+		return sc, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
@@ -135,7 +135,7 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 	return sc
 }
 
-func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
+func (m *ClusterManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	requestFlags := ctx.Request.URL.Query()
 	user := getCurrentUser(ctx)
 	var readyClusters []*types.Cluster
@@ -152,9 +152,9 @@ func (m *ClusterManager) List(ctx *restresource.Context) interface{} {
 	}
 
 	if onlyReady := requestFlags.Get("onlyready"); onlyReady == "true" {
-		return readyClusters
+		return readyClusters, nil
 	}
-	return allClusters
+	return allClusters, nil
 }
 
 func (m *ClusterManager) Delete(ctx *restresource.Context) *resterr.APIError {
