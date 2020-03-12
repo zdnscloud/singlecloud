@@ -8,7 +8,10 @@
   "supportAsyncDelete": true,
   "resourceFields": {
     "autoDeploy": {
-      "type": "bool"
+      "type": "bool",
+      "description": [
+        "immutable"
+      ]
     },
     "deploy": {
       "type": "deployment"

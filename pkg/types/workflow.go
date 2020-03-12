@@ -11,7 +11,7 @@ type WorkFlow struct {
 	Name                  string             `json:"name" rest:"required=true,isDomain=true,description=immutable"`
 	Git                   GitInfo            `json:"git" rest:"required=true"`
 	Image                 ImageInfo          `json:"image" rest:"required=true"`
-	AutoDeploy            bool               `json:"autoDeploy"`
+	AutoDeploy            bool               `json:"autoDeploy" rest:"description=immutable"`
 	Deploy                Deployment         `json:"deploy"`
 	SubTasks              []WorkFlowSubTask  `json:"subTasks" rest:"description=readonly"`
 	Status                WorkFlowTaskStatus `json:"status" rest:"description=readonly"`

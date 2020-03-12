@@ -142,6 +142,9 @@ func (m *WorkFlowManager) Get(ctx *resource.Context) resource.Resource {
 
 	wf, err := getWorkFlow(cluster.GetKubeClient(), ns, id)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
 		log.Warnf("get namespace %s workflow %s failed %s", ns, id, err.Error())
 	}
 	return wf
@@ -150,9 +153,6 @@ func (m *WorkFlowManager) Get(ctx *resource.Context) resource.Resource {
 func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, error) {
 	pr := tektonv1alpha1.PipelineResource{}
 	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &pr); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
 	return pipelineResourceToScWorkFlow(cli, namespace, pr)
@@ -176,6 +176,9 @@ func pipelineResourceToScWorkFlow(cli client.Client, namespace string, pr tekton
 		}
 		wf.SubTasks = subs
 		wf.Status = status
+	} else {
+		wf.SubTasks = nil
+		wf.Status = types.WorkFlowTaskStatus{}
 	}
 
 	if pr.DeletionTimestamp != nil {
@@ -233,14 +236,22 @@ func (m *WorkFlowManager) Update(ctx *resource.Context) (resource.Resource, *res
 	}
 
 	ns := ctx.Resource.GetParent().GetID()
-	wf := ctx.Resource.(*types.WorkFlow)
-	if err := updateWorkFlow(cluster.GetKubeClient(), ns, wf); err != nil {
+	newer := ctx.Resource.(*types.WorkFlow)
+
+	older, err := getWorkFlow(cluster.GetKubeClient(), ns, newer.GetID())
+	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
 		}
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update workflow %s failed %s", wf.Name, err.Error()))
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get workflow %s failed %s", newer.GetID(), err.Error()))
 	}
-	return wf, nil
+	newer.AutoDeploy = older.AutoDeploy
+	newer.Name = older.Name
+
+	if err := updateWorkFlow(cluster.GetKubeClient(), ns, newer); err != nil {
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update workflow %s failed %s", newer.Name, err.Error()))
+	}
+	return newer, nil
 }
 
 func updateWorkFlow(cli client.Client, namespace string, wf *types.WorkFlow) error {

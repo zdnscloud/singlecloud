@@ -270,9 +270,13 @@ func getPipelineRunsByWorkFlowName(cli client.Client, namespace, name string) ([
 func genPipelineRun(cli client.Client, namespace string, wf *types.WorkFlow, wft *types.WorkFlowTask) (*tektonv1alpha1.PipelineRun, error) {
 	tasks := genPipelineTasks(wf)
 
-	yaml, err := getPipelineRunDeployYaml(cli, namespace, wf, wft)
-	if err != nil {
-		return nil, err
+	var deployYaml string
+	if wf.AutoDeploy {
+		yaml, err := getPipelineRunDeployYaml(cli, namespace, wf, wft)
+		if err != nil {
+			return nil, err
+		}
+		deployYaml = yaml
 	}
 
 	p := &tektonv1alpha1.PipelineRun{
@@ -303,7 +307,7 @@ func genPipelineRun(cli client.Client, namespace string, wf *types.WorkFlow, wft
 					Name: "DEPLOY_YAML",
 					Value: tektonv1alpha2.ArrayOrString{
 						Type:      tektonv1alpha2.ParamTypeString,
-						StringVal: yaml},
+						StringVal: deployYaml},
 				},
 			},
 			Resources: []tektonv1alpha1.PipelineResourceBinding{
