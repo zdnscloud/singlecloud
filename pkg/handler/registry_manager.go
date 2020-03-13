@@ -12,6 +12,7 @@ import (
 
 	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
 	"github.com/zdnscloud/cement/x509"
+	"github.com/zdnscloud/gok8s/client"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -86,36 +87,41 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 }
 
 func (m *RegistryManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
-	r, err := m.get(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if r == nil {
-		return nil, nil
-	}
-	return []*types.Registry{r.(*types.Registry)}, nil
-}
-
-func (m *RegistryManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
-	id := ctx.Resource.GetID()
-	if id != registryAppName {
-		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("registry %s doesn't exist", id))
-	}
-	return m.get(ctx)
-}
-
-func (m *RegistryManager) get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
-	k8sAppCRD, err := getApplication(cluster.GetKubeClient(), ZCloudNamespace, registryAppName, true)
+	r, err := m.get(cluster.GetKubeClient())
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if err.ErrorCode == resterr.NotFound {
 			return nil, nil
 		}
-		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("get cluster %s application registry by chart name %s failed %s", cluster.Name, monitorChartName, err.Error()))
+		return nil, err
+	}
+	return []*types.Registry{r.(*types.Registry)}, nil
+}
+
+func (m *RegistryManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
+	}
+
+	id := ctx.Resource.GetID()
+	if id != registryAppName {
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("registry %s doesn't exist", id))
+	}
+	return m.get(cluster.GetKubeClient())
+}
+
+func (m *RegistryManager) get(cli client.Client) (restresource.Resource, *resterr.APIError) {
+	k8sAppCRD, err := getApplication(cli, ZCloudNamespace, registryAppName, true)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "registry doesn't exist")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get application registry by chart name %s failed %s", monitorChartName, err.Error()))
 	}
 
 	r, err := genRetrunRegistryFromApplication(k8sAppCRD)

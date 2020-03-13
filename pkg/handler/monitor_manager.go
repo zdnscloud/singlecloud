@@ -78,41 +78,46 @@ func createSysApplication(ctx *restresource.Context, cluster *zke.Cluster, app *
 }
 
 func (m *MonitorManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
-	monitor, err := m.get(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if monitor == nil {
-		return nil, nil
-	}
-	return []*types.Monitor{monitor.(*types.Monitor)}, nil
-}
-
-func (m *MonitorManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
-	id := ctx.Resource.GetID()
-	if id != monitorAppName {
-		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("monitor %s doesn't exist", id))
-	}
-	return m.get(ctx)
-}
-
-func (m *MonitorManager) get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
 		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
-	k8sAppCRD, err := getApplication(cluster.GetKubeClient(), ZCloudNamespace, monitorAppName, true)
+	monitor, err := m.get(cluster.GetKubeClient())
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if err.ErrorCode == resterr.NotFound {
 			return nil, nil
 		}
-		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("get cluster %s application monitor by chart name %s failed %s", cluster.Name, monitorChartName, err.Error()))
+		return nil, err
+	}
+	return []*types.Monitor{monitor.(*types.Monitor)}, nil
+}
+
+func (m *MonitorManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
+	}
+
+	id := ctx.Resource.GetID()
+	if id != monitorAppName {
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("monitor %s doesn't exist", id))
+	}
+	return m.get(cluster.GetKubeClient())
+}
+
+func (m *MonitorManager) get(cli client.Client) (restresource.Resource, *resterr.APIError) {
+	k8sAppCRD, err := getApplication(cli, ZCloudNamespace, monitorAppName, true)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get application monitor by chart name %s failed %s", monitorChartName, err.Error()))
 	}
 
 	monitor, err := genRetrunMonitorFromApplication(k8sAppCRD)
 	if err != nil {
-		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("parse k8s app crd to monitor failed: %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("parse k8s app crd to monitor failed: %s", err.Error()))
 	}
 	return monitor, nil
 }

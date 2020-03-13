@@ -60,12 +60,12 @@ func createWorkFlowTask(cli client.Client, namespace, wfID string, wft *types.Wo
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
 		}
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get owner workflow failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get owner workflow failed %s", err.Error()))
 	}
 
 	tasks, err := getWorkFlowTasks(cli, namespace, wfID)
 	if err != nil {
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get workflowtasks failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get workflowtasks failed %s", err.Error()))
 	}
 
 	if IsNoCompleteTaskExists(tasks) {
@@ -74,15 +74,15 @@ func createWorkFlowTask(cli client.Client, namespace, wfID string, wft *types.Wo
 
 	pipelineRun, err := genPipelineRun(cli, namespace, wf, wft)
 	if err != nil {
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("gen workflowtask failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("gen workflowtask failed %s", err.Error()))
 	}
 
 	if err := cli.Create(context.TODO(), pipelineRun); err != nil {
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("create k8s workflowtask failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("create k8s workflowtask failed %s", err.Error()))
 	}
 
 	if err := updateWorkFlowLastestIDAnnotation(cli, namespace, wfID, pipelineRun.Name); err != nil {
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update workflow lastest task id annotation failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("update workflow lastest task id annotation failed %s", err.Error()))
 	}
 
 	wft.SetID(pipelineRun.Name)
@@ -122,7 +122,7 @@ func (m *WorkFlowTaskManager) Get(ctx *resource.Context) (resource.Resource, *re
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("workflowtask %s doesn't exist", id))
 		}
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get namespace %s workflow %s failed %s", ns, id, err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get namespace %s workflow %s failed %s", ns, id, err.Error()))
 	}
 	return wft, nil
 }
@@ -217,7 +217,7 @@ func (m *WorkFlowTaskManager) List(ctx *resource.Context) (interface{}, *resterr
 
 	ts, err := getWorkFlowTasks(cluster.GetKubeClient(), ns, wfID)
 	if err != nil {
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("list workflow task of %s-%s failed %s", ns, wfID, err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list workflow task of %s-%s failed %s", ns, wfID, err.Error()))
 	}
 	return ts, nil
 }

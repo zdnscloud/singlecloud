@@ -43,7 +43,7 @@ func (m *NodeManager) Get(ctx *restresource.Context) (restresource.Resource, *re
 	k8sNode, err := getK8SNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get node %s failed:%s", node.GetID(), err.Error()))
+			return nil, resterror.NewAPIError(resterr.ServerError, fmt.Sprintf("get node %s failed:%s", node.GetID(), err.Error()))
 		}
 		return nil, nil
 	}
@@ -60,7 +60,7 @@ func (m *NodeManager) List(ctx *restresource.Context) (interface{}, *resterror.A
 
 	nodes, err := getNodes(cluster.GetKubeClient())
 	if err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list nodes failed:%s", err.Error()))
+		return nil, resterror.NewAPIError(resterr.ServerError, fmt.Sprintf("list nodes failed:%s", err.Error()))
 	}
 
 	return nodes, nil
@@ -255,7 +255,7 @@ func cordonNode(cli client.Client, name string) *resterr.APIError {
 
 	node.Spec.Unschedulable = true
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
@@ -280,7 +280,7 @@ func drainNode(cli client.Client, name string) *resterr.APIError {
 
 	node.Spec.Unschedulable = true
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
@@ -307,7 +307,7 @@ func uncordonNode(cli client.Client, name string) *resterr.APIError {
 	}
 
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
@@ -331,7 +331,7 @@ func getK8sNodeIfNotControlplaneOrStorage(cli client.Client, name string) (*core
 		if apierrors.IsNotFound(err) {
 			return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("node %s desn't exist", name))
 		}
-		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, err.Error())
+		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
 	if checkNodeByRole(node, types.RoleControlPlane) {

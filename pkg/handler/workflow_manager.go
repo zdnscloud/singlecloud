@@ -57,7 +57,7 @@ func (m *WorkFlowManager) Create(ctx *resource.Context) (resource.Resource, *res
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, "workflow already exists")
 		}
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("create workflow %s failed %s", wf.Name, err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("create workflow %s failed %s", wf.Name, err.Error()))
 	}
 	return wf, nil
 }
@@ -68,7 +68,7 @@ func preCheckDeploymentExist(cli client.Client, namespace, name string) *resterr
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get deploy failed for pre check deploy name %s", err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get deploy failed for pre check deploy name %s", err.Error()))
 	}
 	return resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("workflow deploy %s already exist", name))
 }
@@ -145,7 +145,7 @@ func (m *WorkFlowManager) Get(ctx *resource.Context) (resource.Resource, *rester
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("workflow %s doesn't exist", id))
 		}
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get workflow %s failed %s", id, err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get workflow %s failed %s", id, err.Error()))
 	}
 	return wf, nil
 }
@@ -205,7 +205,7 @@ func (m *WorkFlowManager) List(ctx *resource.Context) (interface{}, *resterror.A
 
 	wfs, err := getWorkFlows(cluster.GetKubeClient(), ns)
 	if err != nil {
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("list %s workflow failed %s", ns, err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list %s workflow failed %s", ns, err.Error()))
 	}
 	return wfs, nil
 }
@@ -243,13 +243,13 @@ func (m *WorkFlowManager) Update(ctx *resource.Context) (resource.Resource, *res
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
 		}
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get workflow %s failed %s", newer.GetID(), err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get workflow %s failed %s", newer.GetID(), err.Error()))
 	}
 	newer.AutoDeploy = older.AutoDeploy
 	newer.Name = older.Name
 
 	if err := updateWorkFlow(cluster.GetKubeClient(), ns, newer); err != nil {
-		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update workflow %s failed %s", newer.Name, err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("update workflow %s failed %s", newer.Name, err.Error()))
 	}
 	return newer, nil
 }
@@ -279,7 +279,7 @@ func (m *WorkFlowManager) Delete(ctx *resource.Context) *resterror.APIError {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, "workflow doesn't exist")
 		}
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("delete workflow %s failed %s", id, err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete workflow %s failed %s", id, err.Error()))
 	}
 	return nil
 }
@@ -327,10 +327,10 @@ func (m *WorkFlowManager) Action(ctx *resource.Context) (interface{}, *resterror
 
 func emptyWorkFlowTask(cli client.Client, namespace, name string) *resterror.APIError {
 	if err := updateWorkFlowLastestIDAnnotation(cli, namespace, name, ""); err != nil {
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("update namespace %s workflow %s latest id annotation failed %s", namespace, name, err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("update namespace %s workflow %s latest id annotation failed %s", namespace, name, err.Error()))
 	}
 	if err := deletePipelineRunsByWorkFlowName(cli, namespace, name); err != nil {
-		return resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("delete namespace %s workflow %s pipelineruns failed %s", namespace, name, err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete namespace %s workflow %s pipelineruns failed %s", namespace, name, err.Error()))
 	}
 	return nil
 }
