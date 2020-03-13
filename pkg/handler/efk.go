@@ -6,8 +6,9 @@ import (
 	"math/rand"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
-	"github.com/zdnscloud/cement/log"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
@@ -73,40 +74,44 @@ func (m *EFKManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	return nil
 }
 
-func (m *EFKManager) List(ctx *restresource.Context) interface{} {
-	efk := m.get(ctx)
-	if efk == nil {
-		return nil
-	} else {
-		return []*types.EFK{efk.(*types.EFK)}
+func (m *EFKManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
+	efk, err := m.get(ctx)
+	if err != nil {
+		return nil, err
 	}
+	if efk == nil {
+		return nil, nil
+	}
+	return []*types.EFK{efk.(*types.EFK)}, nil
 }
 
-func (m *EFKManager) Get(ctx *restresource.Context) restresource.Resource {
+func (m *EFKManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	id := ctx.Resource.GetID()
 	if id != efkAppName {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("efk %s doesn't exist", id))
 	}
 	return m.get(ctx)
 }
 
-func (m *EFKManager) get(ctx *restresource.Context) restresource.Resource {
+func (m *EFKManager) get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	k8sAppCRD, err := getApplication(cluster.GetKubeClient(), ZCloudNamespace, efkAppName, true)
 	if err != nil {
-		log.Warnf("get cluster %s application efk by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
-		return nil
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("get cluster %s application efk by chart name %s failed %s", cluster.Name, efkAppName, err.Error()))
 	}
 
 	efk, err := genEFKFromApp(k8sAppCRD)
 	if err != nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("parse k8s app crd to efk failed: %s", err.Error()))
 	}
-	return efk
+	return efk, nil
 }
 
 func genEFKFromApp(app *appv1beta1.Application) (*types.EFK, error) {

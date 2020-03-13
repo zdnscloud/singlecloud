@@ -13,7 +13,6 @@ import (
 
 	tektonv1alpha1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	tektonv1alpha2 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha2"
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -109,10 +108,10 @@ func IsNoCompleteTaskExists(ts []*types.WorkFlowTask) bool {
 	return false
 }
 
-func (m *WorkFlowTaskManager) Get(ctx *resource.Context) resource.Resource {
+func (m *WorkFlowTaskManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	ns := ctx.Resource.GetParent().GetParent().GetID()
@@ -121,12 +120,11 @@ func (m *WorkFlowTaskManager) Get(ctx *resource.Context) resource.Resource {
 	wft, err := getWorkFlowTask(cluster.GetKubeClient(), ns, id)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("workflowtask %s doesn't exist", id))
 		}
-		log.Warnf("get namespace %s workflow %s failed %s", ns, id, err.Error())
-		return nil
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get namespace %s workflow %s failed %s", ns, id, err.Error()))
 	}
-	return wft
+	return wft, nil
 }
 
 func getWorkFlowTask(cli client.Client, namespace, name string) (*types.WorkFlowTask, error) {
@@ -208,10 +206,10 @@ func k8sPipelineRunToWorkFlowSubTasks(p tektonv1alpha1.PipelineRun) []types.Work
 	return tasks
 }
 
-func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
+func (m *WorkFlowTaskManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	ns := ctx.Resource.GetParent().GetParent().GetID()
@@ -219,10 +217,9 @@ func (m *WorkFlowTaskManager) List(ctx *resource.Context) interface{} {
 
 	ts, err := getWorkFlowTasks(cluster.GetKubeClient(), ns, wfID)
 	if err != nil {
-		log.Warnf("list workflow task of %s-%s failed %s", ns, wfID, err.Error())
-		return nil
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("list workflow task of %s-%s failed %s", ns, wfID, err.Error()))
 	}
-	return ts
+	return ts, nil
 }
 
 func getWorkFlowTasks(cli client.Client, namespace, workFlowName string) ([]*types.WorkFlowTask, error) {

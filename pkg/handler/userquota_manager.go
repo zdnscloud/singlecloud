@@ -12,7 +12,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -75,27 +74,25 @@ func (m *UserQuotaManager) Create(ctx *resource.Context) (resource.Resource, *re
 	return userQuota, nil
 }
 
-func (m *UserQuotaManager) List(ctx *resource.Context) interface{} {
+func (m *UserQuotaManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	userName := getCurrentUser(ctx)
 	tx, err := m.db.Begin()
 	if err != nil {
-		log.Warnf("list user quota info failed: %s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list user %s quotas failed %s", userName, err.Error()))
 	}
 
 	defer tx.Commit()
 	values, err := tx.List()
 	if err != nil {
-		log.Warnf("list user quota info failed: %s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list user %s quotas failed %s", userName, err.Error()))
 	}
 
 	var userQuotas types.UserQuotas
 	for _, value := range values {
 		quota, err := storageResourceValueToSCUserQuota(value)
 		if err != nil {
-			log.Warnf("list user quota info when unmarshal resource value failed: %s", err.Error())
-			return nil
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("list user %s quotas failed %s", userName, err.Error()))
 		}
 
 		if isAdmin(userName) == false && quota.UserName != userName {
@@ -106,31 +103,29 @@ func (m *UserQuotaManager) List(ctx *resource.Context) interface{} {
 	}
 
 	sort.Sort(userQuotas)
-	return userQuotas
+	return userQuotas, nil
 }
 
-func (m *UserQuotaManager) Get(ctx *resource.Context) resource.Resource {
+func (m *UserQuotaManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	userName := getCurrentUser(ctx)
 	userQuota := ctx.Resource.(*types.UserQuota)
 	tx, err := m.db.Begin()
 	if err != nil {
-		log.Warnf("get user quota info failed: %s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get user %s quota failed %s", userName, err.Error()))
 	}
 
 	defer tx.Commit()
 	quota, err := getUserQuotaFromDB(tx, userQuota.GetID())
 	if err != nil {
-		log.Warnf("get user quota info failed: %s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get user %s quota failed %s", userName, err.Error()))
 	}
 
 	if isAdmin(userName) == false && quota.UserName != userName {
-		log.Warnf("no found user quota %s for user %s", userQuota.GetID(), userName)
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("no found user quota %s for user %s", userQuota.GetID(), userName))
 	}
 
-	return quota
+	return quota, nil
 }
 
 func (m *UserQuotaManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {

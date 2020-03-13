@@ -12,10 +12,10 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	resterr "github.com/zdnscloud/gorest/error"
+	resterror "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -32,10 +32,10 @@ func newNodeManager(clusters *ClusterManager) *NodeManager {
 	return &NodeManager{clusters: clusters}
 }
 
-func (m *NodeManager) Get(ctx *restresource.Context) restresource.Resource {
+func (m *NodeManager) Get(ctx *restresource.Context) (restresource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	node := ctx.Resource.(*types.Node)
@@ -43,23 +43,27 @@ func (m *NodeManager) Get(ctx *restresource.Context) restresource.Resource {
 	k8sNode, err := getK8SNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Warnf("get node info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get node %s failed:%s", node.GetID(), err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	name := node.GetID()
-	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name))
+	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name)), nil
 }
 
-func (m *NodeManager) List(ctx *restresource.Context) interface{} {
+func (m *NodeManager) List(ctx *restresource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
-	nodes, _ := getNodes(cluster.GetKubeClient())
-	return nodes
+	nodes, err := getNodes(cluster.GetKubeClient())
+	if err != nil {
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list nodes failed:%s", err.Error()))
+	}
+
+	return nodes, nil
 }
 
 func getNodes(cli client.Client) ([]*types.Node, error) {

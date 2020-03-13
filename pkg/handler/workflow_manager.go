@@ -131,10 +131,10 @@ func workFlowCreateFailBack(cli client.Client, namespace, name string, objs []ru
 	}
 }
 
-func (m *WorkFlowManager) Get(ctx *resource.Context) resource.Resource {
+func (m *WorkFlowManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	ns := ctx.Resource.GetParent().GetID()
@@ -143,11 +143,11 @@ func (m *WorkFlowManager) Get(ctx *resource.Context) resource.Resource {
 	wf, err := getWorkFlow(cluster.GetKubeClient(), ns, id)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("workflow %s doesn't exist", id))
 		}
-		log.Warnf("get namespace %s workflow %s failed %s", ns, id, err.Error())
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("get workflow %s failed %s", id, err.Error()))
 	}
-	return wf
+	return wf, nil
 }
 
 func getWorkFlow(cli client.Client, namespace, name string) (*types.WorkFlow, error) {
@@ -196,18 +196,18 @@ func getWorkFlowSubTasksAndStatus(cli client.Client, namespace, wftID string) ([
 	return wft.SubTasks, wft.Status, nil
 }
 
-func (m *WorkFlowManager) List(ctx *resource.Context) interface{} {
+func (m *WorkFlowManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 	ns := ctx.Resource.GetParent().GetID()
 
 	wfs, err := getWorkFlows(cluster.GetKubeClient(), ns)
 	if err != nil {
-		log.Warnf("list %s workflow failed %s", ns, err.Error())
+		return nil, resterror.NewAPIError(resterror.ClusterUnavailable, fmt.Sprintf("list %s workflow failed %s", ns, err.Error()))
 	}
-	return wfs
+	return wfs, nil
 }
 
 func getWorkFlows(cli client.Client, namespace string) ([]*types.WorkFlow, error) {

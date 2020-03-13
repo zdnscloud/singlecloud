@@ -30,7 +30,7 @@ import (
 const (
 	WorkloadAPIVersion                = "apps/v1"
 	PrometheusAdapterNamespace        = "zcloud"
-	PrometheusAdapter                 = "prometheus-adapter"
+	PrometheusAdapter                 = "monitor-prometheus-adapter"
 	PrometheusAdapterConfigMapDataKey = "config.yaml"
 
 	SeriesQueryTemplate   = "{__name__=~\"%s\",kubernetes_pod_name!=\"\",kubernetes_namespace=\"%s\"}"
@@ -394,19 +394,19 @@ func updatePrometheusAdapterConfigMap(cli client.Client, oldRules, newRules []Ru
 	return nil
 }
 
-func (m *HorizontalPodAutoscalerManager) List(ctx *resource.Context) interface{} {
+func (m *HorizontalPodAutoscalerManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sHpas, err := getHPAs(cluster.GetKubeClient(), namespace, nil)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list horizontalpodautoscaler info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list hpas failed:%s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var hpas []*types.HorizontalPodAutoscaler
@@ -414,7 +414,7 @@ func (m *HorizontalPodAutoscalerManager) List(ctx *resource.Context) interface{}
 		hpas = append(hpas, k8sHpaToScHpa(&item))
 	}
 
-	return hpas
+	return hpas, nil
 }
 
 func getHPAs(cli client.Client, namespace string, selector labels.Selector) (*asv2beta2.HorizontalPodAutoscalerList, error) {
@@ -526,10 +526,10 @@ func k8sMetricSpecToScCustomMetricSpec(namespace, hpaName, metricName string, se
 	}
 }
 
-func (m *HorizontalPodAutoscalerManager) Get(ctx *resource.Context) resource.Resource {
+func (m *HorizontalPodAutoscalerManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -537,12 +537,12 @@ func (m *HorizontalPodAutoscalerManager) Get(ctx *resource.Context) resource.Res
 	k8sHpa, err := getHPA(cluster.GetKubeClient(), namespace, hpa.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get horizontalpodautoscaler info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get hpa %s failed:%s", hpa.GetID(), err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
-	return k8sHpaToScHpa(k8sHpa)
+	return k8sHpaToScHpa(k8sHpa), nil
 }
 
 func getHPA(cli client.Client, namespace, name string) (*asv2beta2.HorizontalPodAutoscaler, error) {
