@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -47,32 +46,32 @@ func (m *CronJobManager) Create(ctx *resource.Context) (resource.Resource, *rest
 	return cronJob, nil
 }
 
-func (m *CronJobManager) List(ctx *resource.Context) interface{} {
+func (m *CronJobManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sCronJobs, err := getCronJobs(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list cronJob info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list cronJobs failed %s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var cronJobs []*types.CronJob
 	for _, item := range k8sCronJobs.Items {
 		cronJobs = append(cronJobs, k8sCronJobToScCronJob(&item))
 	}
-	return cronJobs
+	return cronJobs, nil
 }
 
-func (m *CronJobManager) Get(ctx *resource.Context) resource.Resource {
+func (m *CronJobManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -80,12 +79,13 @@ func (m *CronJobManager) Get(ctx *resource.Context) resource.Resource {
 	k8sCronJob, err := getCronJob(cluster.GetKubeClient(), namespace, cronJob.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get cronJob info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("get cronJob %s failed %s", cronJob.GetID(), err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
-	return k8sCronJobToScCronJob(k8sCronJob)
+	return k8sCronJobToScCronJob(k8sCronJob), nil
 }
 
 func (m *CronJobManager) Delete(ctx *resource.Context) *resterror.APIError {

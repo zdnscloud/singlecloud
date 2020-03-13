@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -46,32 +45,32 @@ func (m *LimitRangeManager) Create(ctx *resource.Context) (resource.Resource, *r
 	return limitRange, nil
 }
 
-func (m *LimitRangeManager) List(ctx *resource.Context) interface{} {
+func (m *LimitRangeManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sLimitRanges, err := getLimitRanges(cluster.GetKubeClient(), namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list limitRange info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list limitRange failed %s", err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
 	var limitRanges []*types.LimitRange
 	for _, item := range k8sLimitRanges.Items {
 		limitRanges = append(limitRanges, k8sLimitRangeToSCLimitRange(&item))
 	}
-	return limitRanges
+	return limitRanges, nil
 }
 
-func (m *LimitRangeManager) Get(ctx *resource.Context) resource.Resource {
+func (m *LimitRangeManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -79,12 +78,13 @@ func (m *LimitRangeManager) Get(ctx *resource.Context) resource.Resource {
 	k8sLimitRange, err := getLimitRange(cluster.GetKubeClient(), namespace, limitRange.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get limitRange info failed:%s", err.Error())
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+				fmt.Sprintf("get limitRange %s failed %s", limitRange.GetID(), err.Error()))
 		}
-		return nil
+		return nil, nil
 	}
 
-	return k8sLimitRangeToSCLimitRange(k8sLimitRange)
+	return k8sLimitRangeToSCLimitRange(k8sLimitRange), nil
 }
 
 func (m *LimitRangeManager) Delete(ctx *resource.Context) *resterror.APIError {

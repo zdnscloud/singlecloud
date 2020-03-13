@@ -18,6 +18,7 @@ import (
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
+	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -64,31 +65,29 @@ func newChartManager(chartDir, repoUrl string) *ChartManager {
 	return &ChartManager{chartDir: chartDir}
 }
 
-func (m *ChartManager) List(ctx *resource.Context) interface{} {
+func (m *ChartManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	charts, err := getLocalCharts(m.chartDir, false)
 	if err != nil {
-		log.Warnf("list charts info failed:%s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list charts info failed:%s", err.Error()))
 	}
 
 	if len(charts) == 0 {
 		log.Warnf("no found valid chart in dir %s", m.chartDir)
-		return nil
+		return nil, nil
 	}
 
 	sort.Sort(charts)
-	return charts
+	return charts, nil
 }
 
-func (m *ChartManager) Get(ctx *resource.Context) resource.Resource {
+func (m *ChartManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	chartID := ctx.Resource.(*types.Chart).GetID()
 	chart, err := getLocalChart(m.chartDir, chartID, false)
 	if err != nil {
-		log.Warnf("get chart %s failed:%s", chart.Name, err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get chart %s failed:%s", chart.Name, err.Error()))
 	}
 
-	return chart
+	return chart, nil
 }
 
 func getLocalChart(chartDir, chartName string, needSystemChart bool) (*types.Chart, error) {

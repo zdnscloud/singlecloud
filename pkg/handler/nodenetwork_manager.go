@@ -1,7 +1,9 @@
 package handler
 
 import (
-	"github.com/zdnscloud/cement/log"
+	"fmt"
+
+	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	ca "github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -17,16 +19,15 @@ func newNodeNetworkManager(clusters *ClusterManager) *NodeNetworkManager {
 	}
 }
 
-func (m *NodeNetworkManager) List(ctx *resource.Context) interface{} {
+func (m *NodeNetworkManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	var networks []*types.NodeNetwork
 	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &networks); err != nil {
-		log.Warnf("get nodenetworks info failed:%s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list nodenetworks failed:%s", err.Error()))
 	}
-	return networks
+	return networks, nil
 }

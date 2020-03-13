@@ -1,10 +1,11 @@
 package handler
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
-	"github.com/zdnscloud/cement/log"
+	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	ca "github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -18,35 +19,34 @@ func newSvcMeshWorkloadManager(clusters *ClusterManager) *SvcMeshWorkloadManager
 	return &SvcMeshWorkloadManager{clusters: clusters}
 }
 
-func (m *SvcMeshWorkloadManager) List(ctx *resource.Context) interface{} {
+func (m *SvcMeshWorkloadManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	var workloads types.SvcMeshWorkloads
 	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &workloads); err != nil {
-		log.Warnf("list svcmeshworkloads info failed:%s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list svcmeshworkloads failed:%s", err.Error()))
 	}
 
-	return workloads
+	return workloads, nil
 }
 
-func (m *SvcMeshWorkloadManager) Get(ctx *resource.Context) resource.Resource {
+func (m *SvcMeshWorkloadManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	workload := &types.SvcMeshWorkload{}
 	if err := ca.GetAgent().GetResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), workload); err != nil {
-		log.Warnf("get svcmeshworkload failed:%s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("get svcmeshworkload %s failed:%s", workload.GetID(), err.Error()))
 	}
 
 	setWorkloadRelativeResourceLink(ctx.Request.URL.Path, workload)
-	return workload
+	return workload, nil
 }
 
 func genClusterAgentURL(path, cluster string) string {
