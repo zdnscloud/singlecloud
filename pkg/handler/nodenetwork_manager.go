@@ -27,7 +27,7 @@ func (m *NodeNetworkManager) List(ctx *resource.Context) (interface{}, *resterro
 
 	var networks []*types.NodeNetwork
 	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &networks); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list nodenetworks failed:%s", err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list nodenetworks failed:%s", err.Error()))
 	}
 	return networks, nil
 }

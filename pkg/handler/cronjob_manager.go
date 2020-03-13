@@ -37,9 +37,8 @@ func (m *CronJobManager) Create(ctx *resource.Context) (resource.Resource, *rest
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate cronJob name %s", cronJob.Name))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create cronJob failed %s", err.Error()))
 		}
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create cronJob failed %s", err.Error()))
 	}
 
 	cronJob.SetID(cronJob.Name)
@@ -49,16 +48,15 @@ func (m *CronJobManager) Create(ctx *resource.Context) (resource.Resource, *rest
 func (m *CronJobManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sCronJobs, err := getCronJobs(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list cronJobs failed %s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found cronjobs")
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list cronJobs failed %s", err.Error()))
 	}
 
 	var cronJobs []*types.CronJob
@@ -78,11 +76,10 @@ func (m *CronJobManager) Get(ctx *resource.Context) (resource.Resource, *resterr
 	cronJob := ctx.Resource.(*types.CronJob)
 	k8sCronJob, err := getCronJob(cluster.GetKubeClient(), namespace, cronJob.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("get cronJob %s failed %s", cronJob.GetID(), err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found cronjob %s", cronJob.GetID()))
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get cronJob %s failed %s", cronJob.GetID(), err.Error()))
 	}
 
 	return k8sCronJobToScCronJob(k8sCronJob), nil
@@ -98,11 +95,9 @@ func (m *CronJobManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cronJob := ctx.Resource.(*types.CronJob)
 	if err := deleteCronJob(cluster.GetKubeClient(), namespace, cronJob.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound,
-				fmt.Sprintf("cronJob %s with namespace %s desn't exist", cronJob.GetID(), namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete cronJob failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("cronJob %s doesn't exist", cronJob.GetID()))
 		}
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete cronJob failed %s", err.Error()))
 	}
 
 	return nil

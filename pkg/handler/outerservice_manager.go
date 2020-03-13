@@ -27,7 +27,7 @@ func (m *OuterServiceManager) List(ctx *resource.Context) (interface{}, *resterr
 
 	var svcs []*types.OuterService
 	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &svcs); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list outerservices failed:%s", err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list outerservices failed:%s", err.Error()))
 	}
 	return svcs, nil
 }

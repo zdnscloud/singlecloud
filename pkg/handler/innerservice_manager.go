@@ -27,7 +27,7 @@ func (m *InnerServiceManager) List(ctx *resource.Context) (interface{}, *resterr
 
 	var svcs []*types.InnerService
 	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &svcs); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get innerservices failed:%s", err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get innerservices failed:%s", err.Error()))
 	}
 
 	return svcs, nil

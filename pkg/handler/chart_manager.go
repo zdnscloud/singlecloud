@@ -68,7 +68,7 @@ func newChartManager(chartDir, repoUrl string) *ChartManager {
 func (m *ChartManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	charts, err := getLocalCharts(m.chartDir, false)
 	if err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list charts info failed:%s", err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list charts info failed:%s", err.Error()))
 	}
 
 	if len(charts) == 0 {
@@ -84,7 +84,7 @@ func (m *ChartManager) Get(ctx *resource.Context) (resource.Resource, *resterror
 	chartID := ctx.Resource.(*types.Chart).GetID()
 	chart, err := getLocalChart(m.chartDir, chartID, false)
 	if err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get chart %s failed:%s", chart.Name, err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get chart %s failed:%s", chart.Name, err.Error()))
 	}
 
 	return chart, nil

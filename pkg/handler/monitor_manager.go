@@ -233,24 +233,26 @@ func getAppConfigsFromAnnotations(app *appv1beta1.Application, appConfigs interf
 
 func ensureApplicationSucceedOrDie(cli client.Client, appName string) {
 	for i := 0; i < sysApplicationCheckTimes; i++ {
-		app, exists, err := getApplicationIfExists(cli, ZCloudNamespace, appName, true)
+		app, err := getApplication(cli, ZCloudNamespace, appName, true)
 		if err != nil {
-			log.Warnf("get system application %s failed %s", appName, err.Error())
-			return
-		}
-
-		if exists {
-			switch app.Status.State {
-			case appv1beta1.ApplicationStatusStateFailed:
-				if err := deleteApplication(cli, ZCloudNamespace, appName, true); err != nil {
-					log.Warnf("delete system application %s failed %s", appName, err.Error())
-					return
-				}
-			case appv1beta1.ApplicationStatusStateSucceed:
-				log.Infof("create system application %s succeed", appName)
+			if apierrors.IsNotFound(err) == false {
+				log.Warnf("get system application %s failed %s", appName, err.Error())
 				return
+			} else {
+				time.Sleep(sysApplicationCheckInterval)
+				continue
 			}
 		}
-		time.Sleep(sysApplicationCheckInterval)
+
+		switch app.Status.State {
+		case appv1beta1.ApplicationStatusStateFailed:
+			if err := deleteApplication(cli, ZCloudNamespace, appName, true); err != nil {
+				log.Warnf("delete system application %s failed %s", appName, err.Error())
+				return
+			}
+		case appv1beta1.ApplicationStatusStateSucceed:
+			log.Infof("create system application %s succeed", appName)
+			return
+		}
 	}
 }

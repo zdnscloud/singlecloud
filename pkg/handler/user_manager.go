@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/zdnscloud/cement/log"
@@ -54,7 +55,7 @@ func (m *UserManager) Get(ctx *restresource.Context) (restresource.Resource, *re
 	if user := m.authorizer.GetUser(target); user != nil {
 		return user, nil
 	} else {
-		return nil, nil
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("no found user %s", target))
 	}
 }
 

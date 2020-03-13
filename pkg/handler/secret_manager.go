@@ -40,9 +40,8 @@ func (m *SecretManager) Create(ctx *resource.Context) (resource.Resource, *reste
 	if err := createSecret(cluster.GetKubeClient(), namespace, secret); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate secret name %s", secret.Name))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create secret failed %s", err.Error()))
 		}
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create secret failed %s", err.Error()))
 	}
 
 	secret.SetID(secret.Name)
@@ -58,7 +57,10 @@ func (m *SecretManager) Update(ctx *resource.Context) (resource.Resource, *reste
 	namespace := ctx.Resource.GetParent().GetID()
 	secret := ctx.Resource.(*types.Secret)
 	if err := updateSecret(cluster.GetKubeClient(), namespace, secret); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update secret failed %s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found secret %s", secret.GetID()))
+		}
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("update secret %s failed %s", secret.GetID(), err.Error()))
 	} else {
 		return secret, nil
 	}
@@ -73,10 +75,10 @@ func (m *SecretManager) List(ctx *resource.Context) (interface{}, *resterror.API
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sSecrets, err := getSecrets(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list secrets failed %s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found secrets")
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list secrets failed %s", err.Error()))
 	}
 
 	var secrets []*types.Secret
@@ -96,11 +98,10 @@ func (m SecretManager) Get(ctx *resource.Context) (resource.Resource, *resterror
 	secret := ctx.Resource.(*types.Secret)
 	k8sSecret, err := getSecret(cluster.GetKubeClient(), namespace, secret.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("get secret %s failed %s", secret.GetID(), err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found secret %s", secret.GetID()))
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get secret %s failed %s", secret.GetID(), err.Error()))
 	}
 
 	return k8sSecretToSCSecret(k8sSecret), nil
@@ -109,7 +110,7 @@ func (m SecretManager) Get(ctx *resource.Context) (resource.Resource, *resterror
 func (m SecretManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn`t exists")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -117,10 +118,9 @@ func (m SecretManager) Delete(ctx *resource.Context) *resterror.APIError {
 	err := deleteSecret(cluster.GetKubeClient(), namespace, secret.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("secret %s desn't exist", namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete secret failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found secret %s", secret.GetID()))
 		}
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete secret failed %s", err.Error()))
 	}
 	return nil
 }

@@ -27,7 +27,7 @@ func (m *SvcMeshWorkloadManager) List(ctx *resource.Context) (interface{}, *rest
 
 	var workloads types.SvcMeshWorkloads
 	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &workloads); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list svcmeshworkloads failed:%s", err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list svcmeshworkloads failed:%s", err.Error()))
 	}
 
 	return workloads, nil
@@ -41,7 +41,7 @@ func (m *SvcMeshWorkloadManager) Get(ctx *resource.Context) (resource.Resource, 
 
 	workload := &types.SvcMeshWorkload{}
 	if err := ca.GetAgent().GetResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), workload); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(resterror.ServerError,
 			fmt.Sprintf("get svcmeshworkload %s failed:%s", workload.GetID(), err.Error()))
 	}
 

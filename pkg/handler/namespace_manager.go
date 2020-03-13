@@ -73,10 +73,10 @@ func (m *NamespaceManager) List(ctx *resource.Context) (interface{}, *resterror.
 
 	k8sNamespaces, err := getNamespaces(cluster.GetKubeClient())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list namespaces failed:%s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found namespaces")
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list namespaces failed %s", err.Error()))
 	}
 
 	user := getCurrentUser(ctx)
@@ -111,10 +111,10 @@ func (m *NamespaceManager) Get(ctx *resource.Context) (resource.Resource, *reste
 
 	namespace, err := getNamespaceInfo(cluster.GetKubeClient(), namespace.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("get namespace %s failed:%s", namespace.GetID(), err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found namespace %s", namespace.GetID()))
 		}
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get namespace %s failed %s", namespace.GetID(), err.Error()))
 	}
 
 	return namespace, nil
@@ -137,7 +137,7 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.(*types.Namespace)
 	exits, err := m.isExistsInUserQuotaTable(namespace.GetID())
 	if err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(resterror.NotFound,
 			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))
 	}
 
@@ -150,7 +150,7 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))
 		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete namespace failed %s", err.Error()))
 		}
 	} else {
 		eb.PublishResourceDeleteEvent(namespace)

@@ -92,7 +92,7 @@ func (m *UDPIngressManager) List(ctx *resource.Context) (interface{}, *resterror
 	namespace := ctx.Resource.GetParent().GetID()
 	ingresses, err := getTransportLayerIngress(cluster.GetKubeClient(), namespace, "")
 	if err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list udp ingresses failed %s", err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list udp ingresses failed:%s", err.Error()))
 	}
 	return ingresses, nil
 }
@@ -104,13 +104,14 @@ func (m *UDPIngressManager) Get(ctx *resource.Context) (resource.Resource, *rest
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
-	udpRules, err := getTransportLayerIngress(cluster.GetKubeClient(), namespace, ctx.Resource.GetID())
+	udpIngressName := ctx.Resource.GetID()
+	udpRules, err := getTransportLayerIngress(cluster.GetKubeClient(), namespace, udpIngressName)
 	if err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get udp ingress failed %s", err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get udp ingress failed: %s", err.Error()))
 	} else if len(udpRules) == 1 {
 		return udpRules[0], nil
 	} else {
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found udp ingress %s", udpIngressName))
 	}
 }
 
@@ -122,7 +123,7 @@ func (m *UDPIngressManager) Delete(ctx *resource.Context) *resterror.APIError {
 
 	hasIngress, err := deleteTransportLayerIngress(cluster.GetKubeClient(), ctx.Resource.GetID())
 	if err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete ingress failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete ingress failed %s", err.Error()))
 	} else if hasIngress == false {
 		return resterror.NewAPIError(resterror.NotFound, "udp ingress doesn't exist")
 	} else {

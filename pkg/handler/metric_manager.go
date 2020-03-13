@@ -25,7 +25,7 @@ func (m *MetricManager) List(ctx *resource.Context) (interface{}, *resterror.API
 
 	var metrics []*types.Metric
 	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &metrics); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list metrics failed:%s", err.Error()))
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list metrics failed:%s", err.Error()))
 	}
 
 	return metrics, nil

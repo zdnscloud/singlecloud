@@ -81,10 +81,10 @@ func (m *ServiceManager) List(ctx *resource.Context) (interface{}, *resterror.AP
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sServices, err := getServices(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list services failed %s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found services")
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list services failed %s", err.Error()))
 	}
 
 	var services []*types.Service
@@ -104,11 +104,10 @@ func (m *ServiceManager) Get(ctx *resource.Context) (resource.Resource, *resterr
 	service := ctx.Resource.(*types.Service)
 	k8sService, err := getService(cluster.GetKubeClient(), namespace, service.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("get service %s failed %s", service.GetID(), err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found service %s", service.GetID()))
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get service %s failed %s", service.GetID(), err.Error()))
 	}
 
 	return k8sServiceToSCService(k8sService), nil
@@ -117,7 +116,7 @@ func (m *ServiceManager) Get(ctx *resource.Context) (resource.Resource, *resterr
 func (m *ServiceManager) Delete(ctx *resource.Context) *resterror.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -125,10 +124,9 @@ func (m *ServiceManager) Delete(ctx *resource.Context) *resterror.APIError {
 	err := deleteService(cluster.GetKubeClient(), namespace, service.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("service %s desn't exist", namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete service failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found service %s", service.GetID()))
 		}
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete service %s failed %s", service.GetID(), err.Error()))
 	} else {
 		eventbus.PublishResourceDeleteEvent(service)
 	}

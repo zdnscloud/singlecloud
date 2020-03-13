@@ -36,9 +36,8 @@ func (m *JobManager) Create(ctx *resource.Context) (resource.Resource, *resterro
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate job name %s", job.Name))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create job failed %s", err.Error()))
 		}
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create job failed %s", err.Error()))
 	}
 
 	job.SetID(job.Name)
@@ -54,10 +53,10 @@ func (m *JobManager) List(ctx *resource.Context) (interface{}, *resterror.APIErr
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sJobs, err := getJobs(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list jobs failed %s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found jobs")
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list jobs failed %s", err.Error()))
 	}
 
 	var jobs []*types.Job
@@ -79,10 +78,10 @@ func (m *JobManager) Get(ctx *resource.Context) (resource.Resource, *resterror.A
 	job := ctx.Resource.(*types.Job)
 	k8sJob, err := getJob(cluster.GetKubeClient(), namespace, job.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get job %s failed %s", job.GetID(), err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found job %s", job.GetID()))
 		}
-		return nil, nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get job %s failed %s", job.GetID(), err.Error()))
 	}
 
 	return k8sJobToSCJob(k8sJob), nil
@@ -98,11 +97,9 @@ func (m *JobManager) Delete(ctx *resource.Context) *resterror.APIError {
 	job := ctx.Resource.(*types.Job)
 	if err := deleteJob(cluster.GetKubeClient(), namespace, job.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound,
-				fmt.Sprintf("job %s with namespace %s desn't exist", job.GetID(), namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete job failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found job %s", job.GetID()))
 		}
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete job %s failed %s", job.GetID(), err.Error()))
 	}
 
 	return nil

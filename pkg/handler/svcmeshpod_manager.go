@@ -27,7 +27,7 @@ func (m *SvcMeshPodManager) Get(ctx *resource.Context) (resource.Resource, *rest
 
 	pod := &types.SvcMeshPod{}
 	if err := ca.GetAgent().GetResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), pod); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(resterror.ServerError,
 			fmt.Sprintf("get svcmeshpod %s failed:%s", pod.GetID(), err.Error()))
 	}
 

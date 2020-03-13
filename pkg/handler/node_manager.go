@@ -15,7 +15,6 @@ import (
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	resterr "github.com/zdnscloud/gorest/error"
-	resterror "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -32,10 +31,10 @@ func newNodeManager(clusters *ClusterManager) *NodeManager {
 	return &NodeManager{clusters: clusters}
 }
 
-func (m *NodeManager) Get(ctx *restresource.Context) (restresource.Resource, *resterror.APIError) {
+func (m *NodeManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	node := ctx.Resource.(*types.Node)
@@ -43,24 +42,27 @@ func (m *NodeManager) Get(ctx *restresource.Context) (restresource.Resource, *re
 	k8sNode, err := getK8SNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get node %s failed:%s", node.GetID(), err.Error()))
+			return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("no found node %s", node.GetID()))
 		}
-		return nil, nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get node %s failed:%s", node.GetID(), err.Error()))
 	}
 
 	name := node.GetID()
 	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name)), nil
 }
 
-func (m *NodeManager) List(ctx *restresource.Context) (interface{}, *resterror.APIError) {
+func (m *NodeManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	nodes, err := getNodes(cluster.GetKubeClient())
 	if err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("list nodes failed:%s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found nodes")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("list nodes failed %s", err.Error()))
 	}
 
 	return nodes, nil
@@ -69,11 +71,7 @@ func (m *NodeManager) List(ctx *restresource.Context) (interface{}, *resterror.A
 func getNodes(cli client.Client) ([]*types.Node, error) {
 	k8sNodes, err := getK8SNodes(cli)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	podCountOnNode := getPodCountOnNode(cli, "")
