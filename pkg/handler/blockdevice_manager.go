@@ -2,12 +2,13 @@ package handler
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
+	resterr "github.com/zdnscloud/gorest/error"
 	resource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -23,17 +24,16 @@ func newBlockDeviceManager(clusters *ClusterManager) *BlockDeviceManager {
 	}
 }
 
-func (m *BlockDeviceManager) List(ctx *resource.Context) interface{} {
+func (m *BlockDeviceManager) List(ctx *resource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 	resp, err := getBlockDevices(cluster.Name, cluster.GetKubeClient(), clusteragent.GetAgent())
 	if err != nil {
-		log.Warnf("get blockdevices info failed:%s", err.Error())
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get blockdevices failed %s", err.Error()))
 	}
-	return resp
+	return resp, nil
 }
 
 func getBlockDevices(cluster string, cli client.Client, agent *clusteragent.AgentManager) ([]*types.BlockDevice, error) {
