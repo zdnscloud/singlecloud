@@ -392,16 +392,12 @@ func (m *StatefulSetManager) setPodCount(ctx *resource.Context) (interface{}, *r
 		return nil, err
 	}
 
-	if int(*k8sStatefulSet.Spec.Replicas) == param.Replicas {
-		return param, nil
-	} else {
-		replicas := int32(param.Replicas)
-		k8sStatefulSet.Spec.Replicas = &replicas
-		err := cluster.GetKubeClient().Update(context.TODO(), k8sStatefulSet)
-		if err != nil {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset pod count failed %s", err.Error()))
-		} else {
-			return param, nil
+	if int(*k8sStatefulSet.Spec.Replicas) != param.Replicas {
+		if err := cluster.GetKubeClient().Patch(context.TODO(), k8sStatefulSet, k8stypes.MergePatchType,
+			[]byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, param.Replicas))); err != nil {
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset pod count failed: %v", err.Error()))
 		}
 	}
+
+	return param, nil
 }

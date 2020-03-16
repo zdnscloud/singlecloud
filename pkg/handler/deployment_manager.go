@@ -441,17 +441,14 @@ func (m *DeploymentManager) setPodCount(ctx *resource.Context) (interface{}, *re
 		return nil, err
 	}
 
-	if int(*k8sDeploy.Spec.Replicas) == param.Replicas {
-		return param, nil
-	} else {
-		replicas := int32(param.Replicas)
-		k8sDeploy.Spec.Replicas = &replicas
-		if err := cluster.GetKubeClient().Update(context.TODO(), k8sDeploy); err != nil {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment pod count failed %s", err.Error()))
-		} else {
-			return param, nil
+	if int(*k8sDeploy.Spec.Replicas) != param.Replicas {
+		if err := cluster.GetKubeClient().Patch(context.TODO(), k8sDeploy, k8stypes.MergePatchType,
+			[]byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, param.Replicas))); err != nil {
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set deployment pod count failed: %v", err.Error()))
 		}
 	}
+
+	return param, nil
 }
 
 func getDeploymentAndReplicaSets(cli client.Client, namespace, name string) (*appsv1.Deployment, []appsv1.ReplicaSet, *resterror.APIError) {
