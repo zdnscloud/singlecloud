@@ -47,9 +47,9 @@ func (m *StorageClusterManager) List(ctx *resource.Context) (interface{}, *reste
 	k8sStorageClusters, err := getStorageClusters(cluster.GetKubeClient())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found storageclusters")
 		}
-		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("get storageClusters failed %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get storageClusters failed %s", err.Error()))
 	}
 
 	var storageclusters []*types.StorageCluster
@@ -69,9 +69,9 @@ func (m StorageClusterManager) Get(ctx *resource.Context) (resource.Resource, *r
 	k8sStorageCluster, err := getStorageCluster(cluster.GetKubeClient(), storagecluster.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil
+			return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("no found storagecluster %s", storagecluster.GetID()))
 		}
-		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("get storageCluster %s failed %s", storagecluster.GetID(), err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get storageCluster %s failed %s", storagecluster.GetID(), err.Error()))
 	}
 
 	return k8sStorageToSCStorageDetail(cluster, clusteragent.GetAgent(), k8sStorageCluster), nil

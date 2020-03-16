@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
@@ -123,10 +124,13 @@ func (m *FluentBitConfigManager) Create(ctx *resource.Context) (resource.Resourc
 
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
 		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
 	}
 	if err := createConfig(cluster.GetKubeClient(), conf, cm); err != nil {
-		return nil, resterr.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
 	}
 	conf.SetID(conf.Name)
 	return conf, nil
@@ -142,10 +146,13 @@ func (m *FluentBitConfigManager) Update(ctx *resource.Context) (resource.Resourc
 
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
 		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
 	}
 	if err := updateConfig(cluster.GetKubeClient(), conf, cm); err != nil {
-		return nil, resterr.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
 	}
 	return conf, nil
 }
@@ -163,6 +170,9 @@ func (m *FluentBitConfigManager) List(ctx *resource.Context) (interface{}, *rest
 
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get fluent-bit configs failed %s", err.Error()))
 	}
 	fbConf, err := getConfig(cluster.GetKubeClient(), name, cm)
@@ -182,6 +192,9 @@ func (m FluentBitConfigManager) Get(ctx *resource.Context) (resource.Resource, *
 
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
 		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get fluent-bit config %s failed %s", conf.GetID(), err.Error()))
 	}
 	fbConf, err := getConfig(cluster.GetKubeClient(), conf.GetID(), cm)
@@ -199,10 +212,13 @@ func (m FluentBitConfigManager) Delete(ctx *resource.Context) *resterr.APIError 
 	conf := ctx.Resource.(*types.FluentBitConfig)
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
 		return resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
 	}
 	if err := deleteConfig(cluster.GetKubeClient(), conf.GetID(), cm); err != nil {
-		return resterr.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
+		return resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
 	}
 	return nil
 }
