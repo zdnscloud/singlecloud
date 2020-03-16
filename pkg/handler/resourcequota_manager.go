@@ -79,7 +79,7 @@ func (m *ResourceQuotaManager) Get(ctx *resource.Context) (resource.Resource, *r
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found resourceQuota %s", resourceQuota.GetID()))
 		}
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+		return nil, resterror.NewAPIError(resterror.ServerError,
 			fmt.Sprintf("get resourceQuota %s failed %s", resourceQuota.GetID(), err.Error()))
 	}
 
@@ -98,7 +98,7 @@ func (m *ResourceQuotaManager) Delete(ctx *resource.Context) *resterror.APIError
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found resourceQuota %s", resourceQuota.GetID()))
 		}
-		return resterror.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(resterror.ServerError,
 			fmt.Sprintf("delete resourceQuota %s failed %s", resourceQuota.GetID(), err.Error()))
 	}
 

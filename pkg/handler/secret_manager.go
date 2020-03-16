@@ -60,7 +60,8 @@ func (m *SecretManager) Update(ctx *resource.Context) (resource.Resource, *reste
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found secret %s", secret.GetID()))
 		}
-		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("update secret %s failed %s", secret.GetID(), err.Error()))
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed,
+			fmt.Sprintf("update secret %s failed %s", secret.GetID(), err.Error()))
 	} else {
 		return secret, nil
 	}

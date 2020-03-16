@@ -560,7 +560,7 @@ func (m *HorizontalPodAutoscalerManager) Update(ctx *resource.Context) (resource
 		if apierrors.IsNotFound(err) {
 			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found hpa %s", hpa.GetID()))
 		}
-		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("update hpa %s failed %s", hpa.GetID(), err.Error()))
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update hpa %s failed %s", hpa.GetID(), err.Error()))
 	}
 
 	return hpa, nil
