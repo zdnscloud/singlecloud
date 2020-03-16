@@ -65,7 +65,7 @@ func (m *WorkFlowManager) Create(ctx *resource.Context) (resource.Resource, *res
 func preCheckDeploymentExist(cli client.Client, namespace, name string) *resterror.APIError {
 	_, err := getDeployment(cli, namespace, name)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if err.ErrorCode == resterror.NotFound {
 			return nil
 		}
 		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get deploy failed for pre check deploy name %s", err.Error()))
