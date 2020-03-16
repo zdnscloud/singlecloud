@@ -30,9 +30,9 @@ func (m *StorageClassManager) List(ctx *restresource.Context) (interface{}, *res
 	k8sStorageClasses, err := getStorageClasses(cluster.GetKubeClient())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found storageclasses")
 		}
-		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("list storageclasses failed %s", err.Error()))
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("list storageclasses failed %s", err.Error()))
 	}
 
 	var storageClasses []*types.StorageClass

@@ -78,11 +78,11 @@ func createWorkFlowTask(cli client.Client, namespace, wfID string, wft *types.Wo
 	}
 
 	if err := cli.Create(context.TODO(), pipelineRun); err != nil {
-		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("create k8s workflowtask failed %s", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create k8s workflowtask failed %s", err.Error()))
 	}
 
 	if err := updateWorkFlowLastestIDAnnotation(cli, namespace, wfID, pipelineRun.Name); err != nil {
-		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("update workflow lastest task id annotation failed %s", err.Error()))
+		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update workflow lastest task id annotation failed %s", err.Error()))
 	}
 
 	wft.SetID(pipelineRun.Name)

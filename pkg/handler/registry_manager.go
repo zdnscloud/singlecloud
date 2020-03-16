@@ -75,7 +75,7 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 	registry := ctx.Resource.(*types.Registry)
 	app, err := genRegistryApplication(cluster, registry, m.ca)
 	if err != nil {
-		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, err.Error())
 	}
 
 	if err := createSysApplication(ctx, cluster, app, m.chartDir, registryChartName, registryAppName, registry.StorageClass); err != nil {
@@ -141,6 +141,9 @@ func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	}
 
 	if err := deleteApplication(cluster.GetKubeClient(), ZCloudNamespace, registryAppName, true); err != nil {
+		if apierrors.IsNotFound(err) {
+			return resterr.NewAPIError(resterr.NotFound, "registry doesn't exist")
+		}
 		return resterr.NewAPIError(resterr.ServerError,
 			fmt.Sprintf("delete application %s failed: %s", registryAppName, err.Error()))
 	}

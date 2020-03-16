@@ -215,10 +215,10 @@ func (m FluentBitConfigManager) Delete(ctx *resource.Context) *resterr.APIError 
 		if apierrors.IsNotFound(err) {
 			return resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
 		}
-		return resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
 	}
 	if err := deleteConfig(cluster.GetKubeClient(), conf.GetID(), cm); err != nil {
-		return resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
 	}
 	return nil
 }

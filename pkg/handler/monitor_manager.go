@@ -51,7 +51,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 	monitor := ctx.Resource.(*types.Monitor)
 	app, err := genMonitorApplication(cluster, monitor)
 	if err != nil {
-		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, err.Error())
 	}
 
 	if err := createSysApplication(ctx, cluster, app, m.chartDir, monitorChartName, monitorAppName, monitor.StorageClass); err != nil {
@@ -133,6 +133,9 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	}
 
 	if err := deleteApplication(cluster.GetKubeClient(), ZCloudNamespace, monitorAppName, true); err != nil {
+		if apierrors.IsNotFound(err) {
+			return resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
+		}
 		return resterr.NewAPIError(resterr.ServerError,
 			fmt.Sprintf("delete application %s failed: %s", monitorAppName, err.Error()))
 	}

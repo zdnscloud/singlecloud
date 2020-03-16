@@ -91,9 +91,9 @@ func (m StorageClusterManager) Delete(ctx *resource.Context) *resterr.APIError {
 		if apierrors.IsNotFound(err) {
 			return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("storagecluster %s doesn't exist", storagecluster.GetID()))
 		} else if strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "Creating") {
-			return resterr.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
+			return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		} else {
-			return resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
+			return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		}
 	}
 	return nil

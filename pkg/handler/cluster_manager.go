@@ -80,17 +80,18 @@ func (m *ClusterManager) Update(ctx *restresource.Context) (restresource.Resourc
 func (m *ClusterManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	id := ctx.Resource.GetID()
 	if m.authorizer.Authorize(getCurrentUser(ctx), id, "") == false {
+		return nil, resterr.NewAPIError(resterr.Unauthorized, "user has no permission to access the cluster")
+	}
+
+	cluster := m.zkeManager.Get(id)
+	if cluster == nil {
 		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
-	cluster := m.zkeManager.Get(id)
-	if cluster != nil {
-		sc := cluster.ToScCluster()
-		if cluster.IsReady() {
-			return getClusterInfo(cluster, sc), nil
-		}
-		return sc, nil
+	sc := cluster.ToScCluster()
+	if cluster.IsReady() {
+		return getClusterInfo(cluster, sc), nil
 	}
-	return nil, nil
+	return sc, nil
 }
 
 func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {

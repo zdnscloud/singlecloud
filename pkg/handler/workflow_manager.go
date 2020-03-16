@@ -57,7 +57,7 @@ func (m *WorkFlowManager) Create(ctx *resource.Context) (resource.Resource, *res
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, "workflow already exists")
 		}
-		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("create workflow %s failed %s", wf.Name, err.Error()))
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create workflow %s failed %s", wf.Name, err.Error()))
 	}
 	return wf, nil
 }
@@ -249,7 +249,7 @@ func (m *WorkFlowManager) Update(ctx *resource.Context) (resource.Resource, *res
 	newer.Name = older.Name
 
 	if err := updateWorkFlow(cluster.GetKubeClient(), ns, newer); err != nil {
-		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("update workflow %s failed %s", newer.Name, err.Error()))
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update workflow %s failed %s", newer.Name, err.Error()))
 	}
 	return newer, nil
 }
