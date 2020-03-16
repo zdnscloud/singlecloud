@@ -223,6 +223,7 @@ func genRetrunMonitorFromApplication(app *appv1beta1.Application) (*types.Monito
 	m.SetCreationTimestamp(app.CreationTimestamp.Time)
 	if app.GetDeletionTimestamp() != nil {
 		m.SetDeletionTimestamp(app.DeletionTimestamp.Time)
+		m.Status = appStatusDelete
 	}
 	return &m, nil
 }

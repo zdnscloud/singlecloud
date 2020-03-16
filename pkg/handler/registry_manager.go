@@ -211,6 +211,7 @@ func genRetrunRegistryFromApplication(app *appv1beta1.Application) (*types.Regis
 	r.SetCreationTimestamp(app.CreationTimestamp.Time)
 	if app.GetDeletionTimestamp() != nil {
 		r.SetDeletionTimestamp(app.DeletionTimestamp.Time)
+		r.Status = appStatusDelete
 	}
 	return &r, nil
 }

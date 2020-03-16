@@ -139,6 +139,7 @@ func genEFKFromApp(app *appv1beta1.Application) (*types.EFK, error) {
 	efk.SetCreationTimestamp(app.CreationTimestamp.Time)
 	if app.GetDeletionTimestamp() != nil {
 		efk.SetDeletionTimestamp(app.DeletionTimestamp.Time)
+		efk.Status = appStatusDelete
 	}
 	return &efk, nil
 }
