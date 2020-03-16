@@ -48,6 +48,7 @@ func (m *CronJobManager) Create(ctx *resource.Context) (resource.Resource, *rest
 func (m *CronJobManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
