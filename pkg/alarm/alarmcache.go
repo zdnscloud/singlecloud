@@ -132,6 +132,7 @@ func (ac *AlarmCache) publishEvent(al *AlarmListener) {
 func (ac *AlarmCache) getAlarmsAfterID(id uint64) []*types.Alarm {
 	var alarms types.Alarms
 	ac.lock.RLock()
+	defer ac.lock.RUnlock()
 	for elem := ac.alarmList.Back(); elem != nil; elem = elem.Prev() {
 		if elem.Value.(*types.Alarm).UID > id {
 			alarms = append(alarms, elem.Value.(*types.Alarm))
@@ -139,7 +140,6 @@ func (ac *AlarmCache) getAlarmsAfterID(id uint64) []*types.Alarm {
 			break
 		}
 	}
-	ac.lock.RUnlock()
 	sort.Sort(alarms)
 	return alarms
 }
@@ -181,13 +181,12 @@ func (ac *AlarmCache) Update(alarm *types.Alarm) error {
 		return err
 	}
 	ac.lock.Lock()
+	defer ac.lock.Unlock()
 	a := ac.getAlarmFromList(alarm.UID)
 	if a == nil {
-		ac.lock.Unlock()
 		return fmt.Errorf("can not find alarm id %d", alarm.UID)
 	}
 	a.Acknowledged = true
-	ac.lock.Unlock()
 	ac.cond.Broadcast()
 	return nil
 }
@@ -242,6 +241,7 @@ func (ac *AlarmCache) deleteoldest() error {
 
 func (ac *AlarmCache) deleteAlarmForCluster(cluster string) {
 	ac.lock.Lock()
+	defer ac.lock.Unlock()
 	var next *list.Element
 	for elem := ac.alarmList.Front(); elem != nil; elem = next {
 		next = elem.Next()
@@ -254,7 +254,6 @@ func (ac *AlarmCache) deleteAlarmForCluster(cluster string) {
 			ac.alarmList.Remove(elem)
 		}
 	}
-	ac.lock.Unlock()
 	ac.cond.Broadcast()
 }
 

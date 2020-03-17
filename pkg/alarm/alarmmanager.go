@@ -69,11 +69,11 @@ func (m *AlarmManager) List(ctx *resource.Context) interface{} {
 	alarms := make([]*types.Alarm, 0)
 	fmt.Println("start RLock")
 	m.cache.lock.RLock()
+	defer m.cache.lock.RUnlock()
 	fmt.Println("end RLock")
 	for elem := m.cache.alarmList.Back(); elem != nil; elem = elem.Prev() {
 		alarms = append(alarms, elem.Value.(*types.Alarm))
 	}
-	m.cache.lock.RUnlock()
 	return alarms
 }
 
