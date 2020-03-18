@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/zdnscloud/cement/set"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
@@ -247,7 +248,16 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 	if k8sIscsi.Spec.Target != storage.Iscsi.Target || k8sIscsi.Spec.Port != storage.Iscsi.Port || k8sIscsi.Spec.Iqn != storage.Iscsi.Iqn || k8sIscsi.Spec.Chap != storage.Iscsi.Chap {
 		return errors.New(fmt.Sprintf("iscsi %s only initiators can be update", storage.Name))
 	}
-	ok, err := validateInitiators(cluster.GetKubeClient(), storage.Iscsi.Initiators)
+
+	s1 := set.StringSetFromSlice(k8sIscsi.Spec.Initiators)
+	s2 := set.StringSetFromSlice(storage.Iscsi.Initiators)
+	addHosts := s2.Difference(s1).ToSlice()
+	delHosts := s1.Difference(s2).ToSlice()
+	if err := isDelHostsUsed(cluster.GetKubeClient(), k8sIscsi.Name, types.IscsiType, delHosts); err != nil {
+		return err
+	}
+
+	ok, err := validateInitiators(cluster.GetKubeClient(), addHosts)
 	if err != nil {
 		return err
 	}

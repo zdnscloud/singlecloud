@@ -258,8 +258,8 @@ func isDelHostsUsed(cli client.Client, name string, typ types.StorageType, hosts
 	var suffix string
 	if typ == types.LvmType {
 		suffix = LvmDriverSuffix
-	} else if typ == types.CephfsType {
-		suffix = CephFsDriverSuffix
+	} else if typ == types.IscsiType {
+		suffix = IscsiDriverSuffix
 	} else {
 		return errors.New(fmt.Sprintf("unknow storage type %s", typ))
 	}
@@ -268,7 +268,7 @@ func isDelHostsUsed(cli client.Client, name string, typ types.StorageType, hosts
 		return err
 	}
 	if len(usedHosts) > 0 {
-		return errors.New(fmt.Sprintf("the storagehosts %s is used by some pods, you should stop those pods first", usedHosts))
+		return errors.New(fmt.Sprintf("the storagehosts %s is used by some pods, you should stop or migrate those pods first", usedHosts))
 	}
 	return nil
 }
