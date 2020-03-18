@@ -152,6 +152,9 @@ func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) erro
 				return err
 			}
 		}
+		if len(storage.Iscsi.Targets) > 2 {
+			return errors.New("targets only support one or two")
+		}
 		ok, err := validateInitiators(cluster.GetKubeClient(), storage.Iscsi.Initiators)
 		if err != nil {
 			return err
@@ -239,6 +242,9 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 	k8sIscsi, err := getIscsi(cluster.GetKubeClient(), storage.Name)
 	if err != nil {
 		return err
+	}
+	if len(storage.Iscsi.Targets) > 2 {
+		return errors.New("targets only support one or two")
 	}
 	if k8sIscsi.Status.Phase == storagev1.Creating || k8sIscsi.Status.Phase == storagev1.Updating || k8sIscsi.Status.Phase == storagev1.Deleting {
 		return errors.New("iscsi in Creating, Updating or Deleting, not allowed update")

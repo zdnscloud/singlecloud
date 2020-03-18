@@ -7,8 +7,8 @@
   "goStructName": "Storage",
   "supportAsyncDelete": true,
   "resourceFields": {
-    "cephfs": {
-      "type": "storageClusterParameter"
+    "": {
+      "type": "parameter"
     },
     "default": {
       "type": "bool",
@@ -22,21 +22,12 @@
         "readonly"
       ]
     },
-    "iscsi": {
-      "type": "iscsiParameter"
-    },
-    "lvm": {
-      "type": "storageClusterParameter"
-    },
     "name": {
       "type": "string",
       "description": [
         "required",
         "isDomain"
       ]
-    },
-    "nfs": {
-      "type": "nfsParameter"
     },
     "nodes": {
       "type": "array",
@@ -95,8 +86,9 @@
       "port": {
         "type": "string"
       },
-      "target": {
-        "type": "string"
+      "targets": {
+        "type": "array",
+        "elemType": "string"
       },
       "username": {
         "type": "string"
@@ -132,6 +124,20 @@
       },
       "usedSize": {
         "type": "string"
+      }
+    },
+    "parameter": {
+      "cephfs": {
+        "type": "storageClusterParameter"
+      },
+      "iscsi": {
+        "type": "iscsiParameter"
+      },
+      "lvm": {
+        "type": "storageClusterParameter"
+      },
+      "nfs": {
+        "type": "nfsParameter"
       }
     },
     "storageClusterParameter": {
