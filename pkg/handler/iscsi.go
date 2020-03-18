@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -164,7 +165,7 @@ func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) erro
 				Name: storage.Name,
 			},
 			Spec: storagev1.IscsiSpec{
-				Target:     storage.Iscsi.Target,
+				Targets:    storage.Iscsi.Targets,
 				Port:       storage.Iscsi.Port,
 				Iqn:        storage.Iscsi.Iqn,
 				Chap:       storage.Iscsi.Chap,
@@ -215,7 +216,7 @@ func iscsiToSCStorage(iscsi *storagev1.Iscsi) *types.Storage {
 		Type: types.IscsiType,
 		Parameter: types.Parameter{
 			Iscsi: &types.IscsiParameter{
-				Target:     iscsi.Spec.Target,
+				Targets:    iscsi.Spec.Targets,
 				Port:       iscsi.Spec.Port,
 				Iqn:        iscsi.Spec.Iqn,
 				Chap:       iscsi.Spec.Chap,
@@ -245,7 +246,10 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 	if k8sIscsi.GetDeletionTimestamp() != nil {
 		return errors.New("iscsi in Deleting, not allowed update")
 	}
-	if k8sIscsi.Spec.Target != storage.Iscsi.Target || k8sIscsi.Spec.Port != storage.Iscsi.Port || k8sIscsi.Spec.Iqn != storage.Iscsi.Iqn || k8sIscsi.Spec.Chap != storage.Iscsi.Chap {
+	if reflect.DeepEqual(k8sIscsi.Spec.Targets, storage.Iscsi.Targets) ||
+		k8sIscsi.Spec.Port != storage.Iscsi.Port ||
+		k8sIscsi.Spec.Iqn != storage.Iscsi.Iqn ||
+		k8sIscsi.Spec.Chap != storage.Iscsi.Chap {
 		return errors.New(fmt.Sprintf("iscsi %s only initiators can be update", storage.Name))
 	}
 

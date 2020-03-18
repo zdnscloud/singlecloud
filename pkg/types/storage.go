@@ -39,7 +39,7 @@ type StorageClusterParameter struct {
 }
 
 type IscsiParameter struct {
-	Target     string   `json:"target,omitempty" rest:"required=true`
+	Targets    []string `json:"targets,omitempty" rest:"required=true`
 	Port       string   `json:"port,omitempty" rest:"required=true`
 	Iqn        string   `json:"iqn,omitempty" rest:"required=true`
 	Chap       bool     `json:"chap,omitempty" rest:"required=true`

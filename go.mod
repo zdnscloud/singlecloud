@@ -13,7 +13,7 @@ require (
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/golang/protobuf v1.3.3
+	github.com/golang/protobuf v1.3.5
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/gorilla/websocket v1.4.1
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
@@ -36,7 +36,7 @@ require (
 	github.com/zdnscloud/gok8s v0.0.0-20200212071629-b06587f54ee6
 	github.com/zdnscloud/goproxy v0.0.0-20200205075939-521cea33b942
 	github.com/zdnscloud/gorest v0.0.0-20200311075118-340b46567e40
-	github.com/zdnscloud/immense v0.0.0-20200304065316-e3da30856f5b
+	github.com/zdnscloud/immense v0.0.0-20200318051412-d4dd53a37e03
 	github.com/zdnscloud/iniconfig v0.0.0-20191105013537-c8624280493d
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7
 	github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d
