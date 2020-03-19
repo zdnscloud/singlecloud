@@ -17,13 +17,13 @@ import (
 )
 
 const (
-	resourceEventReason  = "resource shortage"
-	componentEventReason = "core component abnormal"
+	resourceMonitorSource       = "resource-monitor"
+	clusterAgentCollectorSource = "cluster-agent-collector"
 )
 
-var eventReasons = []string{
-	resourceEventReason,
-	componentEventReason,
+var supportEventSource = []string{
+	resourceMonitorSource,
+	clusterAgentCollectorSource,
 }
 
 var EventLevelFilter = []string{corev1.EventTypeWarning}
@@ -96,7 +96,7 @@ func (ec *EventCache) OnGeneric(e event.GenericEvent) (handler.Result, error) {
 }
 
 func checkEventTypeAndKind(event *corev1.Event) bool {
-	return slice.SliceIndex(eventReasons, event.Reason) >= 0
+	return slice.SliceIndex(supportEventSource, event.Source.Component) >= 0
 }
 
 func (ec *EventCache) k8sEventToAlarm(event *corev1.Event) *types.Alarm {
@@ -109,10 +109,10 @@ func (ec *EventCache) k8sEventToAlarm(event *corev1.Event) *types.Alarm {
 		Reason:    event.Reason,
 		Message:   event.Message,
 	}
-	if event.Reason == resourceEventReason {
+	if event.Source.Component == resourceMonitorSource {
 		alarm.Type = types.EventType
 	}
-	if event.Reason == componentEventReason {
+	if event.Source.Component == clusterAgentCollectorSource {
 		alarm.Type = types.ZcloudType
 	}
 	return alarm
