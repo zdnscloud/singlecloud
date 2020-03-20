@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -91,7 +93,7 @@ func (s *IscsiManager) Delete(cli client.Client, name string) error {
 		}
 		return cli.Delete(context.TODO(), iscsi)
 	} else {
-		return errors.New(fmt.Sprintf("storage %s is used by some pods, you should stop those pods first", name))
+		return errors.New(fmt.Sprintf("storage %s is used by some pvcs, you should delete those pvc first", name))
 	}
 }
 
@@ -144,16 +146,8 @@ func getIscsiSecret(cli client.Client, namespace, name string) (*types.Secret, e
 
 func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) error {
 	if storage.Iscsi != nil {
-		if storage.Iscsi.Chap {
-			if storage.Iscsi.Username == "" || storage.Iscsi.Password == "" {
-				return errors.New("if chap is checked, fields username and password can not be empty")
-			}
-			if err := createIscsiSecret(cluster.GetKubeClient(), ZCloudNamespace, fmt.Sprintf("%s-%s", storage.Name, IscsiInstanceSecretSuffix), storage.Iscsi.Username, storage.Iscsi.Password); err != nil {
-				return err
-			}
-		}
-		if len(storage.Iscsi.Targets) > 2 {
-			return errors.New("targets only support one or two")
+		if err := iscsiValidation(storage); err != nil {
+			return err
 		}
 		ok, err := validateInitiators(cluster.GetKubeClient(), storage.Iscsi.Initiators)
 		if err != nil {
@@ -161,6 +155,9 @@ func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) erro
 		}
 		if !ok {
 			return errors.New("controlplane or etcd node can not be initiators")
+		}
+		if err := createIscsiSecretIfNeed(cluster.GetKubeClient(), storage); err != nil {
+			return err
 		}
 
 		k8sIscsi := &storagev1.Iscsi{
@@ -196,21 +193,28 @@ func validateInitiators(cli client.Client, initiators []string) (bool, error) {
 	return true, nil
 }
 
-func createIscsiSecret(cli client.Client, namespace, name, username, password string) error {
-	secret := &types.Secret{
-		Name: name,
+func createIscsiSecretIfNeed(cli client.Client, storage *types.Storage) error {
+	if storage.Iscsi.Chap {
+		secret := genIscsiSecret(storage)
+		return createSecret(cli, ZCloudNamespace, secret)
+	}
+	return nil
+}
+
+func genIscsiSecret(storage *types.Storage) *types.Secret {
+	return &types.Secret{
+		Name: fmt.Sprintf("%s-%s", storage.Name, IscsiInstanceSecretSuffix),
 		Data: []types.SecretData{
 			types.SecretData{
 				Key:   "username",
-				Value: username,
+				Value: storage.Iscsi.Username,
 			},
 			types.SecretData{
 				Key:   "password",
-				Value: password,
+				Value: storage.Iscsi.Password,
 			},
 		},
 	}
-	return createSecret(cli, namespace, secret)
 }
 
 func iscsiToSCStorage(iscsi *storagev1.Iscsi) *types.Storage {
@@ -239,12 +243,12 @@ func iscsiToSCStorage(iscsi *storagev1.Iscsi) *types.Storage {
 }
 
 func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) error {
+	if err := iscsiValidation(storage); err != nil {
+		return err
+	}
 	k8sIscsi, err := getIscsi(cluster.GetKubeClient(), storage.Name)
 	if err != nil {
 		return err
-	}
-	if len(storage.Iscsi.Targets) > 2 {
-		return errors.New("targets only support one or two")
 	}
 	if k8sIscsi.Status.Phase == storagev1.Creating || k8sIscsi.Status.Phase == storagev1.Updating || k8sIscsi.Status.Phase == storagev1.Deleting {
 		return errors.New("iscsi in Creating, Updating or Deleting, not allowed update")
@@ -252,29 +256,76 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 	if k8sIscsi.GetDeletionTimestamp() != nil {
 		return errors.New("iscsi in Deleting, not allowed update")
 	}
-	if reflect.DeepEqual(k8sIscsi.Spec.Targets, storage.Iscsi.Targets) ||
+	if !reflect.DeepEqual(k8sIscsi.Spec.Targets, storage.Iscsi.Targets) ||
 		k8sIscsi.Spec.Port != storage.Iscsi.Port ||
 		k8sIscsi.Spec.Iqn != storage.Iscsi.Iqn ||
 		k8sIscsi.Spec.Chap != storage.Iscsi.Chap {
-		return errors.New(fmt.Sprintf("iscsi %s only initiators can be update", storage.Name))
+		finalizers := k8sIscsi.GetFinalizers()
+		if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
+			if err := deleteIscsiSecretIfNeed(cluster.GetKubeClient(), k8sIscsi.Name); err != nil {
+				return err
+			}
+			if err := createIscsiSecretIfNeed(cluster.GetKubeClient(), storage); err != nil {
+				return err
+			}
+		} else {
+			return errors.New(fmt.Sprintf("storage %s is used by some pvcs, you should delete those pvc first", storage.Name))
+		}
 	}
 
-	s1 := set.StringSetFromSlice(k8sIscsi.Spec.Initiators)
-	s2 := set.StringSetFromSlice(storage.Iscsi.Initiators)
-	addHosts := s2.Difference(s1).ToSlice()
-	delHosts := s1.Difference(s2).ToSlice()
-	if err := isDelHostsUsed(cluster.GetKubeClient(), k8sIscsi.Name, types.IscsiType, delHosts); err != nil {
-		return err
-	}
+	if !reflect.DeepEqual(k8sIscsi.Spec.Initiators, storage.Iscsi.Initiators) {
+		s1 := set.StringSetFromSlice(k8sIscsi.Spec.Initiators)
+		s2 := set.StringSetFromSlice(storage.Iscsi.Initiators)
+		addHosts := s2.Difference(s1).ToSlice()
+		delHosts := s1.Difference(s2).ToSlice()
+		if err := isDelHostsUsed(cluster.GetKubeClient(), k8sIscsi.Name, types.IscsiType, delHosts); err != nil {
+			return err
+		}
 
-	ok, err := validateInitiators(cluster.GetKubeClient(), addHosts)
-	if err != nil {
-		return err
+		ok, err := validateInitiators(cluster.GetKubeClient(), addHosts)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New("controlplane or etcd node can not be initiators")
+		}
 	}
-	if !ok {
-		return errors.New("controlplane or etcd node can not be initiators")
-	}
-
+	k8sIscsi.Spec.Targets = storage.Iscsi.Targets
+	k8sIscsi.Spec.Port = storage.Iscsi.Port
+	k8sIscsi.Spec.Iqn = storage.Iscsi.Iqn
+	k8sIscsi.Spec.Chap = storage.Iscsi.Chap
 	k8sIscsi.Spec.Initiators = storage.Iscsi.Initiators
 	return cluster.GetKubeClient().Update(context.TODO(), k8sIscsi)
+}
+
+func iscsiValidation(storage *types.Storage) error {
+	if strings.Contains(storage.Iscsi.Iqn, " ") {
+		return errors.New("iscsi iqn cannot contain Spaces")
+	}
+	tmp := make(map[string]string)
+	for _, target := range storage.Iscsi.Targets {
+		if !isIpv4(target) {
+			return errors.New("iscsi target must be an ipv4 address")
+		}
+		if _, ok := tmp[target]; ok {
+			return errors.New("iscsi target duplicate")
+		} else {
+			tmp[target] = ""
+		}
+
+	}
+	if len(storage.Iscsi.Initiators) == 0 {
+		return errors.New("iscsi initiators at lesat one")
+	}
+	if storage.Iscsi.Chap {
+		if storage.Iscsi.Username == "" || storage.Iscsi.Password == "" {
+			return errors.New("if chap is checked, fields username and password can not be empty")
+		}
+	}
+	return nil
+}
+
+func isIpv4(input string) bool {
+	ip := net.ParseIP(input)
+	return ip != nil && ip.To4() != nil
 }

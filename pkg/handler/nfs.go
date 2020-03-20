@@ -111,6 +111,9 @@ func nfsToSCStorageDetail(cluster *zke.Cluster, nfs *storagev1.Nfs) (*types.Stor
 
 func (s *NfsManager) Create(cluster *zke.Cluster, storage *types.Storage) error {
 	if storage.Nfs != nil {
+		if !isIpv4(storage.Nfs.Server) {
+			return errors.New("must be an ipv4 address")
+		}
 		k8sNfs := &storagev1.Nfs{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: storage.Name,
@@ -138,10 +141,31 @@ func (s *NfsManager) Delete(cli client.Client, name string) error {
 	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
 		return cli.Delete(context.TODO(), nfs)
 	} else {
-		return errors.New(fmt.Sprintf("storage %s is used by some pods, you should stop those pods first", name))
+		return errors.New(fmt.Sprintf("storage %s is used by some pvcs, you should delete those pvc first", name))
 	}
 }
 
 func (s *NfsManager) Update(cluster *zke.Cluster, storage *types.Storage) error {
-	return errors.New("nfs type storage unsupport update")
+	if !isIpv4(storage.Nfs.Server) {
+		return errors.New("must be an ipv4 address")
+	}
+	k8sNfs, err := getNfs(cluster.GetKubeClient(), storage.Name)
+	if err != nil {
+		return err
+	}
+	if k8sNfs.Status.Phase == storagev1.Creating || k8sNfs.Status.Phase == storagev1.Updating || k8sNfs.Status.Phase == storagev1.Deleting {
+		return errors.New("iscsi in Creating, Updating or Deleting, not allowed update")
+	}
+	if k8sNfs.GetDeletionTimestamp() != nil {
+		return errors.New("nfs in Deleting, not allowed update")
+	}
+	finalizers := k8sNfs.GetFinalizers()
+	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
+	} else {
+		return errors.New(fmt.Sprintf("storage %s is used by some pvcs, you should delete those pvc first", storage.Name))
+	}
+
+	k8sNfs.Spec.Server = storage.Nfs.Server
+	k8sNfs.Spec.Path = storage.Nfs.Path
+	return cluster.GetKubeClient().Update(context.TODO(), k8sNfs)
 }

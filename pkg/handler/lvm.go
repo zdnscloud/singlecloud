@@ -217,7 +217,7 @@ func deleteStorageCluster(cli client.Client, name string) error {
 	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
 		return cli.Delete(context.TODO(), storageCluster)
 	} else {
-		return errors.New(fmt.Sprintf("storage %s is used by some pods, you should stop those pods first", name))
+		return errors.New(fmt.Sprintf("storage %s is used by some pvcs, you should delete those pvc first", name))
 	}
 }
 

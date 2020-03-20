@@ -82,7 +82,7 @@ func (m *StorageManager) getStorages(cli client.Client) ([]*types.Storage, error
 		if storage.Phase == string(storagev1.Running) {
 			storageClass, err := getStorageClass(cli, storage.Name)
 			if err != nil {
-				return nil, err
+				continue
 			}
 			if _default, ok := storageClass.Annotations[StorageClassDefaultKey]; ok {
 				storage.Default = strToBool(_default)
