@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -37,54 +36,54 @@ func (m *LimitRangeManager) Create(ctx *resource.Context) (resource.Resource, *r
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate limitRange name %s", limitRange.Name))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create limitRange failed %s", err.Error()))
 		}
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create limitRange failed %s", err.Error()))
 	}
 
 	limitRange.SetID(limitRange.Name)
 	return limitRange, nil
 }
 
-func (m *LimitRangeManager) List(ctx *resource.Context) interface{} {
+func (m *LimitRangeManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sLimitRanges, err := getLimitRanges(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list limitRange info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found limitRanges")
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list limitRanges failed %s", err.Error()))
 	}
 
 	var limitRanges []*types.LimitRange
 	for _, item := range k8sLimitRanges.Items {
 		limitRanges = append(limitRanges, k8sLimitRangeToSCLimitRange(&item))
 	}
-	return limitRanges
+	return limitRanges, nil
 }
 
-func (m *LimitRangeManager) Get(ctx *resource.Context) resource.Resource {
+func (m *LimitRangeManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	limitRange := ctx.Resource.(*types.LimitRange)
 	k8sLimitRange, err := getLimitRange(cluster.GetKubeClient(), namespace, limitRange.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get limitRange info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found limitRange %s", limitRange.GetID()))
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError,
+			fmt.Sprintf("get limitRange %s failed %s", limitRange.GetID(), err.Error()))
 	}
 
-	return k8sLimitRangeToSCLimitRange(k8sLimitRange)
+	return k8sLimitRangeToSCLimitRange(k8sLimitRange), nil
 }
 
 func (m *LimitRangeManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -97,11 +96,10 @@ func (m *LimitRangeManager) Delete(ctx *resource.Context) *resterror.APIError {
 	limitRange := ctx.Resource.(*types.LimitRange)
 	if err := deleteLimitRange(cluster.GetKubeClient(), namespace, limitRange.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound,
-				fmt.Sprintf("limitRange %s with namespace %s desn't exist", limitRange.GetID(), namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete limitRange failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found limitRange %s", limitRange.GetID()))
 		}
+		return resterror.NewAPIError(resterror.ServerError,
+			fmt.Sprintf("delete limitRange %s failed %s", limitRange.GetID(), err.Error()))
 	}
 
 	return nil

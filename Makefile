@@ -15,7 +15,7 @@ docker: build-image
 	docker push zdnscloud/singlecloud:${BRANCH}
 
 build-image:
-	docker build -t zdnscloud/singlecloud:${BRANCH} --build-arg version=${VERSION} --build-arg buildtime=${BUILD} --no-cache .
+	docker build -t zdnscloud/singlecloud:${BRANCH} --build-arg version=${VERSION} --build-arg buildtime=${BUILD} --build-arg goproxy=${GOPROXY} --no-cache .
 	docker image prune -f
 
 clean:

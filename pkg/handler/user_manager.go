@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/zdnscloud/cement/log"
@@ -44,17 +45,17 @@ func (m *UserManager) Create(ctx *restresource.Context) (restresource.Resource, 
 	return user, nil
 }
 
-func (m *UserManager) Get(ctx *restresource.Context) restresource.Resource {
+func (m *UserManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	currentUser := getCurrentUser(ctx)
 	target := ctx.Resource.GetID()
 	if isAdmin(currentUser) == false && currentUser != target {
-		return nil
+		return nil, nil
 	}
 
 	if user := m.authorizer.GetUser(target); user != nil {
-		return user
+		return user, nil
 	} else {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("no found user %s", target))
 	}
 }
 
@@ -93,7 +94,7 @@ func (m *UserManager) Update(ctx *restresource.Context) (restresource.Resource, 
 	return user, nil
 }
 
-func (m *UserManager) List(ctx *restresource.Context) interface{} {
+func (m *UserManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	currentUser := getCurrentUser(ctx)
 	var users []*types.User
 	if isAdmin(currentUser) {
@@ -106,7 +107,7 @@ func (m *UserManager) List(ctx *restresource.Context) interface{} {
 			log.Errorf("user %s is deleted during request", currentUser)
 		}
 	}
-	return users
+	return users, nil
 }
 
 func (m *UserManager) Action(ctx *restresource.Context) (interface{}, *resterr.APIError) {

@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -37,54 +36,54 @@ func (m *ResourceQuotaManager) Create(ctx *resource.Context) (resource.Resource,
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate resourceQuota name %s", resourceQuota.Name))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create resourceQuota failed %s", err.Error()))
 		}
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create resourceQuota failed %s", err.Error()))
 	}
 
 	resourceQuota.SetID(resourceQuota.Name)
 	return resourceQuota, nil
 }
 
-func (m *ResourceQuotaManager) List(ctx *resource.Context) interface{} {
+func (m *ResourceQuotaManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sResourceQuotas, err := getResourceQuotas(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list resourceQuota info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found resourceQuotas")
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list resourceQuotas failed %s", err.Error()))
 	}
 
 	var resourceQuotas []*types.ResourceQuota
 	for _, item := range k8sResourceQuotas.Items {
 		resourceQuotas = append(resourceQuotas, k8sResourceQuotaToSCResourceQuota(&item))
 	}
-	return resourceQuotas
+	return resourceQuotas, nil
 }
 
-func (m *ResourceQuotaManager) Get(ctx *resource.Context) resource.Resource {
+func (m *ResourceQuotaManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	resourceQuota := ctx.Resource.(*types.ResourceQuota)
 	k8sResourceQuota, err := getResourceQuota(cluster.GetKubeClient(), namespace, resourceQuota.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get resourceQuota info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found resourceQuota %s", resourceQuota.GetID()))
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError,
+			fmt.Sprintf("get resourceQuota %s failed %s", resourceQuota.GetID(), err.Error()))
 	}
 
-	return k8sResourceQuotaToSCResourceQuota(k8sResourceQuota)
+	return k8sResourceQuotaToSCResourceQuota(k8sResourceQuota), nil
 }
 
 func (m *ResourceQuotaManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -97,11 +96,10 @@ func (m *ResourceQuotaManager) Delete(ctx *resource.Context) *resterror.APIError
 	resourceQuota := ctx.Resource.(*types.ResourceQuota)
 	if err := deleteResourceQuota(cluster.GetKubeClient(), namespace, resourceQuota.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound,
-				fmt.Sprintf("resourceQuota %s with namespace %s desn't exist", resourceQuota.GetID(), namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete resourceQuota failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found resourceQuota %s", resourceQuota.GetID()))
 		}
+		return resterror.NewAPIError(resterror.ServerError,
+			fmt.Sprintf("delete resourceQuota %s failed %s", resourceQuota.GetID(), err.Error()))
 	}
 
 	return nil

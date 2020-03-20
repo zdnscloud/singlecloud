@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -39,54 +38,50 @@ func (m *StatefulSetManager) Create(ctx *resource.Context) (resource.Resource, *
 	if err := createStatefulSet(cluster.GetKubeClient(), namespace, statefulset); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate statefulset name %s", statefulset.Name))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create statefulset failed %s", err.Error()))
 		}
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create statefulset failed %s", err.Error()))
 	}
 
 	statefulset.SetID(statefulset.Name)
 	return statefulset, nil
 }
 
-func (m *StatefulSetManager) List(ctx *resource.Context) interface{} {
+func (m *StatefulSetManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sStatefulSets, err := getStatefulSets(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list statefulset info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found statefulsets")
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list statefulsets failed %s", err.Error()))
 	}
 
 	var statefulsets []*types.StatefulSet
 	for _, statefulset := range k8sStatefulSets.Items {
 		statefulsets = append(statefulsets, k8sStatefulSetToSCStatefulSet(&statefulset))
 	}
-	return statefulsets
+	return statefulsets, nil
 }
 
-func (m *StatefulSetManager) Get(ctx *resource.Context) resource.Resource {
+func (m *StatefulSetManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	statefulset := ctx.Resource.(*types.StatefulSet)
 	k8sStatefulSet, err := getStatefulSet(cluster.GetKubeClient(), namespace, statefulset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get statefulset info failed:%s", err.Error())
-		}
-		return nil
+		return nil, err
 	}
 
-	return k8sStatefulSetToSCStatefulSet(k8sStatefulSet)
+	return k8sStatefulSetToSCStatefulSet(k8sStatefulSet), nil
 }
 
 func (m *StatefulSetManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
@@ -97,13 +92,9 @@ func (m *StatefulSetManager) Update(ctx *resource.Context) (resource.Resource, *
 
 	namespace := ctx.Resource.GetParent().GetID()
 	statefulSet := ctx.Resource.(*types.StatefulSet)
-	k8sStatefulSet, err := getStatefulSet(cluster.GetKubeClient(), namespace, statefulSet.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("statefulset %s desn't exist", namespace))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
-		}
+	k8sStatefulSet, apiErr := getStatefulSet(cluster.GetKubeClient(), namespace, statefulSet.GetID())
+	if apiErr != nil {
+		return nil, apiErr
 	}
 
 	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(statefulSet.Containers, statefulSet.PersistentVolumes)
@@ -130,22 +121,23 @@ func (m *StatefulSetManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.GetParent().GetID()
 	statefulset := ctx.Resource.(*types.StatefulSet)
 
-	k8sStatefulSet, err := getStatefulSet(cluster.GetKubeClient(), namespace, statefulset.GetID())
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("statefulset in namespace %s is non-exist", namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
-		}
+	k8sStatefulSet, apiErr := getStatefulSet(cluster.GetKubeClient(), namespace, statefulset.GetID())
+	if apiErr != nil {
+		return apiErr
 	}
 
 	volumes, err := getStatefulSetPodsVolumes(cluster.GetKubeClient(), namespace, k8sStatefulSet)
 	if err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset volumes failed %s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found statefulset %s pods", statefulset.GetID()))
+		}
+		return resterror.NewAPIError(resterror.ServerError,
+			fmt.Sprintf("get statefulset %s pods volumes failed %s", statefulset.GetID(), err.Error()))
 	}
 
 	if err := deleteStatefulSet(cluster.GetKubeClient(), namespace, statefulset.GetID()); err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete statefulset failed %s", err.Error()))
+		return resterror.NewAPIError(resterror.ServerError,
+			fmt.Sprintf("delete statefulset %s failed %s", statefulset.GetID(), err.Error()))
 	}
 
 	if delete, ok := k8sStatefulSet.Annotations[AnnkeyForDeletePVsWhenDeleteWorkload]; ok && delete == "true" {
@@ -182,10 +174,16 @@ func getStatefulSetPodsVolumes(cli client.Client, namespace string, k8sStatefulS
 	return volumes, nil
 }
 
-func getStatefulSet(cli client.Client, namespace, name string) (*appsv1.StatefulSet, error) {
+func getStatefulSet(cli client.Client, namespace, name string) (*appsv1.StatefulSet, *resterror.APIError) {
 	statefulset := appsv1.StatefulSet{}
-	err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &statefulset)
-	return &statefulset, err
+	if err := cli.Get(context.TODO(), k8stypes.NamespacedName{namespace, name}, &statefulset); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found statefulSet %s", name))
+		}
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get statefulSet %s failed %s", name, err.Error()))
+	}
+
+	return &statefulset, nil
 }
 
 func getStatefulSets(cli client.Client, namespace string) (*appsv1.StatefulSetList, error) {
@@ -290,12 +288,7 @@ func (m *StatefulSetManager) getStatefulSetHistory(ctx *resource.Context) (inter
 	statefulset := ctx.Resource.(*types.StatefulSet)
 	_, controllerRevisions, err := getStatefulSetAndControllerRevisions(cluster.GetKubeClient(), namespace, statefulset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, resterror.NewAPIError(resterror.NotFound,
-				fmt.Sprintf("statefulset %s with namespace %s doesn't exist", statefulset.GetID(), namespace))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
-		}
+		return nil, err
 	}
 
 	var versionInfos types.VersionInfos
@@ -322,18 +315,26 @@ func (m *StatefulSetManager) getStatefulSetHistory(ctx *resource.Context) (inter
 	}, nil
 }
 
-func getStatefulSetAndControllerRevisions(cli client.Client, namespace, name string) (*appsv1.StatefulSet, []appsv1.ControllerRevision, error) {
-	k8sStatefulSet, err := getStatefulSet(cli, namespace, name)
-	if err != nil {
-		return nil, nil, err
+func getStatefulSetAndControllerRevisions(cli client.Client, namespace, name string) (*appsv1.StatefulSet, []appsv1.ControllerRevision, *resterror.APIError) {
+	k8sStatefulSet, apiErr := getStatefulSet(cli, namespace, name)
+	if apiErr != nil {
+		return nil, nil, apiErr
 	}
 
 	if k8sStatefulSet.Spec.Selector == nil {
-		return nil, nil, fmt.Errorf("statefulset %v has no selector", name)
+		return nil, nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("statefulset %s has no selector", name))
 	}
 
 	controllerRevisions, err := getControllerRevisions(cli, namespace, k8sStatefulSet.Spec.Selector, k8sStatefulSet.UID)
-	return k8sStatefulSet, controllerRevisions, err
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found statefulset %s controllerRevisions", name))
+		}
+		return nil, nil, resterror.NewAPIError(resterror.ServerError,
+			fmt.Sprintf("get statefulset %s controllerRevisions failed: %s", name, err.Error()))
+	}
+
+	return k8sStatefulSet, controllerRevisions, nil
 }
 
 func (m *StatefulSetManager) rollback(ctx *resource.Context) *resterror.APIError {
@@ -351,12 +352,7 @@ func (m *StatefulSetManager) rollback(ctx *resource.Context) *resterror.APIError
 
 	k8sStatefulSet, controllerRevisions, err := getStatefulSetAndControllerRevisions(cluster.GetKubeClient(), namespace, statefulset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound,
-				fmt.Sprintf("statefulset %s with namespace %s desn't exist", statefulset.GetID(), namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
-		}
+		return err
 	}
 
 	var patch []byte
@@ -393,23 +389,15 @@ func (m *StatefulSetManager) setPodCount(ctx *resource.Context) (interface{}, *r
 	statefulset := ctx.Resource.(*types.StatefulSet)
 	k8sStatefulSet, err := getStatefulSet(cluster.GetKubeClient(), namespace, statefulset.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("statefulset %s is non-exist", statefulset.GetID()))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get statefulset failed %s", err.Error()))
+		return nil, err
+	}
+
+	if int(*k8sStatefulSet.Spec.Replicas) != param.Replicas {
+		if err := cluster.GetKubeClient().Patch(context.TODO(), k8sStatefulSet, k8stypes.MergePatchType,
+			[]byte(fmt.Sprintf(`{"spec":{"replicas":%d}}`, param.Replicas))); err != nil {
+			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset pod count failed: %v", err.Error()))
 		}
 	}
 
-	if int(*k8sStatefulSet.Spec.Replicas) == param.Replicas {
-		return param, nil
-	} else {
-		replicas := int32(param.Replicas)
-		k8sStatefulSet.Spec.Replicas = &replicas
-		err := cluster.GetKubeClient().Update(context.TODO(), k8sStatefulSet)
-		if err != nil {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("set statefulset pod count failed %s", err.Error()))
-		} else {
-			return param, nil
-		}
-	}
+	return param, nil
 }

@@ -19,7 +19,7 @@ import (
 	"github.com/zdnscloud/cement/set"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
-	gorestError "github.com/zdnscloud/gorest/error"
+	resterr "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	storagev1 "github.com/zdnscloud/immense/pkg/apis/zcloud/v1"
 	"github.com/zdnscloud/immense/pkg/common"
@@ -38,105 +38,105 @@ func newStorageClusterManager(clusters *ClusterManager) *StorageClusterManager {
 	}
 }
 
-func (m *StorageClusterManager) List(ctx *resource.Context) interface{} {
+func (m *StorageClusterManager) List(ctx *resource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	k8sStorageClusters, err := getStorageClusters(cluster.GetKubeClient())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list storagecluster info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found storageclusters")
 		}
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get storageClusters failed %s", err.Error()))
 	}
 
 	var storageclusters []*types.StorageCluster
 	for _, item := range k8sStorageClusters.Items {
 		storageclusters = append(storageclusters, k8sStorageToSCStorage(cluster, &item))
 	}
-	return storageclusters
+	return storageclusters, nil
 }
 
-func (m StorageClusterManager) Get(ctx *resource.Context) resource.Resource {
+func (m StorageClusterManager) Get(ctx *resource.Context) (resource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
 	k8sStorageCluster, err := getStorageCluster(cluster.GetKubeClient(), storagecluster.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get storagecluster info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("no found storagecluster %s", storagecluster.GetID()))
 		}
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get storageCluster %s failed %s", storagecluster.GetID(), err.Error()))
 	}
 
-	return k8sStorageToSCStorageDetail(cluster, clusteragent.GetAgent(), k8sStorageCluster)
+	return k8sStorageToSCStorageDetail(cluster, clusteragent.GetAgent(), k8sStorageCluster), nil
 }
 
-func (m StorageClusterManager) Delete(ctx *resource.Context) *gorestError.APIError {
+func (m StorageClusterManager) Delete(ctx *resource.Context) *resterr.APIError {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return gorestError.NewAPIError(gorestError.PermissionDenied, "only admin can delete storagecluster")
+		return resterr.NewAPIError(resterr.PermissionDenied, "only admin can delete storagecluster")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return gorestError.NewAPIError(gorestError.NotFound, "storagecluster doesn't exist")
+		return resterr.NewAPIError(resterr.NotFound, "storagecluster doesn't exist")
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
 	if err := deleteStorageCluster(cluster.GetKubeClient(), storagecluster.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
-			return gorestError.NewAPIError(gorestError.NotFound, fmt.Sprintf("storagecluster %s doesn't exist", storagecluster.GetID()))
+			return resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("storagecluster %s doesn't exist", storagecluster.GetID()))
 		} else if strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "Creating") {
-			return gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
+			return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		} else {
-			return gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
+			return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete storagecluster failed, %s", err.Error()))
 		}
 	}
 	return nil
 }
 
-func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
+func (m StorageClusterManager) Create(ctx *resource.Context) (resource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, gorestError.NewAPIError(gorestError.PermissionDenied, "only admin can create storagecluster")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can create storagecluster")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
 	if err := createStorageCluster(cluster, clusteragent.GetAgent(), storagecluster); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, gorestError.NewAPIError(gorestError.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
+			return nil, resterr.NewAPIError(resterr.DuplicateResource, fmt.Sprintf("duplicate storagecluster name %s", storagecluster.Name))
 		} else if strings.Contains(err.Error(), "storagecluster has already exists") || strings.Contains(err.Error(), "can not be used for") {
-			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
+			return nil, resterr.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
 		} else {
-			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
+			return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storagecluster failed, %s", err.Error()))
 		}
 	}
 	storagecluster.SetID(types.StorageclusterMap[storagecluster.StorageType])
 	return storagecluster, nil
 }
 
-func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
+func (m StorageClusterManager) Update(ctx *resource.Context) (resource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, gorestError.NewAPIError(gorestError.PermissionDenied, "only admin can update storagecluster")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can update storagecluster")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, gorestError.NewAPIError(gorestError.NotFound, "cluster doesn't exist")
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	storagecluster := ctx.Resource.(*types.StorageCluster)
 	if err := updateStorageCluster(cluster, clusteragent.GetAgent(), storagecluster); err != nil {
 		if strings.Contains(err.Error(), "storagecluster must keep") || strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "can not be used for") || strings.Contains(err.Error(), "Creating") {
-			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
+			return nil, resterr.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
 		} else {
-			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
+			return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storagecluster failed, %s", err.Error()))
 		}
 	}
 	return storagecluster, nil

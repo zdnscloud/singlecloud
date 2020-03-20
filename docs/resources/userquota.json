@@ -19,9 +19,7 @@
     "name": {
       "type": "string",
       "description": [
-        "required",
-        "isDomain",
-        "immutable"
+        "readonly"
       ]
     },
     "namespace": {

@@ -38,13 +38,6 @@
     "injectServiceMesh": {
       "type": "bool"
     },
-    "manifests": {
-      "type": "array",
-      "elemType": "manifest",
-      "description": [
-        "readonly"
-      ]
-    },
     "name": {
       "type": "string",
       "description": [
@@ -60,12 +53,6 @@
     },
     "status": {
       "type": "string",
-      "description": [
-        "readonly"
-      ]
-    },
-    "systemChart": {
-      "type": "bool",
       "description": [
         "readonly"
       ]
@@ -91,6 +78,9 @@
       "name": {
         "type": "string"
       },
+      "namespace": {
+        "type": "string"
+      },
       "readyReplicas": {
         "type": "int"
       },
@@ -98,17 +88,6 @@
         "type": "int"
       },
       "type": {
-        "type": "string"
-      }
-    },
-    "manifest": {
-      "content": {
-        "type": "string"
-      },
-      "duplicate": {
-        "type": "bool"
-      },
-      "file": {
         "type": "string"
       }
     }

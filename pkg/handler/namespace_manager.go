@@ -73,16 +73,18 @@ func (m *NamespaceManager) Create(ctx *resource.Context) (resource.Resource, *re
 	}
 }
 
-func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
+func (m *NamespaceManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	k8sNamespaces, err := getNamespaces(cluster.GetKubeClient())
 	if err != nil {
-		log.Warnf("get namespace info failed:%s", err.Error())
-		return nil
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found namespaces")
+		}
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list namespaces failed %s", err.Error()))
 	}
 
 	user := getCurrentUser(ctx)
@@ -97,25 +99,33 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 			namespaces = append(namespaces, namespace)
 		}
 	}
-	return namespaces
+	return namespaces, nil
 }
 
-func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
+func (m *NamespaceManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	if !IsNamespaceVisiable(ctx.Resource.GetID(), m.enableDebug) {
-		return nil
+		return nil, nil
 	}
 
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.(*types.Namespace)
 	if m.clusters.authorizer.Authorize(getCurrentUser(ctx), cluster.Name, namespace.GetID()) == false {
-		return nil
+		return nil, resterror.NewAPIError(resterror.Unauthorized, "user has no permission to access the namespace")
 	}
 
-	return getNamespaceInfo(cluster.GetKubeClient(), namespace.GetID())
+	namespace, err := getNamespaceInfo(cluster.GetKubeClient(), namespace.GetID())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found namespace %s", namespace.GetID()))
+		}
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get namespace %s failed %s", namespace.GetID(), err.Error()))
+	}
+
+	return namespace, nil
 }
 
 func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -135,7 +145,7 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.(*types.Namespace)
 	exits, err := m.isExistsInUserQuotaTable(namespace.GetID())
 	if err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed,
+		return resterror.NewAPIError(resterror.NotFound,
 			fmt.Sprintf("check exist for namespace %s failed %s", namespace.GetID(), err.Error()))
 	}
 
@@ -144,18 +154,11 @@ func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
 			fmt.Sprintf("can`t delete namespace %s for other user using", namespace.GetID()))
 	}
 
-	if err := clearApplications(cluster.GetKubeClient(), cluster.Name, namespace.GetID()); err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return resterror.NewAPIError(types.ConnectClusterFailed,
-				fmt.Sprintf("delete namespace applications failed: %s", err.Error()))
-		}
-	}
-
 	if err := deleteNamespace(cluster.GetKubeClient(), namespace.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("namespace %s desn't exist", namespace.Name))
 		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete namespace failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete namespace failed %s", err.Error()))
 		}
 	} else {
 		eb.PublishResourceDeleteEvent(namespace)
@@ -221,11 +224,10 @@ func k8sNamespaceToSCNamespace(k8sNamespace *corev1.Namespace) *types.Namespace 
 	return ns
 }
 
-func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
+func getNamespaceInfo(cli client.Client, name string) (*types.Namespace, error) {
 	ns, err := getNamespace(cli, name)
 	if err != nil {
-		log.Warnf("get namespace failed:%s", err.Error())
-		return nil
+		return nil, err
 	}
 
 	namespace := k8sNamespaceToSCNamespace(ns)
@@ -233,7 +235,7 @@ func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
 	nodes, err := getNodes(cli)
 	if err != nil {
 		log.Warnf("get node info failed:%s", err.Error())
-		return namespace
+		return namespace, nil
 	}
 
 	for _, n := range nodes {
@@ -248,7 +250,7 @@ func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
 	podMetricsList, err := cli.GetPodMetrics(name, "", labels.Everything())
 	if err != nil {
 		log.Warnf("get pod metrcis failed:%s", err.Error())
-		return namespace
+		return namespace, nil
 	}
 
 	var podsWithCpuInfo []*types.PodCpuInfo
@@ -296,7 +298,7 @@ func getNamespaceInfo(cli client.Client, name string) *types.Namespace {
 	if namespace.Pod > 0 {
 		namespace.PodUsedRatio = fmt.Sprintf("%.2f", float64(namespace.PodUsed)/float64(namespace.Pod))
 	}
-	return namespace
+	return namespace, nil
 }
 
 func (m *NamespaceManager) Action(ctx *resource.Context) (interface{}, *resterror.APIError) {

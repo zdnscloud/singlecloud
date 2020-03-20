@@ -4,40 +4,41 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"time"
 
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke"
 
-	"github.com/zdnscloud/cement/log"
-	"github.com/zdnscloud/cement/randomdata"
+	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
 	"github.com/zdnscloud/cement/x509"
+	"github.com/zdnscloud/gok8s/client"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
-	registryAppNamePrefix = "registry"
-	registryChartName     = "harbor"
-	registryChartVersion  = "1.1.1"
+	registryAppName      = "registry"
+	registryChartName    = "harbor"
+	registryChartVersion = "1.1.1"
+	httpsScheme          = "https://"
 )
 
 type RegistryManager struct {
 	clusters *ClusterManager
-	apps     *ApplicationManager
 	ca       x509.Certificate
+	chartDir string
 }
 
-func newRegistryManager(clusterMgr *ClusterManager, appMgr *ApplicationManager, caConfig config.RegistryCAConf) (*RegistryManager, error) {
+func newRegistryManager(clusterMgr *ClusterManager, chartDir string, caConfig config.RegistryCAConf) (*RegistryManager, error) {
 	ca, err := loadRegistryCA(caConfig)
 	if err != nil {
 		return nil, err
 	}
 	return &RegistryManager{
 		clusters: clusterMgr,
-		apps:     appMgr,
+		chartDir: chartDir,
 		ca:       ca,
 	}, nil
 }
@@ -74,64 +75,80 @@ func (m *RegistryManager) Create(ctx *restresource.Context) (restresource.Resour
 	registry := ctx.Resource.(*types.Registry)
 	app, err := genRegistryApplication(cluster, registry, m.ca)
 	if err != nil {
-		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, err.Error())
 	}
 
-	if err := createSysApplication(ctx, m.apps, cluster, registryChartName, app, registry.StorageClass, registryAppNamePrefix); err != nil {
+	if err := createSysApplication(ctx, cluster, app, m.chartDir, registryChartName, registryAppName, registry.StorageClass); err != nil {
 		return nil, err
 	}
 
-	registry.Status = types.AppStatusCreate
-	registry.SetID(registryAppNamePrefix)
+	registry.SetID(registryAppName)
 	return registry, nil
 }
 
-func (m *RegistryManager) List(ctx *restresource.Context) interface{} {
-	r := m.get(ctx)
-	if r == nil {
-		return nil
-	} else {
-		return []*types.Registry{r.(*types.Registry)}
-	}
-}
-
-func (m *RegistryManager) Get(ctx *restresource.Context) restresource.Resource {
-	id := ctx.Resource.GetID()
-	if id != registryAppNamePrefix {
-		return nil
-	}
-	return m.get(ctx)
-}
-
-func (m *RegistryManager) get(ctx *restresource.Context) restresource.Resource {
+func (m *RegistryManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
-	app, err := getApplicationFromDBByChartName(cluster.Name, registryChartName)
+	r, err := m.get(cluster.GetKubeClient())
 	if err != nil {
-		log.Warnf("get cluster %s application by chart name %s failed %s", cluster.Name, registryChartName, err.Error())
-		return nil
+		if err.ErrorCode == resterr.NotFound {
+			return nil, nil
+		}
+		return nil, err
 	}
-	if app == nil {
-		return nil
+	return []*types.Registry{r.(*types.Registry)}, nil
+}
+
+func (m *RegistryManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
-	r, err := genRetrunRegistryFromApplication(cluster.Name, app)
+	id := ctx.Resource.GetID()
+	if id != registryAppName {
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("registry %s doesn't exist", id))
+	}
+	return m.get(cluster.GetKubeClient())
+}
+
+func (m *RegistryManager) get(cli client.Client) (restresource.Resource, *resterr.APIError) {
+	k8sAppCRD, err := getApplication(cli, ZCloudNamespace, registryAppName, true)
 	if err != nil {
-		return nil
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "registry doesn't exist")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get application registry by chart name %s failed %s", monitorChartName, err.Error()))
 	}
 
-	return r
+	r, err := genRetrunRegistryFromApplication(k8sAppCRD)
+	if err != nil {
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("parse k8s app crd to register failed: %s", err.Error()))
+	}
+	return r, nil
 }
 
 func (m *RegistryManager) Delete(ctx *restresource.Context) *resterr.APIError {
-	if ctx.Resource.GetID() != registryAppNamePrefix {
+	if ctx.Resource.GetID() != registryAppName {
 		return resterr.NewAPIError(resterr.NotFound, "registry doesn't exist")
 	}
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
-	return deleteApplicationByChartName(cluster, registryChartName)
+	if cluster == nil {
+		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
+	}
+
+	if err := deleteApplication(cluster.GetKubeClient(), ZCloudNamespace, registryAppName, true); err != nil {
+		if apierrors.IsNotFound(err) {
+			return resterr.NewAPIError(resterr.NotFound, "registry doesn't exist")
+		}
+		return resterr.NewAPIError(resterr.ServerError,
+			fmt.Sprintf("delete application %s failed: %s", registryAppName, err.Error()))
+	}
+
+	return nil
 }
 
 func genRegistryApplication(cluster *zke.Cluster, registry *types.Registry, ca x509.Certificate) (*types.Application, error) {
@@ -140,23 +157,19 @@ func genRegistryApplication(cluster *zke.Cluster, registry *types.Registry, ca x
 		return nil, err
 	}
 	return &types.Application{
-		Name:         registryAppNamePrefix + "-" + randomdata.RandString(12),
+		Name:         registryAppName,
 		ChartName:    registryChartName,
 		ChartVersion: registryChartVersion,
 		Configs:      config,
-		SystemChart:  true,
 	}, nil
 }
 
 func genRegistryApplicationConfig(cluster *zke.Cluster, registry *types.Registry, ca x509.Certificate) ([]byte, error) {
-	if len(registry.IngressDomain) == 0 {
-		edgeIP := getRandomEdgeNodeAddress(cluster)
-		if len(edgeIP) == 0 {
-			return nil, fmt.Errorf("can not find edge node for this cluster")
-		}
-		registry.IngressDomain = registryAppNamePrefix + "-" + ZCloudNamespace + "-" + cluster.Name + "." + edgeIP + "." + ZcloudDynamicaDomainPrefix
+	domain, err := genIngressDomain(cluster, registry.IngressDomain, registryAppName)
+	if err != nil {
+		return nil, err
 	}
-	registry.RedirectUrl = "https://" + registry.IngressDomain
+	registry.IngressDomain = domain
 
 	tls, err := x509.GenerateSignedCertificate(registry.IngressDomain, nil, []interface{}{registry.IngressDomain}, 7300, ca)
 	if err != nil {
@@ -175,26 +188,30 @@ func genRegistryApplicationConfig(cluster *zke.Cluster, registry *types.Registry
 			StorageSize:  registry.StorageSize,
 		},
 		AdminPassword: registry.AdminPassword,
-		ExternalURL:   "https://" + registry.IngressDomain,
+		ExternalURL:   httpsScheme + registry.IngressDomain,
 	}
 
 	return json.Marshal(&harbor)
 }
 
-func genRetrunRegistryFromApplication(cluster string, app *types.Application) (*types.Registry, error) {
+func genRetrunRegistryFromApplication(app *appv1beta1.Application) (*types.Registry, error) {
 	h := charts.Harbor{}
-	if err := json.Unmarshal(app.Configs, &h); err != nil {
+	if err := getAppConfigsFromAnnotations(app, &h); err != nil {
 		return nil, err
 	}
+
 	r := types.Registry{
 		IngressDomain: h.Ingress.Core,
 		StorageClass:  h.Persistence.StorageClass,
 		StorageSize:   h.Persistence.StorageSize,
-		RedirectUrl:   "https://" + h.Ingress.Core,
-		Status:        app.Status,
+		RedirectUrl:   httpsScheme + h.Ingress.Core,
+		Status:        string(app.Status.State),
 	}
-	r.SetID(registryAppNamePrefix)
-	r.SetCreationTimestamp(time.Time(app.CreationTimestamp))
-	r.SetDeletionTimestamp(time.Time(app.DeletionTimestamp))
+	r.SetID(registryAppName)
+	r.SetCreationTimestamp(app.CreationTimestamp.Time)
+	if app.GetDeletionTimestamp() != nil {
+		r.SetDeletionTimestamp(app.DeletionTimestamp.Time)
+		r.Status = appStatusDelete
+	}
 	return &r, nil
 }

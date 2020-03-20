@@ -1,0 +1,73 @@
+{
+  "resourceType": "workflowtask",
+  "collectionName": "workflowtasks",
+  "parentResources": [
+    "workflow"
+  ],
+  "goStructName": "WorkFlowTask",
+  "supportAsyncDelete": true,
+  "resourceFields": {
+    "imageTag": {
+      "type": "string",
+      "description": [
+        "required"
+      ]
+    },
+    "status": {
+      "type": "workFlowTaskStatus",
+      "description": [
+        "readonly"
+      ]
+    },
+    "subTasks": {
+      "type": "array",
+      "elemType": "workFlowSubTask",
+      "description": [
+        "readonly"
+      ]
+    }
+  },
+  "subResources": {
+    "workFlowSubTask": {
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "workFlowTaskStatus"
+      }
+    },
+    "workFlowTaskStatus": {
+      "completionTime": {
+        "type": "date",
+        "description": [
+          "readonly"
+        ]
+      },
+      "currentStatus": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "message": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "startedTime": {
+        "type": "date",
+        "description": [
+          "readonly"
+        ]
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ]
+}

@@ -8,7 +8,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/zdnscloud/cement/log"
-	resterror "github.com/zdnscloud/gorest/error"
+	resterr "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/kvzoo"
@@ -147,14 +147,14 @@ func (m *ThresholdManager) eventLoop() {
 	}
 }
 
-func (m *ThresholdManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+func (m *ThresholdManager) Update(ctx *resource.Context) (resource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil, resterror.NewAPIError(resterror.PermissionDenied, "only admin can update threshold")
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can update threshold")
 	}
 	m.threshold = ctx.Resource.(*types.Threshold)
 
 	if err := updateThreshold(m.clusters, m.threshold, m.table); err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update threshold failed %s", err.Error()))
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update threshold failed %s", err.Error()))
 	}
 	return m.threshold, nil
 }
@@ -179,18 +179,18 @@ func updateThreshold(clusters *ClusterManager, threshold *types.Threshold, table
 	return nil
 }
 
-func (m *ThresholdManager) Get(ctx *restresource.Context) restresource.Resource {
+func (m *ThresholdManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can get threshold")
 	}
-	return m.threshold
+	return m.threshold, nil
 }
 
-func (m *ThresholdManager) List(ctx *restresource.Context) interface{} {
+func (m *ThresholdManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	if isAdmin(getCurrentUser(ctx)) == false {
-		return nil
+		return nil, resterr.NewAPIError(resterr.PermissionDenied, "only admin can get thresholds")
 	}
-	return []*types.Threshold{m.threshold}
+	return []*types.Threshold{m.threshold}, nil
 }
 
 func thresholdToConfigmap(threshold *types.Threshold) *types.ConfigMap {

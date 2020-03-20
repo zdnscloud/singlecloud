@@ -1,0 +1,345 @@
+{
+  "resourceType": "workflow",
+  "collectionName": "workflows",
+  "parentResources": [
+    "namespace"
+  ],
+  "goStructName": "WorkFlow",
+  "supportAsyncDelete": true,
+  "resourceFields": {
+    "autoDeploy": {
+      "type": "bool",
+      "description": [
+        "immutable"
+      ]
+    },
+    "deploy": {
+      "type": "deployment"
+    },
+    "git": {
+      "type": "gitInfo",
+      "description": [
+        "required"
+      ]
+    },
+    "image": {
+      "type": "imageInfo",
+      "description": [
+        "required"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": [
+        "required",
+        "isDomain",
+        "immutable"
+      ]
+    },
+    "status": {
+      "type": "workFlowTaskStatus",
+      "description": [
+        "readonly"
+      ]
+    },
+    "subTasks": {
+      "type": "array",
+      "elemType": "workFlowSubTask",
+      "description": [
+        "readonly"
+      ]
+    }
+  },
+  "subResources": {
+    "advancedOptions": {
+      "deletePVsWhenDeleteWorkload": {
+        "type": "bool"
+      },
+      "exposedMetric": {
+        "type": "exposedMetric"
+      },
+      "injectServiceMesh": {
+        "type": "bool"
+      },
+      "reloadWhenConfigChange": {
+        "type": "bool"
+      }
+    },
+    "container": {
+      "args": {
+        "type": "array",
+        "elemType": "string"
+      },
+      "command": {
+        "type": "array",
+        "elemType": "string"
+      },
+      "env": {
+        "type": "array",
+        "elemType": "envVar"
+      },
+      "exposedPorts": {
+        "type": "array",
+        "elemType": "containerPort"
+      },
+      "image": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "name": {
+        "type": "string",
+        "description": [
+          "required",
+          "isDomain"
+        ]
+      },
+      "volumes": {
+        "type": "array",
+        "elemType": "volume"
+      }
+    },
+    "containerPort": {
+      "name": {
+        "type": "string"
+      },
+      "port": {
+        "type": "int"
+      },
+      "protocol": {
+        "type": "enum",
+        "validValues": [
+          "tcp",
+          "udp"
+        ]
+      }
+    },
+    "deployment": {
+      "advancedOptions": {
+        "type": "advancedOptions",
+        "description": [
+          "immutable"
+        ]
+      },
+      "containers": {
+        "type": "array",
+        "elemType": "container",
+        "description": [
+          "required"
+        ]
+      },
+      "memo": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string",
+        "description": [
+          "required",
+          "isDomain",
+          "immutable"
+        ]
+      },
+      "persistentVolumes": {
+        "type": "array",
+        "elemType": "persistentVolumeTemplate"
+      },
+      "replicas": {
+        "type": "int",
+        "description": [
+          "required"
+        ]
+      },
+      "status": {
+        "type": "workloadStatus",
+        "description": [
+          "readonly"
+        ]
+      }
+    },
+    "envVar": {
+      "name": {
+        "type": "string"
+      },
+      "value": {
+        "type": "string"
+      }
+    },
+    "exposedMetric": {
+      "path": {
+        "type": "string"
+      },
+      "port": {
+        "type": "int"
+      }
+    },
+    "gitInfo": {
+      "password": {
+        "type": "string"
+      },
+      "repositoryUrl": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "revision": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "user": {
+        "type": "string"
+      }
+    },
+    "imageInfo": {
+      "name": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "registryPassword": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      },
+      "registryUser": {
+        "type": "string",
+        "description": [
+          "required"
+        ]
+      }
+    },
+    "persistentVolumeTemplate": {
+      "name": {
+        "type": "string",
+        "description": [
+          "isDomain"
+        ]
+      },
+      "size": {
+        "type": "string"
+      },
+      "storageClassName": {
+        "type": "enum",
+        "validValues": [
+          "lvm",
+          "cephfs",
+          "temporary"
+        ]
+      }
+    },
+    "volume": {
+      "mountPath": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string",
+        "description": [
+          "isDomain"
+        ]
+      },
+      "type": {
+        "type": "enum",
+        "validValues": [
+          "configmap",
+          "secret",
+          "persistentVolume"
+        ]
+      }
+    },
+    "workFlowSubTask": {
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "workFlowTaskStatus"
+      }
+    },
+    "workFlowTaskStatus": {
+      "completionTime": {
+        "type": "date",
+        "description": [
+          "readonly"
+        ]
+      },
+      "currentStatus": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "message": {
+        "type": "string",
+        "description": [
+          "readonly"
+        ]
+      },
+      "startedTime": {
+        "type": "date",
+        "description": [
+          "readonly"
+        ]
+      }
+    },
+    "workloadCondition": {
+      "lastTransitionTime": {
+        "type": "date"
+      },
+      "lastUpdateTime": {
+        "type": "date"
+      },
+      "message": {
+        "type": "string"
+      },
+      "reason": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string"
+      }
+    },
+    "workloadStatus": {
+      "conditions": {
+        "type": "array",
+        "elemType": "workloadCondition"
+      },
+      "currentReplicas": {
+        "type": "int"
+      },
+      "readyReplicas": {
+        "type": "int"
+      },
+      "updatedReplicas": {
+        "type": "int"
+      },
+      "updating": {
+        "type": "bool"
+      },
+      "updatingReplicas": {
+        "type": "int"
+      }
+    }
+  },
+  "resourceMethods": [
+    "GET",
+    "DELETE",
+    "PUT",
+    "POST"
+  ],
+  "collectionMethods": [
+    "GET",
+    "POST"
+  ],
+  "resourceActions": [
+    {
+      "name": "emptytask"
+    }
+  ]
+}
