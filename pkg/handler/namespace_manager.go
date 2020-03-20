@@ -26,6 +26,14 @@ const (
 	TopPodCount = 5
 )
 
+var HiddenNamespaces = []string{
+	ZCloudNamespace,
+	"ingress-nginx",
+	"kube-node-lease",
+	"kube-public",
+	"kube-system",
+}
+
 type NamespaceManager struct {
 	clusters    *ClusterManager
 	db          kvzoo.Table
@@ -80,7 +88,7 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 	user := getCurrentUser(ctx)
 	var namespaces []*types.Namespace
 	for _, ns := range k8sNamespaces.Items {
-		if !m.enableDebug && ns.Name == ZCloudNamespace {
+		if !IsNamespaceVisiable(ns.Name, m.enableDebug) {
 			continue
 		}
 
@@ -93,7 +101,7 @@ func (m *NamespaceManager) List(ctx *resource.Context) interface{} {
 }
 
 func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
-	if !m.enableDebug && ctx.Resource.GetID() == ZCloudNamespace {
+	if !IsNamespaceVisiable(ctx.Resource.GetID(), m.enableDebug) {
 		return nil
 	}
 
@@ -111,7 +119,7 @@ func (m *NamespaceManager) Get(ctx *resource.Context) resource.Resource {
 }
 
 func (m *NamespaceManager) Delete(ctx *resource.Context) *resterror.APIError {
-	if !m.enableDebug && ctx.Resource.GetID() == ZCloudNamespace {
+	if !IsNamespaceVisiable(ctx.Resource.GetID(), m.enableDebug) {
 		return resterror.NewAPIError(resterror.PermissionDenied, "system namespace can only be deleted at debug mod")
 	}
 
@@ -358,4 +366,15 @@ func (m *NamespaceManager) searchPod(ctx *resource.Context) (interface{}, *reste
 		Kind: owner.Kind,
 		Name: owner.Name,
 	}, nil
+}
+
+func IsNamespaceVisiable(ns string, enableDebug bool) bool {
+	if !enableDebug {
+		for _, ns_ := range HiddenNamespaces {
+			if ns_ == ns {
+				return false
+			}
+		}
+	}
+	return true
 }

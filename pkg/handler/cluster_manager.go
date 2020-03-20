@@ -211,7 +211,7 @@ func (m *ClusterManager) authorizationHandler(enableDebug bool) gorest.HandlerFu
 			if _, ok := ancestors[1].(*types.Namespace); ok {
 				cluster := ancestors[0].GetID()
 				namespace := ancestors[1].GetID()
-				if namespace == ZCloudNamespace && !enableDebug {
+				if !IsNamespaceVisiable(namespace, enableDebug) {
 					return resterr.NewAPIError(resterr.PermissionDenied, fmt.Sprintf("user %s has no sufficient permission to work on namespace %s", user, namespace))
 				}
 
