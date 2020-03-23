@@ -22,6 +22,10 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	connectionCheckInterval = time.Second * 15
+)
+
 type Cluster struct {
 	Name           string
 	createTime     time.Time
@@ -148,7 +152,24 @@ func (c *Cluster) Init(kubeConfig string) error {
 	if err := c.setCache(k8sConfig); err != nil {
 		return fmt.Errorf("set cluster %s cache failed %s", c.Name, err.Error())
 	}
+	go c.connectionCheckLoop()
 	return nil
+}
+
+func (c *Cluster) connectionCheckLoop() {
+	for {
+		select {
+		case <-c.stopCh:
+			log.Debugf("cluster %s connectionCheckLoop exit", c.Name)
+			return
+		case <-time.After(connectionCheckInterval):
+			if _, err := c.GetKubeClient().ServerVersion(); err != nil {
+				c.Event(GetInfoFailedEvent)
+			} else {
+				c.Event(GetInfoSucceedEvent)
+			}
+		}
+	}
 }
 
 func (c *Cluster) setCache(k8sConfig *rest.Config) error {
@@ -209,6 +230,7 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 		c.event(CreateFailedEvent, mgr, state, err.Error())
 		return
 	}
+	go c.connectionCheckLoop()
 	state.Created = true
 	c.event(CreateSucceedEvent, mgr, state, "")
 }

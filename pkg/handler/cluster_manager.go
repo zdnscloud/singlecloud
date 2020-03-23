@@ -101,10 +101,8 @@ func getClusterInfo(zkeCluster *zke.Cluster, sc *types.Cluster) *types.Cluster {
 
 	version, err := zkeCluster.GetKubeClient().ServerVersion()
 	if err != nil {
-		zkeCluster.Event(zke.GetInfoFailedEvent)
 		return sc
 	}
-	zkeCluster.Event(zke.GetInfoSucceedEvent)
 	sc.Version = version.GitVersion
 
 	nodes, err := getNodes(zkeCluster.GetKubeClient())
