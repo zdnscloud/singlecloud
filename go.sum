@@ -485,6 +485,8 @@ github.com/zdnscloud/vanguard v0.0.0-20200214072003-226d0e690d9f h1:YYs2kzT5nQFF
 github.com/zdnscloud/vanguard v0.0.0-20200214072003-226d0e690d9f/go.mod h1:QXs9Nt1m2kb+c9og+ZBC+0TIBSSfCTCCQ4s7CkJGfgc=
 github.com/zdnscloud/zke v0.0.0-20200319060048-d0edd1dae7ff h1:96xG5QV22ynJPnnJLRpag/0TWq4Vn7q6GU3MtRspw2g=
 github.com/zdnscloud/zke v0.0.0-20200319060048-d0edd1dae7ff/go.mod h1:uCRoGUQKXLutSxc+V+E+8+Bf/ZqWnnl9kJx8+4mbJUc=
+github.com/zdnscloud/zke v0.0.0-20200323081643-f45d03938e3f h1:WoNtPXkakRfzsaZSdl8+JR7IpARXrtYa6e4VceczK0Q=
+github.com/zdnscloud/zke v0.0.0-20200323081643-f45d03938e3f/go.mod h1:uCRoGUQKXLutSxc+V+E+8+Bf/ZqWnnl9kJx8+4mbJUc=
 github.com/zsais/go-gin-prometheus v0.1.0 h1:bkLv1XCdzqVgQ36ScgRi09MA2UC1t3tAB6nsfErsGO4=
 github.com/zsais/go-gin-prometheus v0.1.0/go.mod h1:Slirjzuz8uM8Cw0jmPNqbneoqcUtY2GGjn2bEd4NRLY=
 go.etcd.io/bbolt v1.3.3 h1:MUGmc65QhB3pIlaQ5bB4LwqSj6GIonVJXpZiaKNyaKk=
