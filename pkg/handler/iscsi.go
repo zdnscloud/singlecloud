@@ -88,26 +88,15 @@ func (s *IscsiManager) Delete(cli client.Client, name string) error {
 
 	finalizers := iscsi.GetFinalizers()
 	if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
-		if err := deleteIscsiSecretIfNeed(cli, name); err != nil {
-			return err
+		if iscsi.Spec.Chap {
+			if err := deleteSecret(cli, ZCloudNamespace, fmt.Sprintf("%s-%s", name, IscsiInstanceSecretSuffix)); err != nil {
+				return err
+			}
 		}
 		return cli.Delete(context.TODO(), iscsi)
 	} else {
 		return errors.New(fmt.Sprintf("storage %s is used by some pvcs, you should delete those pvc first", name))
 	}
-}
-
-func deleteIscsiSecretIfNeed(cli client.Client, name string) error {
-	iscsi, err := getIscsi(cli, name)
-	if err != nil {
-		return err
-	}
-	if iscsi.Spec.Chap {
-		if err := deleteSecret(cli, ZCloudNamespace, fmt.Sprintf("%s-%s", name, IscsiInstanceSecretSuffix)); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func iscsiToSCStorageDetail(cluster *zke.Cluster, iscsi *storagev1.Iscsi) (*types.Storage, error) {
@@ -156,8 +145,11 @@ func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) erro
 		if !ok {
 			return errors.New("controlplane or etcd node can not be initiators")
 		}
-		if err := createIscsiSecretIfNeed(cluster.GetKubeClient(), storage); err != nil {
-			return err
+		if storage.Iscsi.Chap {
+			secret := genIscsiSecret(storage)
+			if err := createSecret(cluster.GetKubeClient(), ZCloudNamespace, secret); err != nil {
+				return err
+			}
 		}
 
 		k8sIscsi := &storagev1.Iscsi{
@@ -191,14 +183,6 @@ func validateInitiators(cli client.Client, initiators []string) (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-func createIscsiSecretIfNeed(cli client.Client, storage *types.Storage) error {
-	if storage.Iscsi.Chap {
-		secret := genIscsiSecret(storage)
-		return createSecret(cli, ZCloudNamespace, secret)
-	}
-	return nil
 }
 
 func genIscsiSecret(storage *types.Storage) *types.Secret {
@@ -242,6 +226,19 @@ func iscsiToSCStorage(iscsi *storagev1.Iscsi) *types.Storage {
 	return storage
 }
 
+func updateIscsiSecret(cli client.Client, storage *types.Storage) error {
+	_k8sSecret, err := getSecret(cli, ZCloudNamespace, fmt.Sprintf("%s-%s", storage.Name, IscsiInstanceSecretSuffix))
+	if err != nil {
+		return err
+	}
+	k8sSecret, err := scSecretToK8sSecret(genIscsiSecret(storage), ZCloudNamespace)
+	if err != nil {
+		return err
+	}
+	_k8sSecret.Data = k8sSecret.Data
+	return cli.Update(context.TODO(), _k8sSecret)
+}
+
 func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) error {
 	if err := iscsiValidation(storage); err != nil {
 		return err
@@ -256,23 +253,6 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 	if k8sIscsi.GetDeletionTimestamp() != nil {
 		return errors.New("iscsi in Deleting, not allowed update")
 	}
-	if !reflect.DeepEqual(k8sIscsi.Spec.Targets, storage.Iscsi.Targets) ||
-		k8sIscsi.Spec.Port != storage.Iscsi.Port ||
-		k8sIscsi.Spec.Iqn != storage.Iscsi.Iqn ||
-		k8sIscsi.Spec.Chap != storage.Iscsi.Chap {
-		finalizers := k8sIscsi.GetFinalizers()
-		if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
-			if err := deleteIscsiSecretIfNeed(cluster.GetKubeClient(), k8sIscsi.Name); err != nil {
-				return err
-			}
-			if err := createIscsiSecretIfNeed(cluster.GetKubeClient(), storage); err != nil {
-				return err
-			}
-		} else {
-			return errors.New(fmt.Sprintf("storage %s is used by some pvcs, you should delete those pvc first", storage.Name))
-		}
-	}
-
 	if !reflect.DeepEqual(k8sIscsi.Spec.Initiators, storage.Iscsi.Initiators) {
 		s1 := set.StringSetFromSlice(k8sIscsi.Spec.Initiators)
 		s2 := set.StringSetFromSlice(storage.Iscsi.Initiators)
@@ -290,6 +270,50 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 			return errors.New("controlplane or etcd node can not be initiators")
 		}
 	}
+	var chapChange bool
+	if storage.Iscsi.Chap && k8sIscsi.Spec.Chap == storage.Iscsi.Chap {
+		secret, err := getIscsiSecret(cluster.GetKubeClient(), ZCloudNamespace, fmt.Sprintf("%s-%s", k8sIscsi.Name, IscsiInstanceSecretSuffix))
+		if err != nil {
+			return err
+		}
+		for _, d := range secret.Data {
+			if d.Key == "username" && d.Value != storage.Iscsi.Username {
+				chapChange = true
+			}
+			if d.Key == "password" && d.Value != storage.Iscsi.Password {
+				chapChange = true
+			}
+		}
+	}
+
+	if !reflect.DeepEqual(k8sIscsi.Spec.Targets, storage.Iscsi.Targets) ||
+		k8sIscsi.Spec.Port != storage.Iscsi.Port ||
+		k8sIscsi.Spec.Iqn != storage.Iscsi.Iqn ||
+		k8sIscsi.Spec.Chap != storage.Iscsi.Chap ||
+		chapChange {
+		finalizers := k8sIscsi.GetFinalizers()
+		if (len(finalizers) == 0) || (len(finalizers) == 1 && slice.SliceIndex(finalizers, common.StoragePrestopHookFinalizer) == 0) {
+			if k8sIscsi.Spec.Chap && !storage.Iscsi.Chap {
+				if err := deleteSecret(cluster.GetKubeClient(), ZCloudNamespace, fmt.Sprintf("%s-%s", k8sIscsi.Name, IscsiInstanceSecretSuffix)); err != nil {
+					return err
+				}
+			}
+			if !k8sIscsi.Spec.Chap && storage.Iscsi.Chap {
+				secret := genIscsiSecret(storage)
+				if err := createSecret(cluster.GetKubeClient(), ZCloudNamespace, secret); err != nil {
+					return err
+				}
+			}
+			if chapChange {
+				if err := updateIscsiSecret(cluster.GetKubeClient(), storage); err != nil {
+					return err
+				}
+			}
+		} else {
+			return errors.New(fmt.Sprintf("storage %s is used by some pvcs, you should delete those pvc first", storage.Name))
+		}
+	}
+
 	k8sIscsi.Spec.Targets = storage.Iscsi.Targets
 	k8sIscsi.Spec.Port = storage.Iscsi.Port
 	k8sIscsi.Spec.Iqn = storage.Iscsi.Iqn
