@@ -6,7 +6,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
