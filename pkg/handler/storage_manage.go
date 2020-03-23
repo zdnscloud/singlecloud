@@ -136,8 +136,6 @@ func (m *StorageManager) Delete(ctx *resource.Context) *gorestError.APIError {
 	if err := m.deleteStorage(cluster.GetKubeClient(), storage.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return gorestError.NewAPIError(gorestError.NotFound, fmt.Sprintf("storage %s doesn't exist", storage.GetID()))
-		} else if strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "Creating") {
-			return gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete storage failed, %s", err.Error()))
 		} else {
 			return gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete storage failed, %s", err.Error()))
 		}
@@ -170,8 +168,6 @@ func (m *StorageManager) Create(ctx *resource.Context) (resource.Resource, *gore
 	if err := m.createStorage(cluster, storage); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, gorestError.NewAPIError(gorestError.DuplicateResource, fmt.Sprintf("duplicate storage name %s", storage.Name))
-		} else if strings.Contains(err.Error(), "storage has already exists") || strings.Contains(err.Error(), "can not be used for") {
-			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create storage failed, %s", err.Error()))
 		} else {
 			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create storage failed, %s", err.Error()))
 		}
@@ -219,11 +215,7 @@ func (m *StorageManager) Update(ctx *resource.Context) (resource.Resource, *gore
 
 	storage := ctx.Resource.(*types.Storage)
 	if err := m.updateStorage(cluster, storage); err != nil {
-		if strings.Contains(err.Error(), "storage must keep") || strings.Contains(err.Error(), "is used by") || strings.Contains(err.Error(), "can not be used for") || strings.Contains(err.Error(), "Creating") {
-			return nil, gorestError.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update storage failed, %s", err.Error()))
-		} else {
-			return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storage failed, %s", err.Error()))
-		}
+		return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update storage failed, %s", err.Error()))
 	}
 	return storage, nil
 }

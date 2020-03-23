@@ -73,10 +73,6 @@ func (s *LvmManager) GetStorages(cli client.Client) ([]*types.Storage, error) {
 			continue
 		}
 		storage := storageClusterToSCStorage(&storageCluster)
-		storage.Parameter = types.Parameter{
-			Lvm: &types.StorageClusterParameter{
-				Hosts: storageCluster.Spec.Hosts,
-			}}
 		storages = append(storages, storage)
 	}
 	return storages, nil
@@ -91,10 +87,6 @@ func (s *LvmManager) GetStorage(cluster *zke.Cluster, name string) (*types.Stora
 	if err != nil {
 		return nil, err
 	}
-	storage.Parameter = types.Parameter{
-		Lvm: &types.StorageClusterParameter{
-			Hosts: storageCluster.Spec.Hosts,
-		}}
 	return storage, nil
 }
 
@@ -120,6 +112,18 @@ func storageClusterToSCStorage(storageCluster *storagev1.Cluster) *types.Storage
 	}
 	if _default, ok := storageCluster.Annotations[StorageClassDefaultKey]; ok {
 		storage.Default = strToBool(_default)
+	}
+	if storage.Type == types.LvmType {
+		storage.Parameter = types.Parameter{
+			Lvm: &types.StorageClusterParameter{
+				Hosts: storageCluster.Spec.Hosts,
+			}}
+	}
+	if storage.Type == types.CephfsType {
+		storage.Parameter = types.Parameter{
+			CephFs: &types.StorageClusterParameter{
+				Hosts: storageCluster.Spec.Hosts,
+			}}
 	}
 	storage.SetID(storageCluster.Name)
 	storage.SetCreationTimestamp(storageCluster.CreationTimestamp.Time)
@@ -261,11 +265,12 @@ func updateStorageCluster(cluster *zke.Cluster, name string, typ types.StorageTy
 
 func isDelHostsUsed(cli client.Client, name string, typ types.StorageType, hosts []string) error {
 	var suffix string
-	if typ == types.LvmType {
+	switch typ {
+	case types.LvmType:
 		suffix = LvmDriverSuffix
-	} else if typ == types.IscsiType {
+	case types.IscsiType:
 		suffix = IscsiDriverSuffix
-	} else {
+	default:
 		return errors.New(fmt.Sprintf("unknow storage type %s", typ))
 	}
 	usedHosts, err := getAttachedHosts(cli, fmt.Sprintf("%s.%s", name, suffix), hosts)

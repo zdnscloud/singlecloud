@@ -35,10 +35,6 @@ func (s *CephFsManager) GetStorages(cli client.Client) ([]*types.Storage, error)
 			continue
 		}
 		storage := storageClusterToSCStorage(&storageCluster)
-		storage.Parameter = types.Parameter{
-			CephFs: &types.StorageClusterParameter{
-				Hosts: storageCluster.Spec.Hosts,
-			}}
 		storages = append(storages, storage)
 	}
 	return storages, nil
@@ -53,10 +49,6 @@ func (s *CephFsManager) GetStorage(cluster *zke.Cluster, name string) (*types.St
 	if err != nil {
 		return nil, err
 	}
-	storage.Parameter = types.Parameter{
-		CephFs: &types.StorageClusterParameter{
-			Hosts: storageCluster.Spec.Hosts,
-		}}
 	return storage, nil
 }
 
