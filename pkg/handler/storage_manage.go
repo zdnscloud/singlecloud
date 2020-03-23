@@ -78,17 +78,6 @@ func (m *StorageManager) getStorages(cli client.Client) ([]*types.Storage, error
 		}
 		storages = append(storages, _storages...)
 	}
-	for _, storage := range storages {
-		if storage.Phase == string(storagev1.Running) {
-			storageClass, err := getStorageClass(cli, storage.Name)
-			if err != nil {
-				continue
-			}
-			if _default, ok := storageClass.Annotations[StorageClassDefaultKey]; ok {
-				storage.Default = strToBool(_default)
-			}
-		}
-	}
 	sort.Sort(storages)
 	return storages, nil
 }
@@ -128,15 +117,6 @@ func (m *StorageManager) getStorage(cluster *zke.Cluster, name string) (*types.S
 			storage, err := handle.GetStorage(cluster, name)
 			if err != nil {
 				return nil, err
-			}
-			if storage.Phase == string(storagev1.Running) {
-				storageClass, err := getStorageClass(cluster.GetKubeClient(), name)
-				if err != nil {
-					return nil, err
-				}
-				if _default, ok := storageClass.Annotations[StorageClassDefaultKey]; ok {
-					storage.Default = strToBool(_default)
-				}
 			}
 			return storage, nil
 		}

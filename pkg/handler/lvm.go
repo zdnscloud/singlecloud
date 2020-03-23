@@ -118,6 +118,9 @@ func storageClusterToSCStorage(storageCluster *storagev1.Cluster) *types.Storage
 		UsedSize: byteToGb(sToi(storageCluster.Status.Capacity.Total.Used)),
 		FreeSize: byteToGb(sToi(storageCluster.Status.Capacity.Total.Free)),
 	}
+	if _default, ok := storageCluster.Annotations[StorageClassDefaultKey]; ok {
+		storage.Default = strToBool(_default)
+	}
 	storage.SetID(storageCluster.Name)
 	storage.SetCreationTimestamp(storageCluster.CreationTimestamp.Time)
 	if storageCluster.GetDeletionTimestamp() != nil {
@@ -144,7 +147,6 @@ func createStorageCluster(cluster *zke.Cluster, name, typ string, hosts []string
 	if err := isHostsValidate(cluster, hosts); err != nil {
 		return err
 	}
-
 	k8sStorageCluster := &storagev1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -153,6 +155,9 @@ func createStorageCluster(cluster *zke.Cluster, name, typ string, hosts []string
 			StorageType: typ,
 			Hosts:       hosts,
 		},
+	}
+	if typ == string(types.LvmType) {
+		k8sStorageCluster.Annotations[StorageClassDefaultKey] = "true"
 	}
 	return cluster.GetKubeClient().Create(context.TODO(), k8sStorageCluster)
 }
