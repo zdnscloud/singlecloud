@@ -161,7 +161,9 @@ func createStorageCluster(cluster *zke.Cluster, name, typ string, hosts []string
 		},
 	}
 	if typ == string(types.LvmType) {
-		k8sStorageCluster.Annotations[StorageClassDefaultKey] = "true"
+		annotations := make(map[string]string)
+		annotations[StorageClassDefaultKey] = "true"
+		k8sStorageCluster.Annotations = annotations
 	}
 	return cluster.GetKubeClient().Create(context.TODO(), k8sStorageCluster)
 }
