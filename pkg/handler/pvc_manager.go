@@ -193,27 +193,15 @@ func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods 
 }
 
 func isUsed(cli client.Client, namespace, name string) error {
-	k8sPvc, err := getPersistentVolumeClaim(cli, namespace, name)
-	if err != nil {
+	pods := corev1.PodList{}
+	if err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace}, &pods); err != nil {
 		return err
 	}
-	if string(k8sPvc.Status.Phase) != "Bound" {
-		return nil
-	}
-	pv, err := getPersistentVolume(cli, k8sPvc.Spec.VolumeName)
-	if err != nil {
-		return err
-	}
-	vas := k8sstorage.VolumeAttachmentList{}
-	if err := cli.List(context.TODO(), nil, &vas); err != nil {
-		return err
-	}
-	for _, va := range vas.Items {
-		if *va.Spec.Source.PersistentVolumeName == pv.Name {
-			if va.Status.Attached {
+	for _, pod := range pods.Items {
+		for _, v := range pod.Spec.Volumes {
+			if v.PersistentVolumeClaim != nil && name == v.PersistentVolumeClaim.ClaimName {
 				return errors.New(fmt.Sprintf("the pvc %s is in used, can not delete it", name))
 			}
-			return nil
 		}
 	}
 	return nil
