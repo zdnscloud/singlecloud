@@ -20,10 +20,6 @@ func (s *CephFsManager) GetType() types.StorageType {
 	return types.CephfsType
 }
 
-func (s *CephFsManager) HaveStorage(cli client.Client, name string) (bool, error) {
-	return checkStorageCluster(cli, name, s.GetType())
-}
-
 func (s *CephFsManager) GetStorages(cli client.Client) ([]*types.Storage, error) {
 	storageClusters, err := getStorageClusters(cli)
 	if err != nil {

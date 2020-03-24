@@ -42,26 +42,6 @@ func getStorageClusters(cli client.Client) (*storagev1.ClusterList, error) {
 	return &storageclusters, err
 }
 
-func checkStorageCluster(cli client.Client, name string, typ types.StorageType) (bool, error) {
-	storageClusters, err := getStorageClusters(cli)
-	if err != nil {
-		return false, err
-	}
-	for _, storageCluster := range storageClusters.Items {
-		if storageCluster.Spec.StorageType != string(typ) {
-			continue
-		}
-		if storageCluster.Name == name {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func (s *LvmManager) HaveStorage(cli client.Client, name string) (bool, error) {
-	return checkStorageCluster(cli, name, s.GetType())
-}
-
 func (s *LvmManager) GetStorages(cli client.Client) ([]*types.Storage, error) {
 	storageClusters, err := getStorageClusters(cli)
 	if err != nil {

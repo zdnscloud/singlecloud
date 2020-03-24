@@ -28,7 +28,6 @@ const (
 
 type StorageHandle interface {
 	GetType() types.StorageType
-	HaveStorage(cli client.Client, name string) (bool, error)
 	GetStorages(cli client.Client) ([]*types.Storage, error)
 	GetStorage(cluster *zke.Cluster, name string) (*types.Storage, error)
 	Delete(cli client.Client, name string) error
@@ -108,17 +107,14 @@ func (m *StorageManager) Get(ctx *resource.Context) resource.Resource {
 
 func (m *StorageManager) getStorage(cluster *zke.Cluster, name string) (*types.Storage, error) {
 	for _, handle := range m.storageHandles {
-		exist, err := handle.HaveStorage(cluster.GetKubeClient(), name)
+		storage, err := handle.GetStorage(cluster, name)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
 			return nil, err
 		}
-		if exist {
-			storage, err := handle.GetStorage(cluster, name)
-			if err != nil {
-				return nil, err
-			}
-			return storage, nil
-		}
+		return storage, nil
 	}
 	return nil, errors.New(fmt.Sprintf(StorageNotFoundErr, name))
 }
@@ -132,7 +128,7 @@ func (m *StorageManager) Delete(ctx *resource.Context) *gorestError.APIError {
 		return gorestError.NewAPIError(gorestError.NotFound, "storage doesn't exist")
 	}
 	storage := ctx.Resource.(*types.Storage)
-	if err := m.deleteStorage(cluster.GetKubeClient(), storage.GetID()); err != nil {
+	if err := m.deleteStorage(cluster, storage.GetID()); err != nil {
 		if apierrors.IsNotFound(err) {
 			return gorestError.NewAPIError(gorestError.NotFound, fmt.Sprintf("storage %s doesn't exist", storage.GetID()))
 		} else {
@@ -142,15 +138,16 @@ func (m *StorageManager) Delete(ctx *resource.Context) *gorestError.APIError {
 	return nil
 }
 
-func (m *StorageManager) deleteStorage(cli client.Client, name string) error {
+func (m *StorageManager) deleteStorage(cluster *zke.Cluster, name string) error {
 	for _, handle := range m.storageHandles {
-		exist, err := handle.HaveStorage(cli, name)
+		_, err := handle.GetStorage(cluster, name)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
 			return err
 		}
-		if exist {
-			return handle.Delete(cli, name)
-		}
+		return handle.Delete(cluster.GetKubeClient(), name)
 	}
 	return errors.New(fmt.Sprintf(StorageNotFoundErr, name))
 }

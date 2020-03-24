@@ -44,19 +44,6 @@ func getIscsis(cli client.Client) (*storagev1.IscsiList, error) {
 	return &iscsis, err
 }
 
-func (s *IscsiManager) HaveStorage(cli client.Client, name string) (bool, error) {
-	iscsis, err := getIscsis(cli)
-	if err != nil {
-		return false, err
-	}
-	for _, iscsi := range iscsis.Items {
-		if iscsi.Name == name {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 func (s *IscsiManager) GetStorages(cli client.Client) ([]*types.Storage, error) {
 	iscsis, err := getIscsis(cli)
 	if err != nil {

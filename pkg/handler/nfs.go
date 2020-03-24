@@ -43,19 +43,6 @@ func getNfss(cli client.Client) (*storagev1.NfsList, error) {
 	return &nfss, err
 }
 
-func (s *NfsManager) HaveStorage(cli client.Client, name string) (bool, error) {
-	nfss, err := getNfss(cli)
-	if err != nil {
-		return false, err
-	}
-	for _, nfs := range nfss.Items {
-		if nfs.Name == name {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 func (s *NfsManager) GetStorages(cli client.Client) ([]*types.Storage, error) {
 	nfss, err := getNfss(cli)
 	if err != nil {
