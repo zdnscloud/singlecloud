@@ -24,6 +24,8 @@ type SinglecloudConf struct {
 
 type ServerConf struct {
 	Addr        string `yaml:"addr"`
+	TlsCertFile string `yaml:"tls_cert_file"`
+	TlsKeyFile  string `yaml:"tls_key_file"`
 	DNSAddr     string `yaml:"dns_addr"`
 	CasAddr     string `yaml:"cas_addr"`
 	EnableDebug bool   `yaml:"enable_debug"`
