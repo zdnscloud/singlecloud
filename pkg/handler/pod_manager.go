@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	resterror "github.com/zdnscloud/gorest/error"
@@ -34,10 +33,10 @@ func newPodManager(clusters *ClusterManager) *PodManager {
 	return &PodManager{clusters: clusters}
 }
 
-func (m *PodManager) List(ctx *resource.Context) interface{} {
+func (m *PodManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetParent().GetID()
@@ -45,36 +44,36 @@ func (m *PodManager) List(ctx *resource.Context) interface{} {
 	ownerName := ctx.Resource.GetParent().GetID()
 	k8sPods, err := getOwnerPods(cluster.GetKubeClient(), namespace, ownerType, ownerName)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get pod info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found pods")
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list pods failed %s", err.Error()))
 	}
 
 	var pods []*types.Pod
 	for _, k8sPod := range k8sPods.Items {
 		pods = append(pods, k8sPodToSCPod(&k8sPod))
 	}
-	return pods
+	return pods, nil
 }
 
-func (m *PodManager) Get(ctx *resource.Context) resource.Resource {
+func (m *PodManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetParent().GetID()
 	pod := ctx.Resource.(*types.Pod)
 	k8sPod, err := getPod(cluster.GetKubeClient(), namespace, pod.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get pod info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found pod %s", pod.GetID()))
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get pod %s failed %s", pod.GetID(), err.Error()))
 	}
 
-	return k8sPodToSCPod(k8sPod)
+	return k8sPodToSCPod(k8sPod), nil
 }
 
 func (m *PodManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -89,9 +88,8 @@ func (m *PodManager) Delete(ctx *resource.Context) *resterror.APIError {
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("pod %s desn't exist", pod.GetID()))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete pod failed %s", err.Error()))
 		}
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete pod failed %s", err.Error()))
 	}
 	return nil
 }

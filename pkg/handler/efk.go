@@ -6,8 +6,10 @@ import (
 	"math/rand"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
-	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/gok8s/client"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
@@ -73,40 +75,50 @@ func (m *EFKManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	return nil
 }
 
-func (m *EFKManager) List(ctx *restresource.Context) interface{} {
-	efk := m.get(ctx)
-	if efk == nil {
-		return nil
-	} else {
-		return []*types.EFK{efk.(*types.EFK)}
-	}
-}
-
-func (m *EFKManager) Get(ctx *restresource.Context) restresource.Resource {
-	id := ctx.Resource.GetID()
-	if id != efkAppName {
-		return nil
-	}
-	return m.get(ctx)
-}
-
-func (m *EFKManager) get(ctx *restresource.Context) restresource.Resource {
+func (m *EFKManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
-	k8sAppCRD, err := getApplication(cluster.GetKubeClient(), ZCloudNamespace, efkAppName, true)
+	efk, err := m.get(cluster.GetKubeClient())
 	if err != nil {
-		log.Warnf("get cluster %s application efk by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
-		return nil
+		if err.ErrorCode == resterr.NotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return []*types.EFK{efk.(*types.EFK)}, nil
+}
+
+func (m *EFKManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
+	}
+
+	id := ctx.Resource.GetID()
+	if id != efkAppName {
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("efk %s doesn't exist", id))
+	}
+
+	return m.get(cluster.GetKubeClient())
+}
+
+func (m *EFKManager) get(cli client.Client) (restresource.Resource, *resterr.APIError) {
+	k8sAppCRD, err := getApplication(cli, ZCloudNamespace, efkAppName, true)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "efk doesn't exist")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get application efk by chart name %s failed %s", efkAppName, err.Error()))
 	}
 
 	efk, err := genEFKFromApp(k8sAppCRD)
 	if err != nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("parse k8s app crd to efk failed: %s", err.Error()))
 	}
-	return efk
+	return efk, nil
 }
 
 func genEFKFromApp(app *appv1beta1.Application) (*types.EFK, error) {
@@ -127,6 +139,7 @@ func genEFKFromApp(app *appv1beta1.Application) (*types.EFK, error) {
 	efk.SetCreationTimestamp(app.CreationTimestamp.Time)
 	if app.GetDeletionTimestamp() != nil {
 		efk.SetDeletionTimestamp(app.DeletionTimestamp.Time)
+		efk.Status = appStatusDelete
 	}
 	return &efk, nil
 }

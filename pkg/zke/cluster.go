@@ -9,6 +9,7 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/types"
 	"github.com/zdnscloud/singlecloud/pkg/zke/zkelog"
 
+	tektonv1alpha1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
 	"github.com/zdnscloud/cement/fsm"
 	"github.com/zdnscloud/cement/log"
@@ -19,6 +20,10 @@ import (
 	"github.com/zdnscloud/kvzoo"
 	zketypes "github.com/zdnscloud/zke/types"
 	"k8s.io/client-go/rest"
+)
+
+const (
+	connectionCheckInterval = time.Second * 15
 )
 
 type Cluster struct {
@@ -136,6 +141,7 @@ func (c *Cluster) Init(kubeConfig string) error {
 	var options client.Options
 	options.Scheme = client.GetDefaultScheme()
 	storagev1.AddToScheme(options.Scheme)
+	tektonv1alpha1.AddToScheme(options.Scheme)
 	appv1beta1.AddToScheme(options.Scheme)
 
 	kubeClient, err := client.New(k8sConfig, options)
@@ -146,7 +152,24 @@ func (c *Cluster) Init(kubeConfig string) error {
 	if err := c.setCache(k8sConfig); err != nil {
 		return fmt.Errorf("set cluster %s cache failed %s", c.Name, err.Error())
 	}
+	go c.connectionCheckLoop()
 	return nil
+}
+
+func (c *Cluster) connectionCheckLoop() {
+	for {
+		select {
+		case <-c.stopCh:
+			log.Debugf("cluster %s connectionCheckLoop exit", c.Name)
+			return
+		case <-time.After(connectionCheckInterval):
+			if _, err := c.GetKubeClient().ServerVersion(); err != nil {
+				c.Event(GetInfoFailedEvent)
+			} else {
+				c.Event(GetInfoSucceedEvent)
+			}
+		}
+	}
 }
 
 func (c *Cluster) setCache(k8sConfig *rest.Config) error {
@@ -207,6 +230,7 @@ func (c *Cluster) Create(ctx context.Context, state clusterState, mgr *ZKEManage
 		c.event(CreateFailedEvent, mgr, state, err.Error())
 		return
 	}
+	go c.connectionCheckLoop()
 	state.Created = true
 	c.event(CreateSucceedEvent, mgr, state, "")
 }

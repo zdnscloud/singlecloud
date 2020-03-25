@@ -114,16 +114,16 @@ func getPVCs(cli client.Client, namespace string, templates []types.PersistentVo
 	var pvTemplates []types.PersistentVolumeTemplate
 	for _, template := range templates {
 		if template.StorageClassName != types.StorageClassNameTemp {
-			if k8sPVC, err := getPersistentVolumeClaim(cli, namespace, template.Name); err != nil {
+			k8sPVC, err := getPersistentVolumeClaim(cli, namespace, template.Name)
+			if err != nil {
 				return nil, err
-			} else {
-				pvc := k8sPVCToSCPVC(k8sPVC)
-				pvTemplates = append(pvTemplates, types.PersistentVolumeTemplate{
-					Name:             pvc.Name,
-					Size:             pvc.RequestStorageSize,
-					StorageClassName: pvc.StorageClassName,
-				})
 			}
+			pvc := k8sPVCToSCPVC(k8sPVC)
+			pvTemplates = append(pvTemplates, types.PersistentVolumeTemplate{
+				Name:             pvc.Name,
+				Size:             pvc.RequestStorageSize,
+				StorageClassName: pvc.StorageClassName,
+			})
 		}
 	}
 

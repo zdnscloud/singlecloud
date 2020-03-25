@@ -10,11 +10,12 @@ import (
 	"text/template"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
-	resterror "github.com/zdnscloud/gorest/error"
+	resterr "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/iniconfig"
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
@@ -113,47 +114,53 @@ func (m *FluentBitConfigManager) eventLoop() {
 	}
 }
 
-func (m *FluentBitConfigManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+func (m *FluentBitConfigManager) Create(ctx *resource.Context) (resource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster s doesn't exist")
 	}
 	conf := ctx.Resource.(*types.FluentBitConfig)
 	replenishConf(ctx, conf)
 
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
 	}
 	if err := createConfig(cluster.GetKubeClient(), conf, cm); err != nil {
-		return nil, resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create fluent-bit config failed. %s", err.Error()))
 	}
 	conf.SetID(conf.Name)
 	return conf, nil
 }
 
-func (m *FluentBitConfigManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+func (m *FluentBitConfigManager) Update(ctx *resource.Context) (resource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster s doesn't exist")
 	}
 	conf := ctx.Resource.(*types.FluentBitConfig)
 	replenishConf(ctx, conf)
 
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
-		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
 	}
 	if err := updateConfig(cluster.GetKubeClient(), conf, cm); err != nil {
-		return nil, resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update fluent-bit config %s failed. %s", conf.GetID(), err.Error()))
 	}
 	return conf, nil
 }
 
-func (m *FluentBitConfigManager) List(ctx *resource.Context) interface{} {
+func (m *FluentBitConfigManager) List(ctx *resource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetParent().GetID()
@@ -163,50 +170,55 @@ func (m *FluentBitConfigManager) List(ctx *resource.Context) interface{} {
 
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
-		log.Warnf("list fluent-bit config failed %s", err.Error())
-		return nil
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get fluent-bit configs failed %s", err.Error()))
 	}
 	fbConf, err := getConfig(cluster.GetKubeClient(), name, cm)
 	if err != nil {
-		log.Warnf("list fluent-bit config failed %s", err.Error())
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get fluent-bit configs failed %s", err.Error()))
 	}
-	return []*types.FluentBitConfig{fbConf}
+	return []*types.FluentBitConfig{fbConf}, nil
 }
 
-func (m FluentBitConfigManager) Get(ctx *resource.Context) resource.Resource {
+func (m FluentBitConfigManager) Get(ctx *resource.Context) (resource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 	conf := ctx.Resource.(*types.FluentBitConfig)
 	replenishConf(ctx, conf)
 
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
-		log.Warnf("get fluent-bit config %s failed %s", conf.GetID(), err.Error())
-		return nil
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get fluent-bit config %s failed %s", conf.GetID(), err.Error()))
 	}
 	fbConf, err := getConfig(cluster.GetKubeClient(), conf.GetID(), cm)
 	if err != nil {
-		log.Warnf("get fluent-bit config %s failed %s", conf.GetID(), err.Error())
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get fluent-bit config %s failed %s", conf.GetID(), err.Error()))
 	}
-	return fbConf
+	return fbConf, nil
 }
 
-func (m FluentBitConfigManager) Delete(ctx *resource.Context) *resterror.APIError {
+func (m FluentBitConfigManager) Delete(ctx *resource.Context) *resterr.APIError {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+		return resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 	conf := ctx.Resource.(*types.FluentBitConfig)
 	cm, err := getFluentBitConfigMap(cluster.GetKubeClient())
 	if err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
+		if apierrors.IsNotFound(err) {
+			return resterr.NewAPIError(resterr.NotFound, "no found fluent-bit config configmap")
+		}
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
 	}
 	if err := deleteConfig(cluster.GetKubeClient(), conf.GetID(), cm); err != nil {
-		return resterror.NewAPIError(types.InvalidClusterConfig, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("delete fluent-bit config %s. failed %s", conf.GetID(), err.Error()))
 	}
 	return nil
 }

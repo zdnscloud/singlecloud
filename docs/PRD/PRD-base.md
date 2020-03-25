@@ -450,14 +450,24 @@ Storageclass名称与存储集群名称一致。用户选择当前集群可用�
 
 **新增ISCIS，NFS存储**
 
-1、不同类型存储节点互斥，LVM、CEPH、ISCIS，后台过滤
-2、ISCIS在同一节点可以创建多个
-3、用户选择NFS是，大小不可以指定（workload页面，选择NFS是，大小输入框隐藏）
-4、NFS展示时，没有节点信息，只有pv信息
+1、不同类型存储节点互斥，LVM、CEPH、ISCIS，后台过滤  
+2、ISCIS在同一节点可以创建多个   
+3、用户选择NFS是，大小不可以指定（workload页面，选择NFS是，大小输入框隐藏）  
+4、NFS展示时，没有节点信息，只有pv信息  
+5、NFS存储只能新增或删除，不可编辑  
+6、ISCIS存储的连接信息不能修改，只允许增删节点   
 
-5、NFS存储只能新增或删除，不可编辑
+**存储规则**
 
-6、ISCIS存储的连接信息不能修改，只允许增删节点
+所有存储都不能使用master节点
+
+cephfs和lvm之间有节点互斥，iscsi和nfs  没有节点互斥。
+iscsi存储删除后，数据不做处理，下次如果要继续使用就必须使用与之前一样的存储名称。
+
+iscsi和nfs每个类型可以创建多个，lvm和cephfs每个类型只能创建一个。
+
+块存储：lvm和iscsi是ReadWriteOnce
+文件存储：cephfs和nfs是ReadWriteMany
 
 #### **4.3.4.5**      网络
 

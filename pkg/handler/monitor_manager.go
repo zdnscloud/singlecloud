@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zdnscloud/singlecloud/pkg/charts"
+	"github.com/zdnscloud/singlecloud/pkg/types"
+	"github.com/zdnscloud/singlecloud/pkg/zke"
+
 	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
 	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
-	"github.com/zdnscloud/singlecloud/pkg/charts"
-	"github.com/zdnscloud/singlecloud/pkg/types"
-	"github.com/zdnscloud/singlecloud/pkg/zke"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -49,7 +51,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 	monitor := ctx.Resource.(*types.Monitor)
 	app, err := genMonitorApplication(cluster, monitor)
 	if err != nil {
-		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, err.Error())
 	}
 
 	if err := createSysApplication(ctx, cluster, app, m.chartDir, monitorChartName, monitorAppName, monitor.StorageClass); err != nil {
@@ -75,41 +77,49 @@ func createSysApplication(ctx *restresource.Context, cluster *zke.Cluster, app *
 	return nil
 }
 
-func (m *MonitorManager) List(ctx *restresource.Context) interface{} {
-	monitor := m.get(ctx)
-	if monitor == nil {
-		return nil
-	} else {
-		return []*types.Monitor{monitor.(*types.Monitor)}
-	}
-}
-
-func (m *MonitorManager) Get(ctx *restresource.Context) restresource.Resource {
-	id := ctx.Resource.GetID()
-	if id != monitorAppName {
-		return nil
-	}
-	return m.get(ctx)
-}
-
-func (m *MonitorManager) get(ctx *restresource.Context) restresource.Resource {
+func (m *MonitorManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
-	k8sAppCRD, err := getApplication(cluster.GetKubeClient(), ZCloudNamespace, monitorAppName, true)
+	monitor, err := m.get(cluster.GetKubeClient())
 	if err != nil {
-		log.Warnf("get cluster %s application monitor by chart name %s failed %s", cluster.Name, monitorChartName, err.Error())
-		return nil
+		if err.ErrorCode == resterr.NotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return []*types.Monitor{monitor.(*types.Monitor)}, nil
+}
+
+func (m *MonitorManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
+	}
+
+	id := ctx.Resource.GetID()
+	if id != monitorAppName {
+		return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("monitor %s doesn't exist", id))
+	}
+	return m.get(cluster.GetKubeClient())
+}
+
+func (m *MonitorManager) get(cli client.Client) (restresource.Resource, *resterr.APIError) {
+	k8sAppCRD, err := getApplication(cli, ZCloudNamespace, monitorAppName, true)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get application monitor by chart name %s failed %s", monitorChartName, err.Error()))
 	}
 
 	monitor, err := genRetrunMonitorFromApplication(k8sAppCRD)
 	if err != nil {
-		log.Warnf("parse k8s app crd to monitor failed: %s", err.Error())
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("parse k8s app crd to monitor failed: %s", err.Error()))
 	}
-	return monitor
+	return monitor, nil
 }
 
 func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
@@ -123,6 +133,9 @@ func (m *MonitorManager) Delete(ctx *restresource.Context) *resterr.APIError {
 	}
 
 	if err := deleteApplication(cluster.GetKubeClient(), ZCloudNamespace, monitorAppName, true); err != nil {
+		if apierrors.IsNotFound(err) {
+			return resterr.NewAPIError(resterr.NotFound, "monitor doesn't exist")
+		}
 		return resterr.NewAPIError(resterr.ServerError,
 			fmt.Sprintf("delete application %s failed: %s", monitorAppName, err.Error()))
 	}
@@ -210,6 +223,7 @@ func genRetrunMonitorFromApplication(app *appv1beta1.Application) (*types.Monito
 	m.SetCreationTimestamp(app.CreationTimestamp.Time)
 	if app.GetDeletionTimestamp() != nil {
 		m.SetDeletionTimestamp(app.DeletionTimestamp.Time)
+		m.Status = appStatusDelete
 	}
 	return &m, nil
 }
@@ -220,6 +234,7 @@ func getAppConfigsFromAnnotations(app *appv1beta1.Application, appConfigs interf
 			return fmt.Errorf("unmarshal app.configs annotation for app %s with namespace %s failed: %s",
 				app.Name, app.Namespace, err.Error())
 		}
+		return nil
 	}
 
 	return fmt.Errorf("no found app.configs annotation for app %s with namespace %s", app.Name, app.Namespace)
@@ -227,24 +242,26 @@ func getAppConfigsFromAnnotations(app *appv1beta1.Application, appConfigs interf
 
 func ensureApplicationSucceedOrDie(cli client.Client, appName string) {
 	for i := 0; i < sysApplicationCheckTimes; i++ {
-		app, exists, err := getApplicationIfExists(cli, ZCloudNamespace, appName, true)
+		app, err := getApplication(cli, ZCloudNamespace, appName, true)
 		if err != nil {
-			log.Warnf("get system application %s failed %s", appName, err.Error())
-			return
-		}
-
-		if exists {
-			switch app.Status.State {
-			case appv1beta1.ApplicationStatusStateFailed:
-				if err := deleteApplication(cli, ZCloudNamespace, appName, true); err != nil {
-					log.Warnf("delete system application %s failed %s", appName, err.Error())
-					return
-				}
-			case appv1beta1.ApplicationStatusStateSucceed:
-				log.Infof("create system application %s succeed", appName)
+			if apierrors.IsNotFound(err) == false {
+				log.Warnf("get system application %s failed %s", appName, err.Error())
 				return
+			} else {
+				time.Sleep(sysApplicationCheckInterval)
+				continue
 			}
 		}
-		time.Sleep(sysApplicationCheckInterval)
+
+		switch app.Status.State {
+		case appv1beta1.ApplicationStatusStateFailed:
+			if err := deleteApplication(cli, ZCloudNamespace, appName, true); err != nil {
+				log.Warnf("delete system application %s failed %s", appName, err.Error())
+				return
+			}
+		case appv1beta1.ApplicationStatusStateSucceed:
+			log.Infof("create system application %s succeed", appName)
+			return
+		}
 	}
 }

@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -33,7 +32,7 @@ func newConfigMapManager(clusters *ClusterManager) *ConfigMapManager {
 func (m *ConfigMapManager) Create(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
@@ -56,57 +55,59 @@ func (m *ConfigMapManager) Create(ctx *resource.Context) (resource.Resource, *re
 func (m *ConfigMapManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil, resterror.NewAPIError(resterror.NotFound, "cluster s doesn't exist")
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	cm := ctx.Resource.(*types.ConfigMap)
 	if err := updateConfigMap(cluster.GetKubeClient(), namespace, cm); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found configmap %s", cm.GetID()))
+		}
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update configmap failed %s", err.Error()))
-	} else {
-		return cm, nil
 	}
+	return cm, nil
 }
 
-func (m *ConfigMapManager) List(ctx *resource.Context) interface{} {
+func (m *ConfigMapManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sConfigMaps, err := getConfigMaps(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list configmap info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found configmaps")
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list configmaps failed %s", err.Error()))
 	}
 
 	var cms []*types.ConfigMap
 	for _, cm := range k8sConfigMaps.Items {
 		cms = append(cms, k8sConfigMapToSCConfigMap(&cm))
 	}
-	return cms
+	return cms, nil
 }
 
-func (m ConfigMapManager) Get(ctx *resource.Context) resource.Resource {
+func (m ConfigMapManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	cm := ctx.Resource.(*types.ConfigMap)
 	k8sConfigMap, err := getConfigMap(cluster.GetKubeClient(), namespace, cm.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get configmap info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found configmap %s", cm.GetID()))
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get configmap %s failed %s", cm.GetID(), err.Error()))
 	}
 
-	return k8sConfigMapToSCConfigMap(k8sConfigMap)
+	return k8sConfigMapToSCConfigMap(k8sConfigMap), nil
 }
 
 func (m ConfigMapManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -121,9 +122,8 @@ func (m ConfigMapManager) Delete(ctx *resource.Context) *resterror.APIError {
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("configmap %s desn't exist", namespace))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete configmap failed %s", err.Error()))
 		}
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete configmap failed %s", err.Error()))
 	}
 	return nil
 }

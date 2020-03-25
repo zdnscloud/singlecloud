@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
@@ -24,43 +23,43 @@ func newPersistentVolumeManager(clusters *ClusterManager) *PersistentVolumeManag
 	return &PersistentVolumeManager{clusters: clusters}
 }
 
-func (m *PersistentVolumeManager) List(ctx *resource.Context) interface{} {
+func (m *PersistentVolumeManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	k8sPersistentVolumes, err := getPersistentVolumes(cluster.GetKubeClient())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list persistentvolume info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no found pvs")
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list pvs failed %s", err.Error()))
 	}
 
 	var pvs []*types.PersistentVolume
 	for _, item := range k8sPersistentVolumes.Items {
 		pvs = append(pvs, k8sPVToSCPV(&item))
 	}
-	return pvs
+	return pvs, nil
 }
 
-func (m PersistentVolumeManager) Get(ctx *resource.Context) resource.Resource {
+func (m PersistentVolumeManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	pv := ctx.Resource.(*types.PersistentVolume)
 	k8sPersistentVolume, err := getPersistentVolume(cluster.GetKubeClient(), pv.GetID())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("get persistentvolume info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found pv %s", pv.GetID()))
 		}
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get pv %s failed:%s", pv.GetID(), err.Error()))
 	}
 
-	return k8sPVToSCPV(k8sPersistentVolume)
+	return k8sPVToSCPV(k8sPersistentVolume), nil
 }
 
 func (m PersistentVolumeManager) Delete(ctx *resource.Context) *resterror.APIError {
@@ -73,11 +72,9 @@ func (m PersistentVolumeManager) Delete(ctx *resource.Context) *resterror.APIErr
 	err := deletePersistentVolume(cluster.GetKubeClient(), pv.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return resterror.NewAPIError(resterror.NotFound,
-				fmt.Sprintf("persistentvolume %s doesn't exist", pv.GetID()))
-		} else {
-			return resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("delete persistentvolume failed %s", err.Error()))
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found pv %s", pv.GetID()))
 		}
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete pv %s failed:%s", pv.GetID(), err.Error()))
 	}
 	return nil
 }

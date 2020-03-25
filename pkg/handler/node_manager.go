@@ -12,7 +12,6 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	metricsapi "k8s.io/metrics/pkg/apis/metrics"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
 	"github.com/zdnscloud/gok8s/helper"
 	resterr "github.com/zdnscloud/gorest/error"
@@ -32,10 +31,10 @@ func newNodeManager(clusters *ClusterManager) *NodeManager {
 	return &NodeManager{clusters: clusters}
 }
 
-func (m *NodeManager) Get(ctx *restresource.Context) restresource.Resource {
+func (m *NodeManager) Get(ctx *restresource.Context) (restresource.Resource, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	node := ctx.Resource.(*types.Node)
@@ -43,33 +42,36 @@ func (m *NodeManager) Get(ctx *restresource.Context) restresource.Resource {
 	k8sNode, err := getK8SNode(cli, node.GetID())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Warnf("get node info failed:%s", err.Error())
+			return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("no found node %s", node.GetID()))
 		}
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("get node %s failed:%s", node.GetID(), err.Error()))
 	}
 
 	name := node.GetID()
-	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name))
+	return k8sNodeToSCNode(k8sNode, getNodeMetrics(cli, name), getPodCountOnNode(cli, name)), nil
 }
 
-func (m *NodeManager) List(ctx *restresource.Context) interface{} {
+func (m *NodeManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
-	nodes, _ := getNodes(cluster.GetKubeClient())
-	return nodes
+	nodes, err := getNodes(cluster.GetKubeClient())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found nodes")
+		}
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("list nodes failed %s", err.Error()))
+	}
+
+	return nodes, nil
 }
 
 func getNodes(cli client.Client) ([]*types.Node, error) {
 	k8sNodes, err := getK8SNodes(cli)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	podCountOnNode := getPodCountOnNode(cli, "")
@@ -251,7 +253,7 @@ func cordonNode(cli client.Client, name string) *resterr.APIError {
 
 	node.Spec.Unschedulable = true
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
@@ -276,7 +278,7 @@ func drainNode(cli client.Client, name string) *resterr.APIError {
 
 	node.Spec.Unschedulable = true
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
@@ -303,7 +305,7 @@ func uncordonNode(cli client.Client, name string) *resterr.APIError {
 	}
 
 	if err := cli.Update(context.TODO(), node); err != nil {
-		return resterr.NewAPIError(resterr.ClusterUnavailable, fmt.Sprintf("update node %s failed %s", name, err.Error()))
+		return resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("update node %s failed %s", name, err.Error()))
 	}
 	return nil
 }
@@ -327,7 +329,7 @@ func getK8sNodeIfNotControlplaneOrStorage(cli client.Client, name string) (*core
 		if apierrors.IsNotFound(err) {
 			return nil, resterr.NewAPIError(resterr.NotFound, fmt.Sprintf("node %s desn't exist", name))
 		}
-		return nil, resterr.NewAPIError(resterr.ClusterUnavailable, err.Error())
+		return nil, resterr.NewAPIError(resterr.ServerError, err.Error())
 	}
 
 	if checkNodeByRole(node, types.RoleControlPlane) {

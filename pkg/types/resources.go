@@ -47,5 +47,7 @@ func Resources() []resource.ResourceKind {
 		Metric{},
 		AuditLog{},
 		Storage{},
+		WorkFlow{},
+		WorkFlowTask{},
 	}
 }

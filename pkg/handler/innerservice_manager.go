@@ -1,7 +1,9 @@
 package handler
 
 import (
-	"github.com/zdnscloud/cement/log"
+	"fmt"
+
+	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	ca "github.com/zdnscloud/singlecloud/pkg/clusteragent"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -17,17 +19,16 @@ func newInnerServiceManager(clusters *ClusterManager) *InnerServiceManager {
 	}
 }
 
-func (m *InnerServiceManager) List(ctx *resource.Context) interface{} {
+func (m *InnerServiceManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	var svcs []*types.InnerService
 	if err := ca.GetAgent().ListResource(cluster.Name, genClusterAgentURL(ctx.Request.URL.Path, cluster.Name), &svcs); err != nil {
-		log.Warnf("get innerservices info failed:%s", err.Error())
-		return nil
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get innerservices failed:%s", err.Error()))
 	}
 
-	return svcs
+	return svcs, nil
 }

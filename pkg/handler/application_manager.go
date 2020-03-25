@@ -17,7 +17,6 @@ import (
 	"helm.sh/helm/pkg/engine"
 
 	appv1beta1 "github.com/zdnscloud/application-operator/pkg/apis/app/v1beta1"
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/cement/slice"
 	"github.com/zdnscloud/gok8s/client"
 	resterror "github.com/zdnscloud/gorest/error"
@@ -62,11 +61,9 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 	app := ctx.Resource.(*types.Application)
 	if err := createApplication(ctx, cluster, namespace, m.chartDir, app, false); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, resterror.NewAPIError(resterror.DuplicateResource,
-				fmt.Sprintf("duplicate application %s with namespace %s", app.Name, namespace))
-		} else {
-			return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create application failed %s", err.Error()))
+			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate application %s", app.Name))
 		}
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("create application failed %s", err.Error()))
 	}
 
 	app.SetID(app.Name)
@@ -78,10 +75,12 @@ func createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace, c
 		return fmt.Errorf("namespace %s is not found", namespace)
 	}
 
-	if _, exists, err := getApplicationIfExists(cluster.GetKubeClient(), namespace, app.Name, isSystemChart); err != nil {
-		return err
-	} else if exists {
-		return fmt.Errorf("duplicate application %s with namespace %s for chart %s", app.Name, namespace, app.ChartName)
+	if _, err := getApplication(cluster.GetKubeClient(), namespace, app.Name, isSystemChart); err != nil {
+		if apierrors.IsNotFound(err) == false {
+			return fmt.Errorf("get application %s for chart %s failed: %s", app.Name, app.ChartName, err.Error())
+		}
+	} else {
+		return fmt.Errorf("duplicate application %s", app.Name)
 	}
 
 	chartVersionDir := path.Join(chartDir, app.ChartName, app.ChartVersion)
@@ -136,18 +135,6 @@ func createApplication(ctx *resource.Context, cluster *zke.Cluster, namespace, c
 		k8sAppCRD.Annotations = map[string]string{AnnKeyForAppConfigs: string(app.Configs)}
 	}
 	return cluster.GetKubeClient().Create(context.TODO(), k8sAppCRD)
-}
-
-func getApplicationIfExists(cli client.Client, namespace, name string, isSystemChart bool) (*appv1beta1.Application, bool, error) {
-	if app, err := getApplication(cli, namespace, name, isSystemChart); err != nil {
-		if apierrors.IsNotFound(err) == false {
-			return nil, false, fmt.Errorf("get app %s with namespace %s failed: %s", name, namespace, err.Error())
-		}
-		return nil, false, nil
-	} else {
-		return app, true, nil
-	}
-
 }
 
 func parseChartConfigs(chartVersionDir string, configRaw json.RawMessage) (map[string]interface{}, error) {
@@ -214,18 +201,19 @@ func loadChartFiles(namespace, chartVersionDir, appName string, configs map[stri
 	return manifests, crdManifests, nil
 }
 
-func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
+func (m *ApplicationManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		log.Warnf("no found cluster when list applications info")
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	k8sAppCRDs, err := getApplications(cluster.GetKubeClient(), namespace)
 	if err != nil {
-		log.Warnf("list applications info failed:%s", err.Error())
-		return nil
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, "no applications found")
+		}
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list applications failed %s", err.Error()))
 	}
 
 	urlPrefix := getRequestUrlPrefix(ctx.Request.URL.Path, cluster.Name)
@@ -239,7 +227,7 @@ func (m *ApplicationManager) List(ctx *resource.Context) interface{} {
 	}
 
 	sort.Sort(apps)
-	return apps
+	return apps, nil
 }
 
 func getApplications(cli client.Client, namespace string) (*appv1beta1.ApplicationList, error) {
@@ -252,23 +240,23 @@ func getRequestUrlPrefix(reqUrlPath, clusterName string) string {
 	return strings.SplitAfterN(reqUrlPath, fmt.Sprintf("/clusters/%s/namespaces/", clusterName), 2)[0]
 }
 
-func (m *ApplicationManager) Get(ctx *resource.Context) resource.Resource {
+func (m *ApplicationManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		log.Warnf("no found cluster when get application info")
-		return nil
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
 	}
 
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
-	k8sAppCRD, exists, err := getApplicationIfExists(cluster.GetKubeClient(), namespace, appName, false)
+	k8sAppCRD, err := getApplication(cluster.GetKubeClient(), namespace, appName, false)
 	if err != nil {
-		log.Warnf("get application %s info failed:%s", appName, err.Error())
-	} else if exists {
-		return k8sAppCRDToScApp(k8sAppCRD, getRequestUrlPrefix(ctx.Request.URL.Path, cluster.Name))
+		if apierrors.IsNotFound(err) {
+			return nil, resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found application %s", appName))
+		}
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get application %s failed:%s", appName, err.Error()))
 	}
 
-	return nil
+	return k8sAppCRDToScApp(k8sAppCRD, getRequestUrlPrefix(ctx.Request.URL.Path, cluster.Name)), nil
 }
 
 func getApplication(cli client.Client, namespace, name string, isSystemChart bool) (*appv1beta1.Application, error) {
@@ -333,23 +321,19 @@ func (m *ApplicationManager) Delete(ctx *resource.Context) *resterror.APIError {
 	namespace := ctx.Resource.GetParent().GetID()
 	appName := ctx.Resource.GetID()
 	if err := deleteApplication(cluster.GetKubeClient(), namespace, appName, false); err != nil {
-		return resterror.NewAPIError(types.ConnectClusterFailed,
-			fmt.Sprintf("delete application %s with namespace %s failed: %s", appName, namespace, err.Error()))
+		if apierrors.IsNotFound(err) {
+			return resterror.NewAPIError(resterror.NotFound, fmt.Sprintf("no found application %s", appName))
+		}
+		return resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("delete application %s failed: %s", appName, err.Error()))
 	}
 
 	return nil
 }
 
 func deleteApplication(cli client.Client, namespace, name string, isSystemChart bool) error {
-	_, exists, err := getApplicationIfExists(cli, namespace, name, isSystemChart)
-	if err != nil {
-		return fmt.Errorf("get application %s with namespace %s failed: %s", name, namespace, err.Error())
-	} else if exists == false {
-		return fmt.Errorf("application %s with namespace %s doesn't exist", name, namespace)
+	if _, err := getApplication(cli, namespace, name, isSystemChart); err != nil {
+		return err
 	}
 
-	app := &appv1beta1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-	}
-	return cli.Delete(context.TODO(), app)
+	return cli.Delete(context.TODO(), &appv1beta1.Application{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}})
 }

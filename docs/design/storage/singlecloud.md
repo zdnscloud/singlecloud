@@ -17,7 +17,7 @@ list
 
 
        
-## storagecluster
+## storage
 
 ### 接口
 - get：  返回存储详细信息（类型、节点信息、总容量、状态、节点容量和状态信息）
@@ -27,18 +27,44 @@ list
 - update
 
 ### 原理
+由于storage资源不是k8s标准资源，因此将其存储在db后再根据不同type进行响应的操作
+
+#### 注册存储handle
+
+目前支持4中存储类型
+```
+type StorageHandle interface {
+        GetType() types.StorageType
+        GetStorage(cli client.Client, name string) (*types.Storage, error)
+        GetStorageDetail(cluster *zke.Cluster, name string) (*types.Storage, error)
+        Delete(cli client.Client, name string) error
+        Create(cluster *zke.Cluster, storage *types.Storage) error
+        Update(cluster *zke.Cluster, storage *types.Storage) error
+}
+```
+```
+	storageHandles: []StorageHandle{
+                 &LvmManager{},
+                 &CephFsManager{},
+                 &IscsiManager{},
+                 &NfsManager{}},
+        }
+```
 
 #### List
-获取CRD cluster信息返回
+从db中获取所有storage及其type，根据type调用不同的存储handle返回预览信息
 #### Get
-获取CRD cluster信息后再补充以下信息
+从db中获取所有storage及其type，根据type调用不同的存储handle返回详细
 
-- 通过zcloud-proxy向集群内的cluster-agent发出storages/storagetype的请求，获取pv的信息
-- 根据CRD cluster的信息计算节点容量和状态
+- 通过zcloud-proxy向集群内的cluster-agent发出storages/storageclass的请求，获取pv的信息
+- 根据CRD 的信息计算节点容量和状态
 
 #### Create
-补充crd的name与storagetype一致
+根据type调用不同的存储handle进行创建
 #### Update
-如果是lvm存储类型，判断cluster的Finalizer里是否包含更新操作中要删除的节点，如果包含则更新失败
+根据type调用不同的存储handle进行更新
+> nfs 类型不支持update
 #### Delete
+根据type调用不同的存储handle进行删除
+
 判断cluster的Finalizer是否为空，如果不为空则删除失败

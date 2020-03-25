@@ -2,13 +2,14 @@ package handler
 
 import (
 	"context"
+	"fmt"
 
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8stypes "k8s.io/apimachinery/pkg/types"
 
-	"github.com/zdnscloud/cement/log"
 	"github.com/zdnscloud/gok8s/client"
+	resterr "github.com/zdnscloud/gorest/error"
 	restresource "github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
 )
@@ -21,25 +22,25 @@ func newStorageClassManager(clusters *ClusterManager) *StorageClassManager {
 	return &StorageClassManager{clusters: clusters}
 }
 
-func (m *StorageClassManager) List(ctx *restresource.Context) interface{} {
+func (m *StorageClassManager) List(ctx *restresource.Context) (interface{}, *resterr.APIError) {
 	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
 	if cluster == nil {
-		return nil
+		return nil, resterr.NewAPIError(resterr.NotFound, "cluster doesn't exist")
 	}
 
 	k8sStorageClasses, err := getStorageClasses(cluster.GetKubeClient())
 	if err != nil {
-		if apierrors.IsNotFound(err) == false {
-			log.Warnf("list storageclass info failed:%s", err.Error())
+		if apierrors.IsNotFound(err) {
+			return nil, resterr.NewAPIError(resterr.NotFound, "no found storageclasses")
 		}
-		return nil
+		return nil, resterr.NewAPIError(resterr.ServerError, fmt.Sprintf("list storageclasses failed %s", err.Error()))
 	}
 
 	var storageClasses []*types.StorageClass
 	for _, item := range k8sStorageClasses.Items {
 		storageClasses = append(storageClasses, k8sStorageClassToScStorageClass(&item))
 	}
-	return storageClasses
+	return storageClasses, nil
 }
 
 func getStorageClasses(cli client.Client) (*storagev1.StorageClassList, error) {

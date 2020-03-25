@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/zdnscloud/cement/log"
-	gorestError "github.com/zdnscloud/gorest/error"
+	resterr "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	eb "github.com/zdnscloud/singlecloud/pkg/eventbus"
 	"github.com/zdnscloud/singlecloud/pkg/types"
@@ -65,22 +65,20 @@ func (mgr *AlarmManager) eventLoop() {
 	}
 }
 
-func (m *AlarmManager) List(ctx *resource.Context) interface{} {
+func (m *AlarmManager) List(ctx *resource.Context) (interface{}, *resterr.APIError) {
 	alarms := make([]*types.Alarm, 0)
-	fmt.Println("start RLock")
 	m.cache.lock.RLock()
 	defer m.cache.lock.RUnlock()
-	fmt.Println("end RLock")
 	for elem := m.cache.alarmList.Back(); elem != nil; elem = elem.Prev() {
 		alarms = append(alarms, elem.Value.(*types.Alarm))
 	}
-	return alarms
+	return alarms, nil
 }
 
-func (m *AlarmManager) Update(ctx *resource.Context) (resource.Resource, *gorestError.APIError) {
+func (m *AlarmManager) Update(ctx *resource.Context) (resource.Resource, *resterr.APIError) {
 	alarm := ctx.Resource.(*types.Alarm)
 	if err := m.cache.Update(alarm); err != nil {
-		return nil, gorestError.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update alarm id %d to table failed: %s", alarm.UID, err.Error()))
+		return nil, resterr.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update alarm id %d to table failed: %s", alarm.UID, err.Error()))
 	}
 	return alarm, nil
 }
