@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"path"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,7 +32,7 @@ type EFKManager struct {
 func newEFKManager(clusterMgr *ClusterManager, chartDir string) *EFKManager {
 	return &EFKManager{
 		clusters: clusterMgr,
-		chartDir: chartDir,
+		chartDir: path.Join(chartDir, ZcloudChartDir),
 	}
 }
 

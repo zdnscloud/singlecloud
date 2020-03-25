@@ -59,7 +59,12 @@ func (m *ApplicationManager) Create(ctx *resource.Context) (resource.Resource, *
 
 	namespace := ctx.Resource.GetParent().GetID()
 	app := ctx.Resource.(*types.Application)
-	if err := createApplication(ctx, cluster, namespace, m.chartDir, app, false); err != nil {
+	chart, err := getChart(m.chartDir, app.ChartName, false)
+	if err != nil {
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("get chart %s failed %s", app.ChartName, err.Error()))
+	}
+
+	if err := createApplication(ctx, cluster, namespace, chart.Dir, app, false); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil, resterror.NewAPIError(resterror.DuplicateResource, fmt.Sprintf("duplicate application %s", app.Name))
 		}

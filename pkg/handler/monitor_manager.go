@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"time"
 
 	"github.com/zdnscloud/singlecloud/pkg/charts"
@@ -35,7 +36,7 @@ type MonitorManager struct {
 func newMonitorManager(clusterMgr *ClusterManager, chartDir string) *MonitorManager {
 	return &MonitorManager{
 		clusters: clusterMgr,
-		chartDir: chartDir,
+		chartDir: path.Join(chartDir, ZcloudChartDir),
 	}
 }
 

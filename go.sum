@@ -626,6 +626,10 @@ github.com/zdnscloud/goproxy v0.0.0-20200205075939-521cea33b942/go.mod h1:bYzZ94
 github.com/zdnscloud/gorest v0.0.0-20200221102716-9596fdcc4158/go.mod h1:vPKTIiM0bU8J5FqX1QEX1f/ZPdMAvgMIcaVEJvKSms8=
 github.com/zdnscloud/gorest v0.0.0-20200312090430-7c7ed2c7e9d7 h1:v4+RdP189GCOHrt99c3iEHT8jNriUYWr+f7YhEzWxr4=
 github.com/zdnscloud/gorest v0.0.0-20200312090430-7c7ed2c7e9d7/go.mod h1:vPKTIiM0bU8J5FqX1QEX1f/ZPdMAvgMIcaVEJvKSms8=
+github.com/zdnscloud/gorest v0.0.0-20200325025354-65ac2f9e46ff h1:/KGPJjA7irCbqPdXSaFO3GX5Hn3kAKOuFQTorn9Fm0w=
+github.com/zdnscloud/gorest v0.0.0-20200325025354-65ac2f9e46ff/go.mod h1:vPKTIiM0bU8J5FqX1QEX1f/ZPdMAvgMIcaVEJvKSms8=
+github.com/zdnscloud/gorest v0.0.0-20200325112020-a9978d1165e7 h1:sjaP4rJJZJhiI5N9j/OJjXyOnroOO5uNy8CB3xHjxJI=
+github.com/zdnscloud/gorest v0.0.0-20200325112020-a9978d1165e7/go.mod h1:vPKTIiM0bU8J5FqX1QEX1f/ZPdMAvgMIcaVEJvKSms8=
 github.com/zdnscloud/immense v0.0.0-20200214070751-b25b082d4c39 h1:b/t3QLxH+eTLvjSaKhfkykNlvAsvYfpaWUKnGuAlNpo=
 github.com/zdnscloud/immense v0.0.0-20200214070751-b25b082d4c39/go.mod h1:C2zgmhnz4NMYb9z0ITwfY8JNRCYtiIY5aYcHAWJj+4Y=
 github.com/zdnscloud/iniconfig v0.0.0-20191105013537-c8624280493d h1:0A6CihyYjFuncvzsldCRGICZy6VxcoQ9DEOblWLfb7w=

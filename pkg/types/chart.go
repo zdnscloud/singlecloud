@@ -10,6 +10,7 @@ type Chart struct {
 	Name                  string         `json:"name"`
 	Description           string         `json:"description"`
 	Icon                  string         `json:"icon"`
+	Dir                   string         `json:"-"`
 	Versions              []ChartVersion `json:"versions"`
 }
 

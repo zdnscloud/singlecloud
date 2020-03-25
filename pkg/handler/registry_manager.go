@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path"
 
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/charts"
@@ -38,7 +39,7 @@ func newRegistryManager(clusterMgr *ClusterManager, chartDir string, caConfig co
 	}
 	return &RegistryManager{
 		clusters: clusterMgr,
-		chartDir: chartDir,
+		chartDir: path.Join(chartDir, ZcloudChartDir),
 		ca:       ca,
 	}, nil
 }

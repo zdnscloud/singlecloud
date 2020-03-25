@@ -32,12 +32,17 @@ const (
 	indexFile           = "index.yaml"
 
 	KeywordZcloudSystem = "zcloud-system"
+	ZcloudChartDir      = "zcloud"
+	ZcloudChartFilter   = "is_zcloud_chart"
+	UserChartDir        = "user"
+	UserChartFilter     = "is_user_chart"
 )
 
 var (
 	responseHeaderTimeout = 60 * time.Second
 	syncChartsInterval    = 60 * time.Second
-	errNoFoundVersion     = fmt.Errorf("has no valid chart versions")
+
+	ErrNoFoundVersion = fmt.Errorf("no found valid chart versions")
 )
 
 type ChartsIndex struct {
@@ -60,13 +65,12 @@ type ChartManager struct {
 }
 
 func newChartManager(chartDir, repoUrl string) *ChartManager {
-	go syncCloudChartsToLocal(repoUrl, chartDir)
-
+	go syncCloudChartsToLocal(repoUrl, path.Join(chartDir, ZcloudChartDir))
 	return &ChartManager{chartDir: chartDir}
 }
 
 func (m *ChartManager) List(ctx *resource.Context) (interface{}, *resterror.APIError) {
-	charts, err := getLocalCharts(m.chartDir, false)
+	charts, err := getCharts(m.chartDir, ctx.GetFilters(), false)
 	if err != nil {
 		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("list charts info failed:%s", err.Error()))
 	}
@@ -80,30 +84,44 @@ func (m *ChartManager) List(ctx *resource.Context) (interface{}, *resterror.APIE
 	return charts, nil
 }
 
-func (m *ChartManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
-	chartID := ctx.Resource.(*types.Chart).GetID()
-	chart, err := getLocalChart(m.chartDir, chartID, false)
-	if err != nil {
-		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get chart %s failed:%s", chart.Name, err.Error()))
+func getCharts(chartDir string, filters []resource.Filter, needSystemChart bool) (types.Charts, error) {
+	var charts types.Charts
+	for _, dir := range getChartDirs(chartDir, filters) {
+		chts, err := getLocalCharts(dir, needSystemChart)
+		if err != nil {
+			return nil, err
+		}
+
+		charts = append(charts, chts...)
 	}
 
-	return chart, nil
+	return charts, nil
 }
 
-func getLocalChart(chartDir, chartName string, needSystemChart bool) (*types.Chart, error) {
-	versions, description, err := listVersions(chartDir, chartName, needSystemChart)
-	if err != nil {
-		return nil, err
+func getChartDirs(chartDir string, filters []resource.Filter) []string {
+	if chartDir, ok := getChartDir(chartDir, filters); ok {
+		return []string{chartDir}
 	}
 
-	chart := &types.Chart{
-		Name:        chartName,
-		Description: description,
-		Icon:        genChartIcon(iconPrefixForReturn, chartName),
-		Versions:    versions,
+	return []string{path.Join(chartDir, ZcloudChartDir), path.Join(chartDir, UserChartDir)}
+}
+
+func getChartDir(chartDir string, filters []resource.Filter) (string, bool) {
+	for _, filter := range filters {
+		if hasChartFilter(filter, ZcloudChartFilter) {
+			return path.Join(chartDir, ZcloudChartDir), true
+		}
+
+		if hasChartFilter(filter, UserChartFilter) {
+			return path.Join(chartDir, UserChartDir), true
+		}
 	}
-	chart.SetID(chartName)
-	return chart, nil
+
+	return "", false
+}
+
+func hasChartFilter(filter resource.Filter, filterName string) bool {
+	return filter.Name == filterName && filter.Modifier == resource.Eq && slice.SliceIndex(filter.Values, "true") != -1
 }
 
 func getLocalCharts(chartDir string, needSystemChart bool) (types.Charts, error) {
@@ -122,8 +140,8 @@ func getLocalCharts(chartDir string, needSystemChart bool) (types.Charts, error)
 			chart, err := getLocalChart(chartDir, cht.Name(), needSystemChart)
 			if err == nil {
 				charts = append(charts, chart)
-			} else if err != errNoFoundVersion {
-				log.Warnf("list charts info when get chart %s failed:%s", cht.Name(), err.Error())
+			} else if err != ErrNoFoundVersion {
+				log.Debugf("get chart %s failed:%s", cht.Name(), err.Error())
 			}
 		}
 	}
@@ -131,7 +149,106 @@ func getLocalCharts(chartDir string, needSystemChart bool) (types.Charts, error)
 	return charts, nil
 }
 
-func syncCloudChartsToLocal(repoUrl, chartDir string) {
+func (m *ChartManager) Get(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	chartID := ctx.Resource.(*types.Chart).GetID()
+	chart, err := getChart(m.chartDir, chartID, false)
+	if err != nil {
+		return nil, resterror.NewAPIError(resterror.ServerError, fmt.Sprintf("get chart %s failed:%s", chartID, err.Error()))
+	}
+
+	return chart, nil
+}
+
+func getChart(chartDir, chartName string, needSystemChart bool) (*types.Chart, error) {
+	chart, err := getLocalChart(path.Join(chartDir, ZcloudChartDir), chartName, needSystemChart)
+	if err != nil {
+		if isNoSuchFileOrDirError(err) == false {
+			return nil, err
+		}
+
+		chart, err = getLocalChart(path.Join(chartDir, UserChartDir), chartName, needSystemChart)
+		if err != nil {
+			if isNoSuchFileOrDirError(err) {
+				return nil, fmt.Errorf("no found valid chart file")
+			}
+			return nil, err
+		}
+	}
+
+	return chart, nil
+}
+
+func isNoSuchFileOrDirError(err error) bool {
+	return strings.Contains(err.Error(), "no such file or directory")
+}
+
+func getLocalChart(chartDir, chartName string, needSystemChart bool) (*types.Chart, error) {
+	versions, description, err := listVersions(chartDir, chartName, needSystemChart)
+	if err != nil {
+		return nil, err
+	}
+
+	chart := &types.Chart{
+		Name:        chartName,
+		Description: description,
+		Icon:        genChartIcon(iconPrefixForReturn, chartName),
+		Dir:         chartDir,
+		Versions:    versions,
+	}
+	chart.SetID(chartName)
+	return chart, nil
+}
+
+func listVersions(chartDir, chartName string, needSystemChart bool) ([]types.ChartVersion, string, error) {
+	var description string
+	chartPath := path.Join(chartDir, chartName)
+	versionDirs, err := ioutil.ReadDir(chartPath)
+	if err != nil {
+		return nil, description, err
+	}
+
+	var versions []types.ChartVersion
+	for _, versionDir := range versionDirs {
+		if versionDir.IsDir() {
+			if strings.HasPrefix(versionDir.Name(), ".") {
+				continue
+			}
+
+			versionFullDir := path.Join(chartPath, versionDir.Name())
+			if description == "" {
+				if info, err := getChartInfo(versionFullDir); err != nil {
+					log.Warnf("load chart with version %s info failed: %s", versionDir.Name(), err.Error())
+					continue
+				} else if needSystemChart == false && (slice.SliceIndex(info.Keywords, KeywordZcloudSystem) != -1) {
+					break
+				} else {
+					description = info.Description
+				}
+			}
+
+			config, err := charts.LoadChartConfigs(versionFullDir)
+			if err != nil {
+				log.Warnf("load chart with version %s config failed: %s", versionDir.Name(), err.Error())
+				continue
+			}
+
+			versions = append(versions, types.ChartVersion{
+				Version: versionDir.Name(),
+				Config:  config,
+			})
+		} else if versionDir.Name() == chartYamlFile {
+			return nil, description, fmt.Errorf("chart all files must be in a version dir")
+		}
+	}
+
+	if len(versions) == 0 {
+		return nil, description, ErrNoFoundVersion
+	}
+
+	return versions, description, nil
+}
+
+func syncCloudChartsToLocal(repoUrl, zcloudChartDir string) {
 	if repoUrl == "" {
 		return
 	}
@@ -144,38 +261,38 @@ func syncCloudChartsToLocal(repoUrl, chartDir string) {
 	}
 
 	for {
-		if err := loadCloudCharts(repoUrl, chartDir); err != nil {
+		if err := loadCloudCharts(repoUrl, zcloudChartDir); err != nil {
 			log.Warnf("load cloud charts failed: %s", err.Error())
 		}
 		time.Sleep(syncChartsInterval)
 	}
 }
 
-func loadCloudCharts(repoUrl, chartDir string) error {
+func loadCloudCharts(repoUrl, zcloudChartDir string) error {
 	chartsIndex, err := getCloudChartsIndex(repoUrl)
 	if err != nil {
 		return err
 	}
 
-	localCharts, err := getLocalCharts(chartDir, true)
+	localCharts, err := getLocalCharts(zcloudChartDir, true)
 	if err != nil {
 		return fmt.Errorf("get local charts failed: %s", err.Error())
 	}
 
 	for chartName, chartEntries := range chartsIndex.Entries {
-		chartFound, err := checkChartExistAndLoadVersionsIfNeed(repoUrl, chartDir, chartName, localCharts, chartEntries)
+		chartFound, err := checkChartExistAndLoadVersionsIfNeed(repoUrl, zcloudChartDir, chartName, localCharts, chartEntries)
 		if err != nil {
 			return err
 		}
 
 		if !chartFound {
 			log.Infof("found new chart %s in registry, will load it", chartName)
-			if err := os.MkdirAll(path.Join(chartDir, chartName), 0755); err != nil {
+			if err := os.MkdirAll(path.Join(zcloudChartDir, chartName), 0755); err != nil {
 				return err
 			}
 
 			for _, chartEntry := range chartEntries {
-				if err := loadCloudChartByVersion(chartEntry.Urls, repoUrl, chartDir, chartName, chartEntry.Version); err != nil {
+				if err := loadCloudChartByVersion(chartEntry.Urls, repoUrl, zcloudChartDir, chartName, chartEntry.Version); err != nil {
 					return err
 				}
 			}
@@ -256,55 +373,6 @@ func loadCloudChartByVersion(versionUrls []string, repoUrl, chartDir, chartName,
 
 	log.Infof("load chart %s with version %s succeed", chartName, chartVersion)
 	return nil
-}
-
-func listVersions(chartDir, chartName string, needSystemChart bool) ([]types.ChartVersion, string, error) {
-	var description string
-	chartPath := path.Join(chartDir, chartName)
-	versionDirs, err := ioutil.ReadDir(chartPath)
-	if err != nil {
-		return nil, description, err
-	}
-
-	var versions []types.ChartVersion
-	for _, versionDir := range versionDirs {
-		if versionDir.IsDir() {
-			if strings.HasPrefix(versionDir.Name(), ".") {
-				continue
-			}
-
-			versionFullDir := path.Join(chartPath, versionDir.Name())
-			if description == "" {
-				if info, err := getChartInfo(versionFullDir); err != nil {
-					log.Warnf("load chart with version %s info failed: %s", versionDir.Name(), err.Error())
-					continue
-				} else if needSystemChart == false && (slice.SliceIndex(info.Keywords, KeywordZcloudSystem) != -1) {
-					break
-				} else {
-					description = info.Description
-				}
-			}
-
-			config, err := charts.LoadChartConfigs(versionFullDir)
-			if err != nil {
-				log.Warnf("load chart with version %s config failed: %s", versionDir.Name(), err.Error())
-				continue
-			}
-
-			versions = append(versions, types.ChartVersion{
-				Version: versionDir.Name(),
-				Config:  config,
-			})
-		} else if versionDir.Name() == chartYamlFile {
-			return nil, description, fmt.Errorf("chart all files must be in a version dir")
-		}
-	}
-
-	if len(versions) == 0 {
-		return nil, description, errNoFoundVersion
-	}
-
-	return versions, description, nil
 }
 
 func getChartInfo(chartYamlPath string) (*ChartInfo, error) {
