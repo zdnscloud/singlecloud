@@ -101,6 +101,13 @@ func (s *NfsManager) Create(cluster *zke.Cluster, storage *types.Storage) error 
 		if !isIpv4(storage.Nfs.Server) {
 			return errors.New("must be an ipv4 address")
 		}
+		duplicate, err := nfsDuplicateValidation(cluster.GetKubeClient(), storage.Nfs)
+		if err != nil {
+			return err
+		}
+		if duplicate {
+			return errors.New("duplicate config with other nfs storage")
+		}
 		k8sNfs := &storagev1.Nfs{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: storage.Name,
@@ -113,6 +120,19 @@ func (s *NfsManager) Create(cluster *zke.Cluster, storage *types.Storage) error 
 		return cluster.GetKubeClient().Create(context.TODO(), k8sNfs)
 	}
 	return errors.New(fmt.Sprintf(StorageParameterNullErr, storage.Name))
+}
+
+func nfsDuplicateValidation(cli client.Client, nfs *types.NfsParameter) (bool, error) {
+	nfses, err := getNfss(cli)
+	if err != nil {
+		return false, err
+	}
+	for _, _nfs := range nfses.Items {
+		if _nfs.Spec.Server == nfs.Server && _nfs.Spec.Path == nfs.Path {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *NfsManager) Delete(cli client.Client, name string) error {

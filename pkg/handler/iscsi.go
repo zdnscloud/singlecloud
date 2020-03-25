@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"reflect"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -122,10 +121,17 @@ func getIscsiSecret(cli client.Client, namespace, name string) (*types.Secret, e
 
 func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) error {
 	if storage.Iscsi != nil {
-		if err := iscsiValidation(storage); err != nil {
+		if err := iscsiFormatValidation(storage); err != nil {
 			return err
 		}
-		ok, err := validateInitiators(cluster.GetKubeClient(), storage.Iscsi.Initiators)
+		duplicate, err := iscsiDuplicateValidation(cluster.GetKubeClient(), storage.Iscsi)
+		if err != nil {
+			return err
+		}
+		if duplicate {
+			errors.New("duplicate config with other iscsi storage")
+		}
+		ok, err := initiatorsRoleValidation(cluster.GetKubeClient(), storage.Iscsi.Initiators)
 		if err != nil {
 			return err
 		}
@@ -156,7 +162,39 @@ func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) erro
 	return errors.New(fmt.Sprintf(StorageParameterNullErr, storage.Name))
 }
 
-func validateInitiators(cli client.Client, initiators []string) (bool, error) {
+func iscsiDuplicateValidation(cli client.Client, iscsi *types.IscsiParameter) (bool, error) {
+	iscsis, err := getIscsis(cli)
+	if err != nil {
+		return false, err
+	}
+	for _, _iscsi := range iscsis.Items {
+		if checkSliceEq(_iscsi.Spec.Targets, iscsi.Targets) &&
+			_iscsi.Spec.Port == iscsi.Port &&
+			_iscsi.Spec.Iqn == iscsi.Iqn {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func checkSliceEq(a, b []string) bool {
+	if (a == nil) != (b == nil) {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	d1 := set.StringSetFromSlice(a)
+	d2 := set.StringSetFromSlice(b)
+	if len(d2.Difference(d1).ToSlice()) != 0 || len(d1.Difference(d2).ToSlice()) != 0 {
+		return false
+	}
+	return true
+}
+
+func initiatorsRoleValidation(cli client.Client, initiators []string) (bool, error) {
 	for _, name := range initiators {
 		node, err := getK8SNode(cli, name)
 		if err != nil {
@@ -227,7 +265,7 @@ func updateIscsiSecret(cli client.Client, storage *types.Storage) error {
 }
 
 func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) error {
-	if err := iscsiValidation(storage); err != nil {
+	if err := iscsiFormatValidation(storage); err != nil {
 		return err
 	}
 	k8sIscsi, err := getIscsi(cluster.GetKubeClient(), storage.Name)
@@ -240,7 +278,7 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 	if k8sIscsi.GetDeletionTimestamp() != nil {
 		return errors.New("iscsi in Deleting, not allowed update")
 	}
-	if !reflect.DeepEqual(k8sIscsi.Spec.Initiators, storage.Iscsi.Initiators) {
+	if !checkSliceEq(k8sIscsi.Spec.Initiators, storage.Iscsi.Initiators) {
 		s1 := set.StringSetFromSlice(k8sIscsi.Spec.Initiators)
 		s2 := set.StringSetFromSlice(storage.Iscsi.Initiators)
 		addHosts := s2.Difference(s1).ToSlice()
@@ -249,7 +287,7 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 			return err
 		}
 
-		ok, err := validateInitiators(cluster.GetKubeClient(), addHosts)
+		ok, err := initiatorsRoleValidation(cluster.GetKubeClient(), addHosts)
 		if err != nil {
 			return err
 		}
@@ -273,7 +311,7 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 		}
 	}
 
-	if !reflect.DeepEqual(k8sIscsi.Spec.Targets, storage.Iscsi.Targets) ||
+	if !checkSliceEq(k8sIscsi.Spec.Targets, storage.Iscsi.Targets) ||
 		k8sIscsi.Spec.Port != storage.Iscsi.Port ||
 		k8sIscsi.Spec.Iqn != storage.Iscsi.Iqn ||
 		k8sIscsi.Spec.Chap != storage.Iscsi.Chap ||
@@ -309,7 +347,7 @@ func (s *IscsiManager) Update(cluster *zke.Cluster, storage *types.Storage) erro
 	return cluster.GetKubeClient().Update(context.TODO(), k8sIscsi)
 }
 
-func iscsiValidation(storage *types.Storage) error {
+func iscsiFormatValidation(storage *types.Storage) error {
 	if strings.Contains(storage.Iscsi.Iqn, " ") {
 		return errors.New("iscsi iqn cannot contain Spaces")
 	}
