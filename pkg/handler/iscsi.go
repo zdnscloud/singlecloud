@@ -129,7 +129,7 @@ func (s *IscsiManager) Create(cluster *zke.Cluster, storage *types.Storage) erro
 			return err
 		}
 		if duplicate {
-			errors.New("duplicate config with other iscsi storage")
+			return errors.New("duplicate config with other iscsi storage")
 		}
 		ok, err := initiatorsRoleValidation(cluster.GetKubeClient(), storage.Iscsi.Initiators)
 		if err != nil {
@@ -188,10 +188,10 @@ func checkSliceEq(a, b []string) bool {
 
 	d1 := set.StringSetFromSlice(a)
 	d2 := set.StringSetFromSlice(b)
-	if len(d2.Difference(d1).ToSlice()) != 0 || len(d1.Difference(d2).ToSlice()) != 0 {
-		return false
+	if len(d2.Difference(d1).ToSlice()) == 0 && len(d1.Difference(d2).ToSlice()) == 0 {
+		return true
 	}
-	return true
+	return false
 }
 
 func initiatorsRoleValidation(cli client.Client, initiators []string) (bool, error) {
