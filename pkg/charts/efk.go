@@ -1,32 +1,32 @@
 package charts
 
 type EFK struct {
-	Elasticsearch ES `json:"elasticsearch"`
-	Kibana        KA `json:"kibana"`
+	Elasticsearch ES `json:"elasticsearch,omitempty"`
+	Kibana        KA `json:"kibana,omitempty"`
 }
 
 type ES struct {
-	Replicas            int `json:"replicas"`
-	VolumeClaimTemplate Pvc `json:"volumeClaimTemplate"`
+	Replicas            int `json:"replicas,omitempty"`
+	VolumeClaimTemplate Pvc `json:"volumeClaimTemplate,omitempty"`
 }
 
 type Pvc struct {
-	StorageClass string       `json:"storageClassName"`
-	Resources    PvcResources `json:"resources"`
+	StorageClass string       `json:"storageClassName,omitempty"`
+	Resources    PvcResources `json:"resources,omitempty"`
 }
 
 type PvcResources struct {
-	Requests PvcRequests `json:"requests"`
+	Requests PvcRequests `json:"requests,omitempty"`
 }
 
 type PvcRequests struct {
-	Storage int `json:"storage"`
+	Storage int `json:"storage,omitempty"`
 }
 
 type KA struct {
-	Ingress KibanaIngress `json:"ingress"`
+	Ingress KibanaIngress `json:"ingress,omitempty"`
 }
 
 type KibanaIngress struct {
-	Hosts string `json:"hosts"`
+	Hosts string `json:"hosts,omitempty"`
 }

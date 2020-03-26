@@ -13,7 +13,7 @@ require (
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/golang/protobuf v1.3.3
+	github.com/golang/protobuf v1.3.5
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/gorilla/websocket v1.4.1
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
@@ -36,12 +36,12 @@ require (
 	github.com/zdnscloud/gok8s v0.0.0-20200212071629-b06587f54ee6
 	github.com/zdnscloud/goproxy v0.0.0-20200205075939-521cea33b942
 	github.com/zdnscloud/gorest v0.0.0-20200325112020-a9978d1165e7
-	github.com/zdnscloud/immense v0.0.0-20200214070751-b25b082d4c39
+	github.com/zdnscloud/immense v0.0.0-20200319064952-1dff8791d284
 	github.com/zdnscloud/iniconfig v0.0.0-20191105013537-c8624280493d
 	github.com/zdnscloud/kvzoo v0.0.0-20200205072604-297aba5646f7
 	github.com/zdnscloud/servicemesh v0.0.0-20200205073418-8a139a9aa55d
 	github.com/zdnscloud/vanguard v0.0.0-20200214072003-226d0e690d9f
-	github.com/zdnscloud/zke v0.0.0-20200313090903-2823f7cafce8
+	github.com/zdnscloud/zke v0.0.0-20200323081643-f45d03938e3f
 	github.com/zsais/go-gin-prometheus v0.1.0
 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect

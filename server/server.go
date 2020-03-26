@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
-	"github.com/zsais/go-gin-prometheus"
+	ginprometheus "github.com/zsais/go-gin-prometheus"
 )
 
 type Server struct {
@@ -53,6 +53,6 @@ func (s *Server) RegisterHandler(h WebHandler) error {
 	return h.RegisterHandler(s.router)
 }
 
-func (s *Server) Run(addr string) error {
-	return s.router.Run(addr)
+func (s *Server) Run(addr, certFile, keyFile string) error {
+	return s.router.RunTLS(addr, certFile, keyFile)
 }

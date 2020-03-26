@@ -64,7 +64,7 @@ func (m *MonitorManager) Create(ctx *restresource.Context) (restresource.Resourc
 }
 
 func createSysApplication(ctx *restresource.Context, cluster *zke.Cluster, app *types.Application, chartDir, chartName, appName, storageClass string) *resterr.APIError {
-	if !isStorageClassExist(cluster.GetKubeClient(), storageClass) {
+	if !isStorageClassOrDefaultExist(cluster.GetKubeClient(), storageClass) {
 		return resterr.NewAPIError(resterr.PermissionDenied,
 			fmt.Sprintf("%s storageclass does't exist in cluster %s", storageClass, cluster.Name))
 	}

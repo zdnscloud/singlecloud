@@ -121,7 +121,7 @@ func (m *DeploymentManager) Update(ctx *resource.Context) (resource.Resource, *r
 		return nil, apiErr
 	}
 
-	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(deploy.Containers, deploy.PersistentVolumes)
+	k8sPodSpec, _, err := scPodSpecToK8sPodSpecAndPVCs(cluster.GetKubeClient(), deploy.Containers, deploy.PersistentVolumes)
 	if err != nil {
 		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update deployment failed %s", err.Error()))
 	}

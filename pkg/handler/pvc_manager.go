@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	k8sstorage "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -16,6 +18,10 @@ import (
 	resterror "github.com/zdnscloud/gorest/error"
 	"github.com/zdnscloud/gorest/resource"
 	"github.com/zdnscloud/singlecloud/pkg/types"
+)
+
+const (
+	annStorageProvisioner = "volume.beta.kubernetes.io/storage-provisioner"
 )
 
 type PersistentVolumeClaimManager struct {
@@ -112,6 +118,11 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 		actualStorage = quantity.String()
 	}
 
+	var driver string
+	if provisioner, ok := k8sPersistentVolumeClaim.Annotations[annStorageProvisioner]; ok {
+		driver = provisioner
+	}
+
 	pvc := &types.PersistentVolumeClaim{
 		Name:               k8sPersistentVolumeClaim.Name,
 		RequestStorageSize: requestStorage,
@@ -119,6 +130,7 @@ func k8sPVCToSCPVC(k8sPersistentVolumeClaim *corev1.PersistentVolumeClaim) *type
 		VolumeName:         k8sPersistentVolumeClaim.Spec.VolumeName,
 		ActualStorageSize:  actualStorage,
 		Status:             string(k8sPersistentVolumeClaim.Status.Phase),
+		Driver:             driver,
 	}
 	pvc.SetID(k8sPersistentVolumeClaim.Name)
 	pvc.SetCreationTimestamp(k8sPersistentVolumeClaim.CreationTimestamp.Time)
@@ -141,8 +153,14 @@ func genUseInfoForPVCs(cli client.Client, namespace string, pvcs []*types.Persis
 		if pvc.Status != "Bound" {
 			return nil
 		}
-		if err := genUseInfoForPVC(cli, pvc, pods, vas); err != nil {
-			return err
+		if strings.HasSuffix(pvc.Driver, NfsDriverSuffix) {
+			if err := genUseInfoForNfsPVC(cli, pvc, pods); err != nil {
+				return err
+			}
+		} else {
+			if err := genUseInfoForPVC(cli, pvc, pods, vas); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -156,7 +174,7 @@ func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods 
 	for _, va := range vas.Items {
 		if *va.Spec.Source.PersistentVolumeName == pv.Name {
 			pvc.Used = va.Status.Attached
-			if pvc.Used && pvc.StorageClassName == "lvm" {
+			if pvc.Used && strings.HasSuffix(va.Spec.Attacher, LvmDriverSuffix) {
 				pvc.Node = va.Spec.NodeName
 			}
 		}
@@ -175,28 +193,73 @@ func genUseInfoForPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods 
 }
 
 func isUsed(cli client.Client, namespace, name string) error {
-	k8sPvc, err := getPersistentVolumeClaim(cli, namespace, name)
-	if err != nil {
+	pods := corev1.PodList{}
+	if err := cli.List(context.TODO(), &client.ListOptions{Namespace: namespace}, &pods); err != nil {
 		return err
 	}
-	if string(k8sPvc.Status.Phase) != "Bound" {
-		return nil
-	}
-	pv, err := getPersistentVolume(cli, k8sPvc.Spec.VolumeName)
-	if err != nil {
-		return err
-	}
-	vas := k8sstorage.VolumeAttachmentList{}
-	if err := cli.List(context.TODO(), nil, &vas); err != nil {
-		return err
-	}
-	for _, va := range vas.Items {
-		if *va.Spec.Source.PersistentVolumeName == pv.Name {
-			if va.Status.Attached {
+	for _, pod := range pods.Items {
+		for _, v := range pod.Spec.Volumes {
+			if v.PersistentVolumeClaim != nil && name == v.PersistentVolumeClaim.ClaimName {
 				return errors.New(fmt.Sprintf("the pvc %s is in used, can not delete it", name))
 			}
-			return nil
 		}
+	}
+	return nil
+}
+
+func genUseInfoForNfsPVC(cli client.Client, pvc *types.PersistentVolumeClaim, pods *corev1.PodList) error {
+	for _, p := range pods.Items {
+		for _, volume := range p.Spec.Volumes {
+			if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvc.Name {
+				pvc.Pods = append(pvc.Pods, p.Name)
+				pvc.Used = true
+				break
+			}
+		}
+	}
+	return nil
+}
+
+func (m *PersistentVolumeClaimManager) Update(ctx *resource.Context) (resource.Resource, *resterror.APIError) {
+	cluster := m.clusters.GetClusterForSubResource(ctx.Resource)
+	if cluster == nil {
+		return nil, resterror.NewAPIError(resterror.NotFound, "cluster doesn't exist")
+	}
+
+	namespace := ctx.Resource.GetParent().GetID()
+	pvc := ctx.Resource.(*types.PersistentVolumeClaim)
+	if err := m.updatePersistentVolumeClaim(cluster.GetKubeClient(), namespace, pvc); err != nil {
+		return nil, resterror.NewAPIError(types.ConnectClusterFailed, fmt.Sprintf("update persistentVolumeClaim failed, %s", err.Error()))
+	}
+	return pvc, nil
+}
+
+func (m *PersistentVolumeClaimManager) updatePersistentVolumeClaim(cli client.Client, namespace string, pvc *types.PersistentVolumeClaim) error {
+	k8sPvc, err := getPersistentVolumeClaim(cli, namespace, pvc.Name)
+	if err != nil {
+		return err
+	}
+	if provisioner, ok := k8sPvc.Annotations[annStorageProvisioner]; ok {
+		if strings.HasSuffix(provisioner, IscsiDriverSuffix) || strings.HasSuffix(provisioner, NfsDriverSuffix) {
+			return errors.New(fmt.Sprintf("the driver %s or pvc %s unsupport expand", provisioner, pvc.Name))
+		}
+		if strings.HasSuffix(provisioner, LvmDriverSuffix) && pvc.Used {
+			return errors.New(fmt.Sprintf("pvc %s can not expand online, you should detach first", pvc.Name))
+		}
+	}
+	if pvc.ActualStorageSize != "" {
+		quantity, err := apiresource.ParseQuantity(pvc.ActualStorageSize)
+		if err != nil {
+			return fmt.Errorf("parse storage size %s failed: %s", pvc.ActualStorageSize, err.Error())
+		}
+		expectedQuantity := &quantity
+		if currentQuantity, ok := k8sPvc.Status.Capacity[corev1.ResourceStorage]; ok {
+			if expectedQuantity.Value() <= currentQuantity.Value() {
+				return errors.New(fmt.Sprintf("pvc %s unsupport reduce", pvc.Name))
+			}
+		}
+		k8sPvc.Spec.Resources.Requests[corev1.ResourceStorage] = quantity
+		return cli.Update(context.TODO(), k8sPvc)
 	}
 	return nil
 }

@@ -1,23 +1,32 @@
 {
-  "resourceType": "storagecluster",
-  "collectionName": "storageclusters",
+  "resourceType": "storage",
+  "collectionName": "storages",
   "parentResources": [
     "cluster"
   ],
-  "goStructName": "StorageCluster",
+  "goStructName": "Storage",
   "supportAsyncDelete": true,
   "resourceFields": {
+    "": {
+      "type": "parameter"
+    },
+    "default": {
+      "type": "bool",
+      "description": [
+        "readonly"
+      ]
+    },
     "freeSize": {
       "type": "string",
       "description": [
         "readonly"
       ]
     },
-    "hosts": {
-      "type": "array",
-      "elemType": "string",
+    "name": {
+      "type": "string",
       "description": [
-        "required"
+        "required",
+        "isDomain"
       ]
     },
     "nodes": {
@@ -46,12 +55,8 @@
         "readonly"
       ]
     },
-    "storageType": {
-      "type": "enum",
-      "validValues": [
-        "lvm",
-        "cephfs"
-      ],
+    "type": {
+      "type": "string",
       "description": [
         "required"
       ]
@@ -64,6 +69,39 @@
     }
   },
   "subResources": {
+    "iscsiParameter": {
+      "chap": {
+        "type": "bool"
+      },
+      "initiators": {
+        "type": "array",
+        "elemType": "string"
+      },
+      "iqn": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string"
+      },
+      "port": {
+        "type": "string"
+      },
+      "targets": {
+        "type": "array",
+        "elemType": "string"
+      },
+      "username": {
+        "type": "string"
+      }
+    },
+    "nfsParameter": {
+      "path": {
+        "type": "string"
+      },
+      "server": {
+        "type": "string"
+      }
+    },
     "pV": {
       "freeSize": {
         "type": "string"
@@ -86,6 +124,26 @@
       },
       "usedSize": {
         "type": "string"
+      }
+    },
+    "parameter": {
+      "cephfs": {
+        "type": "storageClusterParameter"
+      },
+      "iscsi": {
+        "type": "iscsiParameter"
+      },
+      "lvm": {
+        "type": "storageClusterParameter"
+      },
+      "nfs": {
+        "type": "nfsParameter"
+      }
+    },
+    "storageClusterParameter": {
+      "hosts": {
+        "type": "array",
+        "elemType": "string"
       }
     },
     "storageNode": {

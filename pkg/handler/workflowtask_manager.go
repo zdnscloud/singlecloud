@@ -583,7 +583,7 @@ func getWorkLoadPodTempateSpecAndPvcs(namespace string, podOwner interface{}, cl
 	containers := structVal.FieldByName("Containers").Interface().([]types.Container)
 	pvs := structVal.FieldByName("PersistentVolumes").Interface().([]types.PersistentVolumeTemplate)
 
-	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(containers, pvs)
+	k8sPodSpec, k8sPVCs, err := scPodSpecToK8sPodSpecAndPVCs(cli, containers, pvs)
 	if err != nil {
 		return nil, nil, err
 	}

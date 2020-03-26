@@ -1,15 +1,15 @@
 package charts
 
 type Prometheus struct {
-	Grafana      PrometheusGrafana      `json:"grafana"`
-	Prometheus   PrometheusPrometheus   `json:"prometheus"`
-	AlertManager PrometheusAlertManager `json:"alertmanager"`
-	KubeEtcd     PrometheusEtcd         `json:"kubeEtcd"`
+	Grafana      PrometheusGrafana      `json:"grafana,omitempty"`
+	Prometheus   PrometheusPrometheus   `json:"prometheus,omitempty"`
+	AlertManager PrometheusAlertManager `json:"alertmanager,omitempty"`
+	KubeEtcd     PrometheusEtcd         `json:"kubeEtcd,omitempty"`
 }
 
 type PrometheusGrafana struct {
 	Ingress       PrometheusGrafanaIngress `json:"ingress"`
-	AdminPassword string                   `json:"adminPassword"`
+	AdminPassword string                   `json:"adminPassword,omitempty"`
 }
 
 type PrometheusGrafanaIngress struct {
@@ -17,14 +17,14 @@ type PrometheusGrafanaIngress struct {
 }
 
 type PrometheusPrometheus struct {
-	PrometheusSpec PrometheusSpec `json:"prometheusSpec"`
+	PrometheusSpec PrometheusSpec `json:"prometheusSpec,omitempty"`
 }
 
 type PrometheusSpec struct {
-	Retention      int    `json:"retention"`
-	ScrapeInterval int    `json:"scrapeInterval"`
-	StorageClass   string `json:"storageClass"`
-	StorageSize    int    `json:"storageSize"`
+	Retention      int    `json:"retention,omitempty"`
+	ScrapeInterval int    `json:"scrapeInterval,omitempty"`
+	StorageClass   string `json:"storageClass,omitempty"`
+	StorageSize    int    `json:"storageSize,omitempty"`
 }
 
 type PrometheusAlertManager struct {
@@ -32,7 +32,7 @@ type PrometheusAlertManager struct {
 }
 
 type AlertManagerSpec struct {
-	StorageClass string `json:"storageClass"`
+	StorageClass string `json:"storageClass,omitempty"`
 }
 
 type PrometheusEtcd struct {

@@ -3,10 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 
 	"github.com/zdnscloud/cement/log"
+	"github.com/zdnscloud/cement/x509"
+	"gopkg.in/yaml.v2"
+
 	"github.com/zdnscloud/singlecloud/config"
 	"github.com/zdnscloud/singlecloud/pkg/alarm"
 	"github.com/zdnscloud/singlecloud/pkg/authentication"
@@ -18,6 +21,11 @@ import (
 	"github.com/zdnscloud/singlecloud/pkg/k8seventwatcher"
 	"github.com/zdnscloud/singlecloud/pkg/k8sshell"
 	"github.com/zdnscloud/singlecloud/server"
+)
+
+const (
+	defaultTlsCertFile = "/tmp_tls_cert.crt"
+	defaultTlsKeyFile  = "/tmp_tls_key.key"
 )
 
 var (
@@ -122,9 +130,35 @@ func runAsMaster(conf *config.SinglecloudConf) {
 		log.Fatalf("register resource handler failed:%s", err.Error())
 	}
 
-	if err := server.Run(conf.Server.Addr); err != nil {
-		log.Fatalf("server run failed:%s", err.Error())
+	if conf.Server.TlsCertFile == "" && conf.Server.TlsKeyFile == "" {
+		if err := createSelfSignedTlsCert(); err != nil {
+			log.Fatalf("create selfsigned tls cert failed %s", err.Error())
+		}
+		if err := server.Run(conf.Server.Addr, defaultTlsCertFile, defaultTlsKeyFile); err != nil {
+			log.Fatalf("server run failed:%s", err.Error())
+		}
+	} else {
+		if err := server.Run(conf.Server.Addr, conf.Server.TlsCertFile, conf.Server.TlsKeyFile); err != nil {
+			log.Fatalf("server run failed:%s", err.Error())
+		}
 	}
+}
+
+func createSelfSignedTlsCert() error {
+	_, err := os.Stat(defaultTlsCertFile)
+	if err != nil && os.IsExist(err) {
+		return nil
+	}
+
+	cert, err := x509.GenerateSelfSignedCertificate("zcloud", nil, nil, 7300)
+	if err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(defaultTlsCertFile, []byte(cert.Cert), 0644); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(defaultTlsKeyFile, []byte(cert.Key), 0644)
 }
 
 func runAsSlave(conf *config.SinglecloudConf) {

@@ -12,7 +12,6 @@ func Resources() []resource.ResourceKind {
 		NodeNetwork{},
 		ServiceNetwork{},
 		BlockDevice{},
-		StorageCluster{},
 		Namespace{},
 		Chart{},
 		ConfigMap{},
@@ -47,6 +46,7 @@ func Resources() []resource.ResourceKind {
 		Threshold{},
 		Metric{},
 		AuditLog{},
+		Storage{},
 		WorkFlow{},
 		WorkFlowTask{},
 	}

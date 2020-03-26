@@ -68,10 +68,10 @@ func (mgr *AlarmManager) eventLoop() {
 func (m *AlarmManager) List(ctx *resource.Context) (interface{}, *resterr.APIError) {
 	alarms := make([]*types.Alarm, 0)
 	m.cache.lock.RLock()
+	defer m.cache.lock.RUnlock()
 	for elem := m.cache.alarmList.Back(); elem != nil; elem = elem.Prev() {
 		alarms = append(alarms, elem.Value.(*types.Alarm))
 	}
-	m.cache.lock.RUnlock()
 	return alarms, nil
 }
 
