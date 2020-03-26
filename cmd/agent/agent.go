@@ -26,7 +26,7 @@ func main() {
 
 	log.InitLogger(log.Debug)
 
-	url := fmt.Sprintf("ws://%s/apis/agent.zcloud.cn/v1/register/%s", addr, cluster)
+	url := fmt.Sprintf("wss://%s/apis/agent.zcloud.cn/v1/register/%s", addr, cluster)
 	for {
 		err := goproxy.RegisterAgent(url, func(string, string) bool { return true }, nil)
 		if err != nil {

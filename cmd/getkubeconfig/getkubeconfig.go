@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha1"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,9 +14,16 @@ import (
 	"net/http"
 )
 
+var client = &http.Client{
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	},
+}
+
 func login(addr string, user, password string) (string, error) {
-	client := &http.Client{}
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/users/%s?action=login", addr, user)
+	url := fmt.Sprintf("https://%s/apis/zcloud.cn/v1/users/%s?action=login", addr, user)
 	requestBody, _ := json.Marshal(map[string]string{
 		"password": hashPassword(password),
 	})
@@ -54,14 +62,13 @@ func hashPassword(password string) string {
 }
 
 func getClusterKubeConfig(addr, token, clusterName string) (string, error) {
-	url := fmt.Sprintf("http://%s/apis/zcloud.cn/v1/clusters/%s/kubeconfigs/kube-admin", addr, clusterName)
+	url := fmt.Sprintf("https://%s/apis/zcloud.cn/v1/clusters/%s/kubeconfigs/kube-admin", addr, clusterName)
 	req, err := http.NewRequest("GET", url, bytes.NewBuffer([]byte{}))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("Authorization", "Bearer "+token)
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -93,7 +100,7 @@ func getClusterKubeConfig(addr, token, clusterName string) (string, error) {
 
 func main() {
 	var addr, clusterName, adminPassword string
-	flag.StringVar(&addr, "server", "127.0.0.1:80", "singlecloud server listen address")
+	flag.StringVar(&addr, "server", "127.0.0.1:443", "singlecloud server listen address")
 	flag.StringVar(&adminPassword, "passwd", "zcloud", "admin password for singlecloud")
 	flag.StringVar(&clusterName, "cluster", "local", "cluster name")
 	flag.Parse()
