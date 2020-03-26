@@ -22,7 +22,7 @@ v1.17.2:
   zke_remover: zdnscloud/zke-remove:v0.7
   storage_operator: zdnscloud/storage-operator:latest
   zcloud_shell: zdnscloud/kubectl:v1.17.2
-  zcloud_proxy: zdnscloud/zcloud-proxy:v1.0.1
+  zcloud_proxy: zdnscloud/zcloud-proxy:v1.0.4
   zcloud_lbcontroller: zdnscloud/elb-controller:v0.0.5
   application_operator: zdnscloud/application-operator:latest
   service_mesh:
